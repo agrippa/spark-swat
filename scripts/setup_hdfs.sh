@@ -14,5 +14,3 @@ cp $HADOOP_HOME/etc/hadoop/hdfs-site.xml.template $HADOOP_HOME/etc/hadoop/hdfs-s
 
 ${HADOOP_HOME}/bin/hdfs namenode -format
 ${HADOOP_HOME}/sbin/start-dfs.sh
-
-${HADOOP_HOME}/bin/hdfs dfs -put ./input /
