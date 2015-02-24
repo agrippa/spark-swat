@@ -16,6 +16,8 @@ JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
 #define SET_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, set)
 #define FETCH_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, fetch)
 
+
+
 #define SET_PRIMITIVE_ARG_BY_NAME_MACRO(ltype, utype, desc) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
@@ -23,7 +25,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     swat_context *context = (swat_context *)lctx; \
     jclass enclosing_class = jenv->GetObjectClass(obj); \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
-    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, "##desc##"); \
+    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     ltype val = jenv->Get##utype##Field(obj, field); \
     CHECK(clSetKernelArg(context->kernel, index, sizeof(val), &val)); \
@@ -157,9 +159,9 @@ JNI_JAVA(void, OpenCLBridge, setIntArg)
     CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg));
 }
 
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, I)
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, D)
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, F)
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, "I")
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, "D")
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, "F")
 
 // JNI_JAVA(void, OpenCLBridge, setIntArgByName)
 //         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj,
