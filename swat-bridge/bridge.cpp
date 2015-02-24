@@ -4,6 +4,13 @@
 
 #include "bridge.h"
 
+#define ARG_MACRO(ltype, utype) \
+JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype arg) { \
+    swat_context *context = (swat_context *)lctx; \
+    CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg)); \
+}
+
 #define ARRAY_ARG_MACRO(ltype, utype, type) \
 JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
@@ -16,8 +23,6 @@ JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
 #define SET_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, set)
 #define FETCH_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, fetch)
 
-
-
 #define SET_PRIMITIVE_ARG_BY_NAME_MACRO(ltype, utype, desc) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
@@ -29,6 +34,22 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     ltype val = jenv->Get##utype##Field(obj, field); \
     CHECK(clSetKernelArg(context->kernel, index, sizeof(val), &val)); \
+}
+
+#define SET_ARRAY_ARG_BY_NAME_MACRO(ltype, utype, desc) \
+JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
+         jstring name) { \
+    jclass enclosing_class = jenv->GetObjectClass(obj); \
+    const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
+    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
+    jenv->ReleaseStringUTFChars(name, raw_name); \
+    jarray arr = (jarray)jenv->GetObjectField(obj, field); \
+    jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
+    ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
+            0); \
+    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx); \
+    jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
 }
 
 #ifdef __cplusplus
@@ -153,29 +174,6 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     return (jlong)context;
 }
 
-JNI_JAVA(void, OpenCLBridge, setIntArg)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jint arg) {
-    swat_context *context = (swat_context *)lctx;
-    CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg));
-}
-
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, "I")
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, "D")
-SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, "F")
-
-// JNI_JAVA(void, OpenCLBridge, setIntArgByName)
-//         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj,
-//          jstring name) {
-//     swat_context *context = (swat_context *)lctx;
-// 
-//     jclass enclosing_class = jenv->GetObjectClass(obj);
-//     const char *raw_name = jenv->GetStringUTFChars(name, NULL);
-//     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, "I");
-//     jenv->ReleaseStringUTFChars(name, raw_name);
-//     jint val = jenv->GetIntField(obj, field);
-//     CHECK(clSetKernelArg(context->kernel, index, sizeof(val), &val));
-// }
-
 static void set_kernel_arg(void *host, size_t len, int index,
         swat_context *context) {
     cl_int err;
@@ -199,6 +197,16 @@ static void fetch_kernel_arg(void *host, size_t len, int index,
     CHECK(clEnqueueReadBuffer(context->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
 }
+
+ARG_MACRO(int, Int)
+
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, "I")
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, "D")
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, "F")
+
+SET_ARRAY_ARG_BY_NAME_MACRO(int, Int, "[I")
+SET_ARRAY_ARG_BY_NAME_MACRO(double, Double, "[D")
+SET_ARRAY_ARG_BY_NAME_MACRO(float, Float, "[F")
 
 SET_ARRAY_ARG_MACRO(int, Int)
 SET_ARRAY_ARG_MACRO(double, Double)

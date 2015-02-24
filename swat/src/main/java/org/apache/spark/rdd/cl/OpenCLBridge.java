@@ -25,6 +25,10 @@ public class OpenCLBridge {
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArgByName(long ctx, int index, Object obj, String name);
 
+    public static native void setIntArrayArgByName(long ctx, int index, Object obj, String name);
+    public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
+    public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
+
     public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc) {
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
@@ -32,8 +36,20 @@ public class OpenCLBridge {
             setDoubleArgByName(ctx, index, obj, name);
         } else if (desc.equals("F")) {
             setFloatArgByName(ctx, index, obj, name);
+        } else if (desc.startsWith("[")) {
+            // Array-typed field
+            String primitiveType = desc.substring(1);
+            if (primitiveType.equals("I")) {
+                setIntArrayArgByName(ctx, index, obj, name);
+            } else if (primitiveType.equals("F")) {
+                setFloatArrayArgByName(ctx, index, obj, name);
+            } else if (primitiveType.equals("D")) {
+                setDoubleArrayArgByName(ctx, index, obj, name);
+            } else {
+              throw new RuntimeException("Unsupported array type: " + desc);
+            }
         } else {
-            throw new RuntimeException("Unsupported type");
+            throw new RuntimeException("Unsupported type: " + desc);
         }
     }
 }
