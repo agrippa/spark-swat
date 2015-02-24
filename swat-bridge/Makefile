@@ -11,4 +11,4 @@ ifeq ($(IS_CLANG),1)
 endif
 
 all: ${SRC}
-	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES}
+	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES} -lOpenCL

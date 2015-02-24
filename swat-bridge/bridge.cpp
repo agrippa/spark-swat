@@ -28,7 +28,12 @@ static cl_uint get_num_opencl_platforms() {
 
 static cl_uint get_num_devices(cl_platform_id platform, cl_device_type type) {
     cl_uint num_devices;
-    CHECK(clGetDeviceIDs(platform, type, 0, NULL, &num_devices));
+    cl_int err = clGetDeviceIDs(platform, type, 0, NULL, &num_devices);
+    if (err == CL_DEVICE_NOT_FOUND) {
+        return 0;
+    } else {
+        CHECK(err);
+    }
     return num_devices;
 }
 
@@ -64,15 +69,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_createContext
     while (platform_index < num_platforms && device == 0) {
         cl_uint num_gpus = get_num_gpus(platforms[platform_index]);
         if (num_gpus > 0) {
-            CHECK(clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device,
-                        NULL));
+            CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_GPU,
+                        1, &device, NULL));
             platform = platforms[platform_index];
             break;
         } else {
             cl_uint num_cpus = get_num_cpus(platforms[platform_index]);
             if (num_cpus > 0) {
-                CHECK(clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1,
-                            &backup_device, NULL));
+                CHECK(clGetDeviceIDs(platforms[platform_index],
+                            CL_DEVICE_TYPE_CPU, 1, &backup_device, NULL));
                 backup_platform = platforms[platform_index];
             }
         }
