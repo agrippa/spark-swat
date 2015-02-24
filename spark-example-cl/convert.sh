@@ -2,8 +2,8 @@
 
 set -e
 
-${HADOOP_HOME}/bin/hdfs dfs -rmr /input
-${HADOOP_HOME}/bin/hdfs dfs -rmr /converted
+${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input
+${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /converted
 
 ${HADOOP_HOME}/bin/hdfs dfs -mkdir /input
 ${HADOOP_HOME}/bin/hdfs dfs -put ${SWAT_HOME}/spark-example/input/input.* /input/
