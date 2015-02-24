@@ -20,4 +20,20 @@ public class OpenCLBridge {
     public static native void fetchFloatArrayArg(long ctx, int index, float[] arg);
 
     public static native void run(long ctx, int range);
+
+    public static native void setIntArgByName(long ctx, int index, Object obj, String name);
+    public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
+    public static native void setFloatArgByName(long ctx, int index, Object obj, String name);
+
+    public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc) {
+        if (desc.equals("I")) {
+            setIntArgByName(ctx, index, obj, name);
+        } else if (desc.equals("D")) {
+            setDoubleArgByName(ctx, index, obj, name);
+        } else if (desc.equals("F")) {
+            setFloatArgByName(ctx, index, obj, name);
+        } else {
+            throw new RuntimeException("Unsupported type");
+        }
+    }
 }

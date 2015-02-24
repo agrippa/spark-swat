@@ -80,7 +80,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           OpenCLBridgeWrapper.setArrayArg(ctx, 0, acc)
           OpenCLBridgeWrapper.setArrayArg(ctx, 1, output)
-          OpenCLBridge.setIntArg(ctx, 2, nLoaded)
+
+          var argnum : Int = 2
+          val iter = entryPoint.getReferencedClassModelFields.iterator
+          while (iter.hasNext) {
+            val field = iter.next
+            OpenCLBridge.setArgByNameAndType(ctx, argnum, f, field.getName, field.getDescriptor)
+            argnum = argnum + 1
+          }
+
+          OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
           OpenCLBridge.run(ctx, nLoaded);
 

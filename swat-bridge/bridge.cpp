@@ -16,6 +16,19 @@ JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
 #define SET_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, set)
 #define FETCH_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, fetch)
 
+#define SET_PRIMITIVE_ARG_BY_NAME_MACRO(ltype, utype, desc) \
+JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
+         jstring name) { \
+    swat_context *context = (swat_context *)lctx; \
+    jclass enclosing_class = jenv->GetObjectClass(obj); \
+    const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
+    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, "##desc##"); \
+    jenv->ReleaseStringUTFChars(name, raw_name); \
+    ltype val = jenv->Get##utype##Field(obj, field); \
+    CHECK(clSetKernelArg(context->kernel, index, sizeof(val), &val)); \
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -52,7 +65,7 @@ static cl_uint get_num_compute_units(cl_device_id device) {
     return compute_units;
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_createContext
+JNI_JAVA(jlong, OpenCLBridge, createContext)
         (JNIEnv *jenv, jclass clazz, jstring source) {
     cl_uint num_platforms = get_num_opencl_platforms();
     cl_platform_id *platforms =
@@ -138,12 +151,28 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_createContext
     return (jlong)context;
 }
 
-
-JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArg
+JNI_JAVA(void, OpenCLBridge, setIntArg)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jint arg) {
     swat_context *context = (swat_context *)lctx;
     CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg));
 }
+
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, I)
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, D)
+SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, F)
+
+// JNI_JAVA(void, OpenCLBridge, setIntArgByName)
+//         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj,
+//          jstring name) {
+//     swat_context *context = (swat_context *)lctx;
+// 
+//     jclass enclosing_class = jenv->GetObjectClass(obj);
+//     const char *raw_name = jenv->GetStringUTFChars(name, NULL);
+//     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, "I");
+//     jenv->ReleaseStringUTFChars(name, raw_name);
+//     jint val = jenv->GetIntField(obj, field);
+//     CHECK(clSetKernelArg(context->kernel, index, sizeof(val), &val));
+// }
 
 static void set_kernel_arg(void *host, size_t len, int index,
         swat_context *context) {
@@ -177,7 +206,7 @@ FETCH_ARRAY_ARG_MACRO(int, Int)
 FETCH_ARRAY_ARG_MACRO(double, Double)
 FETCH_ARRAY_ARG_MACRO(float, Float)
 
-JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_run
+JNI_JAVA(void, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint range) {
     swat_context *context = (swat_context *)lctx;
     size_t global_range = range;
