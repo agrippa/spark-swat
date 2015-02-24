@@ -19,8 +19,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    // System.setProperty("com.amd.aparapi.enable.INVOKEINTERFACE", "true")
-
     val N = 1024
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
@@ -33,7 +31,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     params.add(new ScalaParameter("double*", "out", DIRECTION.OUT))
 
     val openCL : String = KernelWriter.writeToString(entryPoint, params)
-    System.err.println("OPENCL:\n" + openCL);
     val ctx : Long = OpenCLBridge.createContext(openCL);
 
     val iter = new Iterator[U] {
@@ -60,10 +57,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           OpenCLBridge.run(ctx, nLoaded);
 
           OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output);
-
-          // for (i <- 0 until nLoaded) {
-          //   output(i) = f(acc(i))
-          // }
         }
 
         val curr = index
