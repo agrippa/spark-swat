@@ -53,13 +53,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             nLoaded = nLoaded + 1
           }
 
-          OpenCLBridge.setDoubleArrayArg(ctx, 0, acc.asInstanceOf[Array[Double]])
-          OpenCLBridge.setDoubleArrayArg(ctx, 1, output.asInstanceOf[Array[Double]])
+          OpenCLBridgeWrapper.setArrayArg(ctx, 0, acc)
+          OpenCLBridgeWrapper.setArrayArg(ctx, 1, output)
           OpenCLBridge.setIntArg(ctx, 2, nLoaded)
 
           OpenCLBridge.run(ctx, nLoaded);
 
-          OpenCLBridge.fetchDoubleArrayArg(ctx, 1, output.asInstanceOf[Array[Double]]);
+          OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output);
 
           // for (i <- 0 until nLoaded) {
           //   output(i) = f(acc(i))
