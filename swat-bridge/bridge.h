@@ -2,6 +2,9 @@
 #define BRIDGE_H
 
 #include <stdio.h>
+#include <map>
+
+using namespace std;
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -27,6 +30,8 @@ typedef struct _swat_context {
     cl_program program;
     cl_kernel kernel;
     cl_command_queue cmd;
+
+    map<int, cl_mem> *arguments;
 } swat_context;
 
 #endif

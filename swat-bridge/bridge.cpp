@@ -4,6 +4,10 @@
 
 #include "bridge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static cl_uint get_num_opencl_platforms() {
     cl_uint num_platforms;
     CHECK(clGetPlatformIDs(0, NULL, &num_platforms));
@@ -31,7 +35,7 @@ static cl_uint get_num_compute_units(cl_device_id device) {
     return compute_units;
 }
 
-JNI_JAVA(jlong, OpenCLBridge, createContext)
+JNIEXPORT jlong JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_createContext
         (JNIEnv *jenv, jclass clazz, jstring source) {
     cl_uint num_platforms = get_num_opencl_platforms();
     cl_platform_id *platforms =
@@ -88,6 +92,20 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     jenv->ReleaseStringUTFChars(source, raw_source);
     CHECK(err);
 
+    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    if (err == CL_BUILD_PROGRAM_FAILURE) {
+        size_t build_log_size;
+        CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0,
+                    NULL, &build_log_size));
+        char *build_log = (char *)malloc(build_log_size + 1);
+        CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
+                    build_log_size, build_log, NULL));
+        build_log[build_log_size] = '\0';
+        fprintf(stderr, "Build failure:\n%s\n", build_log);
+        free(build_log);
+    }
+    CHECK(err);
+
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
 
@@ -98,6 +116,67 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     context->program = program;
     context->kernel = kernel;
     context->cmd = cmd;
+    context->arguments = new map<int, cl_mem>();
 
     return (jlong)context;
 }
+
+
+JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArg
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jint arg) {
+    swat_context *context = (swat_context *)lctx;
+    CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg));
+}
+
+JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArrayArg
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
+    swat_context *context = (swat_context *)lctx;
+
+    jsize len = jenv->GetArrayLength(arg);
+    size_t total_len = len * sizeof(int);
+
+    cl_int err;
+    cl_mem mem = clCreateBuffer(context->ctx, CL_MEM_READ_WRITE, total_len,
+            NULL, &err);
+    CHECK(err);
+
+    jint *arr = jenv->GetIntArrayElements(arg, 0);
+    CHECK(clEnqueueWriteBuffer(context->cmd, mem, CL_TRUE, 0, total_len, arr,
+                0, NULL, NULL));
+    jenv->ReleaseIntArrayElements(arg, arr, 0);
+
+    CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem));
+
+    (*context->arguments)[index] = mem;
+}
+
+JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_fetchIntArrayArg
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
+    swat_context *context = (swat_context *)lctx;
+
+    jsize len = jenv->GetArrayLength(arg);
+    size_t total_len = len * sizeof(int);
+
+    assert(context->arguments->find(index) != context->arguments->end());
+    cl_mem mem = (*context->arguments)[index];
+
+    jint *arr = jenv->GetIntArrayElements(arg, 0);
+    CHECK(clEnqueueReadBuffer(context->cmd, mem, CL_TRUE, 0, total_len, arr,
+                0, NULL, NULL));
+    jenv->ReleaseIntArrayElements(arg, arr, 0);
+}
+
+JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_run
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint range) {
+    swat_context *context = (swat_context *)lctx;
+    size_t global_range = range;
+    cl_event event;
+
+    CHECK(clEnqueueNDRangeKernel(context->cmd, context->kernel, 1, NULL,
+                &global_range, NULL, 0, NULL, &event));
+    CHECK(clWaitForEvents(1, &event));
+}
+
+#ifdef __cplusplus
+}
+#endif

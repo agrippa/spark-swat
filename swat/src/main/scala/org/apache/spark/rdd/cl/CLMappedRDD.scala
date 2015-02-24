@@ -34,6 +34,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val openCL : String = KernelWriter.writeToString(entryPoint, params)
     System.err.println("OPENCL:\n" + openCL);
+    val ctx : Long = OpenCLBridge.createContext(openCL);
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
