@@ -12,5 +12,5 @@ else
 	GXX_FLAGS += -lOpenCL
 endif
 
-all: ${SRC}
+${TARGET}: ${SRC}
 	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES}
