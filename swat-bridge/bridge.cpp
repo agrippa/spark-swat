@@ -171,9 +171,11 @@ static void fetch_kernel_arg(void *host, size_t len, int index,
 
 SET_ARRAY_ARG_MACRO(int, Int)
 SET_ARRAY_ARG_MACRO(double, Double)
+SET_ARRAY_ARG_MACRO(float, Float)
 
 FETCH_ARRAY_ARG_MACRO(int, Int)
 FETCH_ARRAY_ARG_MACRO(double, Double)
+FETCH_ARRAY_ARG_MACRO(float, Float)
 
 JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_run
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint range) {
