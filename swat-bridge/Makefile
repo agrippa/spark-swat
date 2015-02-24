@@ -8,7 +8,9 @@ TARGET=libbridge.so
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
 ifeq ($(IS_CLANG),1)
 	GXX_FLAGS += -framework OpenCL
+else
+	GXX_FLAGS += -lOpenCL
 endif
 
 all: ${SRC}
-	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES} -lOpenCL
+	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES}
