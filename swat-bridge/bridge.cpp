@@ -4,6 +4,15 @@
 
 #include "bridge.h"
 
+#define SET_ARRAY_ARG_MACRO(ltype, utype) \
+JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
+    jsize len = jenv->GetArrayLength(arg) * sizeof(ltype); \
+    ltype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
+    set_kernel_arg(arr, len, index, (swat_context *)lctx); \
+    jenv->Release##utype##ArrayElements(arg, arr, 0); \
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -128,41 +137,45 @@ JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArg
     CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg));
 }
 
-JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArrayArg
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
-    swat_context *context = (swat_context *)lctx;
-
-    jsize len = jenv->GetArrayLength(arg);
-    size_t total_len = len * sizeof(int);
-
+static void set_kernel_arg(void *host, size_t len, int index,
+        swat_context *context) {
     cl_int err;
-    cl_mem mem = clCreateBuffer(context->ctx, CL_MEM_READ_WRITE, total_len,
+    cl_mem mem = clCreateBuffer(context->ctx, CL_MEM_READ_WRITE, len,
             NULL, &err);
     CHECK(err);
 
-    jint *arr = jenv->GetIntArrayElements(arg, 0);
-    CHECK(clEnqueueWriteBuffer(context->cmd, mem, CL_TRUE, 0, total_len, arr,
+    CHECK(clEnqueueWriteBuffer(context->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
-    jenv->ReleaseIntArrayElements(arg, arr, 0);
 
     CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem));
 
     (*context->arguments)[index] = mem;
 }
 
-JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_fetchIntArrayArg
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
-    swat_context *context = (swat_context *)lctx;
-
-    jsize len = jenv->GetArrayLength(arg);
-    size_t total_len = len * sizeof(int);
-
+static void fetch_kernel_arg(void *host, size_t len, int index,
+        swat_context *context) {
     assert(context->arguments->find(index) != context->arguments->end());
     cl_mem mem = (*context->arguments)[index];
 
-    jint *arr = jenv->GetIntArrayElements(arg, 0);
-    CHECK(clEnqueueReadBuffer(context->cmd, mem, CL_TRUE, 0, total_len, arr,
+    CHECK(clEnqueueReadBuffer(context->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
+}
+
+SET_ARRAY_ARG_MACRO(int, Int)
+SET_ARRAY_ARG_MACRO(double, Double)
+// JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArrayArg
+//         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
+//     jsize len = jenv->GetArrayLength(arg) * sizeof(int);
+//     jint *arr = jenv->GetIntArrayElements(arg, 0);
+//     set_kernel_arg(arr, len, index, (swat_context *)lctx);
+//     jenv->ReleaseIntArrayElements(arg, arr, 0);
+// }
+
+JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_fetchIntArrayArg
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
+    jsize len = jenv->GetArrayLength(arg) * sizeof(int);
+    jint *arr = jenv->GetIntArrayElements(arg, 0);
+    fetch_kernel_arg(arr, len, index, (swat_context *)lctx);
     jenv->ReleaseIntArrayElements(arg, arr, 0);
 }
 

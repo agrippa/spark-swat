@@ -19,7 +19,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
-    System.setProperty("com.amd.aparapi.enable.INVOKEINTERFACE", "true")
+    // System.setProperty("com.amd.aparapi.enable.INVOKEINTERFACE", "true")
 
     val N = 1024
     val acc : Array[T] = new Array[T](N)
