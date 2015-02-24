@@ -4,14 +4,17 @@
 
 #include "bridge.h"
 
-#define SET_ARRAY_ARG_MACRO(ltype, utype) \
-JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
+#define ARRAY_ARG_MACRO(ltype, utype, type) \
+JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
     jsize len = jenv->GetArrayLength(arg) * sizeof(ltype); \
     ltype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
-    set_kernel_arg(arr, len, index, (swat_context *)lctx); \
+    type##_kernel_arg(arr, len, index, (swat_context *)lctx); \
     jenv->Release##utype##ArrayElements(arg, arr, 0); \
 }
+
+#define SET_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, set)
+#define FETCH_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, fetch)
 
 #ifdef __cplusplus
 extern "C" {
@@ -163,21 +166,9 @@ static void fetch_kernel_arg(void *host, size_t len, int index,
 
 SET_ARRAY_ARG_MACRO(int, Int)
 SET_ARRAY_ARG_MACRO(double, Double)
-// JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_setIntArrayArg
-//         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
-//     jsize len = jenv->GetArrayLength(arg) * sizeof(int);
-//     jint *arr = jenv->GetIntArrayElements(arg, 0);
-//     set_kernel_arg(arr, len, index, (swat_context *)lctx);
-//     jenv->ReleaseIntArrayElements(arg, arr, 0);
-// }
 
-JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_fetchIntArrayArg
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jintArray arg) {
-    jsize len = jenv->GetArrayLength(arg) * sizeof(int);
-    jint *arr = jenv->GetIntArrayElements(arg, 0);
-    fetch_kernel_arg(arr, len, index, (swat_context *)lctx);
-    jenv->ReleaseIntArrayElements(arg, arr, 0);
-}
+FETCH_ARRAY_ARG_MACRO(int, Int)
+FETCH_ARRAY_ARG_MACRO(double, Double)
 
 JNIEXPORT void JNICALL Java_org_apache_spark_rdd_cl_OpenCLBridge_run
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint range) {

@@ -12,8 +12,10 @@ public class OpenCLBridge {
     public static native void setIntArg(long ctx, int index, int arg);
 
     public static native void setIntArrayArg(long ctx, int index, int[] arg);
+    public static native void setDoubleArrayArg(long ctx, int index, double[] arg);
 
     public static native void fetchIntArrayArg(long ctx, int index, int[] arg);
+    public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg);
 
     public static native void run(long ctx, int range);
 }
