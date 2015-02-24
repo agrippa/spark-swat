@@ -51,9 +51,10 @@ object SparkSimple {
         }
         val sc = get_spark_context("Spark Simple");
 
+        val m = 4
         val inputPath = args(0)
         val inputs : RDD[Double] = sc.objectFile[Double](inputPath).cache
-        val outputs : Array[Double] = inputs.map(v => v * v).collect
+        val outputs : Array[Double] = inputs.map(v => v * v * m).collect
         sc.stop
         outputs
     }
@@ -65,10 +66,11 @@ object SparkSimple {
         }
         val sc = get_spark_context("Spark Simple");
 
+        val m = 4
         val inputPath = args(0)
         val inputs : RDD[Double] = sc.objectFile[Double](inputPath).cache
         val inputs_cl : CLWrapperRDD[Double] = CLWrapper.cl[Double](inputs)
-        val outputs : Array[Double] = inputs_cl.map(v => v * v).collect
+        val outputs : Array[Double] = inputs_cl.map(v => v * v * m).collect
         sc.stop
         outputs
     }
