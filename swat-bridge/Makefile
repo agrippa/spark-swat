@@ -14,3 +14,6 @@ endif
 
 ${TARGET}: ${SRC}
 	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES}
+
+clean:
+	rm -f ${TARGET}

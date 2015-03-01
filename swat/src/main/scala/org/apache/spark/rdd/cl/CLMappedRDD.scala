@@ -10,6 +10,7 @@ import org.apache.spark.rdd._
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
+import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
@@ -33,6 +34,23 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     }   
   }
 
+  def getTypeForDescriptor(descString : String) : String = { 
+    var primitive : String = getPrimitiveTypeForDescriptor(descString)
+      if (primitive == null) {
+        primitive = ClassModel.convert(descString, "", true)
+      }   
+    primitive
+  }
+
+  def getClassForDescriptor(descString : String) : Class[_] = { 
+    if (isPrimitive(descString)) {
+      return null
+    }   
+
+    var className : String = getTypeForDescriptor(descString)
+    return Class.forName(className.trim)
+  }
+
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
@@ -47,18 +65,23 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val arguments : String = descriptor.substring(descriptor.indexOf('(') + 1, descriptor.lastIndexOf(')'))
     val argumentsArr : Array[String] = arguments.split(",")
     assert(isPrimitive(returnType))
-    for (arg <- argumentsArr) {
-      assert(isPrimitive(arg))
-    }
+    // for (arg <- argumentsArr) {
+    //   assert(isPrimitive(arg))
+    // }
     assert(argumentsArr.length == 1) // For map
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, f);
-
     val params = new LinkedList[ScalaParameter]()
-    params.add(new ScalaParameter(getPrimitiveTypeForDescriptor(argumentsArr(0)) + "*", "in", DIRECTION.IN))
-    params.add(new ScalaParameter(getPrimitiveTypeForDescriptor(returnType) + "*", "out", DIRECTION.OUT))
+    params.add(new ScalaParameter(getTypeForDescriptor(argumentsArr(0)) + "*",
+          getClassForDescriptor(argumentsArr(0)), "in", DIRECTION.IN))
+    params.add(new ScalaParameter(getTypeForDescriptor(returnType) + "*",
+          getClassForDescriptor(returnType), "out", DIRECTION.OUT))
 
-    val openCL : String = KernelWriter.writeToString(entryPoint, params)
+    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, f, params);
+
+    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
+    val openCL : String = writerAndKernel.kernel
+    val writer : KernelWriter = writerAndKernel.writer
+
     val ctx : Long = OpenCLBridge.createContext(openCL);
 
     val iter = new Iterator[U] {
@@ -78,8 +101,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             nLoaded = nLoaded + 1
           }
 
-          OpenCLBridgeWrapper.setArrayArg(ctx, 0, acc)
-          OpenCLBridgeWrapper.setArrayArg(ctx, 1, output)
+          OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, entryPoint)
+          OpenCLBridgeWrapper.setArrayArg[U](ctx, 1, output, entryPoint)
 
           var argnum : Int = 2
           val iter = entryPoint.getReferencedClassModelFields.iterator

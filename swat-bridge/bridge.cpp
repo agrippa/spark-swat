@@ -11,17 +11,17 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
     CHECK(clSetKernelArg(context->kernel, index, sizeof(arg), &arg)); \
 }
 
-#define ARRAY_ARG_MACRO(ltype, utype, type) \
+#define ARRAY_ARG_MACRO(ltype, utype, ctype, type) \
 JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
-    jsize len = jenv->GetArrayLength(arg) * sizeof(ltype); \
-    ltype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
+    jsize len = jenv->GetArrayLength(arg) * sizeof(ctype); \
+    ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
     type##_kernel_arg(arr, len, index, (swat_context *)lctx); \
     jenv->Release##utype##ArrayElements(arg, arr, 0); \
 }
 
-#define SET_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, set)
-#define FETCH_ARRAY_ARG_MACRO(ltype, utype) ARRAY_ARG_MACRO(ltype, utype, fetch)
+#define SET_ARRAY_ARG_MACRO(ltype, utype, ctype) ARRAY_ARG_MACRO(ltype, utype, ctype, set)
+#define FETCH_ARRAY_ARG_MACRO(ltype, utype, ctype) ARRAY_ARG_MACRO(ltype, utype, ctype, fetch)
 
 #define SET_PRIMITIVE_ARG_BY_NAME_MACRO(ltype, utype, desc) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
@@ -208,13 +208,14 @@ SET_ARRAY_ARG_BY_NAME_MACRO(int, Int, "[I")
 SET_ARRAY_ARG_BY_NAME_MACRO(double, Double, "[D")
 SET_ARRAY_ARG_BY_NAME_MACRO(float, Float, "[F")
 
-SET_ARRAY_ARG_MACRO(int, Int)
-SET_ARRAY_ARG_MACRO(double, Double)
-SET_ARRAY_ARG_MACRO(float, Float)
+SET_ARRAY_ARG_MACRO(int, Int, int)
+SET_ARRAY_ARG_MACRO(double, Double, double)
+SET_ARRAY_ARG_MACRO(float, Float, float)
+SET_ARRAY_ARG_MACRO(byte, Byte, jbyte)
 
-FETCH_ARRAY_ARG_MACRO(int, Int)
-FETCH_ARRAY_ARG_MACRO(double, Double)
-FETCH_ARRAY_ARG_MACRO(float, Float)
+FETCH_ARRAY_ARG_MACRO(int, Int, int)
+FETCH_ARRAY_ARG_MACRO(double, Double, double)
+FETCH_ARRAY_ARG_MACRO(float, Float, float)
 
 JNI_JAVA(void, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint range) {

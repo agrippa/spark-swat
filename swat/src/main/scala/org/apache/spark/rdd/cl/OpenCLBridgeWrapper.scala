@@ -1,7 +1,30 @@
 package org.apache.spark.rdd.cl
 
+import java.io.OutputStream
+import java.io.FileOutputStream
+import java.util.ArrayList
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+import reflect.runtime.{universe => ru}
+
+import com.amd.aparapi.internal.util.UnsafeWrapper
+import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.Entrypoint
+import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
+
 object OpenCLBridgeWrapper {
-  def setArrayArg(ctx : Long, argnum : Int, arg : Array[_]) {
+
+  def getSizeForType(t : TypeSpec) : Long = {
+    t match {
+      case TypeSpec.I => t.getSize;
+      case TypeSpec.F => t.getSize;
+      case TypeSpec.D => t.getSize;
+      case _ => throw new RuntimeException("Unsupported type")
+    }
+  }
+
+  def setArrayArg[T](ctx : Long, argnum : Int, arg : Array[T], entryPoint : Entrypoint) {
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
     } else if (arg.isInstanceOf[Array[Int]]) {
@@ -9,11 +32,42 @@ object OpenCLBridgeWrapper {
     } else if (arg.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, argnum, arg.asInstanceOf[Array[Float]])
     } else {
-      throw new RuntimeException("Unsupported type")
+      // Assume is some serializable object array
+      val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(arg(0).getClass.getName)
+      val arrLength : Int = arg.length
+      val structMemberTypes : ArrayList[TypeSpec] = c.getStructMemberTypes
+      val structMemberOffsets : ArrayList[java.lang.Long] = c.getStructMemberOffsets
+
+      var totalSize : Int = 0
+      for (i <- 0 until structMemberTypes.size) {
+        totalSize = totalSize + getSizeForType(structMemberTypes.get(i)).asInstanceOf[Int]
+      }
+      val bb : ByteBuffer = ByteBuffer.allocate(totalSize * arrLength)
+      bb.order(ByteOrder.LITTLE_ENDIAN)
+      var nBytesPut : Long = 0
+
+      for (ele <- arg) {
+        for (i <- 0 until structMemberTypes.size) {
+          val typ : TypeSpec = structMemberTypes.get(i)
+          val offset : Long = structMemberOffsets.get(i)
+
+          typ match {
+            case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); nBytesPut += typ.getSize }
+            case TypeSpec.F =>  { val v : Float = UnsafeWrapper.getFloat(ele, offset); bb.putFloat(v); nBytesPut += typ.getSize }
+            case TypeSpec.D => { val v : Double = UnsafeWrapper.getDouble(ele, offset); bb.putDouble(v); nBytesPut += typ.getSize }
+            case _ => throw new RuntimeException("Unsupported type");
+          }
+        }
+      }
+
+      assert(bb.remaining() == 0)
+      assert(nBytesPut == totalSize * arrLength)
+
+      OpenCLBridge.setByteArrayArg(ctx, argnum, bb.array)
     }
   }
 
-  def fetchArrayArg(ctx : Long, argnum : Int, arg : Array[_]) {
+  def fetchArrayArg[T](ctx : Long, argnum : Int, arg : Array[T]) {
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.fetchDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
     } else if (arg.isInstanceOf[Array[Int]]) {
