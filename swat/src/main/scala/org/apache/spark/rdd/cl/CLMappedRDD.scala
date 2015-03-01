@@ -36,9 +36,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   def getTypeForDescriptor(descString : String) : String = { 
     var primitive : String = getPrimitiveTypeForDescriptor(descString)
-      if (primitive == null) {
-        primitive = ClassModel.convert(descString, "", true)
-      }   
+    if (primitive == null) {
+      primitive = ClassModel.convert(descString, "", true)
+    }
     primitive
   }
 
@@ -108,7 +108,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
             val field = iter.next
-            OpenCLBridge.setArgByNameAndType(ctx, argnum, f, field.getName, field.getDescriptor)
+            OpenCLBridge.setArgByNameAndType(ctx, argnum, f, field.getName,
+                field.getDescriptor, entryPoint)
             argnum = argnum + 1
           }
 

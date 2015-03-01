@@ -1,5 +1,10 @@
 package org.apache.spark.rdd.cl;
 
+import com.amd.aparapi.internal.model.ClassModel;
+import com.amd.aparapi.internal.model.Entrypoint;
+
+import java.lang.reflect.Field;
+
 public class OpenCLBridge {
     static {
         String swatHome = System.getenv("SWAT_HOME");
@@ -30,7 +35,8 @@ public class OpenCLBridge {
     public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
 
-    public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc) {
+    public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc,
+            Entrypoint entryPoint) {
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
         } else if (desc.equals("D")) {
@@ -47,7 +53,24 @@ public class OpenCLBridge {
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArgByName(ctx, index, obj, name);
             } else {
-              throw new RuntimeException("Unsupported array type: " + desc);
+              final String arrayElementTypeName = ClassModel.convert(
+                  primitiveType, "", true).trim();
+              final Field field;
+              try {
+                field = obj.getClass().getDeclaredField(name);
+                field.setAccessible(true);
+              } catch (NoSuchFieldException n) {
+                throw new RuntimeException(n);
+              }
+
+              final Object fieldInstance;
+              try {
+                fieldInstance = field.get(obj);
+              } catch (IllegalAccessException i) {
+                throw new RuntimeException(i);
+              }
+              OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, index,
+                  fieldInstance, arrayElementTypeName, entryPoint);
             }
         } else {
             throw new RuntimeException("Unsupported type: " + desc);
