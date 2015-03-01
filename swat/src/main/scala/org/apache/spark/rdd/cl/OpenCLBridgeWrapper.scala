@@ -40,8 +40,10 @@ object OpenCLBridgeWrapper {
 
       var totalSize : Int = 0
       for (i <- 0 until structMemberTypes.size) {
+        System.err.println("  Field " + structMemberTypes.get(i) + " " + structMemberOffsets.get(i) + " " + structMemberTypes.get(i).getSize)
         totalSize = totalSize + getSizeForType(structMemberTypes.get(i)).asInstanceOf[Int]
       }
+      System.err.println("For class " +arg(0).getClass.getName + " got " + structMemberTypes.size + " fields with total size " + totalSize + " " + c.getTotalStructSize)
       val bb : ByteBuffer = ByteBuffer.allocate(totalSize * arrLength)
       bb.order(ByteOrder.LITTLE_ENDIAN)
       var nBytesPut : Long = 0

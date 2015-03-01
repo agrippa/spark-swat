@@ -82,7 +82,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val openCL : String = writerAndKernel.kernel
     val writer : KernelWriter = writerAndKernel.writer
 
-    val ctx : Long = OpenCLBridge.createContext(openCL);
+    val ctx : Long = OpenCLBridge.createContext(openCL, entryPoint.requiresDoublePragma);
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)

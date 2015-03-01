@@ -89,7 +89,7 @@ static cl_uint get_num_compute_units(cl_device_id device) {
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createContext)
-        (JNIEnv *jenv, jclass clazz, jstring source) {
+        (JNIEnv *jenv, jclass clazz, jstring source, jboolean requiresDouble) {
     cl_uint num_platforms = get_num_opencl_platforms();
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
@@ -126,6 +126,17 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
         platform = backup_platform;
     }
     assert(device != 0);
+
+    if (requiresDouble) {
+        cl_device_fp_config fp_config;
+        CHECK(clGetDeviceInfo(device, CL_DEVICE_DOUBLE_FP_CONFIG,
+                    sizeof(cl_device_fp_config), &fp_config, NULL));
+        if (fp_config == 0) {
+            fprintf(stderr, "Kernel requires FP64 support but this device "
+                    "does not have it\n");
+            exit(1);
+        }
+    }
 
     free(platforms);
 

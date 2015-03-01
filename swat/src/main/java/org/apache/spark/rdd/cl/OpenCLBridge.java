@@ -7,7 +7,7 @@ public class OpenCLBridge {
         System.load(swatHome + "/swat-bridge/libbridge.so");
     }
 
-    public static native long createContext(String _source);
+    public static native long createContext(String _source, boolean requiresDouble);
 
     public static native void setIntArg(long ctx, int index, int arg);
 
