@@ -12,7 +12,8 @@ public class OpenCLBridge {
         System.load(swatHome + "/swat-bridge/libbridge.so");
     }
 
-    public static native long createContext(String _source, boolean requiresDouble);
+    public static native long createContext(String _source,
+        boolean requiresDouble, boolean requiresAtomics);
 
     public static native void setIntArg(long ctx, int index, int arg);
 
@@ -24,6 +25,7 @@ public class OpenCLBridge {
     public static native void fetchIntArrayArg(long ctx, int index, int[] arg);
     public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg);
     public static native void fetchFloatArrayArg(long ctx, int index, float[] arg);
+    public static native void fetchByteArrayArg(long ctx, int index, byte[] arg);
 
     public static native void run(long ctx, int range);
 
@@ -34,6 +36,9 @@ public class OpenCLBridge {
     public static native void setIntArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
+
+    public static native int createHeap(long ctx, int index, long size, int max_n_buffered);
+    public static native void resetHeap(long ctx, int starting_argnum);
 
     public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc,
             Entrypoint entryPoint) {

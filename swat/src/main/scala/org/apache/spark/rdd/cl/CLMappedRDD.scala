@@ -64,7 +64,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val returnType : String = descriptor.substring(descriptor.lastIndexOf(')') + 1)
     val arguments : String = descriptor.substring(descriptor.indexOf('(') + 1, descriptor.lastIndexOf(')'))
     val argumentsArr : Array[String] = arguments.split(",")
-    assert(isPrimitive(returnType))
+    // assert(isPrimitive(returnType))
     // for (arg <- argumentsArr) {
     //   assert(isPrimitive(arg))
     // }
@@ -82,7 +82,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val openCL : String = writerAndKernel.kernel
     val writer : KernelWriter = writerAndKernel.writer
 
-    val ctx : Long = OpenCLBridge.createContext(openCL, entryPoint.requiresDoublePragma);
+    val ctx : Long = OpenCLBridge.createContext(openCL, entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
@@ -113,11 +113,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             argnum = argnum + 1
           }
 
+          if (entryPoint.requiresHeap) {
+            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 1024L * 1024L, nLoaded)
+          }   
+
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
           OpenCLBridge.run(ctx, nLoaded);
 
-          OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output);
+          OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output, entryPoint);
         }
 
         val curr = index

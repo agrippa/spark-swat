@@ -1,7 +1,9 @@
 GXX=g++
-GXX_FLAGS=-fPIC --shared
+# DEFINES=-DBRIDGE_DEBUG -DTRACE
+DEFINES=
+GXX_FLAGS=-g -O0
 
-SRC=bridge.cpp
+SRC=bridge.cpp ocl_util.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
 TARGET=libbridge.so
 
@@ -12,8 +14,13 @@ else
 	GXX_FLAGS += -lOpenCL
 endif
 
+all: ${TARGET} rerun
+
 ${TARGET}: ${SRC}
-	${GXX} ${GXX_FLAGS} ${SRC} -o ${TARGET} ${INCLUDES}
+	${GXX} ${GXX_FLAGS} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared
+
+rerun: rerun.cpp ocl_util.cpp
+	${GXX} ${GXX_FLAGS} ${DEFINES} rerun.cpp ocl_util.cpp -o rerun
 
 clean:
-	rm -f ${TARGET}
+	rm -f ${TARGET} rerun
