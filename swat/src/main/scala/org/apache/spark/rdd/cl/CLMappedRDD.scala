@@ -113,13 +113,19 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             argnum = argnum + 1
           }
 
+          val heapArgStart : Int = argnum
           if (entryPoint.requiresHeap) {
-            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 1024L * 1024L, nLoaded)
+            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 100 * 1024L * 1024L, nLoaded)
           }   
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
-          OpenCLBridge.run(ctx, nLoaded);
+          val anyFailed : Array[Int] = new Array[Int](1)
+          do {
+            OpenCLBridge.run(ctx, nLoaded);
+            OpenCLBridgeWrapper.fetchArrayArg(ctx, argnum - 1, anyFailed, entryPoint)
+            OpenCLBridge.resetHeap(ctx, heapArgStart)
+          } while (anyFailed(0) > 0)
 
           OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output, entryPoint);
         }
