@@ -120,12 +120,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
-          val anyFailed : Array[Int] = new Array[Int](1)
-          do {
+          if (entryPoint.requiresHeap) {
+            val anyFailed : Array[Int] = new Array[Int](1)
+            do {
+              OpenCLBridge.run(ctx, nLoaded);
+              OpenCLBridgeWrapper.fetchArrayArg(ctx, argnum - 1, anyFailed, entryPoint)
+              OpenCLBridge.resetHeap(ctx, heapArgStart)
+            } while (anyFailed(0) > 0)
+          } else {
             OpenCLBridge.run(ctx, nLoaded);
-            OpenCLBridgeWrapper.fetchArrayArg(ctx, argnum - 1, anyFailed, entryPoint)
-            OpenCLBridge.resetHeap(ctx, heapArgStart)
-          } while (anyFailed(0) > 0)
+          }
 
           OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output, entryPoint);
         }

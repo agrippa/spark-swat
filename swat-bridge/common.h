@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 inline void safe_write(int fd, const void *buf, size_t count) {
     ssize_t written = write(fd, buf, count);

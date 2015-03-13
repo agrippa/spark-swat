@@ -190,7 +190,6 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     size_t source_size[] = { source_len };
     cl_program program = clCreateProgramWithSource(ctx, 1, &raw_source,
             source_size, &err);
-    jenv->ReleaseStringUTFChars(source, raw_source);
     CHECK(err);
 
     err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
@@ -202,9 +201,11 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
         CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                     build_log_size, build_log, NULL));
         build_log[build_log_size] = '\0';
+        fprintf(stderr, "%s\n\n", raw_source);
         fprintf(stderr, "Build failure:\n%s\n", build_log);
         free(build_log);
     }
+    jenv->ReleaseStringUTFChars(source, raw_source);
     CHECK(err);
 
     cl_kernel kernel = clCreateKernel(program, "run", &err);
