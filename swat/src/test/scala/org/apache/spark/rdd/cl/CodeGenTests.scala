@@ -16,6 +16,8 @@ object CodeGenTests {
   tests.add(PrimitiveInputPrimitiveOutputTest)
   tests.add(PrimitiveInputObjectOutputTest)
   tests.add(ObjectInputObjectOutputTest)
+  tests.add(ReferenceExternalArrayTest)
+  tests.add(ReferenceExternalScalarTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String) {
@@ -35,13 +37,14 @@ object CodeGenTests {
         entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
 
     if (!openCL.equals(expectedKernel)) {
+      System.err.println(testName + " FAILED")
       System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
       System.err.println("Use 'vimdiff correct generated' to see the difference")
 
       Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
       Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
 
-      throw new RuntimeException
+      System.exit(1)
     } else {
       System.err.println(testName + " PASSED")
     }
