@@ -16,7 +16,7 @@ import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
-  extends RDD[U](prev) {
+    extends RDD[U](prev) {
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -54,6 +54,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       def next() : U = {
         if (index >= nLoaded) {
           assert(nested.hasNext)
+
+          System.err.println(firstParent[T].getClass)
 
           index = 0
           nLoaded = 0
