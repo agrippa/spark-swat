@@ -5,28 +5,28 @@ import scala.reflect.ClassTag
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 
-class CLWrapperRDD[U: ClassTag](prev: RDD[U])
-  extends RDD[U](prev) {
+class CLWrapperRDD[T: ClassTag](prev: RDD[T])
+    extends RDD[T](prev) {
 
-  override def getPartitions: Array[Partition] = firstParent[U].partitions
+  override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
     // Do nothing
-    val iter = new Iterator[U] {
-      val nested = firstParent[U].iterator(split, context)
+    val iter = new Iterator[T] {
+      val nested = firstParent[T].iterator(split, context)
 
       def hasNext : Boolean = {
         nested.hasNext
       }
 
-      def next : U = {
+      def next : T = {
         nested.next
       }
     }
     iter
   }
 
-  override def map[T: ClassTag](f: U => T): RDD[T] = {
+  override def map[U: ClassTag](f: T => U): RDD[U] = {
     new CLMappedRDD(this, sparkContext.clean(f))
   }
 }

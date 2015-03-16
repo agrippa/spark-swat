@@ -6,6 +6,7 @@ import scala.reflect._
 import java.io.OutputStream
 import java.io.FileOutputStream
 import java.util.ArrayList
+import java.util.TreeSet
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -13,6 +14,7 @@ import reflect.runtime.{universe => ru}
 
 import com.amd.aparapi.internal.util.UnsafeWrapper
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
 
@@ -31,17 +33,24 @@ object OpenCLBridgeWrapper {
       typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
-    val structMemberTypes : ArrayList[TypeSpec] = c.getStructMemberTypes
-    val structMemberOffsets : ArrayList[java.lang.Long] = c.getStructMemberOffsets
+    val structMemberInfo : TreeSet[FieldDescriptor] = c.getStructMemberInfo
 
     var structSize : Int = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
 
-    for (ele <- arg) {
-      for (i <- 0 until structMemberTypes.size) {
-        val typ : TypeSpec = structMemberTypes.get(i)
-        val offset : java.lang.Long = structMemberOffsets.get(i)
+    System.err.println("SWAT Setting object typed array with type " + typeName + " arrLength=" + arrLength + " structSize=" + structSize);
+
+    for (eleIndex <- 0 until arg.length) {
+      val ele = arg(eleIndex)
+
+      val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
+      while (fieldIter.hasNext) {
+        val fieldDesc : FieldDescriptor = fieldIter.next
+        val typ : TypeSpec = fieldDesc.typ
+        val offset : java.lang.Long = fieldDesc.offset
+
+        System.err.println(typ.toString() + " " + offset + " " + bb.position() + " " + bb.capacity() + " " + eleIndex);
 
         typ match {
           case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); }
@@ -61,8 +70,8 @@ object OpenCLBridgeWrapper {
       typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
-    val structMemberTypes : ArrayList[TypeSpec] = c.getStructMemberTypes
-    val structMemberOffsets : ArrayList[java.lang.Long] = c.getStructMemberOffsets
+
+    val structMemberInfo : TreeSet[FieldDescriptor] = c.getStructMemberInfo
     val structSize : Int = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
@@ -70,9 +79,11 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, argnum, bb.array)
 
     for (ele <- arg) {
-      for (i <- 0 until structMemberTypes.size) {
-        val typ : TypeSpec = structMemberTypes.get(i)
-        val offset : java.lang.Long = structMemberOffsets.get(i)
+      val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
+      while (fieldIter.hasNext) {
+        val fieldDesc : FieldDescriptor = fieldIter.next
+        val typ : TypeSpec = fieldDesc.typ
+        val offset : java.lang.Long = fieldDesc.offset
 
         typ match {
           case TypeSpec.I => { val v : Int = bb.getInt; UnsafeWrapper.putInt(ele, offset, v); }

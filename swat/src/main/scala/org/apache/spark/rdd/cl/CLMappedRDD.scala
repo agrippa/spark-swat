@@ -110,4 +110,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     }
     iter
   }
+
+  override def map[V: ClassTag](f: U => V): RDD[V] = {
+    new CLMappedRDD(this, sparkContext.clean(f))
+  }
 }
