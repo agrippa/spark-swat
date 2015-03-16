@@ -278,6 +278,28 @@ FETCH_ARRAY_ARG_MACRO(double, Double, double)
 FETCH_ARRAY_ARG_MACRO(float, Float, float)
 FETCH_ARRAY_ARG_MACRO(byte, Byte, jbyte)
 
+JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum, jlong size) {
+    enter_trace("setArgUnitialized");
+    cl_int err;
+    swat_context *context = (swat_context *)lctx;
+
+    cl_mem mem = clCreateBuffer(context->ctx, CL_MEM_READ_WRITE, size, NULL,
+            &err);
+    CHECK(err);
+    CHECK(clSetKernelArg(context->kernel, argnum, sizeof(mem), &mem));
+
+    (*context->arguments)[argnum] = mem;
+
+#ifdef BRIDGE_DEBUG
+    (*context->debug_arguments)[argnum] = new kernel_arg(NULL, size, true,
+            false, 0);
+#endif
+
+
+    exit_trace("setArgUnitialized");
+}
+
 JNI_JAVA(int, OpenCLBridge, createHeap)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum, jlong size,
          jint max_n_buffered) {

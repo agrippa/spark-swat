@@ -1,5 +1,8 @@
 package org.apache.spark.rdd.cl
 
+import scala.reflect.ClassTag
+import scala.reflect._
+
 import java.io.OutputStream
 import java.io.FileOutputStream
 import java.util.ArrayList
@@ -15,7 +18,7 @@ import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
 
 object OpenCLBridgeWrapper {
 
-  def getSizeForType(t : TypeSpec) : Long = {
+  def getSizeForType(t : TypeSpec) : scala.Long = {
     t match {
       case TypeSpec.I => t.getSize;
       case TypeSpec.F => t.getSize;
@@ -24,7 +27,7 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def setObjectTypedArrayArg(ctx : Long, argnum : Int, arg : Array[_],
+  def setObjectTypedArrayArg(ctx : scala.Long, argnum : Int, arg : Array[_],
       typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
@@ -34,35 +37,33 @@ object OpenCLBridgeWrapper {
     var structSize : Int = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
-    var nBytesPut : Long = 0
 
     for (ele <- arg) {
       for (i <- 0 until structMemberTypes.size) {
         val typ : TypeSpec = structMemberTypes.get(i)
-        val offset : Long = structMemberOffsets.get(i)
+        val offset : java.lang.Long = structMemberOffsets.get(i)
 
         typ match {
-          case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); nBytesPut += typ.getSize }
-          case TypeSpec.F =>  { val v : Float = UnsafeWrapper.getFloat(ele, offset); bb.putFloat(v); nBytesPut += typ.getSize }
-          case TypeSpec.D => { val v : Double = UnsafeWrapper.getDouble(ele, offset); bb.putDouble(v); nBytesPut += typ.getSize }
+          case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); }
+          case TypeSpec.F =>  { val v : Float = UnsafeWrapper.getFloat(ele, offset); bb.putFloat(v); }
+          case TypeSpec.D => { val v : Double = UnsafeWrapper.getDouble(ele, offset); bb.putDouble(v); }
           case _ => throw new RuntimeException("Unsupported type");
         }
       }
     }
 
     assert(bb.remaining() == 0)
-    assert(nBytesPut == structSize * arrLength)
 
     OpenCLBridge.setByteArrayArg(ctx, argnum, bb.array)
   }
 
-  def fetchObjectTypedArrayArg(ctx : Long, argnum : Int, arg : Array[_],
+  def fetchObjectTypedArrayArg(ctx : scala.Long, argnum : Int, arg : Array[_],
       typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
     val structMemberTypes : ArrayList[TypeSpec] = c.getStructMemberTypes
     val structMemberOffsets : ArrayList[java.lang.Long] = c.getStructMemberOffsets
-    var structSize : Int = c.getTotalStructSize
+    val structSize : Int = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
 
@@ -71,7 +72,7 @@ object OpenCLBridgeWrapper {
     for (ele <- arg) {
       for (i <- 0 until structMemberTypes.size) {
         val typ : TypeSpec = structMemberTypes.get(i)
-        val offset : Long = structMemberOffsets.get(i)
+        val offset : java.lang.Long = structMemberOffsets.get(i)
 
         typ match {
           case TypeSpec.I => { val v : Int = bb.getInt; UnsafeWrapper.putInt(ele, offset, v); }
@@ -83,7 +84,7 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def setArrayArg[T](ctx : Long, argnum : Int, arg : Array[T], entryPoint : Entrypoint) {
+  def setArrayArg[T](ctx : scala.Long, argnum : Int, arg : Array[T], entryPoint : Entrypoint) {
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
     } else if (arg.isInstanceOf[Array[Int]]) {
@@ -92,11 +93,12 @@ object OpenCLBridgeWrapper {
       OpenCLBridge.setFloatArrayArg(ctx, argnum, arg.asInstanceOf[Array[Float]])
     } else {
       // Assume is some serializable object array
-      setObjectTypedArrayArg(ctx, argnum, arg, arg(0).getClass.getName, entryPoint)
+      val argClass : java.lang.Class[_] = arg(0).getClass
+      setObjectTypedArrayArg(ctx, argnum, arg, argClass.getName, entryPoint)
     }
   }
 
-  def fetchArrayArg[T](ctx : Long, argnum : Int, arg : Array[T], entryPoint : Entrypoint) {
+  def fetchArrayArg[T](ctx : scala.Long, argnum : Int, arg : Array[T], entryPoint : Entrypoint) {
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.fetchDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
     } else if (arg.isInstanceOf[Array[Int]]) {
@@ -105,6 +107,40 @@ object OpenCLBridgeWrapper {
       OpenCLBridge.fetchFloatArrayArg(ctx, argnum, arg.asInstanceOf[Array[Float]])
     } else {
       fetchObjectTypedArrayArg(ctx, argnum, arg, arg(0).getClass.getName, entryPoint)
+    }
+  }
+
+  def setUnitializedArrayArg(ctx : scala.Long, argnum : Int, N : Int,
+      clazz : java.lang.Class[_], entryPoint : Entrypoint) {
+    if (clazz.equals(classOf[Double])) {
+      OpenCLBridge.setArgUnitialized(ctx, argnum, 8 * N)
+    } else if (clazz.equals(classOf[Int])) {
+      OpenCLBridge.setArgUnitialized(ctx, argnum, 4 * N)
+    } else if (clazz.equals(classOf[Float])) {
+      OpenCLBridge.setArgUnitialized(ctx, argnum, 4 * N)
+    } else {
+      val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(clazz.getName)
+      val structSize : Int = c.getTotalStructSize
+      val nbytes : Int = structSize * N
+      OpenCLBridge.setArgUnitialized(ctx, argnum, nbytes)
+    }
+  }
+
+  def fetchArgFromUnitializedArray[T: ClassTag](ctx : scala.Long, argnum : Int,
+      arg : Array[T], entryPoint : Entrypoint) {
+    val clazz : java.lang.Class[_] = classTag[T].runtimeClass
+
+    if (clazz.equals(classOf[Double])) {
+      OpenCLBridge.fetchDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
+    } else if (clazz.equals(classOf[Int])) {
+      OpenCLBridge.fetchIntArrayArg(ctx, argnum, arg.asInstanceOf[Array[Int]])
+    } else if (clazz.equals(classOf[Float])) {
+      OpenCLBridge.fetchFloatArrayArg(ctx, argnum, arg.asInstanceOf[Array[Float]])
+    } else {
+      for (i <- 0 until arg.size) {
+        arg(i) = OpenCLBridge.constructObjectFromDefaultConstructor(clazz).asInstanceOf[T]
+      }
+      fetchObjectTypedArrayArg(ctx, argnum, arg, clazz.getName, entryPoint)
     }
   }
 }

@@ -1,6 +1,7 @@
 package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
+import scala.reflect._
 
 import java.util.LinkedList
 
@@ -24,6 +25,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
 
+    System.setProperty("com.amd.aparapi.enable.NEW", "true");
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass)
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
@@ -32,13 +34,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val params = CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, f, params);
+    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
+        f, params);
 
-    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
+    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
+        entryPoint, params)
     val openCL : String = writerAndKernel.kernel
     val writer : KernelWriter = writerAndKernel.writer
 
-    val ctx : Long = OpenCLBridge.createContext(openCL, entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
+    val ctx : Long = OpenCLBridge.createContext(openCL,
+        entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
@@ -58,7 +63,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
 
           OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, entryPoint)
-          OpenCLBridgeWrapper.setArrayArg[U](ctx, 1, output, entryPoint)
+          OpenCLBridgeWrapper.setUnitializedArrayArg(ctx, 1, output.size,
+              classTag[U].runtimeClass, entryPoint)
 
           var argnum : Int = 2
           val iter = entryPoint.getReferencedClassModelFields.iterator
@@ -87,7 +93,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             OpenCLBridge.run(ctx, nLoaded);
           }
 
-          OpenCLBridgeWrapper.fetchArrayArg(ctx, 1, output, entryPoint);
+          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, 1, output,
+              entryPoint)
         }
 
         val curr = index

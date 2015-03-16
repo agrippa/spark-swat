@@ -4,6 +4,8 @@ import com.amd.aparapi.internal.model.ClassModel;
 import com.amd.aparapi.internal.model.Entrypoint;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 public class OpenCLBridge {
     static {
@@ -36,6 +38,8 @@ public class OpenCLBridge {
     public static native void setIntArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
+
+    public static native void setArgUnitialized(long ctx, int index, long size);
 
     public static native int createHeap(long ctx, int index, long size, int max_n_buffered);
     public static native void resetHeap(long ctx, int starting_argnum);
@@ -80,5 +84,36 @@ public class OpenCLBridge {
         } else {
             throw new RuntimeException("Unsupported type: " + desc);
         }
+    }
+
+    public static <T> T constructObjectFromDefaultConstructor(Class<T> clazz)
+            throws InstantiationException, IllegalAccessException,
+                   InvocationTargetException {
+        Constructor defaultConstructor = null;
+        Constructor[] allConstructors = clazz.getDeclaredConstructors();
+        for (Constructor c : allConstructors) {
+            if (c.getParameterTypes().length == 0) {
+                defaultConstructor = c;
+                break;
+            }
+        }
+
+        if (defaultConstructor == null) {
+            throw new RuntimeException("Expected default constructor for " +
+                    "class " + clazz.getName());
+        }
+
+        defaultConstructor.setAccessible(true);
+        T newObj;
+        try {
+            newObj = (T)defaultConstructor.newInstance();
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        }
+        return newObj;
     }
 }

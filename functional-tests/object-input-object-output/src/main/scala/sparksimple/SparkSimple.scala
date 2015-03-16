@@ -7,7 +7,12 @@ import scala.math._
 import org.apache.spark.rdd._
 import java.net._
 
-class Point(val x: Float, val y: Float, val z: Float) { }
+class Point(val x: Float, val y: Float, val z: Float)
+    extends java.io.Serializable {
+  def this() {
+    this(0.0f, 0.0f, 0.0f)
+  }
+}
 
 object SparkSimple {
     def main(args : Array[String]) {
