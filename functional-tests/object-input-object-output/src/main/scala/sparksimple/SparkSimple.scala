@@ -69,9 +69,10 @@ object SparkSimple {
 
         val inputPath = args(0)
         val inputs : RDD[Point] = sc.objectFile[Point](inputPath).cache
-        val outputs : Array[Point] = inputs.map(v => new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z)).collect
+        val outputs : RDD[Point] = inputs.map(v => new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z))
+        val outputs2 : Array[Point] = outputs.map(v => new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
         sc.stop
-        outputs
+        outputs2
     }
 
     def run_simple_cl(args : Array[String]) : Array[Point] = {
@@ -91,9 +92,10 @@ object SparkSimple {
         val inputPath = args(0)
         val inputs : RDD[Point] = sc.objectFile[Point](inputPath).cache
         val inputs_cl : CLWrapperRDD[Point] = CLWrapper.cl[Point](inputs)
-        val outputs : Array[Point] = inputs_cl.map(v => new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z)).collect
+        val outputs : RDD[Point] = inputs_cl.map(v => new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z))
+        val outputs2 : Array[Point] = outputs.map(v => new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
         sc.stop
-        outputs
+        outputs2
     }
 
     def convert(args : Array[String]) {
