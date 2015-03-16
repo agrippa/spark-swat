@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl.tests
 
 import org.apache.spark.rdd.cl.CodeGenTest
 
-object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
+object ObjectInputObjectOutputTest extends CodeGenTest[Point, Point] {
   def getExpectedKernel() : String = {
     "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable\n" +
     "#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable\n" +
@@ -35,13 +35,22 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "   (this);\n" +
     "   return (this);\n" +
     "}\n" +
-    "static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_PrimitiveInputObjectOutputTest$$anon$1__apply(This *this, int in){\n" +
+    "static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
+    "   return this->z;\n" +
+    "}\n" +
+    "static float org_apache_spark_rdd_cl_tests_Point__y(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
+    "   return this->y;\n" +
+    "}\n" +
+    "static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
+    "   return this->x;\n" +
+    "}\n" +
+    "static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_ObjectInputObjectOutputTest$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_Point *in){\n" +
     "   __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
     "   if (this->alloc_failed) { return (0x0); }\n" +
-    "   return(org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (float)(in + 1), (float)(in + 2), (float)(in + 3)));\n" +
+    "   return(org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (in->x + (float)1), (in->y + (float)2), (in->z + (float)3)));\n" +
     "}\n" +
     "__kernel void run(\n" +
-    "      __global int* in0, \n" +
+    "      __global org_apache_spark_rdd_cl_tests_Point * in0, \n" +
     "      __global org_apache_spark_rdd_cl_tests_Point * out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
@@ -54,7 +63,7 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "      if (processing_succeeded[i]) continue;\n" +
     "      \n" +
     "      this->alloc_failed = 0;\n" +
-    "      __global org_apache_spark_rdd_cl_tests_Point * result = org_apache_spark_rdd_cl_tests_PrimitiveInputObjectOutputTest$$anon$1__apply(this, in0[i]);\n" +
+    "      __global org_apache_spark_rdd_cl_tests_Point * result = org_apache_spark_rdd_cl_tests_ObjectInputObjectOutputTest$$anon$1__apply(this, in0 + i);\n" +
     "      if (this->alloc_failed) {\n" +
     "         processing_succeeded[i] = 0;\n" +
     "         *any_failed = 1;\n" +
@@ -64,17 +73,17 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "      }\n" +
     "   }\n" +
     "}\n" +
-    "";
+    ""
   }
 
   def getExpectedNumInputs() : Int = {
     1
   }
 
-  def getFunction() : Function1[Int, Point] = {
-    new Function[Int, Point] {
-      override def apply(in : Int) : Point = {
-        new Point(in + 1, in + 2, in + 3)
+  def getFunction() : Function1[Point, Point] = {
+    new Function[Point, Point] {
+      override def apply(in : Point) : Point = {
+        new Point(in.x + 1, in.y + 2, in.z + 3)
       }
     }
   }

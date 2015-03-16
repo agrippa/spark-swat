@@ -1,6 +1,8 @@
 package org.apache.spark.rdd.cl
 
 import java.util.ArrayList
+import java.nio.file.{Paths, Files}
+import java.nio.charset.StandardCharsets
 
 import org.apache.spark.rdd.cl.tests._
 import com.amd.aparapi.internal.model.ClassModel
@@ -13,6 +15,7 @@ object CodeGenTests {
   val tests : ArrayList[CodeGenTest[_, _]] = new ArrayList[CodeGenTest[_, _]]()
   tests.add(PrimitiveInputPrimitiveOutputTest)
   tests.add(PrimitiveInputObjectOutputTest)
+  tests.add(ObjectInputObjectOutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String) {
@@ -32,17 +35,13 @@ object CodeGenTests {
         entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
 
     if (!openCL.equals(expectedKernel)) {
-      System.err.println("Kernel mismatch")
-      System.err.println("=======================================")
-      System.err.println("Generated:")
-      System.err.println("=======================================")
-      System.err.println(openCL)
-      System.err.println("=======================================")
-      System.err.println("Correct:")
-      System.err.println("=======================================")
-      System.err.println(expectedKernel)
-      System.err.println("=======================================")
-      throw new RuntimeException;
+      System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
+      System.err.println("Use 'vimdiff correct generated' to see the difference")
+
+      Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
+      Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
+
+      throw new RuntimeException
     } else {
       System.err.println(testName + " PASSED")
     }
