@@ -39,8 +39,6 @@ object OpenCLBridgeWrapper {
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
 
-    System.err.println("SWAT Setting object typed array with type " + typeName + " arrLength=" + arrLength + " structSize=" + structSize);
-
     for (eleIndex <- 0 until arg.length) {
       val ele = arg(eleIndex)
 
@@ -49,8 +47,6 @@ object OpenCLBridgeWrapper {
         val fieldDesc : FieldDescriptor = fieldIter.next
         val typ : TypeSpec = fieldDesc.typ
         val offset : java.lang.Long = fieldDesc.offset
-
-        System.err.println(typ.toString() + " " + offset + " " + bb.position() + " " + bb.capacity() + " " + eleIndex);
 
         typ match {
           case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); }
