@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl
 
 import java.util.ArrayList
 
-import org.apache.spark.rdd.cl.tests.PrimitiveInputPrimitiveOutputTest
+import org.apache.spark.rdd.cl.tests._
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
@@ -10,8 +10,9 @@ import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 
 object CodeGenTests {
 
-  val tests : ArrayList[CodeGenTest] = new ArrayList[CodeGenTest]()
-  tests.add(new PrimitiveInputPrimitiveOutputTest())
+  val tests : ArrayList[CodeGenTest[_, _]] = new ArrayList[CodeGenTest[_, _]]()
+  tests.add(PrimitiveInputPrimitiveOutputTest)
+  tests.add(PrimitiveInputObjectOutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String) {
@@ -33,7 +34,11 @@ object CodeGenTests {
     if (!openCL.equals(expectedKernel)) {
       System.err.println("Kernel mismatch")
       System.err.println("=======================================")
+      System.err.println("Generated:")
+      System.err.println("=======================================")
       System.err.println(openCL)
+      System.err.println("=======================================")
+      System.err.println("Correct:")
       System.err.println("=======================================")
       System.err.println(expectedKernel)
       System.err.println("=======================================")
@@ -44,9 +49,11 @@ object CodeGenTests {
   }
 
   def main(args : Array[String]) {
+    System.setProperty("com.amd.aparapi.enable.NEW", "true");
+
     for (i <- 0 until tests.size) {
-      val test : CodeGenTest = tests.get(i)
-      verifyCodeGen(test, test.getExpectedKernel, test.getExpectedNumInputs, test.getClass.getSimpleName)
+      val test : CodeGenTest[_, _] = tests.get(i)
+      verifyCodeGen(test.getFunction, test.getExpectedKernel, test.getExpectedNumInputs, test.getClass.getSimpleName)
     }
   }
 }

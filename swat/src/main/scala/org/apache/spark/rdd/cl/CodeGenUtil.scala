@@ -11,7 +11,6 @@ object CodeGenUtil {
   }
 
   def getPrimitiveTypeForDescriptor(descString : String) : String = {
-    assert(isPrimitive(descString))
     if (descString.equals("I")) {
       return "int"
     } else if (descString.equals("D")) {
@@ -19,7 +18,7 @@ object CodeGenUtil {
     } else if (descString.equals("F")) {
       return "float"
     } else {
-      throw new RuntimeException("Unsupported type")
+      return null
     }
   }
 
