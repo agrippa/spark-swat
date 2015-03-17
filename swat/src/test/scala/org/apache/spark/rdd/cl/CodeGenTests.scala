@@ -18,6 +18,7 @@ object CodeGenTests {
   tests.add(ObjectInputObjectOutputTest)
   tests.add(ReferenceExternalArrayTest)
   tests.add(ReferenceExternalScalarTest)
+  tests.add(ExternalFunction)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String) {
