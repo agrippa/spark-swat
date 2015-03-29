@@ -14,6 +14,18 @@ class Point(val x: Float, val y: Float, val z: Float)
   }
 }
 
+class Cluster(val id : Int, val x : Float, val y : Float, val z : Float) {
+  def this() {
+    this(-1, 0.0f, 0.0f, 0.0f)
+  }
+}
+
+class PointClassification(val clazz : Int, val x : Float, val y : Float, val z : Float) {
+  def this() {
+    this(-1, 0.0f, 0.0f, 0.0f)
+  }
+}
+
 object SparkKMeans {
     def main(args : Array[String]) {
         if (args.length < 1) {
@@ -56,11 +68,11 @@ object SparkKMeans {
         val points : CLWrapperRDD[Point] = CLWrapper.cl[Point](raw_points)
         val samples : Array[Point] = points.takeSample(false, K);
 
-        var centers = new Array[(Int, Point)](K)
+        var centers = new Array[Cluster](K)
         for (i <- samples.indices) {
             val s = samples(i)
 
-            centers(i) = (i, s)
+            centers(i) = new Cluster(i, s.x, s.y, s.z)
         }
 
         for (iter <- 0 until iters) {
@@ -104,7 +116,7 @@ object SparkKMeans {
         converted.saveAsObjectFile(outputDir)
     }
 
-    def classify(point : Point, centers : Array[(Int, Point)]) : (Int, Point) = {
+    def classify(point : Point, centers : Array[Cluster]) : PointClassification = {
         val x = point.x
         val y = point.y
         val z = point.z
@@ -112,19 +124,19 @@ object SparkKMeans {
         var closest_center = -1
         var closest_center_dist = -1.0
 
-        for (c <- centers) {
-            val center = c._2
+        for (i <- 0 until centers.length) {
+            val center : Cluster = centers(i)
             val diffx = center.x - x
             val diffy = center.y - y
             val diffz = center.z - z
             val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
 
             if (closest_center == -1 || dist < closest_center_dist) {
-                closest_center = c._1
+                closest_center = center.id
                 closest_center_dist = dist
             }
         }
 
-        return (closest_center, new Point(x, y, z))
+        new PointClassification(closest_center, x, y, z)
     }
 }

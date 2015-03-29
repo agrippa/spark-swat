@@ -19,6 +19,10 @@ object CodeGenTests {
   tests.add(ReferenceExternalArrayTest)
   tests.add(ReferenceExternalScalarTest)
   tests.add(ExternalFunction)
+  tests.add(Tuple2InputTest)
+  tests.add(Tuple2ObjectInputTest)
+  tests.add(Tuple2OutputTest)
+  tests.add(Tuple2ObjectOutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String) {
