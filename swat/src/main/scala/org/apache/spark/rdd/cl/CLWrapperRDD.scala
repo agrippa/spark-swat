@@ -1,6 +1,7 @@
 package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
