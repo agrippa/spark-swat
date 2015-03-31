@@ -10,6 +10,7 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
@@ -36,7 +37,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val descriptor : String = method.getDescriptor
 
     // 1 argument expected for maps
-    val params = CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
+    val params : LinkedList[ScalaParameter] =
+        CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
     // val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
@@ -70,13 +72,24 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           if (nLoaded > 0 && !knowType) {
             if (acc(0).isInstanceOf[Tuple2[_, _]]) {
               System.err.println("Input is a tuple2");
-              val tmpIn : Tuple2[_, _] = acc(0).asInstanceOf[Tuple2[_, _]]
-              val tmpIn1 = tmpIn._1
-              val tmpIn2 = tmpIn._2
-              val tmpIn1Class : Class[_] = tmpIn1.getClass
-              val tmpIn2Class : Class[_] = tmpIn2.getClass
+              val inputClassType1 = acc(0).asInstanceOf[Tuple2[_, _]]._1.getClass
+              val inputClassType2 = acc(0).asInstanceOf[Tuple2[_, _]]._2.getClass
 
-              System.err.println("SWAT Takes generic types " + tmpIn1Class.getName + " " + tmpIn2Class.getName)
+              val inputClassType1Name = CodeGenUtil.cleanClassName(
+                  inputClassType1.getName)
+              val inputClassType2Name = CodeGenUtil.cleanClassName(
+                  inputClassType2.getName)
+
+              val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
+                  CodeGenUtil.getDescriptorForClassName(inputClassType1Name),
+                  inputClassType1Name, 
+                  CodeGenUtil.getDescriptorForClassName(inputClassType2Name),
+                  inputClassType2Name)
+              ClassModel.addClassModelFor(acc(0).getClass, tuple2ClassModel)
+
+              params.get(0).addTypeParameter(inputClassType1Name)
+              params.get(0).addTypeParameter(inputClassType2Name)
+
               knowType = true
             }
           }

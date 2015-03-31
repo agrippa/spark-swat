@@ -65,4 +65,24 @@ object CodeGenUtil {
     new ScalaParameter(getTypeForDescriptor(returnType),
         getClassForDescriptor(returnType), "out", DIRECTION.OUT)
   }
+
+  def cleanClassName(className : String) : String = {
+    if (className.equals("java.lang.Integer")) {
+      return "I"
+    } else if (className.equals("java.lang.Float")) {
+      return "F"
+    } else if (className.equals("java.lang.Double")) {
+      return "F"
+    } else {
+      return className
+    }
+  }
+
+  def getDescriptorForClassName(className : String) : String = {
+    if (className.equals("I") || className.equals("F")) {
+      return className
+    } else {
+      return "L" + className + ";"
+    }
+  }
 }
