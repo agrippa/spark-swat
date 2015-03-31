@@ -9,7 +9,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
 
-object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
+object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
   def getExpectedKernel() : String = {
     "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable\n" +
     "#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable\n" +
@@ -23,11 +23,18 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     "   else return (__global void *)(cheap + offset);\n" +
     "}\n" +
     "\n" +
-    "typedef struct scala_Tuple2_I_I_s{\n" +
-    "   int  _1;\n" +
-    "   int  _2;\n" +
+    "typedef struct org_apache_spark_rdd_cl_tests_Point_s{\n" +
+    "   float  x;\n" +
+    "   float  y;\n" +
+    "   float  z;\n" +
     "   \n" +
-    "} scala_Tuple2_I_I;\n" +
+    "} org_apache_spark_rdd_cl_tests_Point;\n" +
+    "\n" +
+    "typedef struct scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
+    "   __global org_apache_spark_rdd_cl_tests_Point  * _2;\n" +
+    "   int  _1;\n" +
+    "   \n" +
+    "} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;\n" +
     "typedef struct This_s{\n" +
     "   __global void *heap;\n" +
     "   __global uint *free_index;\n" +
@@ -35,20 +42,29 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     "   long heap_size;\n" +
     "   } This;\n" +
     "\n" +
-    "static __global scala_Tuple2_I_I *scala_Tuple2_I_I___init_(__global scala_Tuple2_I_I *this, int  one, int  two) {\n" +
+    "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, __global org_apache_spark_rdd_cl_tests_Point *  two) {\n" +
     "   this->_1 = one;\n" +
     "   this->_2 = two;\n" +
     "   return this;\n" +
     "}\n" +
     "\n" +
-    "static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(This *this, int in){\n" +
-    "   __global scala_Tuple2_I_I * __alloc0 = (__global scala_Tuple2_I_I *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_I), &this->alloc_failed);\n" +
+    "static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){\n" +
+    "   this->x=x;\n" +
+    "   this->y=y;\n" +
+    "   this->z=z;\n" +
+    "   (this);\n" +
+    "   return (this);\n" +
+    "}\n" +
+    "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(This *this, int in){\n" +
+    "   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
     "   if (this->alloc_failed) { return (0x0); }\n" +
-    "   return(scala_Tuple2_I_I___init_(__alloc0, (in + 1), (in + 2)));\n" +
+    "   __global org_apache_spark_rdd_cl_tests_Point * __alloc1 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
+    "   if (this->alloc_failed) { return (0x0); }\n" +
+    "   return(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (in + 1), org_apache_spark_rdd_cl_tests_Point___init_(__alloc1, 1.0f, 2.0f, 3.0f)));\n" +
     "}\n" +
     "__kernel void run(\n" +
     "      __global int* in0, \n" +
-    "      __global int * out_1, __global int * out_2, __global scala_Tuple2_I_I *out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
+    "      __global int * out_1, __global org_apache_spark_rdd_cl_tests_Point* out_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
@@ -60,7 +76,7 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     "      if (processing_succeeded[i]) continue;\n" +
     "      \n" +
     "      this->alloc_failed = 0;\n" +
-    "      __global scala_Tuple2_I_I* result = org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(this, in0[i]);\n" +
+    "      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(this, in0[i]);\n" +
     "      if (this->alloc_failed) {\n" +
     "         processing_succeeded[i] = 0;\n" +
     "         *any_failed = 1;\n" +
@@ -78,7 +94,7 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
 
   def init() {
     val outputClassType1Name = CodeGenUtil.cleanClassName("I")
-    val outputClassType2Name = CodeGenUtil.cleanClassName("I")
+    val outputClassType2Name = CodeGenUtil.cleanClassName("org.apache.spark.rdd.cl.tests.Point")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         CodeGenUtil.getDescriptorForClassName(outputClassType1Name), outputClassType1Name, 
@@ -88,13 +104,13 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
 
   def complete(params : LinkedList[ScalaParameter]) {
     params.get(1).addTypeParameter("I")
-    params.get(1).addTypeParameter("I")
+    params.get(1).addTypeParameter("org.apache.spark.rdd.cl.tests.Point")
   }
 
-  def getFunction() : Function1[Int, (Int, Int)] = {
-    new Function[Int, (Int, Int)] {
-      override def apply(in : Int) : (Int, Int) = {
-        (in + 1, in + 2)
+  def getFunction() : Function1[Int, (Int, Point)] = {
+    new Function[Int, (Int, Point)] {
+      override def apply(in : Int) : (Int, Point) = {
+        (in + 1, new Point(1.0f, 2.0f, 3.0f))
       }
     }
   }

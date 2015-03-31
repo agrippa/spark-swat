@@ -24,14 +24,14 @@ object Tuple2ObjectInputDirectTest extends CodeGenTest[(Int, Point), Float] {
     "} org_apache_spark_rdd_cl_tests_Point;\n" +
     "\n" +
     "typedef struct scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
-    "   org_apache_spark_rdd_cl_tests_Point  _2;\n" +
+    "   __global org_apache_spark_rdd_cl_tests_Point  * _2;\n" +
     "   int  _1;\n" +
     "   \n" +
     "} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;\n" +
     "typedef struct This_s{\n" +
     "   } This;\n" +
     "\n" +
-    "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, org_apache_spark_rdd_cl_tests_Point two) {\n" +
+    "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, __global org_apache_spark_rdd_cl_tests_Point *  two) {\n" +
     "   this->_1 = one;\n" +
     "   this->_2 = two;\n" +
     "   return this;\n" +
@@ -47,17 +47,20 @@ object Tuple2ObjectInputDirectTest extends CodeGenTest[(Int, Point), Float] {
     "   return this->x;\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
-    "   return((((&(in->_2))->x + (&(in->_2))->y) + (&(in->_2))->z));\n" +
+    "   return(((in->_2->x + in->_2->y) + in->_2->z));\n" +
     "}\n" +
     "__kernel void run(\n" +
-    "      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in0, \n" +
+    "      __global int * in0_1, __global org_apache_spark_rdd_cl_tests_Point* in0_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *in0, \n" +
     "      __global float* out, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
     "   This* this=&thisStruct;\n" +
+    "   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *my_in0 = in0 + get_global_id(0);\n" +
     "   for (; i < N; i += nthreads) {\n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(this, in0 + i);\n" +
+    "      my_in0->_1 = in0_1[i];\n" +
+    "      my_in0->_2 = in0_2 + i;\n" +
+    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(this, my_in0);\n" +
     "      \n" +
     "   }\n" +
     "}\n"

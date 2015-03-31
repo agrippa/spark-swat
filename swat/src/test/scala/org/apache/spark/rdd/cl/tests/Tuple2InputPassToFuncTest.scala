@@ -39,14 +39,17 @@ object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
     "   return(org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__external(this, in->_1));\n" +
     "}\n" +
     "__kernel void run(\n" +
-    "      __global scala_Tuple2_I_I* in0, \n" +
+    "      __global int * in0_1, __global int * in0_2, __global scala_Tuple2_I_I *in0, \n" +
     "      __global int* out, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
     "   This* this=&thisStruct;\n" +
+    "   __global scala_Tuple2_I_I *my_in0 = in0 + get_global_id(0);\n" +
     "   for (; i < N; i += nthreads) {\n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__apply(this, in0 + i);\n" +
+    "      my_in0->_1 = in0_1[i];\n" +
+    "      my_in0->_2 = in0_2[i];\n" +
+    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__apply(this, my_in0);\n" +
     "      \n" +
     "   }\n" +
     "}\n"
