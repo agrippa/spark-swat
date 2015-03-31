@@ -7,7 +7,7 @@ import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.ClassModel
 
-object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
+object Tuple2ObjectInputDirectTest extends CodeGenTest[(Int, Point), Float] {
   def getExpectedKernel() : String = {
     "static __global void *alloc(__global void *heap, volatile __global uint *free_index, long heap_size, int nbytes, int *alloc_failed) {\n" +
     "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
@@ -47,12 +47,8 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
     "   return this->x;\n" +
     "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
-    "   return(\n" +
-    "   {\n" +
-    "       __global org_apache_spark_rdd_cl_tests_Point *p = (&(in->_2));\n" +
-    "      ((p->x + p->y) + p->z);\n" +
-    "   });\n" +
+    "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
+    "   return((((&(in->_2))->x + (&(in->_2))->y) + (&(in->_2))->z));\n" +
     "}\n" +
     "__kernel void run(\n" +
     "      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in0, \n" +
@@ -62,7 +58,7 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "   This thisStruct;\n" +
     "   This* this=&thisStruct;\n" +
     "   for (; i < N; i += nthreads) {\n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputTest$$anon$1__apply(this, in0 + i);\n" +
+    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(this, in0 + i);\n" +
     "      \n" +
     "   }\n" +
     "}\n" +
@@ -91,8 +87,7 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
   def getFunction() : Function1[(Int, Point), Float] = {
     new Function[(Int, Point), Float] {
       override def apply(in : (Int, Point)) : Float = {
-        val p : Point = in._2
-        p.x + p.y + p.z
+        in._2.x + in._2.y + in._2.z
       }
     }
   }

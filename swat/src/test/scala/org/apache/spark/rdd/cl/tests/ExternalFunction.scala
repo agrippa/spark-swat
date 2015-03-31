@@ -1,5 +1,7 @@
 package org.apache.spark.rdd.cl.tests
 
+import java.util.LinkedList
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import org.apache.spark.rdd.cl.CodeGenTest
 
 object ExternalFunction extends CodeGenTest[Point, Point] {
@@ -62,7 +64,7 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   (this);\n" +
 "   return (this);\n" +
 "}\n" +
-"static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_ExternalFunction$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_Point *in){\n" +
+"static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_ExternalFunction$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_Point* in){\n" +
 "   return(\n" +
 "   {\n" +
 "      __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
@@ -73,8 +75,8 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   });\n" +
 "}\n" +
 "__kernel void run(\n" +
-"      __global org_apache_spark_rdd_cl_tests_Point * in0, \n" +
-"      __global org_apache_spark_rdd_cl_tests_Point * out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
+"      __global org_apache_spark_rdd_cl_tests_Point* in0, \n" +
+"      __global org_apache_spark_rdd_cl_tests_Point* out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
 "   int i = get_global_id(0);\n" +
 "   int nthreads = get_global_size(0);\n" +
 "   This thisStruct;\n" +
@@ -86,7 +88,7 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "      if (processing_succeeded[i]) continue;\n" +
 "      \n" +
 "      this->alloc_failed = 0;\n" +
-"      __global org_apache_spark_rdd_cl_tests_Point * result = org_apache_spark_rdd_cl_tests_ExternalFunction$$anon$1__apply(this, in0 + i);\n" +
+"      __global org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_ExternalFunction$$anon$1__apply(this, in0 + i);\n" +
 "      if (this->alloc_failed) {\n" +
 "         processing_succeeded[i] = 0;\n" +
 "         *any_failed = 1;\n" +
@@ -102,6 +104,10 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
   def getExpectedNumInputs() : Int = {
     1
   }
+
+  def init() { }
+
+  def complete(params : LinkedList[ScalaParameter]) { }
 
   def getFunction() : Function1[Point, Point] = {
     new Function[Point, Point] {

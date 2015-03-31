@@ -1,5 +1,7 @@
 package org.apache.spark.rdd.cl.tests
 
+import java.util.LinkedList
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import org.apache.spark.rdd.cl.CodeGenTest
 
 object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
@@ -70,6 +72,10 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
   def getExpectedNumInputs() : Int = {
     1
   }
+
+  def init() { }
+
+  def complete(params : LinkedList[ScalaParameter]) { }
 
   def getFunction() : Function1[Int, Point] = {
     new Function[Int, Point] {
