@@ -52,7 +52,7 @@ object CodeGenUtil {
     for (i <- 0 until argumentsArr.length) {
       val argumentDesc : String = argumentsArr(i)
 
-      params.add(new ScalaParameter(getTypeForDescriptor(argumentDesc) + "*",
+      params.add(new ScalaParameter(getTypeForDescriptor(argumentDesc),
             getClassForDescriptor(argumentDesc), "in" + i, DIRECTION.IN))
     }
 
@@ -62,7 +62,7 @@ object CodeGenUtil {
   def getReturnObjsFromMethodDescriptor(descriptor : String) : ScalaParameter = {
     val returnType : String = descriptor.substring(
         descriptor.lastIndexOf(')') + 1)
-    new ScalaParameter(getTypeForDescriptor(returnType) + "*",
+    new ScalaParameter(getTypeForDescriptor(returnType),
         getClassForDescriptor(returnType), "out", DIRECTION.OUT)
   }
 }
