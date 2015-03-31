@@ -6,7 +6,6 @@ import scala.reflect._
 import java.io.OutputStream
 import java.io.FileOutputStream
 import java.util.ArrayList
-import java.util.TreeSet
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -33,9 +32,8 @@ object OpenCLBridgeWrapper {
       typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
-    val structMemberInfo : TreeSet[FieldDescriptor] = c.getStructMemberInfo
 
-    var structSize : Int = c.getTotalStructSize
+    val structSize = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
 
@@ -52,10 +50,6 @@ object OpenCLBridgeWrapper {
         writeTupleMemberToStream(tupleEle._1, entryPoint, bb)
       } else {
         writeObjectToStream[T](ele, c, bb)
-      }
-
-      if (bb.position < targetPosition) {
-        bb.position(targetPosition)
       }
     }
 
@@ -81,7 +75,7 @@ object OpenCLBridgeWrapper {
   }
 
   def writeObjectToStream[T](ele : T, c : ClassModel, bb : ByteBuffer) {
-    val structMemberInfo : TreeSet[FieldDescriptor] = c.getStructMemberInfo
+    val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
 
     val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
     while (fieldIter.hasNext) {
@@ -103,7 +97,7 @@ object OpenCLBridgeWrapper {
     val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(typeName)
     val arrLength : Int = arg.length
 
-    val structMemberInfo : TreeSet[FieldDescriptor] = c.getStructMemberInfo
+    val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
     val structSize : Int = c.getTotalStructSize
     val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
     bb.order(ByteOrder.LITTLE_ENDIAN)
