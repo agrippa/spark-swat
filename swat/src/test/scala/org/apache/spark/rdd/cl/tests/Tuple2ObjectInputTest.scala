@@ -30,6 +30,13 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;\n" +
     "typedef struct This_s{\n" +
     "   } This;\n" +
+    "\n" +
+    "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, org_apache_spark_rdd_cl_tests_Point two) {\n" +
+    "   this->_1 = one;\n" +
+    "   this->_2 = two;\n" +
+    "   return this;\n" +
+    "}\n" +
+    "\n" +
     "static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
     "   return this->z;\n" +
     "}\n" +
@@ -57,8 +64,7 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputTest$$anon$1__apply(this, in0 + i);\n" +
     "      \n" +
     "   }\n" +
-    "}\n" +
-    ""
+    "}\n"
   }
 
   def getExpectedNumInputs() : Int = {

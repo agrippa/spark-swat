@@ -27,6 +27,7 @@ object CodeGenTests {
   tests.add(Tuple2InputPassToFuncTest)
   tests.add(Tuple2ObjectInputPassToFuncTest)
   tests.add(Tuple2ObjectInputPassDirectlyToFuncTest)
+  tests.add(Tuple2OutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, test : CodeGenTest[_, _]) {
