@@ -2,6 +2,7 @@ package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
 import scala.reflect._
+import scala.reflect.runtime.universe._
 
 import java.util.LinkedList
 
@@ -17,6 +18,10 @@ import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     extends RDD[U](prev) {
+  var knowType : Boolean = false
+  var entryPoint : Entrypoint = null
+  var openCL : String = null
+  var ctx : Long = -1L
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -34,16 +39,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val params = CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
-        f, params);
+    // val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
+    //     f, params);
 
-    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
-        entryPoint, params)
-    val openCL : String = writerAndKernel.kernel
-    val writer : KernelWriter = writerAndKernel.writer
+    // val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
+    //     entryPoint, params)
+    // val openCL : String = writerAndKernel.kernel
+    // val writer : KernelWriter = writerAndKernel.writer
 
-    val ctx : Long = OpenCLBridge.createContext(openCL,
-        entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
+    // val ctx : Long = OpenCLBridge.createContext(openCL,
+    //     entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
@@ -55,13 +60,37 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         if (index >= nLoaded) {
           assert(nested.hasNext)
 
-          System.err.println(firstParent[T].getClass)
-
           index = 0
           nLoaded = 0
           while (nLoaded < N && nested.hasNext) {
             acc(nLoaded) = nested.next
             nLoaded = nLoaded + 1
+          }
+
+          if (nLoaded > 0 && !knowType) {
+            if (acc(0).isInstanceOf[Tuple2[_, _]]) {
+              System.err.println("Input is a tuple2");
+              val tmpIn : Tuple2[_, _] = acc(0).asInstanceOf[Tuple2[_, _]]
+              val tmpIn1 = tmpIn._1
+              val tmpIn2 = tmpIn._2
+              val tmpIn1Class : Class[_] = tmpIn1.getClass
+              val tmpIn2Class : Class[_] = tmpIn2.getClass
+
+              System.err.println("SWAT Takes generic types " + tmpIn1Class.getName + " " + tmpIn2Class.getName)
+              knowType = true
+            }
+          }
+
+          if (entryPoint == null) {
+            entryPoint = classModel.getEntrypoint("apply", descriptor,
+                f, params);
+
+            val writerAndKernel = KernelWriter.writeToString(
+                entryPoint, params)
+            openCL = writerAndKernel.kernel
+
+            ctx = OpenCLBridge.createContext(openCL,
+                entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
           }
 
           OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, entryPoint)
