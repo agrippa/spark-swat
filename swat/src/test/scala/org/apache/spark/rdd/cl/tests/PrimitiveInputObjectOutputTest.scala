@@ -42,7 +42,7 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "}\n" +
     "__kernel void run(\n" +
     "      __global int* in0, \n" +
-    "      __global org_apache_spark_rdd_cl_tests_Point * out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
+    "      __global org_apache_spark_rdd_cl_tests_Point* out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
@@ -54,7 +54,7 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "      if (processing_succeeded[i]) continue;\n" +
     "      \n" +
     "      this->alloc_failed = 0;\n" +
-    "      __global org_apache_spark_rdd_cl_tests_Point * result = org_apache_spark_rdd_cl_tests_PrimitiveInputObjectOutputTest$$anon$1__apply(this, in0[i]);\n" +
+    "      __global org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_PrimitiveInputObjectOutputTest$$anon$1__apply(this, in0[i]);\n" +
     "      if (this->alloc_failed) {\n" +
     "         processing_succeeded[i] = 0;\n" +
     "         *any_failed = 1;\n" +
