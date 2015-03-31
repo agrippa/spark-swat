@@ -26,14 +26,6 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "typedef struct scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
     "   org_apache_spark_rdd_cl_tests_Point  _2;\n" +
     "   int  _1;\n" +
-    "   char _pad_16;\n" +
-    "   char _pad_17;\n" +
-    "   char _pad_18;\n" +
-    "   char _pad_19;\n" +
-    "   char _pad_20;\n" +
-    "   char _pad_21;\n" +
-    "   char _pad_22;\n" +
-    "   char _pad_23;\n" +
     "   \n" +
     "} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;\n" +
     "typedef struct This_s{\n" +
