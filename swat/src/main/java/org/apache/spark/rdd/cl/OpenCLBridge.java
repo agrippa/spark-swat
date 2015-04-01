@@ -44,8 +44,8 @@ public class OpenCLBridge {
     public static native int createHeap(long ctx, int index, long size, int max_n_buffered);
     public static native void resetHeap(long ctx, int starting_argnum);
 
-    public static void setArgByNameAndType(long ctx, int index, Object obj, String name, String desc,
-            Entrypoint entryPoint) {
+    public static void setArgByNameAndType(long ctx, int index, Object obj,
+            String name, String desc, Entrypoint entryPoint) {
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
         } else if (desc.equals("D")) {
@@ -79,7 +79,7 @@ public class OpenCLBridge {
                 throw new RuntimeException(i);
               }
               OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, index,
-                  fieldInstance, arrayElementTypeName, entryPoint);
+                  fieldInstance, arrayElementTypeName, true, entryPoint);
             }
         } else {
             throw new RuntimeException("Unsupported type: " + desc);
