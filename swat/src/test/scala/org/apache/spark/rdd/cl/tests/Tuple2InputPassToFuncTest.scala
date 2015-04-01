@@ -70,8 +70,8 @@ object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
   }
 
   def complete(params : LinkedList[ScalaParameter]) {
-    params.get(0).addTypeParameter("I")
-    params.get(0).addTypeParameter("I")
+    params.get(0).addTypeParameter("I", false)
+    params.get(0).addTypeParameter("I", false)
   }
 
   def getFunction() : Function1[(Int, Int), Int] = {

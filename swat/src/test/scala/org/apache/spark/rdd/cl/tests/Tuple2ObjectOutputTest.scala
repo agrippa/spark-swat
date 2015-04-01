@@ -64,7 +64,7 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
     "}\n" +
     "__kernel void run(\n" +
     "      __global int* in0, \n" +
-    "      __global int * out_1, __global org_apache_spark_rdd_cl_tests_Point* out_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *out, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
+    "      __global int * out_1, __global org_apache_spark_rdd_cl_tests_Point* out_2, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
@@ -82,7 +82,8 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
     "         *any_failed = 1;\n" +
     "      } else {\n" +
     "         processing_succeeded[i] = 1;\n" +
-    "         out[i] = *result;\n" +
+    "         out_1[i] = result->_1;\n" +
+    "         out_2[i] = *(result->_2);\n" +
     "      }\n" +
     "   }\n" +
     "}\n"
@@ -103,8 +104,8 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
   }
 
   def complete(params : LinkedList[ScalaParameter]) {
-    params.get(1).addTypeParameter("I")
-    params.get(1).addTypeParameter("org.apache.spark.rdd.cl.tests.Point")
+    params.get(1).addTypeParameter("I", false)
+    params.get(1).addTypeParameter("org.apache.spark.rdd.cl.tests.Point", true)
   }
 
   def getFunction() : Function1[Int, (Int, Point)] = {

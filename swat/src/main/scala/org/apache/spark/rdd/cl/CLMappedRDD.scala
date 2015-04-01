@@ -69,9 +69,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             nLoaded = nLoaded + 1
           }
 
-          if (nLoaded > 0 && !knowType) {
+          if (!knowType && nLoaded > 0) {
             if (acc(0).isInstanceOf[Tuple2[_, _]]) {
-              System.err.println("Input is a tuple2");
               val inputClassType1 = acc(0).asInstanceOf[Tuple2[_, _]]._1.getClass
               val inputClassType2 = acc(0).asInstanceOf[Tuple2[_, _]]._2.getClass
 
@@ -87,11 +86,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                   inputClassType2Name)
               ClassModel.addClassModelFor(acc(0).getClass, tuple2ClassModel)
 
-              params.get(0).addTypeParameter(inputClassType1Name)
-              params.get(0).addTypeParameter(inputClassType2Name)
-
-              knowType = true
+              params.get(0).addTypeParameter(inputClassType1Name,
+                  !CodeGenUtil.isPrimitive(inputClassType1Name))
+              params.get(0).addTypeParameter(inputClassType2Name,
+                  !CodeGenUtil.isPrimitive(inputClassType2Name))
             }
+            knowType = true
           }
 
           if (entryPoint == null) {
@@ -106,11 +106,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
           }
 
-          OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, entryPoint)
-          OpenCLBridgeWrapper.setUnitializedArrayArg(ctx, 1, output.size,
+          var argnum : Int = 0
+          argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, true, entryPoint)
+          val outArgNum : Int = argnum
+          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg(ctx, 1, output.size,
               classTag[U].runtimeClass, entryPoint)
 
-          var argnum : Int = 2
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
             val field = iter.next
@@ -137,7 +138,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             OpenCLBridge.run(ctx, nLoaded);
           }
 
-          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, 1, output,
+          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, outArgNum, output,
               entryPoint)
         }
 

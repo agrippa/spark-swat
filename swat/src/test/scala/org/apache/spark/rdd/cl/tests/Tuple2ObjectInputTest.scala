@@ -85,8 +85,8 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
   }
 
   def complete(params : LinkedList[ScalaParameter]) {
-    params.get(0).addTypeParameter("I")
-    params.get(0).addTypeParameter("org.apache.spark.rdd.cl.tests.Point")
+    params.get(0).addTypeParameter("I", false)
+    params.get(0).addTypeParameter("org.apache.spark.rdd.cl.tests.Point", true)
   }
 
   def getFunction() : Function1[(Int, Point), Float] = {
