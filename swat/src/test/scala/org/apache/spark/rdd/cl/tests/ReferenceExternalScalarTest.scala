@@ -3,6 +3,7 @@ package org.apache.spark.rdd.cl.tests
 import java.util.LinkedList
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import org.apache.spark.rdd.cl.CodeGenTest
+import com.amd.aparapi.internal.model.HardCodedClassModels
 
 object ReferenceExternalScalarTest extends CodeGenTest[Int, Int] {
   def getExpectedKernel() : String = {
@@ -41,7 +42,7 @@ object ReferenceExternalScalarTest extends CodeGenTest[Int, Int] {
     1
   }
 
-  def init() { }
+  def init() : HardCodedClassModels = { new HardCodedClassModels() }
 
   def complete(params : LinkedList[ScalaParameter]) { }
 

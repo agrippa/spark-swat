@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets
 
 import org.apache.spark.rdd.cl.tests._
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
@@ -32,7 +33,7 @@ object CodeGenTests {
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, test : CodeGenTest[_, _]) {
-    val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass)
+    val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass, null)
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
@@ -42,7 +43,9 @@ object CodeGenTests {
 
     test.complete(params)
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, lambda, params);
+    val hardCodedClassModels : HardCodedClassModels = test.init
+
+    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, lambda, params, hardCodedClassModels);
 
     val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
     val openCL : String = writerAndKernel.kernel
@@ -68,10 +71,7 @@ object CodeGenTests {
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
 
     for (i <- 0 until tests.size) {
-      ClassModel.hardCodedClassModels.clear
-
       val test : CodeGenTest[_, _] = tests.get(i)
-      test.init
       verifyCodeGen(test.getFunction, test.getExpectedKernel,
           test.getExpectedNumInputs, test.getClass.getSimpleName, test)
     }

@@ -5,6 +5,7 @@ import java.util.LinkedList
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
 
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -77,14 +78,16 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     1
   }
 
-  def init() {
+  def init() : HardCodedClassModels = {
     val outputClassType1Name = CodeGenUtil.cleanClassName("I")
     val outputClassType2Name = CodeGenUtil.cleanClassName("I")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         CodeGenUtil.getDescriptorForClassName(outputClassType1Name), outputClassType1Name, 
         CodeGenUtil.getDescriptorForClassName(outputClassType2Name), outputClassType2Name)
-    ClassModel.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+    val models = new HardCodedClassModels()
+    models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+    models
   }
 
   def complete(params : LinkedList[ScalaParameter]) {

@@ -6,6 +6,7 @@ import com.amd.aparapi.internal.model.Tuple2ClassModel
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
 
 object Tuple2ObjectInputPassDirectlyToFuncTest extends CodeGenTest[(Int, Point), Float] {
   def getExpectedKernel() : String = {
@@ -80,14 +81,16 @@ object Tuple2ObjectInputPassDirectlyToFuncTest extends CodeGenTest[(Int, Point),
     1
   }
 
-  def init() {
+  def init() : HardCodedClassModels = {
     val inputClassType1Name = CodeGenUtil.cleanClassName("I")
     val inputClassType2Name = CodeGenUtil.cleanClassName("org.apache.spark.rdd.cl.tests.Point")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         CodeGenUtil.getDescriptorForClassName(inputClassType1Name), inputClassType1Name, 
         CodeGenUtil.getDescriptorForClassName(inputClassType2Name), inputClassType2Name)
-    ClassModel.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+    val models = new HardCodedClassModels()
+    models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+    models
   }
 
   def complete(params : LinkedList[ScalaParameter]) {

@@ -11,6 +11,7 @@ import org.apache.spark.rdd._
 
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
@@ -32,7 +33,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val output : Array[U] = new Array[U](N)
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
-    val classModel : ClassModel = ClassModel.createClassModel(f.getClass)
+    val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null)
+    val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
@@ -84,7 +86,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                   inputClassType1Name, 
                   CodeGenUtil.getDescriptorForClassName(inputClassType2Name),
                   inputClassType2Name)
-              ClassModel.addClassModelFor(acc(0).getClass, tuple2ClassModel)
+              hardCodedClassModels.addClassModelFor(acc(0).getClass, tuple2ClassModel)
 
               params.get(0).addTypeParameter(inputClassType1Name,
                   !CodeGenUtil.isPrimitive(inputClassType1Name))

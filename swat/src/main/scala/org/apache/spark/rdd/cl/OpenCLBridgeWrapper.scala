@@ -39,15 +39,18 @@ object OpenCLBridgeWrapper {
       val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
       assert(structMembers.size == 2)
 
-      val bb1 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(structMembers.get(0).desc) * arrLength)
-      val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(structMembers.get(1).desc) * arrLength)
+      val firstMemberBufferLength : Int = entryPoint.getSizeOf(structMembers.get(0).desc) * arrLength
+      val secondMemberBufferLength : Int = entryPoint.getSizeOf(structMembers.get(1).desc) * arrLength
+      val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberBufferLength)
+      val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberBufferLength)
 
       for (eleIndex <- 0 until arg.length) {
         val ele : T = arg(eleIndex)
         val tupleEle : Tuple2[_, _] = ele.asInstanceOf[Tuple2[_, _]]
 
-        writeTupleMemberToStream(tupleEle._1, entryPoint, bb1)
-        writeTupleMemberToStream(tupleEle._2, entryPoint, bb2)
+        // This ordering is important, dont touch it.
+        writeTupleMemberToStream(tupleEle._2, entryPoint, bb1)
+        writeTupleMemberToStream(tupleEle._1, entryPoint, bb2)
       }
 
       OpenCLBridge.setByteArrayArg(ctx, argnum, bb1.array)
