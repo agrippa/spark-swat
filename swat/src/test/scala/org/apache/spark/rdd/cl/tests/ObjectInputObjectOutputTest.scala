@@ -19,7 +19,7 @@ object ObjectInputObjectOutputTest extends CodeGenTest[Point, Point] {
     "   else return (__global void *)(cheap + offset);\n" +
     "}\n" +
     "\n" +
-    "typedef struct org_apache_spark_rdd_cl_tests_Point_s{\n" +
+    "typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{\n" +
     "   float  x;\n" +
     "   float  y;\n" +
     "   float  z;\n" +

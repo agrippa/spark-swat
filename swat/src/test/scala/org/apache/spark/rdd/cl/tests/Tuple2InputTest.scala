@@ -19,7 +19,7 @@ object Tuple2InputTest extends CodeGenTest[(Int, Int), Int] {
     "   else return (__global void *)(cheap + offset);\n" +
     "}\n" +
     "\n" +
-    "typedef struct scala_Tuple2_I_I_s{\n" +
+    "typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s{\n" +
     "   int  _1;\n" +
     "   int  _2;\n" +
     "   \n" +

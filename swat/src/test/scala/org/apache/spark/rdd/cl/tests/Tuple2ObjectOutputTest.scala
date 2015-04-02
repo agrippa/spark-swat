@@ -24,14 +24,14 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
     "   else return (__global void *)(cheap + offset);\n" +
     "}\n" +
     "\n" +
-    "typedef struct org_apache_spark_rdd_cl_tests_Point_s{\n" +
+    "typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{\n" +
     "   float  x;\n" +
     "   float  y;\n" +
     "   float  z;\n" +
     "   \n" +
     "} org_apache_spark_rdd_cl_tests_Point;\n" +
     "\n" +
-    "typedef struct scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
+    "typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
     "   __global org_apache_spark_rdd_cl_tests_Point  * _2;\n" +
     "   int  _1;\n" +
     "   \n" +
