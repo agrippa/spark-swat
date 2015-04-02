@@ -30,16 +30,20 @@ object SparkSimple {
         } else if (cmd == "run-cl") {
             run_simple_cl(args.slice(1, args.length))
         } else if (cmd == "check") {
-            val correct : Array[Point] = run_simple(args.slice(1, args.length))
-            val actual : Array[Point] = run_simple_cl(args.slice(1, args.length))
+            val correct : Array[Float] = run_simple(args.slice(1, args.length))
+            val actual : Array[Float] = run_simple_cl(args.slice(1, args.length))
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
-                val a : Point = correct(i)
-                val b : Point = actual(i)
+                val a : Float = correct(i)
+                val b : Float = actual(i)
+                var error : Boolean = false
 
-                assert(a.x == b.x)
-                assert(a.y == b.y)
-                assert(a.z == b.z)
+                if (a != b) {
+                    System.err.println(i + " expected " + a + " but got " + b)
+                    error = true
+                }
+
+                if (error) System.exit(1)
             }
         }
     }
@@ -54,10 +58,10 @@ object SparkSimple {
         return new SparkContext(conf)
     }
 
-    def run_simple(args : Array[String]) : Array[Point] = {
+    def run_simple(args : Array[String]) : Array[Float] = {
         if (args.length != 1) {
             println("usage: SparkSimple run input-path");
-            return new Array[Point](0);
+            return new Array[Float](0);
         }
         val sc = get_spark_context("Spark Simple");
 
@@ -70,16 +74,16 @@ object SparkSimple {
 
         val inputPath = args(0)
         val inputs : RDD[(Int, Point)] = sc.objectFile[(Int, Point)](inputPath).cache
-        val outputs : RDD[Point] = inputs.map(v => new Point(v._1 * v._2.x * v._2.y * v._2.z * m * arr(1).y, v._1 * v._2.y, v._1 * v._2.z))
-        val outputs2 : Array[Point] = outputs.map(v => new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
+        val outputs : RDD[Float] = inputs.map(v => v._1 + v._2.x + v._2.y + v._2.z)
+        val outputs2 : Array[Float] = outputs.collect
         sc.stop
         outputs2
     }
 
-    def run_simple_cl(args : Array[String]) : Array[Point] = {
+    def run_simple_cl(args : Array[String]) : Array[Float] = {
         if (args.length != 1) {
             println("usage: SparkSimple run-cl input-path");
-            return new Array[Point](0)
+            return new Array[Float](0)
         }
         val sc = get_spark_context("Spark Simple");
 
@@ -93,8 +97,8 @@ object SparkSimple {
         val inputPath = args(0)
         val inputs : RDD[(Int, Point)] = sc.objectFile[(Int, Point)](inputPath).cache
         val inputs_cl : CLWrapperRDD[(Int, Point)] = CLWrapper.cl[(Int, Point)](inputs)
-        val outputs : RDD[Point] = inputs_cl.map(v => new Point(v._1 * v._2.x * v._2.y * v._2.z * m * arr(1).y, v._1 * v._2.y, v._1 * v._2.z))
-        val outputs2 : Array[Point] = outputs.map(v => new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
+        val outputs : RDD[Float] = inputs_cl.map(v => v._1 + v._2.x + v._2.y + v._2.z)
+        val outputs2 : Array[Float] = outputs.collect
         sc.stop
         outputs2
     }

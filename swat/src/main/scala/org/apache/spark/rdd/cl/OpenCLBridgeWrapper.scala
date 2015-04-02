@@ -39,26 +39,75 @@ object OpenCLBridgeWrapper {
       val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
       assert(structMembers.size == 2)
 
-      val firstMemberBufferLength : Int = entryPoint.getSizeOf(structMembers.get(0).desc) * arrLength
-      val secondMemberBufferLength : Int = entryPoint.getSizeOf(structMembers.get(1).desc) * arrLength
+      val desc0 : String = structMembers.get(0).desc
+      val desc1 : String = structMembers.get(1).desc
+      val name0 : String = structMembers.get(0).name
+      val name1 : String = structMembers.get(1).name
+      assert(name0.equals("_1") || name1.equals("_1"))
+
+      val size0 = entryPoint.getSizeOf(desc0)
+      val size1 = entryPoint.getSizeOf(desc1)
+
+      val firstMemberSize = if (name0.equals("_1")) size0 else size1
+      val secondMemberSize = if (name0.equals("_1")) size1 else size0
+
+      val firstMemberBufferLength = firstMemberSize * arrLength
+      val secondMemberBufferLength = secondMemberSize * arrLength
+
       val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberBufferLength)
       val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberBufferLength)
+      bb1.order(ByteOrder.LITTLE_ENDIAN)
+      bb2.order(ByteOrder.LITTLE_ENDIAN)
 
       for (eleIndex <- 0 until arg.length) {
         val ele : T = arg(eleIndex)
         val tupleEle : Tuple2[_, _] = ele.asInstanceOf[Tuple2[_, _]]
 
-        // This ordering is important, dont touch it.
-        writeTupleMemberToStream(tupleEle._2, entryPoint, bb1)
-        writeTupleMemberToStream(tupleEle._1, entryPoint, bb2)
+        /*
+         * This ordering is important, dont touch it.
+         *
+         * It is possible that an object-typed field of a Tuple2 has a size of 0
+         * if that field is never referenced from the lambda. In that case, we
+         * don't need to transfer to the device because we know that memory
+         * buffer will never be referenced anyway.
+         */
+        if (firstMemberSize > 0) {
+          writeTupleMemberToStream(tupleEle._1, entryPoint, bb1)
+        }
+        if (secondMemberSize > 0) {
+          writeTupleMemberToStream(tupleEle._2, entryPoint, bb2)
+        }
       }
 
-      OpenCLBridge.setByteArrayArg(ctx, argnum, bb1.array)
-      OpenCLBridge.setByteArrayArg(ctx, argnum + 1, bb2.array)
+      if (bb1.remaining != 0) {
+        throw new RuntimeException("Expected to completely use bb1, but has " +
+            bb1.remaining + " bytes left out of a total " +
+            firstMemberBufferLength)
+      }
+      if (bb2.remaining != 0) {
+        throw new RuntimeException("Expected to completely use bb2, but has " +
+            bb2.remaining + " bytes left out of a total " +
+            secondMemberBufferLength)
+      }
+
+      if (firstMemberSize > 0) {
+        OpenCLBridge.setByteArrayArg(ctx, argnum, bb1.array)
+      } else {
+        OpenCLBridge.setNullArrayArg(ctx, argnum)
+      }
+
+      if (secondMemberSize > 0) {
+        OpenCLBridge.setByteArrayArg(ctx, argnum + 1, bb2.array)
+      } else {
+        OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
+      }
+
       if (isInput) {
         OpenCLBridge.setArgUnitialized(ctx, argnum + 2, structSize * arrLength)
+        return 3
+      } else {
+        return 2
       }
-      return 3
     } else {
       val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
       bb.order(ByteOrder.LITTLE_ENDIAN)
@@ -68,7 +117,11 @@ object OpenCLBridgeWrapper {
         writeObjectToStream[T](ele, c, bb)
       }
 
-      assert(bb.remaining() == 0)
+      if (bb.remaining != 0) {
+        throw new RuntimeException("Expected to completely use bb, but has " +
+            bb.remaining + " bytes left out of a total " +
+            (structSize * arrLength))
+      }
 
       OpenCLBridge.setByteArrayArg(ctx, argnum, bb.array)
       return 1
@@ -82,7 +135,9 @@ object OpenCLBridgeWrapper {
       case "java.lang.Double" => { val v = tupleMember.asInstanceOf[java.lang.Double].doubleValue; bb.putDouble(v); }
       case _ => {
         if (entryPoint.getObjectArrayFieldsClasses.containsKey(tupleMember.getClass.getName)) {
-          val memberClassModel : ClassModel = entryPoint.getObjectArrayFieldsClasses.get(tupleMember.getClass.getName)
+          val memberClassModel : ClassModel =
+              entryPoint.getObjectArrayFieldsClasses.get(
+              tupleMember.getClass.getName)
           writeObjectToStream[T](tupleMember, memberClassModel, bb)
         } else {
           throw new RuntimeException("Unsupported type " + tupleMember.getClass.getName)
@@ -122,6 +177,8 @@ object OpenCLBridgeWrapper {
           structMembers.get(0).desc) * arrLength)
     val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
           structMembers.get(1).desc) * arrLength)
+    bb1.order(ByteOrder.LITTLE_ENDIAN)
+    bb2.order(ByteOrder.LITTLE_ENDIAN)
 
     OpenCLBridge.fetchByteArrayArg(ctx, argnum, bb1.array)
     OpenCLBridge.fetchByteArrayArg(ctx, argnum + 1, bb2.array)

@@ -43,17 +43,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
-    // val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
-    //     f, params);
-
-    // val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
-    //     entryPoint, params)
-    // val openCL : String = writerAndKernel.kernel
-    // val writer : KernelWriter = writerAndKernel.writer
-
-    // val ctx : Long = OpenCLBridge.createContext(openCL,
-    //     entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
-
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
 
@@ -98,7 +87,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           if (entryPoint == null) {
             entryPoint = classModel.getEntrypoint("apply", descriptor,
-                f, params);
+                f, params, hardCodedClassModels);
 
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
@@ -140,8 +129,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             OpenCLBridge.run(ctx, nLoaded);
           }
 
-          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, outArgNum, output,
-              entryPoint)
+          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, outArgNum,
+              output, entryPoint)
         }
 
         val curr = index

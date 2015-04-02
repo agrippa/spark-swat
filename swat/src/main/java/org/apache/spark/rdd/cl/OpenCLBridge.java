@@ -23,6 +23,7 @@ public class OpenCLBridge {
     public static native void setDoubleArrayArg(long ctx, int index, double[] arg);
     public static native void setFloatArrayArg(long ctx, int index, float[] arg);
     public static native void setByteArrayArg(long ctx, int index, byte[] arg);
+    public static native void setNullArrayArg(long ctx, int index);
 
     public static native void fetchIntArrayArg(long ctx, int index, int[] arg);
     public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg);

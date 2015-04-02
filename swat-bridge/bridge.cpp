@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <assert.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "bridge.h"
 #include "common.h"
@@ -85,6 +86,11 @@ static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[arg_index] = new kernel_arg(arg_value, arg_size,
             false, false, 0);
+#endif
+
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %d to value %d with size %d\n", arg_index,
+            *((int *)arg_value), arg_size);
 #endif
 }
 
@@ -247,6 +253,10 @@ static void set_kernel_arg(void *host, size_t len, int index,
     (*context->debug_arguments)[index] = new kernel_arg(host, len, true, false,
             0);
 #endif
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %d to a memory buffer of size %d\n", index,
+            len);
+#endif
 }
 
 static void fetch_kernel_arg(void *host, size_t len, int index,
@@ -295,9 +305,34 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
     (*context->debug_arguments)[argnum] = new kernel_arg(NULL, size, true,
             false, 0);
 #endif
-
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %d to an unitialized value with size %d\n",
+            argnum, size);
+#endif
 
     exit_trace("setArgUnitialized");
+}
+
+JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum) {
+    enter_trace("setNullArrayArg");
+
+    cl_int err;
+    cl_mem none = 0x0;
+    swat_context *context = (swat_context *)lctx;
+    CHECK(clSetKernelArg(context->kernel, argnum, sizeof(none), &none));
+
+    (*context->arguments)[argnum] = none;
+
+#ifdef BRIDGE_DEBUG
+    (*context->debug_arguments)[argnum] = new kernel_arg(&none, sizeof(none),
+            false, false, 0);
+#endif
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %d to a null value\n", argnum);
+#endif
+
+    exit_trace("setNullArrayArg");
 }
 
 JNI_JAVA(int, OpenCLBridge, createHeap)
@@ -374,6 +409,10 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
             sizeof(unsigned), true, true, zero);
+#endif
+#ifdef VERBOSE
+    fprintf(stderr, "Creating heap at %d->%d (inclusive)\n", argnum,
+            local_argnum - 1);
 #endif
 
     exit_trace("createHeap");
