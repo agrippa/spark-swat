@@ -16,22 +16,14 @@ object GenerateInput {
         for (f <- 0 until nOutputFiles) {
             val writer = new PrintWriter(new File(outputDir + "/input." + f))
 
-            var uniqueInt : Int = 1
-            var uniqueFloat : Float = 1.0f
             for (p <- 0 until pointsPerFile) {
-                // val id = r.nextInt(100)
-                // val x = r.nextDouble * range
-                // val y = r.nextDouble * range
-                // val z = r.nextDouble * range
-                val id = uniqueInt + 1
-                val x = uniqueFloat + 2.0
-                val y = uniqueFloat + 3.0
-                val z = uniqueFloat + 4.0
+                val id = r.nextInt(100)
+                val x = r.nextDouble * range
+                val y = r.nextDouble * range
+                val z = r.nextDouble * range
+
                 writer.write(id.toString + " " + x.toString + " " + y.toString +
                         " " + z.toString + "\n")
-
-                uniqueFloat = uniqueFloat + 1.0f
-                uniqueInt = uniqueInt + 1
             }
             writer.close
         }
