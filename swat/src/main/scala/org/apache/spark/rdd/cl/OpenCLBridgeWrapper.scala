@@ -173,10 +173,16 @@ object OpenCLBridgeWrapper {
     val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
     assert(structMembers.size == 2)
 
+    val member0 : FieldNameInfo =
+        if (structMembers.get(0).name.equals("_1")) structMembers.get(0) else
+            structMembers.get(1)
+    val member1 : FieldNameInfo =
+        if (structMembers.get(0).name.equals("_1")) structMembers.get(1) else
+            structMembers.get(0)
     val bb1 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
-          structMembers.get(0).desc) * arrLength)
+          member0.desc) * arrLength)
     val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
-          structMembers.get(1).desc) * arrLength)
+          member1.desc) * arrLength)
     bb1.order(ByteOrder.LITTLE_ENDIAN)
     bb2.order(ByteOrder.LITTLE_ENDIAN)
 
@@ -184,8 +190,8 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, argnum + 1, bb2.array)
 
     for (i <- 0 until arg.size) {
-      arg(i) = (readTupleMemberFromStream(structMembers.get(0).desc, entryPoint, bb1),
-          readTupleMemberFromStream(structMembers.get(1).desc, entryPoint, bb2))
+      arg(i) = (readTupleMemberFromStream(member0.desc, entryPoint, bb1),
+          readTupleMemberFromStream(member1.desc, entryPoint, bb2))
     }
   }
 
@@ -293,15 +299,21 @@ object OpenCLBridgeWrapper {
       OpenCLBridge.setArgUnitialized(ctx, argnum, 4 * N)
       return 1
     } else if (clazz.equals(classOf[Tuple2[_, _]])) {
-      // TODO
       val c : ClassModel = entryPoint.getObjectArrayFieldsClasses().get(clazz.getName)
       val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
       assert(structMembers.size == 2)
 
-      OpenCLBridge.setArgUnitialized(ctx, argnum,
-          entryPoint.getSizeOf(structMembers.get(0).desc) * N)
-      OpenCLBridge.setArgUnitialized(ctx, argnum + 1,
-          entryPoint.getSizeOf(structMembers.get(1).desc) * N)
+      val name0 = structMembers.get(0).name
+      val name1 = structMembers.get(1).name
+      assert(name0.equals("_1") || name1.equals("_1"))
+      val size0 = entryPoint.getSizeOf(structMembers.get(0).desc)
+      val size1 = entryPoint.getSizeOf(structMembers.get(1).desc)
+
+      val arrsize0 = if (name0.equals("_1")) (size0 * N) else (size1 * N)
+      val arrsize1 = if (name0.equals("_1")) (size1 * N) else (size0 * N)
+
+      OpenCLBridge.setArgUnitialized(ctx, argnum, arrsize0)
+      OpenCLBridge.setArgUnitialized(ctx, argnum + 1, arrsize1)
 
       return 2
     } else {

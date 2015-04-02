@@ -11,21 +11,21 @@
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype arg) { \
-    enter_trace("set##utype##Arg"); \
+    enter_trace("set"#utype"Arg"); \
     swat_context *context = (swat_context *)lctx; \
     clSetKernelArgWrapper(context, context->kernel, index, sizeof(arg), &arg); \
-    exit_trace("set##utype##Arg"); \
+    exit_trace("set"#utype"Arg"); \
 }
 
 #define ARRAY_ARG_MACRO(ltype, utype, ctype, type) \
 JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
-    enter_trace("type##utype##ArrayArg"); \
+    enter_trace(#type#utype"ArrayArg"); \
     jsize len = jenv->GetArrayLength(arg) * sizeof(ctype); \
     ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
     type##_kernel_arg(arr, len, index, (swat_context *)lctx); \
     jenv->Release##utype##ArrayElements(arg, arr, 0); \
-    exit_trace("type##utype##ArrayArg"); \
+    exit_trace(#type#utype"ArrayArg"); \
 }
 
 #define SET_ARRAY_ARG_MACRO(ltype, utype, ctype) ARRAY_ARG_MACRO(ltype, utype, ctype, set)
@@ -35,7 +35,7 @@ JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
          jstring name) { \
-    enter_trace("set##utype##ArgByName"); \
+    enter_trace("set"#utype"ArgByName"); \
     swat_context *context = (swat_context *)lctx; \
     jclass enclosing_class = jenv->GetObjectClass(obj); \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
@@ -43,14 +43,14 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     ltype val = jenv->Get##utype##Field(obj, field); \
     clSetKernelArgWrapper(context, context->kernel, index, sizeof(val), &val); \
-    exit_trace("set##utype##ArgByName"); \
+    exit_trace("set"#utype"ArgByName"); \
 }
 
 #define SET_ARRAY_ARG_BY_NAME_MACRO(ltype, utype, desc) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
          jstring name) { \
-    enter_trace("set##utype##ArrayArgByName"); \
+    enter_trace("set"#utype"ArrayArgByName"); \
     jclass enclosing_class = jenv->GetObjectClass(obj); \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
@@ -61,7 +61,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
             0); \
     set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx); \
     jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
-    exit_trace("set##utype##ArrayArgByName"); \
+    exit_trace("set"#utype"ArrayArgByName"); \
 }
 
 #ifdef __cplusplus

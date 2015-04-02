@@ -27,6 +27,29 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
+  def createHardCodedClassModel(obj : Tuple2[_, _],
+      hardCodedClassModels : HardCodedClassModels, param : ScalaParameter) {
+    val inputClassType1 = obj._1.getClass
+    val inputClassType2 = obj._2.getClass
+
+    val inputClassType1Name = CodeGenUtil.cleanClassName(
+        inputClassType1.getName)
+    val inputClassType2Name = CodeGenUtil.cleanClassName(
+        inputClassType2.getName)
+
+    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
+        CodeGenUtil.getDescriptorForClassName(inputClassType1Name),
+        inputClassType1Name, 
+        CodeGenUtil.getDescriptorForClassName(inputClassType2Name),
+        inputClassType2Name)
+    hardCodedClassModels.addClassModelFor(obj.getClass, tuple2ClassModel)
+
+    param.addTypeParameter(inputClassType1Name,
+        !CodeGenUtil.isPrimitive(inputClassType1Name))
+    param.addTypeParameter(inputClassType2Name,
+        !CodeGenUtil.isPrimitive(inputClassType2Name))
+  }
+
   override def compute(split: Partition, context: TaskContext) = {
     val N = 1024
     val acc : Array[T] = new Array[T](N)
@@ -62,25 +85,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           if (!knowType && nLoaded > 0) {
             if (acc(0).isInstanceOf[Tuple2[_, _]]) {
-              val inputClassType1 = acc(0).asInstanceOf[Tuple2[_, _]]._1.getClass
-              val inputClassType2 = acc(0).asInstanceOf[Tuple2[_, _]]._2.getClass
-
-              val inputClassType1Name = CodeGenUtil.cleanClassName(
-                  inputClassType1.getName)
-              val inputClassType2Name = CodeGenUtil.cleanClassName(
-                  inputClassType2.getName)
-
-              val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-                  CodeGenUtil.getDescriptorForClassName(inputClassType1Name),
-                  inputClassType1Name, 
-                  CodeGenUtil.getDescriptorForClassName(inputClassType2Name),
-                  inputClassType2Name)
-              hardCodedClassModels.addClassModelFor(acc(0).getClass, tuple2ClassModel)
-
-              params.get(0).addTypeParameter(inputClassType1Name,
-                  !CodeGenUtil.isPrimitive(inputClassType1Name))
-              params.get(0).addTypeParameter(inputClassType2Name,
-                  !CodeGenUtil.isPrimitive(inputClassType2Name))
+              createHardCodedClassModel(acc(0).asInstanceOf[Tuple2[_, _]],
+                  hardCodedClassModels, params.get(0))
+            }
+            val sampleOutput = f(acc(0))
+            if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
+              createHardCodedClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
+                  hardCodedClassModels, params.get(1))
             }
             knowType = true
           }

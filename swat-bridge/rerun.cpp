@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
         } else {
             assert(!arg->get_is_memset());
             assert(arg->get_val() != NULL);
-            fprintf(stderr, "%d %d %d\n", arg_index, arg->get_size(), *((int *)arg->get_val()));
+            fprintf(stderr, "Scalar argument for %d\n", arg_index);
             CHECK(clSetKernelArg(kernel, arg_index, arg->get_size(),
                         arg->get_val()));
         }
