@@ -52,7 +52,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val N = 1024
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
-    var sampleOutput : Any = null
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
@@ -68,6 +67,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
+      var sampleOutput : java.lang.Object = None
 
       var index = 0
       var nLoaded = 0
@@ -88,7 +88,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               createHardCodedClassModel(acc(0).asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
             }
-            sampleOutput = f(acc(0))
+            sampleOutput = f(acc(0)).asInstanceOf[java.lang.Object]
             if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
