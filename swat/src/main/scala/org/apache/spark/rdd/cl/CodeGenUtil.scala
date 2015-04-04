@@ -67,20 +67,15 @@ object CodeGenUtil {
   }
 
   def cleanClassName(className : String) : String = {
-    if (className.equals("java.lang.Integer")) {
+    if (className.length() == 1) {
+      // Primitive descriptor
+      return className
+    } else if (className.equals("java.lang.Integer")) {
       return "I"
     } else if (className.equals("java.lang.Float")) {
       return "F"
     } else if (className.equals("java.lang.Double")) {
       return "F"
-    } else {
-      return className
-    }
-  }
-
-  def getDescriptorForClassName(className : String) : String = {
-    if (className.equals("I") || className.equals("F")) {
-      return className
     } else {
       return "L" + className + ";"
     }

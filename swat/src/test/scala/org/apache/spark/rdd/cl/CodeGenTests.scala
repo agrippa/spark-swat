@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets
 import org.apache.spark.rdd.cl.tests._
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
+import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
@@ -30,10 +31,12 @@ object CodeGenTests {
   tests.add(Tuple2ObjectInputPassDirectlyToFuncTest)
   tests.add(Tuple2OutputTest)
   tests.add(Tuple2ObjectOutputTest)
+  tests.add(Tuple2InputOutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, test : CodeGenTest[_, _]) {
-    val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass, null)
+    val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass,
+        null, new ShouldNotCallMatcher())
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
@@ -68,12 +71,14 @@ object CodeGenTests {
   }
 
   def main(args : Array[String]) {
+    val testName : String = if (args.length == 1) args(0) else null
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
-
     for (i <- 0 until tests.size) {
       val test : CodeGenTest[_, _] = tests.get(i)
-      verifyCodeGen(test.getFunction, test.getExpectedKernel,
-          test.getExpectedNumInputs, test.getClass.getSimpleName, test)
+      if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
+        verifyCodeGen(test.getFunction, test.getExpectedKernel,
+            test.getExpectedNumInputs, test.getClass.getSimpleName, test)
+      }
     }
   }
 }

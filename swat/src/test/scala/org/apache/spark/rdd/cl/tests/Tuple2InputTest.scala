@@ -26,13 +26,6 @@ object Tuple2InputTest extends CodeGenTest[(Int, Int), Int] {
     "} scala_Tuple2_I_I;\n" +
     "typedef struct This_s{\n" +
     "   } This;\n" +
-    "\n" +
-    "static __global scala_Tuple2_I_I *scala_Tuple2_I_I___init_(__global scala_Tuple2_I_I *this, int  one, int  two) {\n" +
-    "   this->_1 = one;\n" +
-    "   this->_2 = two;\n" +
-    "   return this;\n" +
-    "}\n" +
-    "\n" +
     "static int org_apache_spark_rdd_cl_tests_Tuple2InputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_I* in){\n" +
     "   return((in->_1 + in->_2));\n" +
     "}\n" +
@@ -62,8 +55,7 @@ object Tuple2InputTest extends CodeGenTest[(Int, Int), Int] {
     val inputClassType2Name = CodeGenUtil.cleanClassName("I")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        CodeGenUtil.getDescriptorForClassName(inputClassType1Name), inputClassType1Name, 
-        CodeGenUtil.getDescriptorForClassName(inputClassType2Name), inputClassType2Name)
+        inputClassType1Name, inputClassType2Name, false)
     val models = new HardCodedClassModels()
     models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
     models

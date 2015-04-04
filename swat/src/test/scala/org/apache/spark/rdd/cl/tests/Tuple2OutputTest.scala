@@ -83,8 +83,7 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     val outputClassType2Name = CodeGenUtil.cleanClassName("I")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        CodeGenUtil.getDescriptorForClassName(outputClassType1Name), outputClassType1Name, 
-        CodeGenUtil.getDescriptorForClassName(outputClassType2Name), outputClassType2Name)
+        outputClassType1Name, outputClassType2Name, true)
     val models = new HardCodedClassModels()
     models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
     models

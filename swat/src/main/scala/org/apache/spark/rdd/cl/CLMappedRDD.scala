@@ -12,6 +12,7 @@ import org.apache.spark.rdd._
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
+import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
@@ -38,10 +39,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         inputClassType2.getName)
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        CodeGenUtil.getDescriptorForClassName(inputClassType1Name),
-        inputClassType1Name, 
-        CodeGenUtil.getDescriptorForClassName(inputClassType2Name),
-        inputClassType2Name)
+        inputClassType1Name, inputClassType2Name, param.getDir != DIRECTION.IN)
     hardCodedClassModels.addClassModelFor(obj.getClass, tuple2ClassModel)
 
     param.addTypeParameter(inputClassType1Name,
@@ -54,9 +52,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val N = 1024
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
+    var sampleOutput : Any = null
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
-    val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null)
+    val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
+        new ShouldNotCallMatcher())
     val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
@@ -88,7 +88,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               createHardCodedClassModel(acc(0).asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
             }
-            val sampleOutput = f(acc(0))
+            sampleOutput = f(acc(0))
             if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
@@ -111,8 +111,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           var argnum : Int = 0
           argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, true, entryPoint)
           val outArgNum : Int = argnum
-          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg(ctx, argnum, output.size,
-              classTag[U].runtimeClass, entryPoint)
+          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx, argnum, output.size,
+              classTag[U].runtimeClass, entryPoint, sampleOutput.asInstanceOf[U])
 
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
@@ -140,8 +140,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             OpenCLBridge.run(ctx, nLoaded);
           }
 
-          OpenCLBridgeWrapper.fetchArgFromUnitializedArray(ctx, outArgNum,
-              output, entryPoint)
+          OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, outArgNum,
+              output, entryPoint, sampleOutput.asInstanceOf[U])
         }
 
         val curr = index
