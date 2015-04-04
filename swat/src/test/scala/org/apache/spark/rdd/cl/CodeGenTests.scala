@@ -21,6 +21,7 @@ object CodeGenTests {
   tests.add(PrimitiveInputObjectOutputTest)
   tests.add(ObjectInputObjectOutputTest)
   tests.add(ReferenceExternalArrayTest)
+  tests.add(ReferenceExternalObjectArrayTest)
   tests.add(ReferenceExternalScalarTest)
   tests.add(ExternalFunction)
   tests.add(Tuple2InputTest)
