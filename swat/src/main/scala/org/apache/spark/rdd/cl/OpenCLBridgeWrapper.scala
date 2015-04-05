@@ -25,24 +25,29 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
 
 class ObjectMatcher(sample : Tuple2[_, _]) extends HardCodedClassModelMatcher {
+
   def matches(genericModel : HardCodedClassModel) : Boolean = {
     val model : Tuple2ClassModel = genericModel.asInstanceOf[Tuple2ClassModel]
-    throw new RuntimeException("TODO" +
-      sample._1.getClass.getName + " " +
-      sample._2.getClass.getName + " " +
-      model.getTypeParamDescs.get(0) + " " +
-      model.getTypeParamDescs.get(1))
+    val firstMatches =
+        OpenCLBridgeWrapper.convertClassNameToDesc(
+          sample._1.getClass.getName).equals(model.getTypeParamDescs.get(0))
+    val secondMatches =
+        OpenCLBridgeWrapper.convertClassNameToDesc(
+          sample._2.getClass.getName).equals(model.getTypeParamDescs.get(1))
+    firstMatches && secondMatches
   }
 }
 
 object OpenCLBridgeWrapper {
-
-  def getSizeForType(t : TypeSpec) : scala.Long = {
-    t match {
-      case TypeSpec.I => t.getSize;
-      case TypeSpec.F => t.getSize;
-      case TypeSpec.D => t.getSize;
-      case _ => throw new RuntimeException("Unsupported type")
+  def convertClassNameToDesc(className : String) : String = {
+    className match {
+      case "java.lang.Integer" => "I";
+      case "java.lang.Float" => "F";
+      case "java.lang.Double" => "D";
+      case _ => {
+        if (className.length == 1) className
+        else "L" + className + ";"
+      }
     }
   }
 
@@ -195,7 +200,8 @@ object OpenCLBridgeWrapper {
       arg : Array[Tuple2[_, _]], typeName : String, _1typeName : String,
       _2typeName : String, entryPoint : Entrypoint) {
     val c : ClassModel = entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
-        new DescMatcher(Array(_1typeName, _2typeName)))
+        new DescMatcher(Array(convertClassNameToDesc(_1typeName),
+        convertClassNameToDesc(_2typeName))))
     val arrLength : Int = arg.length
     val structSize : Int = c.getTotalStructSize
 
@@ -328,9 +334,12 @@ object OpenCLBridgeWrapper {
       return 1
     } else if (clazz.equals(classOf[Tuple2[_, _]])) {
       val sampleTuple : Tuple2[_, _] = sampleOutput.asInstanceOf[Tuple2[_, _]]
+      val matcher = new DescMatcher(Array(convertClassNameToDesc(
+          sampleTuple._1.getClass.getName), convertClassNameToDesc(
+          sampleTuple._2.getClass.getName)))
+      System.err.println("matcher=" + matcher.toString)
       val c : ClassModel = entryPoint.getHardCodedClassModels.getClassModelFor(
-          "scala.Tuple2", new DescMatcher(Array(sampleTuple._1.getClass.getName,
-              sampleTuple._2.getClass.getName)))
+          "scala.Tuple2", matcher)
       val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
       assert(structMembers.size == 2)
 
