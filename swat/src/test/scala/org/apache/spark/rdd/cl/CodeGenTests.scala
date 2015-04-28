@@ -33,6 +33,7 @@ object CodeGenTests {
   tests.add(Tuple2OutputTest)
   tests.add(Tuple2ObjectOutputTest)
   tests.add(Tuple2InputOutputTest)
+  tests.add(KMeansTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, test : CodeGenTest[_, _]) {

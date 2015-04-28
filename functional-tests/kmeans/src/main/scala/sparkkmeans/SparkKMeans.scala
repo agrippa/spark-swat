@@ -12,17 +12,24 @@ class Point(val x: Float, val y: Float, val z: Float)
   def this() {
     this(0.0f, 0.0f, 0.0f)
   }
-}
 
-class Cluster(val id : Int, val x : Float, val y : Float, val z : Float) {
-  def this() {
-    this(-1, 0.0f, 0.0f, 0.0f)
-  }
-}
+  def classify(centers : Array[(Int, Point)]) : (Int, Point) = {
+      var closest_center = -1
+      var closest_center_dist = -1.0
 
-class PointClassification(val clazz : Int, val x : Float, val y : Float, val z : Float) {
-  def this() {
-    this(-1, 0.0f, 0.0f, 0.0f)
+      for (i <- 0 until centers.length) {
+          val diffx = centers(i)._2.x - x
+          val diffy = centers(i)._2.y - y
+          val diffz = centers(i)._2.z - z
+          val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
+
+          if (closest_center == -1 || dist < closest_center_dist) {
+              closest_center = centers(i)._1
+              closest_center_dist = dist
+          }
+      }
+
+      (closest_center, new Point(x, y, z))
   }
 }
 
@@ -68,15 +75,15 @@ object SparkKMeans {
         val points : CLWrapperRDD[Point] = CLWrapper.cl[Point](raw_points)
         val samples : Array[Point] = points.takeSample(false, K);
 
-        var centers = new Array[Cluster](K)
+        var centers = new Array[(Int, Point)](K)
         for (i <- samples.indices) {
             val s = samples(i)
 
-            centers(i) = new Cluster(i, s.x, s.y, s.z)
+            centers(i) = (i, new Point(s.x, s.y, s.z))
         }
 
         for (iter <- 0 until iters) {
-            val classified = points.map(point => classify(point, centers))
+            val classified = points.map(point => point.classify(centers))
             val counts = classified.countByKey()
             val sums = classified.reduceByKey((a, b) => new Point(a.x + b.x,
                     a.y + b.y, a.z + b.z))
@@ -116,27 +123,4 @@ object SparkKMeans {
         converted.saveAsObjectFile(outputDir)
     }
 
-    def classify(point : Point, centers : Array[Cluster]) : PointClassification = {
-        val x = point.x
-        val y = point.y
-        val z = point.z
-
-        var closest_center = -1
-        var closest_center_dist = -1.0
-
-        for (i <- 0 until centers.length) {
-            val center : Cluster = centers(i)
-            val diffx = center.x - x
-            val diffy = center.y - y
-            val diffz = center.z - z
-            val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
-
-            if (closest_center == -1 || dist < closest_center_dist) {
-                closest_center = center.id
-                closest_center_dist = dist
-            }
-        }
-
-        new PointClassification(closest_center, x, y, z)
-    }
 }
