@@ -89,7 +89,7 @@ static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
 #endif
 
 #ifdef VERBOSE
-    fprintf(stderr, "setting arg %d to value %d with size %d\n", arg_index,
+    fprintf(stderr, "setting arg %u to value %d with size %lu\n", arg_index,
             *((int *)arg_value), arg_size);
 #endif
 }
@@ -118,6 +118,28 @@ static int checkExtension(char *exts, size_t ext_len, const char *ext) {
     return 0;
 }
 
+static int checkAllAssertions(cl_device_id device, int requiresDouble,
+        int requiresAtomics) {
+
+    int requires_extension_check = (requiresDouble || requiresAtomics);
+    if (requires_extension_check) {
+        size_t ext_len;
+        CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
+        char *exts = (char *)malloc(ext_len);
+        CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_len, exts, NULL));
+
+        if (requiresDouble && !checkExtension(exts, ext_len, "cl_khr_fp64")) {
+            return 0;
+        }
+        if (requiresAtomics &&
+                (!checkExtension(exts, ext_len, "cl_khr_int64_base_atomics") ||
+                 !checkExtension(exts, ext_len, "cl_khr_int64_extended_atomics"))) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 JNI_JAVA(jlong, OpenCLBridge, createContext)
         (JNIEnv *jenv, jclass clazz, jstring source, jboolean requiresDouble,
          jboolean requiresAtomics) {
@@ -136,18 +158,35 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     cl_uint platform_index = 0;
     while (platform_index < num_platforms && device == 0) {
         cl_uint num_gpus = get_num_gpus(platforms[platform_index]);
+        cl_uint num_cpus = get_num_cpus(platforms[platform_index]);
+
         if (num_gpus > 0) {
+            cl_device_id *gpus = (cl_device_id *)malloc(num_gpus *
+                    sizeof(cl_device_id));
             CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_GPU,
-                        1, &device, NULL));
-            platform = platforms[platform_index];
-            break;
-        } else {
-            cl_uint num_cpus = get_num_cpus(platforms[platform_index]);
-            if (num_cpus > 0) {
-                CHECK(clGetDeviceIDs(platforms[platform_index],
-                            CL_DEVICE_TYPE_CPU, 1, &backup_device, NULL));
-                backup_platform = platforms[platform_index];
+                        num_gpus, gpus, NULL));
+            for (int g = 0; g < num_gpus; g++) {
+                if (checkAllAssertions(gpus[g], requiresDouble, requiresAtomics)) {
+                    device = gpus[g];
+                    platform = platforms[platform_index];
+                    break;
+                }
             }
+            free(gpus);
+        }
+        if (device == 0 && num_cpus > 0) {
+            cl_device_id *cpus = (cl_device_id *)malloc(num_cpus *
+                    sizeof(cl_device_id));
+            CHECK(clGetDeviceIDs(platforms[platform_index],
+                        CL_DEVICE_TYPE_CPU, num_cpus, cpus, NULL));
+            for (int c = 0; c < num_cpus; c++) {
+                if (checkAllAssertions(cpus[c], requiresDouble, requiresAtomics)) {
+                    backup_device = cpus[c];
+                    backup_platform = platforms[platform_index];
+                    break;
+                }
+            }
+            free(cpus);
         }
 
         platform_index++;
@@ -159,21 +198,18 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     }
     assert(device != 0);
 
-    int requires_extension_check = (requiresDouble || requiresAtomics);
-    if (requires_extension_check) {
-        size_t ext_len;
-        CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
-        char *exts = (char *)malloc(ext_len);
-        CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_len, exts, NULL));
+#ifdef VERBOSE
+    size_t name_len;
+    CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, 0, NULL, &name_len));
+    char *device_name = (char *)malloc(name_len + 1);
+    CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, device_name,
+                NULL));
+    device_name[name_len] = '\0';
 
-        if (requiresDouble) {
-            checkExtension(exts, ext_len, "cl_khr_fp64");
-        }
-        if (requiresAtomics) {
-            checkExtension(exts, ext_len, "cl_khr_int64_base_atomics");
-            checkExtension(exts, ext_len, "cl_khr_int64_extended_atomics");
-        }
-    }
+    fprintf(stderr, "SWAT: Using device %s, require double? %d, "
+            "require atomics? %d\n", device_name, requiresDouble,
+            requiresAtomics);
+#endif
 
     free(platforms);
 
@@ -254,7 +290,7 @@ static void set_kernel_arg(void *host, size_t len, int index,
             0);
 #endif
 #ifdef VERBOSE
-    fprintf(stderr, "setting arg %d to a memory buffer of size %d\n", index,
+    fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
             len);
 #endif
 }
@@ -306,7 +342,7 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
             false, 0);
 #endif
 #ifdef VERBOSE
-    fprintf(stderr, "setting arg %d to an unitialized value with size %d\n",
+    fprintf(stderr, "setting arg %d to an unitialized value with size %ld\n",
             argnum, size);
 #endif
 
