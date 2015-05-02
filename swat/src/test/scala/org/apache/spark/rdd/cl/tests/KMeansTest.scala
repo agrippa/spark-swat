@@ -15,23 +15,11 @@ class PointWithClassifier(val x: Float, val y: Float, val z: Float)
     this(0.0f, 0.0f, 0.0f)
   }
 
-  def classify(centers : Array[(Int, PointWithClassifier)]) : (Int, PointWithClassifier) = {
-      var closest_center = -1
-      var closest_center_dist = -1.0
-
-      for (i <- 0 until centers.length) {
-          val diffx = centers(i)._2.x - x
-          val diffy = centers(i)._2.y - y
-          val diffz = centers(i)._2.z - z
-          val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
-
-          if (closest_center == -1 || dist < closest_center_dist) {
-              closest_center = centers(i)._1
-              closest_center_dist = dist
-          }
-      }
-
-      (closest_center, new PointWithClassifier(x, y, z))
+  def dist(center : PointWithClassifier) : (Float) = {
+    val diffx : Float = center.x - x
+    val diffy : Float = center.y - y
+    val diffz : Float = center.z - z
+    sqrt(diffx * diffx + diffy * diffy + diffz * diffz).asInstanceOf[Float]
   }
 }
 object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassifier)] {
@@ -68,7 +56,22 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     }
     new Function[PointWithClassifier, (Int, PointWithClassifier)] {
       override def apply(in : PointWithClassifier) : (Int, PointWithClassifier) = {
-        in.classify(centers)
+        var closest_center = -1
+        var closest_center_dist = -1.0f
+
+        var i = 0
+        while (i < centers.length) {
+          val d = in.dist(centers(i)._2)
+          if (i == 0 || d < closest_center_dist) {
+            closest_center = i
+            closest_center_dist = d
+          }
+
+          i += 1
+        }
+        (centers(closest_center)._1, new PointWithClassifier(
+            centers(closest_center)._2.x, centers(closest_center)._2.y,
+            centers(closest_center)._2.z))
       }
     }
   }

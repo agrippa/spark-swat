@@ -96,13 +96,16 @@ void list_devices() {
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_VERSION, version_len, device_version, NULL));
             device_version[version_len] = '\0';
 
+            cl_uint compute_units;
+            CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL));
+
             size_t ext_len;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
             char *device_ext = (char *)malloc(ext_len + 1);
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_EXTENSIONS, ext_len, device_ext, NULL));
             device_ext[ext_len] = '\0';
 
-            printf("%s - %s - %s\n", device_name, device_version, device_ext);
+            printf("%s - %d compute units - %s - %s\n", device_name, compute_units, device_version, device_ext);
 
             device_index++;
         }
