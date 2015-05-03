@@ -15,7 +15,7 @@ public class OpenCLBridge {
     }
 
     public static native long createContext(String _source,
-        boolean requiresDouble, boolean requiresAtomics);
+        boolean requiresDouble, boolean requiresHeap);
 
     public static native void setIntArg(long ctx, int index, int arg);
 
@@ -42,11 +42,12 @@ public class OpenCLBridge {
 
     public static native void setArgUnitialized(long ctx, int index, long size);
 
-    public static native int createHeap(long ctx, int index, long size, int max_n_buffered);
+    public static native int createHeap(long ctx, int index, int size, int max_n_buffered);
     public static native void resetHeap(long ctx, int starting_argnum);
 
-    public static void setArgByNameAndType(long ctx, int index, Object obj,
+    public static int setArgByNameAndType(long ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint) {
+        int argsUsed = 1;
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
         } else if (desc.equals("D")) {
@@ -55,6 +56,22 @@ public class OpenCLBridge {
             setFloatArgByName(ctx, index, obj, name);
         } else if (desc.startsWith("[")) {
             // Array-typed field
+            final boolean lengthUsed = entryPoint.getArrayFieldArrayLengthUsed().contains(name);
+            final Field field;
+            try {
+              field = obj.getClass().getDeclaredField(name);
+              field.setAccessible(true);
+            } catch (NoSuchFieldException n) {
+              throw new RuntimeException(n);
+            }
+
+            final Object fieldInstance;
+            try {
+              fieldInstance = field.get(obj);
+            } catch (IllegalAccessException i) {
+              throw new RuntimeException(i);
+            }
+
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
                 setIntArrayArgByName(ctx, index, obj, name);
@@ -65,26 +82,20 @@ public class OpenCLBridge {
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
-              final Field field;
-              try {
-                field = obj.getClass().getDeclaredField(name);
-                field.setAccessible(true);
-              } catch (NoSuchFieldException n) {
-                throw new RuntimeException(n);
-              }
-
-              final Object fieldInstance;
-              try {
-                fieldInstance = field.get(obj);
-              } catch (IllegalAccessException i) {
-                throw new RuntimeException(i);
-              }
-              OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, index,
+              argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, index,
                   fieldInstance, arrayElementTypeName, true, entryPoint);
+            }
+
+            if (lengthUsed) {
+                setIntArg(ctx, index + argsUsed,
+                    OpenCLBridgeWrapper.getArrayLength(fieldInstance));
+                argsUsed += 1;
             }
         } else {
             throw new RuntimeException("Unsupported type: " + desc);
         }
+
+        return argsUsed;
     }
 
     public static <T> T constructObjectFromDefaultConstructor(Class<T> clazz)

@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl.tests
 
 import scala.math._
 import java.util.LinkedList
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -24,14 +24,16 @@ class PointWithClassifier(val x: Float, val y: Float, val z: Float)
 }
 object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassifier)] {
   def getExpectedKernel() : String = {
-    "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable\n" +
-    "#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable\n" +
+    "#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable\n" +
+    "#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable\n" +
+    "#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable\n" +
+    "#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable\n" +
     "static int atomicAdd(__global int *_arr, int _index, int _delta){\n" +
     "   return atomic_add(&_arr[_index], _delta);\n" +
     "}\n" +
     "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" +
     "\n" +
-    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, long heap_size, int nbytes, int *alloc_failed) {\n" +
+    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
     "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
     "   uint offset = atomic_add(free_index, nbytes);\n" +
     "   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }\n" +
@@ -56,7 +58,7 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "   __global void *heap;\n" +
     "   __global uint *free_index;\n" +
     "   int alloc_failed;\n" +
-    "   long heap_size;\n" +
+    "   unsigned int heap_size;\n" +
     "   } This;\n" +
     "\n" +
     "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *this, int  one, __global org_apache_spark_rdd_cl_tests_PointWithClassifier *  two) {\n" +
@@ -116,12 +118,12 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "}\n" +
     "__kernel void run(\n" +
     "      __global org_apache_spark_rdd_cl_tests_PointWithClassifier* in0, \n" +
-    "      __global int * out_1, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* out_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *centers$1, int centers$1__javaArrayLength, __global void *heap, __global uint *free_index, long heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
+    "      __global int * out_1, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* out_2, __global int * centers$1_1, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* centers$1_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *centers$1, int centers$1__javaArrayLength, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
     "   This* this=&thisStruct;\n" +
-    "   this->centers$1 = centers$1;\n" +
+    "   this->centers$1 = centers$1; for (int i = 0; i < centers$1__javaArrayLength; i++) { centers$1[i]._1 = centers$1_1[i]; centers$1[i]._2 = centers$1_2 + i;  } ;\n" +
     "   this->centers$1__javaArrayLength = centers$1__javaArrayLength;\n" +
     "   this->heap = heap;\n" +
     "   this->free_index = free_index;\n" +
@@ -159,7 +161,7 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     models
   }
 
-  def complete(params : LinkedList[ScalaParameter]) {
+  def complete(params : LinkedList[ScalaArrayParameter]) {
     params.get(1).addTypeParameter("I", false)
     params.get(1).addTypeParameter(
         "Lorg.apache.spark.rdd.cl.tests.PointWithClassifier;", true)

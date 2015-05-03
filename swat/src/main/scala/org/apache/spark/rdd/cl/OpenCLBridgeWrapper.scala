@@ -51,8 +51,21 @@ object OpenCLBridgeWrapper {
     }
   }
 
+  def getArrayLength(arg : Array[_]) : Int = {
+    if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[_]]]) {
+      return getArrayLength(arg.asInstanceOf[scala.runtime.ObjectRef[Array[_]]].elem)
+    } else {
+      return arg.length
+    }
+  }
+
   def setObjectTypedArrayArg[T](ctx : scala.Long, argnum : Int, arg : Array[T],
       typeName : String, isInput : Boolean, entryPoint : Entrypoint) : Int = {
+    if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[T]]]) {
+      return setObjectTypedArrayArg(ctx, argnum,
+        arg.asInstanceOf[scala.runtime.ObjectRef[Array[T]]].elem, typeName,
+        isInput, entryPoint)
+    }
 
     if (arg(0).isInstanceOf[Tuple2[_, _]]) {
       val sample : Tuple2[_, _] = arg(0).asInstanceOf[Tuple2[_, _]]
@@ -289,6 +302,7 @@ object OpenCLBridgeWrapper {
 
   def setArrayArg[T](ctx : scala.Long, argnum : Int, arg : Array[T],
       isInput : Boolean, entryPoint : Entrypoint) : Int = {
+
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, argnum, arg.asInstanceOf[Array[Double]])
       return 1
@@ -337,7 +351,6 @@ object OpenCLBridgeWrapper {
       val matcher = new DescMatcher(Array(convertClassNameToDesc(
           sampleTuple._1.getClass.getName), convertClassNameToDesc(
           sampleTuple._2.getClass.getName)))
-      System.err.println("matcher=" + matcher.toString)
       val c : ClassModel = entryPoint.getHardCodedClassModels.getClassModelFor(
           "scala.Tuple2", matcher)
       val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers

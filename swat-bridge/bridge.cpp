@@ -119,9 +119,9 @@ static int checkExtension(char *exts, size_t ext_len, const char *ext) {
 }
 
 static int checkAllAssertions(cl_device_id device, int requiresDouble,
-        int requiresAtomics) {
+        int requiresHeap) {
 
-    int requires_extension_check = (requiresDouble || requiresAtomics);
+    int requires_extension_check = (requiresDouble || requiresHeap);
     if (requires_extension_check) {
         size_t ext_len;
         CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
@@ -131,9 +131,12 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
         if (requiresDouble && !checkExtension(exts, ext_len, "cl_khr_fp64")) {
             return 0;
         }
-        if (requiresAtomics &&
-                (!checkExtension(exts, ext_len, "cl_khr_int64_base_atomics") ||
-                 !checkExtension(exts, ext_len, "cl_khr_int64_extended_atomics"))) {
+
+        if (requiresHeap &&
+                (!checkExtension(exts, ext_len, "cl_khr_global_int32_base_atomics") ||
+                 !checkExtension(exts, ext_len, "cl_khr_global_int32_extended_atomics") ||
+                 !checkExtension(exts, ext_len, "cl_khr_local_int32_base_atomics") ||
+                 !checkExtension(exts, ext_len, "cl_khr_local_int32_extended_atomics"))) {
             return 0;
         }
     }
@@ -142,7 +145,7 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
 
 JNI_JAVA(jlong, OpenCLBridge, createContext)
         (JNIEnv *jenv, jclass clazz, jstring source, jboolean requiresDouble,
-         jboolean requiresAtomics) {
+         jboolean requiresHeap) {
     enter_trace("createContext");
     cl_uint num_platforms = get_num_opencl_platforms();
     cl_platform_id *platforms =
@@ -166,7 +169,7 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
             CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_GPU,
                         num_gpus, gpus, NULL));
             for (int g = 0; g < num_gpus; g++) {
-                if (checkAllAssertions(gpus[g], requiresDouble, requiresAtomics)) {
+                if (checkAllAssertions(gpus[g], requiresDouble, requiresHeap)) {
                     device = gpus[g];
                     platform = platforms[platform_index];
                     break;
@@ -180,7 +183,7 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
             CHECK(clGetDeviceIDs(platforms[platform_index],
                         CL_DEVICE_TYPE_CPU, num_cpus, cpus, NULL));
             for (int c = 0; c < num_cpus; c++) {
-                if (checkAllAssertions(cpus[c], requiresDouble, requiresAtomics)) {
+                if (checkAllAssertions(cpus[c], requiresDouble, requiresHeap)) {
                     backup_device = cpus[c];
                     backup_platform = platforms[platform_index];
                     break;
@@ -207,8 +210,8 @@ JNI_JAVA(jlong, OpenCLBridge, createContext)
     device_name[name_len] = '\0';
 
     fprintf(stderr, "SWAT: Using device %s, require double? %d, "
-            "require atomics? %d\n", device_name, requiresDouble,
-            requiresAtomics);
+            "require heap? %d\n", device_name, requiresDouble,
+            requiresHeap);
 #endif
 
     free(platforms);
@@ -372,7 +375,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 }
 
 JNI_JAVA(int, OpenCLBridge, createHeap)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum, jlong size,
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum, jint size,
          jint max_n_buffered) {
     enter_trace("createHeap");
 

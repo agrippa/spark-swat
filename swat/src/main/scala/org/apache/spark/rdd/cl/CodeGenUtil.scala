@@ -2,6 +2,7 @@ package org.apache.spark.rdd.cl
 
 import java.util.LinkedList
 import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
@@ -40,29 +41,29 @@ object CodeGenUtil {
   }
 
   def getParamObjsFromMethodDescriptor(descriptor : String,
-      expectedNumParams : Int) : LinkedList[ScalaParameter] = {
+      expectedNumParams : Int) : LinkedList[ScalaArrayParameter] = {
     val arguments : String = descriptor.substring(descriptor.indexOf('(') + 1,
         descriptor.lastIndexOf(')'))
     val argumentsArr : Array[String] = arguments.split(",")
 
     assert(argumentsArr.length == expectedNumParams)
 
-    val params = new LinkedList[ScalaParameter]()
+    val params = new LinkedList[ScalaArrayParameter]()
 
     for (i <- 0 until argumentsArr.length) {
       val argumentDesc : String = argumentsArr(i)
 
-      params.add(new ScalaParameter(getTypeForDescriptor(argumentDesc),
+      params.add(new ScalaArrayParameter(getTypeForDescriptor(argumentDesc),
             getClassForDescriptor(argumentDesc), "in" + i, DIRECTION.IN))
     }
 
     params
   }
 
-  def getReturnObjsFromMethodDescriptor(descriptor : String) : ScalaParameter = {
+  def getReturnObjsFromMethodDescriptor(descriptor : String) : ScalaArrayParameter = {
     val returnType : String = descriptor.substring(
         descriptor.lastIndexOf(')') + 1)
-    new ScalaParameter(getTypeForDescriptor(returnType),
+    new ScalaArrayParameter(getTypeForDescriptor(returnType),
         getClassForDescriptor(returnType), "out", DIRECTION.OUT)
   }
 

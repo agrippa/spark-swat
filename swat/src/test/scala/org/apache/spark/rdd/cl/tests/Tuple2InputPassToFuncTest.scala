@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl.tests
 
 import java.util.LinkedList
 
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
@@ -12,7 +12,7 @@ import org.apache.spark.rdd.cl.CodeGenUtil
 
 object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
   def getExpectedKernel() : String = {
-    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, long heap_size, int nbytes, int *alloc_failed) {\n" +
+    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
     "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
     "   uint offset = atomic_add(free_index, nbytes);\n" +
     "   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }\n" +
@@ -64,7 +64,7 @@ object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
     models
   }
 
-  def complete(params : LinkedList[ScalaParameter]) {
+  def complete(params : LinkedList[ScalaArrayParameter]) {
     params.get(0).addTypeParameter("I", false)
     params.get(0).addTypeParameter("I", false)
   }

@@ -13,23 +13,11 @@ class Point(val x: Float, val y: Float, val z: Float)
     this(0.0f, 0.0f, 0.0f)
   }
 
-  def classify(centers : Array[(Int, Point)]) : (Int, Point) = {
-      var closest_center = -1
-      var closest_center_dist = -1.0
-
-      for (i <- 0 until centers.length) {
-          val diffx = centers(i)._2.x - x
-          val diffy = centers(i)._2.y - y
-          val diffz = centers(i)._2.z - z
-          val dist = sqrt(pow(diffx, 2) + pow(diffy, 2) + pow(diffz, 2))
-
-          if (closest_center == -1 || dist < closest_center_dist) {
-              closest_center = centers(i)._1
-              closest_center_dist = dist
-          }
-      }
-
-      (closest_center, new Point(x, y, z))
+  def dist(center : Point) : (Float) = {
+    val diffx : Float = center.x - x
+    val diffy : Float = center.y - y
+    val diffz : Float = center.z - z
+    sqrt(diffx * diffx + diffy * diffy + diffz * diffz).asInstanceOf[Float]
   }
 }
 
@@ -82,8 +70,26 @@ object SparkKMeans {
             centers(i) = (i, new Point(s.x, s.y, s.z))
         }
 
-        for (iter <- 0 until iters) {
-            val classified = points.map(point => point.classify(centers))
+        var iter = 0
+        while (iter < iters) {
+            val classified = points.map(point => {
+                var closest_center = -1
+                var closest_center_dist = -1.0f
+
+                var i = 0
+                while (i < centers.length) {
+                    val d = point.dist(centers(i)._2)
+                    if (i == 0 || d < closest_center_dist) {
+                        closest_center = i
+                        closest_center_dist = d
+                    }
+
+                    i += 1
+                }
+                (centers(closest_center)._1, new Point(
+                     centers(closest_center)._2.x, centers(closest_center)._2.y,
+                     centers(closest_center)._2.z))
+            })
             val counts = classified.countByKey()
             val sums = classified.reduceByKey((a, b) => new Point(a.x + b.x,
                     a.y + b.y, a.z + b.z))
@@ -101,6 +107,7 @@ object SparkKMeans {
                 println("  Cluster " + a._1 + ", (" + p.x + ", " + p.y +
                         ", " + p.z + ")")
             }
+            iter += 1
         }
     }
 

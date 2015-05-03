@@ -12,7 +12,7 @@ import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 
 object CodeGenTests {
 
@@ -42,7 +42,7 @@ object CodeGenTests {
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
-    val params : LinkedList[ScalaParameter] =
+    val params : LinkedList[ScalaArrayParameter] =
         CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, expectedNumArguments)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 

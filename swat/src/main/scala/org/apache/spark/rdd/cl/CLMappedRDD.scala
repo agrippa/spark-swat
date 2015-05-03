@@ -16,7 +16,7 @@ import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
+import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
@@ -29,7 +29,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   def createHardCodedClassModel(obj : Tuple2[_, _],
-      hardCodedClassModels : HardCodedClassModels, param : ScalaParameter) {
+      hardCodedClassModels : HardCodedClassModels,
+      param : ScalaArrayParameter) {
     val inputClassType1 = obj._1.getClass
     val inputClassType2 = obj._2.getClass
 
@@ -61,7 +62,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val descriptor : String = method.getDescriptor
 
     // 1 argument expected for maps
-    val params : LinkedList[ScalaParameter] =
+    val params : LinkedList[ScalaArrayParameter] =
         CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
@@ -117,14 +118,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
             val field = iter.next
-            OpenCLBridge.setArgByNameAndType(ctx, argnum, f, field.getName,
-                field.getDescriptor, entryPoint)
-            argnum = argnum + 1
+            argnum = argnum + OpenCLBridge.setArgByNameAndType(ctx, argnum, f,
+                field.getName, field.getDescriptor, entryPoint)
           }
 
           val heapArgStart : Int = argnum
           if (entryPoint.requiresHeap) {
-            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 100 * 1024L * 1024L, nLoaded)
+            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 100 * 1024 * 1024, nLoaded)
           }   
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
