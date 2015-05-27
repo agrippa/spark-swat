@@ -2,9 +2,9 @@
 
 set -e
 
-rm -rf /tmp/hadoop-jmg3/dfs
+rm -rf /tmp/hadoop-$(whoami)/dfs
 ${HADOOP_HOME}/sbin/stop-dfs.sh
-rm -rf /tmp/hadoop-jmg3/dfs
+rm -rf /tmp/hadoop-$(whoami)/dfs
 
 sed  "s/MASTER/$(hostname)/g" $HADOOP_HOME/etc/hadoop/core-site.xml.template > \
          $HADOOP_HOME/etc/hadoop/core-site.xml
