@@ -39,9 +39,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val inputClassType2Name = CodeGenUtil.cleanClassName(
         inputClassType2.getName)
 
+    System.err.println("Creating tuple2 class model for " + inputClassType1Name + " " + inputClassType2Name + " " + obj.getClass.getName + " " + param.getDir)
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         inputClassType1Name, inputClassType2Name, param.getDir != DIRECTION.IN)
-    hardCodedClassModels.addClassModelFor(obj.getClass, tuple2ClassModel)
+    hardCodedClassModels.addClassModelFor(Class.forName("scala.Tuple2"), tuple2ClassModel)
 
     param.addTypeParameter(inputClassType1Name,
         !CodeGenUtil.isPrimitive(inputClassType1Name))
@@ -104,7 +105,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
             openCL = writerAndKernel.kernel
-            // System.err.println(openCL)
+            System.err.println(openCL)
 
             ctx = OpenCLBridge.createContext(openCL,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
