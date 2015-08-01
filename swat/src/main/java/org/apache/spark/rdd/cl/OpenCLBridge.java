@@ -40,32 +40,10 @@ public class OpenCLBridge {
     public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
 
-    public static native void setBroadcastedIntArrayArgByName(long ctx, int index, Object obj, String name);
-    public static native void setBroadcastedDoubleArrayArgByName(long ctx, int index, Object obj, String name);
-    public static native void setBroadcastedFloatArrayArgByName(long ctx, int index, Object obj, String name);
-
     public static native void setArgUnitialized(long ctx, int index, long size);
 
     public static native int createHeap(long ctx, int index, int size, int max_n_buffered);
     public static native void resetHeap(long ctx, int starting_argnum);
-
-    private static void setIntArrayArgByNameWrapper(long ctx, int index,
-            Object obj, String name, boolean isBroadcasted) {
-        if (isBroadcasted) setBroadcastedIntArrayArgByName(ctx, index, obj, name);
-        else setIntArrayArgByName(ctx, index, obj, name);
-    }
-
-    private static void setDoubleArrayArgByNameWrapper(long ctx, int index,
-            Object obj, String name, boolean isBroadcasted) {
-        if (isBroadcasted) setBroadcastedDoubleArrayArgByName(ctx, index, obj, name);
-        else setDoubleArrayArgByName(ctx, index, obj, name);
-    }
-
-    private static void setFloatArrayArgByNameWrapper(long ctx, int index,
-            Object obj, String name, boolean isBroadcasted) {
-        if (isBroadcasted) setBroadcastedFloatArrayArgByName(ctx, index, obj, name);
-        else setFloatArrayArgByName(ctx, index, obj, name);
-    }
 
     public static int setArgByNameAndType(long ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint, boolean isBroadcast) {
@@ -101,11 +79,11 @@ public class OpenCLBridge {
 
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
-                setIntArrayArgByName(ctx, index, obj, name, isBroadcast);
+                setIntArrayArg(ctx, index, (int[])fieldInstance);
             } else if (primitiveType.equals("F")) {
-                setFloatArrayArgByName(ctx, index, obj, name, isBroadcast);
+                setFloatArrayArg(ctx, index, (float[])fieldInstance);
             } else if (primitiveType.equals("D")) {
-                setDoubleArrayArgByName(ctx, index, obj, name, isBroadcast);
+                setDoubleArrayArg(ctx, index, (double[])fieldInstance);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();

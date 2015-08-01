@@ -104,7 +104,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
             openCL = writerAndKernel.kernel
-            System.err.println(openCL)
+            // System.err.println(openCL)
 
             ctx = OpenCLBridge.createContext(openCL,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
