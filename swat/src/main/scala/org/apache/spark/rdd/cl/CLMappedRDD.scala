@@ -104,6 +104,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
             openCL = writerAndKernel.kernel
+            System.err.println(openCL)
 
             ctx = OpenCLBridge.createContext(openCL,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
@@ -118,8 +119,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
             val field = iter.next
+            val isBroadcast = entryPoint.isBroadcastField(field)
             argnum = argnum + OpenCLBridge.setArgByNameAndType(ctx, argnum, f,
-                field.getName, field.getDescriptor, entryPoint)
+                field.getName, field.getDescriptor, entryPoint, isBroadcast)
           }
 
           val heapArgStart : Int = argnum

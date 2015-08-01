@@ -1,10 +1,10 @@
 GXX=g++
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=
+DEFINES=-DVERBOSE -DTRACE
 GXX_FLAGS=-g -O0
 
 SRC=bridge.cpp ocl_util.cpp
-INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
+INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
 TARGET=libbridge.so
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)

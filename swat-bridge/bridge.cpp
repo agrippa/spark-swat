@@ -55,7 +55,12 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
     jenv->ReleaseStringUTFChars(name, raw_name); \
-    jarray arr = (jarray)jenv->GetObjectField(obj, field); \
+    jobject broadcastObj = jenv->GetObjectField(obj, field); \
+    jclass broadcastClass = jenv->FindClass("org/apache/spark/broadcast/Broadcast"); \
+    if (broadcastClass == NULL) { fprintf(stderr, "Failed to load broadcast class\n"); exit(1); } \
+    jmethodID valueMethod = jenv->GetMethodID(broadcastClass, "value", "()Ljava/lang/Object;"); \
+    if (valueMethod == NULL) { fprintf(stderr, "Failed to load Broadcast.value() method\n"); exit(1); } \
+    jarray arr = (jarray)jenv->CallObjectMethod(broadcastObj, valueMethod); \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
     ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
             0); \
@@ -63,6 +68,30 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
     exit_trace("set"#utype"ArrayArgByName"); \
 }
+
+#define SET_BROADCASTED_ARRAY_ARG_BY_NAME_MACRO(ltype, utype, desc) \
+JNI_JAVA(void, OpenCLBridge, setBroadcasted##utype##ArrayArgByName) \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, jobject obj, \
+         jstring name) { \
+    enter_trace("set"#utype"ArrayArgByName"); \
+    jclass enclosing_class = jenv->GetObjectClass(obj); \
+    const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
+    fprintf(stderr, "raw_name=%s, desc=%s\n", raw_name, desc); \
+    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
+            fprintf(stderr, "got field id\n"); \
+    jenv->ReleaseStringUTFChars(name, raw_name); \
+            fprintf(stderr, "released string\n"); \
+    jarray arr = (jarray)jenv->GetObjectField(obj, field); \
+            fprintf(stderr, "get object field\n"); \
+    jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
+    fprintf(stderr, "arr_length=%lu\n", arr_length); \
+    ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
+            0); \
+    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx); \
+    jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
+    exit_trace("set"#utype"ArrayArgByName"); \
+}
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -316,6 +345,10 @@ SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, "F")
 SET_ARRAY_ARG_BY_NAME_MACRO(int, Int, "[I")
 SET_ARRAY_ARG_BY_NAME_MACRO(double, Double, "[D")
 SET_ARRAY_ARG_BY_NAME_MACRO(float, Float, "[F")
+
+SET_BROADCASTED_ARRAY_ARG_BY_NAME_MACRO(int, Int, "[I")
+SET_BROADCASTED_ARRAY_ARG_BY_NAME_MACRO(double, Double, "[D")
+SET_BROADCASTED_ARRAY_ARG_BY_NAME_MACRO(float, Float, "[F")
 
 SET_ARRAY_ARG_MACRO(int, Int, int)
 SET_ARRAY_ARG_MACRO(double, Double, double)

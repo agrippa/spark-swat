@@ -40,13 +40,35 @@ public class OpenCLBridge {
     public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
 
+    public static native void setBroadcastedIntArrayArgByName(long ctx, int index, Object obj, String name);
+    public static native void setBroadcastedDoubleArrayArgByName(long ctx, int index, Object obj, String name);
+    public static native void setBroadcastedFloatArrayArgByName(long ctx, int index, Object obj, String name);
+
     public static native void setArgUnitialized(long ctx, int index, long size);
 
     public static native int createHeap(long ctx, int index, int size, int max_n_buffered);
     public static native void resetHeap(long ctx, int starting_argnum);
 
+    private static void setIntArrayArgByNameWrapper(long ctx, int index,
+            Object obj, String name, boolean isBroadcasted) {
+        if (isBroadcasted) setBroadcastedIntArrayArgByName(ctx, index, obj, name);
+        else setIntArrayArgByName(ctx, index, obj, name);
+    }
+
+    private static void setDoubleArrayArgByNameWrapper(long ctx, int index,
+            Object obj, String name, boolean isBroadcasted) {
+        if (isBroadcasted) setBroadcastedDoubleArrayArgByName(ctx, index, obj, name);
+        else setDoubleArrayArgByName(ctx, index, obj, name);
+    }
+
+    private static void setFloatArrayArgByNameWrapper(long ctx, int index,
+            Object obj, String name, boolean isBroadcasted) {
+        if (isBroadcasted) setBroadcastedFloatArrayArgByName(ctx, index, obj, name);
+        else setFloatArrayArgByName(ctx, index, obj, name);
+    }
+
     public static int setArgByNameAndType(long ctx, int index, Object obj,
-            String name, String desc, Entrypoint entryPoint) {
+            String name, String desc, Entrypoint entryPoint, boolean isBroadcast) {
         int argsUsed = 1;
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
@@ -65,20 +87,25 @@ public class OpenCLBridge {
               throw new RuntimeException(n);
             }
 
-            final Object fieldInstance;
+            Object fieldInstance;
             try {
               fieldInstance = field.get(obj);
             } catch (IllegalAccessException i) {
               throw new RuntimeException(i);
             }
 
+            if (isBroadcast) {
+                fieldInstance = OpenCLBridgeWrapper.unwrapBroadcastedArray(
+                        fieldInstance);
+            }
+
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
-                setIntArrayArgByName(ctx, index, obj, name);
+                setIntArrayArgByName(ctx, index, obj, name, isBroadcast);
             } else if (primitiveType.equals("F")) {
-                setFloatArrayArgByName(ctx, index, obj, name);
+                setFloatArrayArgByName(ctx, index, obj, name, isBroadcast);
             } else if (primitiveType.equals("D")) {
-                setDoubleArrayArgByName(ctx, index, obj, name);
+                setDoubleArrayArgByName(ctx, index, obj, name, isBroadcast);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();

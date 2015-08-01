@@ -59,6 +59,10 @@ object OpenCLBridgeWrapper {
     }
   }
 
+  def unwrapBroadcastedArray(obj : java.lang.Object) : java.lang.Object = {
+    return obj.asInstanceOf[org.apache.spark.broadcast.Broadcast[_]].value.asInstanceOf[java.lang.Object]
+  }
+
   def setObjectTypedArrayArg[T](ctx : scala.Long, argnum : Int, arg : Array[T],
       typeName : String, isInput : Boolean, entryPoint : Entrypoint) : Int = {
     if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[T]]]) {
