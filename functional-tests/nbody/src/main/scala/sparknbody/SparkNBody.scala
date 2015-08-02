@@ -65,7 +65,7 @@ object SparkKMeans {
           velocities(i) = new Triple(0.0f, 0.0f, 0.0f)
         }
 
-        val raw_range : RDD[Int] = sc.parallelize(0 to points.length * points.length)
+        val raw_range : RDD[Int] = sc.parallelize(0 to points.length * points.length - 1)
         val raw_pairs : RDD[(Int, Int)] = raw_range.map(i => {
             (i / points.length, i % points.length)
           }).filter(pair => pair._1 < pair._2)
