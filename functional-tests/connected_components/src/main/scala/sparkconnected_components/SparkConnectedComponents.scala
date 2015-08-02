@@ -20,7 +20,7 @@ object SparkConnectedComponents {
         val sc = get_spark_context("Spark Connected Components");
 
         if (cmd == "convert") {
-            convert(args.slice(1, args.length))
+            convert(args.slice(1, args.length), sc)
         } else if (cmd == "run") {
             run_connected_components(args.slice(1, args.length), sc)
         } else if (cmd == "run-cl") {
@@ -194,13 +194,12 @@ object SparkConnectedComponents {
         membership
     }
 
-    def convert(args : Array[String]) {
+    def convert(args : Array[String], sc : SparkContext) {
         if (args.length != 2) {
             println("usage: SparkConnectedComponents convert input-links-dir " +
                     "output-links-dir");
             return
         }
-        val sc = get_spark_context("Spark Connected Components Converter");
 
         val inputLinksDir = args(0)
         var outputLinksDir = args(1)
