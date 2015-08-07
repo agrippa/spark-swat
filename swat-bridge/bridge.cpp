@@ -19,9 +19,9 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
 
 #define ARRAY_ARG_MACRO(ltype, utype, ctype, type) \
 JNI_JAVA(void, OpenCLBridge, type##utype##ArrayArg) \
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg) { \
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype##Array arg, jint argLength) { \
     enter_trace(#type#utype"ArrayArg"); \
-    jsize len = jenv->GetArrayLength(arg) * sizeof(ctype); \
+    jsize len = argLength * sizeof(ctype); \
     ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
     type##_kernel_arg(arr, len, index, (swat_context *)lctx); \
     jenv->Release##utype##ArrayElements(arg, arr, 0); \

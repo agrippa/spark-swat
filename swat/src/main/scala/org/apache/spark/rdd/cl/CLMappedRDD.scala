@@ -112,7 +112,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
 
           var argnum : Int = 0
-          argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc, true, entryPoint)
+          argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc,
+                  nLoaded, true, entryPoint)
           val outArgNum : Int = argnum
           argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx, argnum, output.size,
               classTag[U].runtimeClass, entryPoint, sampleOutput.asInstanceOf[U])

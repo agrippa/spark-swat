@@ -19,16 +19,16 @@ public class OpenCLBridge {
 
     public static native void setIntArg(long ctx, int index, int arg);
 
-    public static native void setIntArrayArg(long ctx, int index, int[] arg);
-    public static native void setDoubleArrayArg(long ctx, int index, double[] arg);
-    public static native void setFloatArrayArg(long ctx, int index, float[] arg);
-    public static native void setByteArrayArg(long ctx, int index, byte[] arg);
+    public static native void setIntArrayArg(long ctx, int index, int[] arg, int argLength);
+    public static native void setDoubleArrayArg(long ctx, int index, double[] arg, int argLength);
+    public static native void setFloatArrayArg(long ctx, int index, float[] arg, int argLength);
+    public static native void setByteArrayArg(long ctx, int index, byte[] arg, int argLength);
     public static native void setNullArrayArg(long ctx, int index);
 
-    public static native void fetchIntArrayArg(long ctx, int index, int[] arg);
-    public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg);
-    public static native void fetchFloatArrayArg(long ctx, int index, float[] arg);
-    public static native void fetchByteArrayArg(long ctx, int index, byte[] arg);
+    public static native void fetchIntArrayArg(long ctx, int index, int[] arg, int argLength);
+    public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg, int argLength);
+    public static native void fetchFloatArrayArg(long ctx, int index, float[] arg, int argLength);
+    public static native void fetchByteArrayArg(long ctx, int index, byte[] arg, int argLength);
 
     public static native void run(long ctx, int range);
 
@@ -79,11 +79,14 @@ public class OpenCLBridge {
 
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
-                setIntArrayArg(ctx, index, (int[])fieldInstance);
+                setIntArrayArg(ctx, index, (int[])fieldInstance,
+                        ((int[])fieldInstance).length);
             } else if (primitiveType.equals("F")) {
-                setFloatArrayArg(ctx, index, (float[])fieldInstance);
+                setFloatArrayArg(ctx, index, (float[])fieldInstance,
+                        ((float[])fieldInstance).length);
             } else if (primitiveType.equals("D")) {
-                setDoubleArrayArg(ctx, index, (double[])fieldInstance);
+                setDoubleArrayArg(ctx, index, (double[])fieldInstance,
+                        ((double[])fieldInstance).length);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
