@@ -23,5 +23,9 @@ extern cl_uint get_num_devices(cl_platform_id platform, cl_device_type type);
 extern cl_uint get_num_gpus(cl_platform_id platform);
 extern cl_uint get_num_cpus(cl_platform_id platform);
 extern cl_uint get_num_devices(cl_platform_id platform);
+extern char *get_device_name(cl_device_id device);
+extern const char *get_device_type_str(cl_device_id device);
+extern cl_device_type get_device_type(cl_device_id device);
+extern cl_uint get_total_num_devices();
 
 #endif

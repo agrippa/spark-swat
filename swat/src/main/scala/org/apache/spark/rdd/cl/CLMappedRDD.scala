@@ -4,10 +4,12 @@ import scala.reflect.ClassTag
 import scala.reflect._
 import scala.reflect.runtime.universe._
 
+import java.net._
 import java.util.LinkedList
 
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
+import org.apache.spark.broadcast.Broadcast
 
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
@@ -25,6 +27,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   var entryPoint : Entrypoint = null
   var openCL : String = null
   var ctx : Long = -1L
+  var dev_ctx : Long = -1L
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -54,6 +57,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val N = 1024
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
+
+    System.err.println("SWAT Hello from Thread " +
+        Thread.currentThread().getName() + ", attemptId=" + context.attemptId +
+        ", partitionId=" + context.partitionId + " stageId=" + context.stageId +
+        " runningLocally=" + context.runningLocally);
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
@@ -105,30 +113,39 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
             openCL = writerAndKernel.kernel
-            System.err.println(openCL)
+            // System.err.println(openCL)
 
-            ctx = OpenCLBridge.createContext(openCL,
+            val threadNamePrefix = "Executor task launch worker-"
+            val threadName = Thread.currentThread.getName
+            if (!threadName.startsWith(threadNamePrefix)) {
+                throw new RuntimeException("Unexpected thread name \"" + threadName + "\"")
+            }
+            val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
+
+            dev_ctx = OpenCLBridge.getDeviceContext(threadId)
+            ctx = OpenCLBridge.createSwatContext(openCL, dev_ctx,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
           }
 
           var argnum : Int = 0
-          argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, 0, acc,
+          argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, dev_ctx, 0, acc,
                   nLoaded, true, entryPoint)
           val outArgNum : Int = argnum
-          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx, argnum, output.size,
-              classTag[U].runtimeClass, entryPoint, sampleOutput.asInstanceOf[U])
+          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
+              dev_ctx, argnum, output.size, classTag[U].runtimeClass,
+              entryPoint, sampleOutput.asInstanceOf[U])
 
           val iter = entryPoint.getReferencedClassModelFields.iterator
           while (iter.hasNext) {
             val field = iter.next
             val isBroadcast = entryPoint.isBroadcastField(field)
-            argnum = argnum + OpenCLBridge.setArgByNameAndType(ctx, argnum, f,
+            argnum = argnum + OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
                 field.getName, field.getDescriptor, entryPoint, isBroadcast)
           }
 
           val heapArgStart : Int = argnum
           if (entryPoint.requiresHeap) {
-            argnum = argnum + OpenCLBridge.createHeap(ctx, argnum, 100 * 1024 * 1024, nLoaded)
+            argnum = argnum + OpenCLBridge.createHeap(ctx, dev_ctx, argnum, 100 * 1024 * 1024, nLoaded)
           }   
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
@@ -136,15 +153,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           if (entryPoint.requiresHeap) {
             val anyFailed : Array[Int] = new Array[Int](1)
             do {
-              OpenCLBridge.run(ctx, nLoaded);
-              OpenCLBridgeWrapper.fetchArrayArg(ctx, argnum - 1, anyFailed, entryPoint)
-              OpenCLBridge.resetHeap(ctx, heapArgStart)
+              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
+              OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, argnum - 1, anyFailed, entryPoint)
+              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
             } while (anyFailed(0) > 0)
           } else {
-            OpenCLBridge.run(ctx, nLoaded);
+            OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
 
-          OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, outArgNum,
+          OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               output, entryPoint, sampleOutput.asInstanceOf[U])
         }
 

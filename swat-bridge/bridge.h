@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <map>
+#include <pthread.h>
 
 #include "common.h"
 #include "kernel_arg.h"
@@ -19,13 +20,20 @@ using namespace std;
 
 #define JNI_JAVA(type, className, methodName) JNIEXPORT type JNICALL Java_org_apache_spark_rdd_cl_##className##_##methodName
 
-typedef struct _swat_context {
+typedef struct _device_context {
     cl_platform_id platform;
-    cl_device_id device;
+    cl_device_id dev;
     cl_context ctx;
+    cl_command_queue cmd;
+
+    pthread_mutex_t lock;
+
+    map<jlong, cl_mem> *broadcast_cache;
+} device_context;
+
+typedef struct _swat_context {
     cl_program program;
     cl_kernel kernel;
-    cl_command_queue cmd;
 
     map<int, cl_mem> *arguments;
 #ifdef BRIDGE_DEBUG

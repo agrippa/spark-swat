@@ -1,5 +1,9 @@
 package org.apache.spark.rdd.cl;
 
+import java.util.Map;
+import java.util.HashMap;
+import java.net.*;
+
 import com.amd.aparapi.internal.model.ClassModel;
 import com.amd.aparapi.internal.model.Entrypoint;
 
@@ -14,38 +18,53 @@ public class OpenCLBridge {
         System.load(swatHome + "/swat-bridge/libbridge.so");
     }
 
-    public static native long createContext(String _source,
+    public static native long createSwatContext(String _source, long dev_ctx,
         boolean requiresDouble, boolean requiresHeap);
+    public static native long getDeviceContext(int host_thread_index);
 
     public static native void setIntArg(long ctx, int index, int arg);
 
-    public static native void setIntArrayArg(long ctx, int index, int[] arg, int argLength);
-    public static native void setDoubleArrayArg(long ctx, int index, double[] arg, int argLength);
-    public static native void setFloatArrayArg(long ctx, int index, float[] arg, int argLength);
-    public static native void setByteArrayArg(long ctx, int index, byte[] arg, int argLength);
+    public static native void setIntArrayArg(long ctx, long dev_ctx, int index,
+            int[] arg, int argLength, long broadcastId);
+    public static native void setDoubleArrayArg(long ctx, long dev_ctx,
+            int index, double[] arg, int argLength, long broadcastId);
+    public static native void setFloatArrayArg(long ctx, long dev_ctx,
+            int index, float[] arg, int argLength, long broadcastId);
+    public static native void setByteArrayArg(long ctx, long dev_ctx, int index,
+            byte[] arg, int argLength, long broadcastId);
     public static native void setNullArrayArg(long ctx, int index);
 
-    public static native void fetchIntArrayArg(long ctx, int index, int[] arg, int argLength);
-    public static native void fetchDoubleArrayArg(long ctx, int index, double[] arg, int argLength);
-    public static native void fetchFloatArrayArg(long ctx, int index, float[] arg, int argLength);
-    public static native void fetchByteArrayArg(long ctx, int index, byte[] arg, int argLength);
+    public static native void fetchIntArrayArg(long ctx, long dev_ctx,
+            int index, int[] arg, int argLength);
+    public static native void fetchDoubleArrayArg(long ctx, long dev_ctx,
+            int index, double[] arg, int argLength);
+    public static native void fetchFloatArrayArg(long ctx, long dev_ctx,
+            int index, float[] arg, int argLength);
+    public static native void fetchByteArrayArg(long ctx, long dev_ctx,
+            int index, byte[] arg, int argLength);
 
-    public static native void run(long ctx, int range);
+    public static native void run(long ctx, long dev_ctx, int range);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArgByName(long ctx, int index, Object obj, String name);
 
-    public static native void setIntArrayArgByName(long ctx, int index, Object obj, String name);
-    public static native void setDoubleArrayArgByName(long ctx, int index, Object obj, String name);
-    public static native void setFloatArrayArgByName(long ctx, int index, Object obj, String name);
+    public static native void setIntArrayArgByName(long ctx, long dev_ctx,
+            int index, Object obj, String name);
+    public static native void setDoubleArrayArgByName(long ctx, long dev_ctx,
+            int index, Object obj, String name);
+    public static native void setFloatArrayArgByName(long ctx, long dev_ctx,
+            int index, Object obj, String name);
 
-    public static native void setArgUnitialized(long ctx, int index, long size);
+    public static native void setArgUnitialized(long ctx, long dev_ctx,
+            int index, long size);
 
-    public static native int createHeap(long ctx, int index, int size, int max_n_buffered);
-    public static native void resetHeap(long ctx, int starting_argnum);
+    public static native int createHeap(long ctx, long dev_ctx, int index,
+            int size, int max_n_buffered);
+    public static native void resetHeap(long ctx, long dev_ctx,
+            int starting_argnum);
 
-    public static int setArgByNameAndType(long ctx, int index, Object obj,
+    public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint, boolean isBroadcast) {
         int argsUsed = 1;
         if (desc.equals("I")) {
@@ -72,26 +91,36 @@ public class OpenCLBridge {
               throw new RuntimeException(i);
             }
 
+            long broadcastId = -1;
             if (isBroadcast) {
+                // try {
+                // System.err.println("SWAT Looking at broadcast " +
+                //         OpenCLBridgeWrapper.getBroadcastId(fieldInstance) + " on " +
+                //         InetAddress.getLocalHost().getHostName() + " in " +
+                //         Thread.currentThread().getName());
+                // } catch (UnknownHostException u) {
+                //     throw new RuntimeException(u);
+                // }
+                broadcastId = OpenCLBridgeWrapper.getBroadcastId(fieldInstance);
                 fieldInstance = OpenCLBridgeWrapper.unwrapBroadcastedArray(
-                        fieldInstance);
+                    fieldInstance);
             }
 
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
-                setIntArrayArg(ctx, index, (int[])fieldInstance,
-                        ((int[])fieldInstance).length);
+                setIntArrayArg(ctx, dev_ctx, index, (int[])fieldInstance,
+                        ((int[])fieldInstance).length, broadcastId);
             } else if (primitiveType.equals("F")) {
-                setFloatArrayArg(ctx, index, (float[])fieldInstance,
-                        ((float[])fieldInstance).length);
+                setFloatArrayArg(ctx, dev_ctx, index, (float[])fieldInstance,
+                        ((float[])fieldInstance).length, broadcastId);
             } else if (primitiveType.equals("D")) {
-                setDoubleArrayArg(ctx, index, (double[])fieldInstance,
-                        ((double[])fieldInstance).length);
+                setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
+                        ((double[])fieldInstance).length, broadcastId);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
-              argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, index,
-                  fieldInstance, arrayElementTypeName, true, entryPoint);
+              argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, dev_ctx, index,
+                  fieldInstance, arrayElementTypeName, true, entryPoint, broadcastId);
             }
 
             if (lengthUsed) {
