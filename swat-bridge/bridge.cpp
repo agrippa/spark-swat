@@ -528,9 +528,6 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
     device_context *dev_ctx = (device_context *)l_dev_ctx;
 
     cl_mem mem = get_mem_cached(context, dev_ctx, argnum, size, -1);
-#ifdef VERBOSE
-    fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n", context->host_thread_index, mem, size, argnum);
-#endif
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(mem), &mem));
 
 #ifdef BRIDGE_DEBUG

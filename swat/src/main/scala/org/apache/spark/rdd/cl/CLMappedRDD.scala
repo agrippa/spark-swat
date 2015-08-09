@@ -28,7 +28,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  val profile : Boolean = true
+  val profile : Boolean = false
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -54,7 +54,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   }
 
   override def compute(split: Partition, context: TaskContext) = {
-    val N = 1024
+    // val N = 1024
+    val N = sys.env("SWAT_ACC_CHUNKING").toInt
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
 
@@ -176,11 +177,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
           if (entryPoint.requiresHeap) {
             val anyFailed : Array[Int] = new Array[Int](1)
+            var retries : Int = 0
             do {
               OpenCLBridge.run(ctx, dev_ctx, nLoaded);
               OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, argnum - 1, anyFailed, entryPoint)
               OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
+              retries += 1
             } while (anyFailed(0) > 0)
+
+            if (profile) {
+              System.err.println("SWAT PROF Retries " + retries)
+            }
           } else {
             OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
