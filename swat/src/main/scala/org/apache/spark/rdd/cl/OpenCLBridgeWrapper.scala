@@ -67,19 +67,20 @@ object OpenCLBridgeWrapper {
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[T], typeName : String, isInput : Boolean,
-      entryPoint : Entrypoint, broadcastId : Long) : Int = {
+      entryPoint : Entrypoint, broadcastId : Long, rddid : Int,
+      partitionid : Int, offset : Int) : Int = {
     return setObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg.length,
-        typeName, isInput, entryPoint, broadcastId)
+        typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset)
   }
-
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[T], argLength : Int, typeName : String,
-      isInput : Boolean, entryPoint : Entrypoint, broadcastId : Long) : Int = {
+      isInput : Boolean, entryPoint : Entrypoint, broadcastId : Long, rdd : Int,
+      partition : Int, offset : Int) : Int = {
     if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[T]]]) {
       return setObjectTypedArrayArg(ctx, dev_ctx, argnum,
         arg.asInstanceOf[scala.runtime.ObjectRef[Array[T]]].elem, argLength,
-        typeName, isInput, entryPoint, broadcastId)
+        typeName, isInput, entryPoint, broadcastId, rdd, partition, offset)
     }
 
     if (arg(0).isInstanceOf[Tuple2[_, _]]) {
@@ -145,20 +146,21 @@ object OpenCLBridgeWrapper {
 
       if (firstMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
-            bb1.array.length, broadcastId)
+            bb1.array.length, broadcastId, rdd, partition, offset, 0)
       } else {
         OpenCLBridge.setNullArrayArg(ctx, argnum)
       }
 
       if (secondMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
-            bb2.array.length, broadcastId)
+            bb2.array.length, broadcastId, rdd, partition, offset, 1)
       } else {
         OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
       }
 
       if (isInput) {
-        OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2, structSize * argLength)
+        OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
+            structSize * argLength)
         return 3
       } else {
         return 2
@@ -183,7 +185,7 @@ object OpenCLBridgeWrapper {
       }
 
       OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-          bb.array.length, broadcastId)
+          bb.array.length, broadcastId, rdd, partition, offset, 0)
       return 1
     }
   }
@@ -318,22 +320,26 @@ object OpenCLBridgeWrapper {
 
   def setArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
       arg : Array[T], argLength : Int, isInput : Boolean,
-      entryPoint : Entrypoint) : Int = {
+      entryPoint : Entrypoint, rddid : Int, partitionid : Int, offset : Int) :
+      Int = {
 
     if (arg.isInstanceOf[Array[Double]]) {
-      OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum, arg.asInstanceOf[Array[Double]], argLength, -1)
+      OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
+          arg.asInstanceOf[Array[Double]], argLength, -1, rddid, partitionid, offset, 0)
       return 1
     } else if (arg.isInstanceOf[Array[Int]]) {
-      OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum, arg.asInstanceOf[Array[Int]], argLength, -1)
+      OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
+          arg.asInstanceOf[Array[Int]], argLength, -1, rddid, partitionid, offset, 0)
       return 1
     } else if (arg.isInstanceOf[Array[Float]]) {
-      OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum, arg.asInstanceOf[Array[Float]], argLength, -1)
+      OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
+          arg.asInstanceOf[Array[Float]], argLength, -1, rddid, partitionid, offset, 0)
       return 1
     } else {
       // Assume is some serializable object array
       val argClass : java.lang.Class[_] = arg(0).getClass
       return setObjectTypedArrayArg[T](ctx, dev_ctx, argnum, arg, argLength,
-          argClass.getName, isInput, entryPoint, -1)
+          argClass.getName, isInput, entryPoint, -1, rddid, partitionid, offset)
     }
   }
 

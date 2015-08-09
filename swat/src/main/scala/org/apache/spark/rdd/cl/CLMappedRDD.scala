@@ -21,7 +21,7 @@ import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
-class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
+class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int)
     extends RDD[U](prev) {
   var knowType : Boolean = false
   var entryPoint : Entrypoint = null
@@ -95,6 +95,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             acc(nLoaded) = nested.next
             nLoaded = nLoaded + 1
           }
+          val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
           if (!knowType && nLoaded > 0) {
@@ -149,7 +150,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           if (profile) writeStart = System.currentTimeMillis
           var argnum : Int = 0
           argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, dev_ctx, 0, acc,
-                  nLoaded, true, entryPoint)
+                  nLoaded, true, entryPoint, cl_id, split.index, myOffset)
           val outArgNum : Int = argnum
           argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
               dev_ctx, argnum, output.size, classTag[U].runtimeClass,
@@ -229,6 +230,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   }
 
   override def map[V: ClassTag](f: U => V): RDD[V] = {
-    new CLMappedRDD(this, sparkContext.clean(f))
+    new CLMappedRDD(this, sparkContext.clean(f), CLWrapper.counter.getAndAdd(1))
   }
 }

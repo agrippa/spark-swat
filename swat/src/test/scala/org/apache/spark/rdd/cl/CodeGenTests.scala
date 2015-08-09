@@ -50,14 +50,16 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor, lambda, params, hardCodedClassModels);
+    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
+        lambda, params, hardCodedClassModels);
 
     val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
     val openCL : String = writerAndKernel.kernel
 
     val dev_ctx : Long = OpenCLBridge.getDeviceContext(0)
-    val ctx : Long = OpenCLBridge.createSwatContext(openCL, dev_ctx, 0,
-        entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
+    val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
+        openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
+        entryPoint.requiresHeap);
 
     if (!openCL.equals(expectedKernel)) {
       System.err.println(testName + " FAILED")

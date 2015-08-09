@@ -27,13 +27,17 @@ public class OpenCLBridge {
     public static native void setIntArg(long ctx, int index, int arg);
 
     public static native void setIntArrayArg(long ctx, long dev_ctx, int index,
-            int[] arg, int argLength, long broadcastId);
+            int[] arg, int argLength, long broadcastId, int rddid,
+            int partitionid, int offset, int component);
     public static native void setDoubleArrayArg(long ctx, long dev_ctx,
-            int index, double[] arg, int argLength, long broadcastId);
+            int index, double[] arg, int argLength, long broadcastId, int rddid,
+            int partitionid, int offset, int component);
     public static native void setFloatArrayArg(long ctx, long dev_ctx,
-            int index, float[] arg, int argLength, long broadcastId);
+            int index, float[] arg, int argLength, long broadcastId, int rddid,
+            int partitionid, int offset, int component);
     public static native void setByteArrayArg(long ctx, long dev_ctx, int index,
-            byte[] arg, int argLength, long broadcastId);
+            byte[] arg, int argLength, long broadcastId, int rddid,
+            int partitionid, int offset, int component);
     public static native void setNullArrayArg(long ctx, int index);
 
     public static native void fetchIntArrayArg(long ctx, long dev_ctx,
@@ -111,18 +115,18 @@ public class OpenCLBridge {
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
                 setIntArrayArg(ctx, dev_ctx, index, (int[])fieldInstance,
-                        ((int[])fieldInstance).length, broadcastId);
+                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
             } else if (primitiveType.equals("F")) {
                 setFloatArrayArg(ctx, dev_ctx, index, (float[])fieldInstance,
-                        ((float[])fieldInstance).length, broadcastId);
+                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
-                        ((double[])fieldInstance).length, broadcastId);
+                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
               argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, dev_ctx, index,
-                  fieldInstance, arrayElementTypeName, true, entryPoint, broadcastId);
+                  fieldInstance, arrayElementTypeName, true, entryPoint, broadcastId, -1, -1, -1);
             }
 
             if (lengthUsed) {

@@ -37,6 +37,46 @@ class mem_and_size {
         bool valid;
 };
 
+class rdd_partition_offset {
+    public:
+        rdd_partition_offset(int set_rdd, int set_index, int set_offset, int set_component) :
+            rdd(set_rdd), index(set_index), offset(set_offset), component(set_component) { }
+
+        bool operator<(const rdd_partition_offset& other) const {
+            if (rdd < other.rdd) {
+                return true;
+            } else if (rdd > other.rdd) {
+                return false;
+            }
+
+            if (index < other.index) {
+                return true;
+            } else if (index > other.index) {
+                return false;
+            }
+
+            if (offset < other.offset) {
+                return true;
+            } else if (offset > other.offset) {
+                return false;
+            }
+
+            return component < other.component;
+        }
+    private:
+        // The RDD this buffer is a member of
+        int rdd;
+        // The partition in rdd
+        int index;
+        // The offset in elements inside the partition
+        int offset;
+        /*
+         * The component of this buffer we are storing (e.g. multiple buffers
+         * are necessary to represent Tuple2 RDDs
+         */
+        int component;
+};
+
 typedef struct _device_context {
     cl_platform_id platform;
     cl_device_id dev;
@@ -47,6 +87,7 @@ typedef struct _device_context {
 
     map<jlong, cl_mem> *broadcast_cache;
     map<string, cl_program> *program_cache;
+    map<rdd_partition_offset, mem_and_size> *rdd_cache;
 } device_context;
 
 typedef struct _swat_context {

@@ -26,7 +26,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
 #define SET_ARRAY_ARG_MACRO(ltype, utype, ctype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index, \
-         j##ltype##Array arg, jint argLength, jlong broadcastId) { \
+         j##ltype##Array arg, jint argLength, jlong broadcastId, jint rddid, \
+         jint partitionid, jint offsetid, jint componentid) { \
     enter_trace("set"#utype"ArrayArg"); \
     jsize len = argLength * sizeof(ctype); \
     ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
@@ -40,10 +41,24 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         cl_mem mem = dev_ctx->broadcast_cache->at(broadcastId); \
         CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem)); \
         (*context->arguments)[index] = mem_and_size(mem, len); \
+    } else if (rddid >= 0 && dev_ctx->rdd_cache->find(rdd_partition_offset( \
+                    rddid, partitionid, offsetid, componentid)) != \
+                dev_ctx->rdd_cache->end()) { \
+        mem_and_size ms = dev_ctx->rdd_cache->at(rdd_partition_offset(rddid, \
+                    partitionid, offsetid, componentid)); \
+        assert(len == ms.get_size()); \
+        cl_mem mem = ms.get_mem(); \
+        CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem)); \
+        (*context->arguments)[index] = mem_and_size(mem, len); \
     } else { \
-        cl_mem mem = set_kernel_arg(arr, len, index, context, dev_ctx, broadcastId); \
+        cl_mem mem = set_kernel_arg(arr, len, index, context, dev_ctx, broadcastId, rddid); \
         if (broadcastId >= 0) { \
             dev_ctx->broadcast_cache->insert(pair<jlong, cl_mem>(broadcastId, mem)); \
+        } else if (rddid >= 0) { \
+            dev_ctx->rdd_cache->insert( \
+                    pair<rdd_partition_offset, mem_and_size>( \
+                        rdd_partition_offset(rddid, partitionid, offsetid, \
+                            componentid), mem_and_size(mem, len))); \
         } \
     } \
     err = pthread_mutex_unlock(&dev_ctx->lock); \
@@ -92,7 +107,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
     ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
             0); \
-    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, (device_context *)l_dev_ctx, -1); \
+    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
+            (device_context *)l_dev_ctx, -1, -1); \
     jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
     exit_trace("set"#utype"ArrayArgByName"); \
 }
@@ -277,6 +293,8 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                     new map<jlong, cl_mem>();
                 device_ctxs[global_device_id].program_cache =
                     new map<string, cl_program>();
+                device_ctxs[global_device_id].rdd_cache =
+                    new map<rdd_partition_offset, mem_and_size>();
 
                 int perr = pthread_mutex_init(&(device_ctxs[global_device_id].lock), NULL);
                 assert(perr == 0);
@@ -447,7 +465,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 }
 
 static cl_mem get_mem_cached(swat_context *context, device_context *dev_ctx,
-        int index, size_t size, jlong broadcastId) {
+        int index, size_t size, jlong broadcastId, jint rdd) {
     if (context->arguments->find(index) != context->arguments->end() &&
             context->arguments->at(index).get_size() >= size) {
         return context->arguments->at(index).get_mem();
@@ -461,19 +479,21 @@ static cl_mem get_mem_cached(swat_context *context, device_context *dev_ctx,
                 context->host_thread_index, mem, size, index);
 #endif
 
-        if (broadcastId < 0) {
+        if (broadcastId < 0 && rdd < 0) {
             context->all_allocated->insert(mem);
         }
-        (*context->arguments)[index] = mem_and_size(mem, size);
+        if (rdd < 0) {
+            (*context->arguments)[index] = mem_and_size(mem, size);
+        }
         return mem;
     }
 }
 
 static cl_mem set_kernel_arg(void *host, size_t len, int index,
-        swat_context *context, device_context *dev_ctx, jlong broadcastId) {
+        swat_context *context, device_context *dev_ctx, jlong broadcastId, jint rdd) {
     cl_int err;
 
-    cl_mem mem = get_mem_cached(context, dev_ctx, index, len, broadcastId);
+    cl_mem mem = get_mem_cached(context, dev_ctx, index, len, broadcastId, rdd);
 
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
@@ -521,13 +541,14 @@ FETCH_ARRAY_ARG_MACRO(float, Float, float)
 FETCH_ARRAY_ARG_MACRO(byte, Byte, jbyte)
 
 JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum, jlong size) {
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum,
+         jlong size) {
     enter_trace("setArgUnitialized");
     cl_int err;
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
 
-    cl_mem mem = get_mem_cached(context, dev_ctx, argnum, size, -1);
+    cl_mem mem = get_mem_cached(context, dev_ctx, argnum, size, -1, -1);
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(mem), &mem));
 
 #ifdef BRIDGE_DEBUG
@@ -577,7 +598,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
     jint local_argnum = argnum;
 
     // The heap
-    cl_mem mem = get_mem_cached(context, dev_ctx, local_argnum, size, -1);
+    cl_mem mem = get_mem_cached(context, dev_ctx, local_argnum, size, -1, -1);
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
     local_argnum++;
 
@@ -587,7 +608,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // free_index
-    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(zero), -1);
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(zero), -1, -1);
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, sizeof(zero),
                 &zero, 0, NULL, NULL));
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
@@ -608,7 +629,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // processing_succeeded
-    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(int) * max_n_buffered, -1);
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(int) * max_n_buffered, -1, -1);
 #ifdef VERBOSE
     fprintf(stderr, "%d: Allocating %p, %lu bytes for processing_succeeded\n", context->host_thread_index, mem, sizeof(int) * max_n_buffered);
 #endif
@@ -628,7 +649,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // any_failed
-    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(unsigned), -1);
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(unsigned), -1, -1);
 #ifdef VERBOSE
     fprintf(stderr, "%d: Allocating %p, %lu bytes for any_failed\n", context->host_thread_index, mem, sizeof(unsigned));
 #endif
