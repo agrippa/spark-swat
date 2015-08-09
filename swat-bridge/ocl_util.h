@@ -12,8 +12,8 @@
 #define CHECK(call) { \
     cl_int __err = (call); \
     if (__err != CL_SUCCESS) { \
-        fprintf(stderr, "OpenCL Error at %s:%d - %d\n", __FILE__, __LINE__, \
-                __err); \
+        fprintf(stderr, "OpenCL Error at %s:%d - %d\n", \
+                __FILE__, __LINE__, __err); \
         exit(1); \
     } \
 }

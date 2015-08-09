@@ -149,7 +149,6 @@ object SparkConnectedComponents {
         var iters = 0
         do {
           val broadcastMembership = sc.broadcast(membership)
-          System.err.println("broadcastMembership has id " + broadcastMembership.id)
 
           val updates : RDD[(Int, Int)] = edges.map(edge => {
                 val component_1 = broadcastMembership.value(edge._1)

@@ -11,6 +11,8 @@
 
 static device_context *device_ctxs = NULL;
 static pthread_mutex_t device_ctxs_lock = PTHREAD_MUTEX_INITIALIZER;
+static int *virtual_devices = NULL;
+static int n_virtual_devices = 0;
 
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
@@ -35,13 +37,14 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     if (broadcastId >= 0 && \
             dev_ctx->broadcast_cache->find(broadcastId) != \
                 dev_ctx->broadcast_cache->end()) { \
-        fprintf(stderr, "SWAT Using cached copy for broadcast id %ld\n", broadcastId); \
         cl_mem mem = dev_ctx->broadcast_cache->at(broadcastId); \
         CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem)); \
-        (*context->arguments)[index] = mem; \
+        (*context->arguments)[index] = mem_and_size(mem, len); \
     } else { \
-        cl_mem mem = set_kernel_arg(arr, len, index, context, dev_ctx); \
-        dev_ctx->broadcast_cache->insert(pair<jlong, cl_mem>(broadcastId, mem)); \
+        cl_mem mem = set_kernel_arg(arr, len, index, context, dev_ctx, broadcastId); \
+        if (broadcastId >= 0) { \
+            dev_ctx->broadcast_cache->insert(pair<jlong, cl_mem>(broadcastId, mem)); \
+        } \
     } \
     err = pthread_mutex_unlock(&dev_ctx->lock); \
     assert(err == 0); \
@@ -89,7 +92,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
     ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
             0); \
-    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, (device_context *)l_dev_ctx); \
+    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, (device_context *)l_dev_ctx, -1); \
     jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
     exit_trace("set"#utype"ArrayArgByName"); \
 }
@@ -193,51 +196,30 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
  *   7 -> 2
  *
  */
-static int *parseDeviceConfig(int *ndevices_out) {
-    assert(ndevices_out);
-
-    char *device_config_str = getenv("SWAT_DEVICE_CONFIG");
-    if (device_config_str == NULL) {
-        fprintf(stderr, "Error: SWAT_DEVICE_CONFIG must be set in spark-env.sh\n");
+static void *parseDeviceConfig(int *gpu_weight_out, int *cpu_weight_out) {
+    char *gpu_weight_str = getenv("SWAT_GPU_WEIGHT");
+    if (gpu_weight_str == NULL) {
+        fprintf(stderr, "Error: SWAT_GPU_WEIGHT must be set in spark-env.sh\n");
+        exit(1);
+    }
+    char *cpu_weight_str = getenv("SWAT_CPU_WEIGHT");
+    if (cpu_weight_str == NULL) {
+        fprintf(stderr, "Error: SWAT_CPU_WEIGHT must be set in spark-env.sh\n");
         exit(1);
     }
 
-    int device_config_str_len = strlen(device_config_str);
-    int ncommas = 0;
-    for (int i = 0; i < device_config_str_len; i++) {
-        if (device_config_str[i] == ',') ncommas++;
-    }
-    int ndevices = ncommas + 1;
-    int *devices = (int *)malloc(ndevices * sizeof(int));
+    int gpu_weight = atoi(gpu_weight_str);
+    int cpu_weight = atoi(cpu_weight_str);
 
-    int start_index = 0;
-    int end_index = 1;
-    int count_devices = 0;
-    while (end_index <= device_config_str_len) { // assume null terminator
-        if (device_config_str[end_index] == ',' ||
-                device_config_str[end_index] == '\0') {
-            device_config_str[end_index] = '\0';
-            int this_device_id = atoi(device_config_str + start_index);
-            devices[count_devices++] = this_device_id;
-
-            end_index++;
-            start_index = end_index;
-        } else {
-            end_index++;
-        }
-    }
-    assert(count_devices == ndevices);
-
-    *ndevices_out = ndevices;
-    return devices;
+    *gpu_weight_out = gpu_weight;
+    *cpu_weight_out = cpu_weight;
 }
 
 JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
         (JNIEnv *jenv, jclass clazz, int host_thread_index) {
-    int ndevices;
-    int *devices = parseDeviceConfig(&ndevices);
-    int target_device = devices[host_thread_index % ndevices];
-    free(devices);
+
+    int cpu_weight, gpu_weight;
+    parseDeviceConfig(&gpu_weight, &cpu_weight);
 
     /*
      * clGetPlatformIDs called inside get_num_opencl_platforms is supposed to be
@@ -291,20 +273,66 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                 device_ctxs[global_device_id].dev = curr_dev;
                 device_ctxs[global_device_id].ctx = ctx;
                 device_ctxs[global_device_id].cmd = cmd;
-                device_ctxs[global_device_id].broadcast_cache = new map<jlong, cl_mem>();
+                device_ctxs[global_device_id].broadcast_cache =
+                    new map<jlong, cl_mem>();
+                device_ctxs[global_device_id].program_cache =
+                    new map<string, cl_program>();
 
                 int perr = pthread_mutex_init(&(device_ctxs[global_device_id].lock), NULL);
                 assert(perr == 0);
 
                 global_device_id++;
-            }
 
+                switch (get_device_type(curr_dev)) {
+                    case (CL_DEVICE_TYPE_CPU):
+                        n_virtual_devices += cpu_weight;
+                        break;
+                    case (CL_DEVICE_TYPE_GPU):
+                        n_virtual_devices += gpu_weight;
+                        break;
+                    default:
+                        fprintf(stderr, "Unsupported device type %d\n",
+                                get_device_type(curr_dev));
+                        exit(1);
+                }
+            }
             free(devices);
         }
 
+        virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
+        int curr_virtual_device = 0;
+        for (int i = 0; i < total_num_devices; i++) {
+            cl_device_id curr_dev = device_ctxs[i].dev;
+
+            int weight;
+            switch (get_device_type(curr_dev)) {
+                case (CL_DEVICE_TYPE_CPU):
+                    weight = cpu_weight;
+                    break;
+                case (CL_DEVICE_TYPE_GPU):
+                    weight = gpu_weight;
+                    break;
+                default:
+                    fprintf(stderr, "Unsupported device type %d\n",
+                            get_device_type(curr_dev));
+                    exit(1);
+            }
+
+            for (int j = 0; j < weight; j++) {
+                virtual_devices[curr_virtual_device++] = i;
+            }
+        }
+        assert(curr_virtual_device == n_virtual_devices);
     }
 
-    device_context *my_ctx = device_ctxs + target_device;
+    device_context *my_ctx = device_ctxs +
+        virtual_devices[host_thread_index % n_virtual_devices];
+#ifdef VERBOSE
+    fprintf(stderr, "Host thread %d using virtual device %d, physical "
+            "device %d: %s\n", host_thread_index,
+            host_thread_index % n_virtual_devices,
+            virtual_devices[host_thread_index % n_virtual_devices], get_device_name(my_ctx->dev));
+#endif
 
     perr = pthread_mutex_unlock(&device_ctxs_lock);
     assert(perr == 0);
@@ -312,9 +340,29 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
     return (jlong)my_ctx;
 }
 
+JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
+        (JNIEnv *jenv, jclass clazz, jlong l_ctx) {
+    swat_context *ctx = (swat_context *)l_ctx;
+    for (set<cl_mem>::iterator i = ctx->all_allocated->begin(),
+            e = ctx->all_allocated->end(); i != e; i++) {
+        cl_mem mem = *i;
+#ifdef VERBOSE
+        fprintf(stderr, "%d: Releasing mem object %p\n", ctx->host_thread_index, mem);
+#endif
+        CHECK(clReleaseMemObject(mem));
+    }
+
+    // CHECK(clReleaseProgram(ctx->program));
+    CHECK(clReleaseKernel(ctx->kernel));
+    delete ctx->arguments;
+    delete ctx->all_allocated;
+    free(ctx);
+}
+
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
-        (JNIEnv *jenv, jclass clazz, jstring source, jlong l_dev_ctx,
-         jboolean requiresDouble, jboolean requiresHeap) {
+        (JNIEnv *jenv, jclass clazz, jstring label, jstring source,
+         jlong l_dev_ctx, jint host_thread_index, jboolean requiresDouble,
+         jboolean requiresHeap) {
     enter_trace("createContext");
 
     device_context *dev_ctx = (device_context *)l_dev_ctx;
@@ -331,43 +379,63 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     free(device_name);
 #endif
 
-    const char *raw_source = jenv->GetStringUTFChars(source, NULL);
-    size_t source_len = strlen(raw_source);
+    const char *raw_label = jenv->GetStringUTFChars(label, NULL);
+    std::string label_str(raw_label);
+    jenv->ReleaseStringUTFChars(label, raw_label);
+
+    int perr = pthread_mutex_lock(&dev_ctx->lock);
+    assert(perr == 0);
+   
+    cl_int err;
+    cl_program program;
+    if (dev_ctx->program_cache->find(label_str) != dev_ctx->program_cache->end()) {
+        program = dev_ctx->program_cache->at(label_str);
+    } else {
+        const char *raw_source = jenv->GetStringUTFChars(source, NULL);
+        size_t source_len = strlen(raw_source);
 #ifdef BRIDGE_DEBUG
-    char *store_source = (char *)malloc(source_len + 1);
-    memcpy(store_source, raw_source, source_len);
-    store_source[source_len] = '\0';
+        char *store_source = (char *)malloc(source_len + 1);
+        memcpy(store_source, raw_source, source_len);
+        store_source[source_len] = '\0';
 #endif
 
-    cl_int err;
-    size_t source_size[] = { source_len };
-    cl_program program = clCreateProgramWithSource(dev_ctx->ctx, 1, &raw_source,
-            source_size, &err);
-    CHECK(err);
+        size_t source_size[] = { source_len };
+        program = clCreateProgramWithSource(dev_ctx->ctx, 1, &raw_source,
+                source_size, &err);
+        CHECK(err);
 
-    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
-    if (err == CL_BUILD_PROGRAM_FAILURE) {
-        size_t build_log_size;
-        CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0,
-                    NULL, &build_log_size));
-        char *build_log = (char *)malloc(build_log_size + 1);
-        CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
-                    build_log_size, build_log, NULL));
-        build_log[build_log_size] = '\0';
-        fprintf(stderr, "%s\n\n", raw_source);
-        fprintf(stderr, "Build failure:\n%s\n", build_log);
-        free(build_log);
+        err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+        if (err == CL_BUILD_PROGRAM_FAILURE) {
+            size_t build_log_size;
+            CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0,
+                        NULL, &build_log_size));
+            char *build_log = (char *)malloc(build_log_size + 1);
+            CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
+                        build_log_size, build_log, NULL));
+            build_log[build_log_size] = '\0';
+            fprintf(stderr, "%s\n\n", raw_source);
+            fprintf(stderr, "Build failure:\n%s\n", build_log);
+            free(build_log);
+        }
+        jenv->ReleaseStringUTFChars(source, raw_source);
+        CHECK(err);
+
+        dev_ctx->program_cache->insert(pair<string, cl_program>(label_str,
+                    program));
     }
-    jenv->ReleaseStringUTFChars(source, raw_source);
-    CHECK(err);
+
+    perr = pthread_mutex_unlock(&dev_ctx->lock);
+    assert(perr == 0);
 
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
 
     swat_context *context = (swat_context *)malloc(sizeof(swat_context));
-    context->program = program;
+    // context->program = program;
     context->kernel = kernel;
-    context->arguments = new map<int, cl_mem>();
+    context->host_thread_index = host_thread_index;
+    context->arguments = new map<int, mem_and_size>();
+    context->all_allocated = new set<cl_mem>();
 #ifdef BRIDGE_DEBUG
     context->debug_arguments = new map<int, kernel_arg *>();
     context->kernel_src = store_source;
@@ -378,19 +446,39 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     return (jlong)context;
 }
 
+static cl_mem get_mem_cached(swat_context *context, device_context *dev_ctx,
+        int index, size_t size, jlong broadcastId) {
+    if (context->arguments->find(index) != context->arguments->end() &&
+            context->arguments->at(index).get_size() >= size) {
+        return context->arguments->at(index).get_mem();
+    } else {
+        cl_int err;
+        cl_mem mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, size,
+                NULL, &err);
+        CHECK(err);
+#ifdef VERBOSE
+        fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n",
+                context->host_thread_index, mem, size, index);
+#endif
+
+        if (broadcastId < 0) {
+            context->all_allocated->insert(mem);
+        }
+        (*context->arguments)[index] = mem_and_size(mem, size);
+        return mem;
+    }
+}
+
 static cl_mem set_kernel_arg(void *host, size_t len, int index,
-        swat_context *context, device_context *dev_ctx) {
+        swat_context *context, device_context *dev_ctx, jlong broadcastId) {
     cl_int err;
-    cl_mem mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, len,
-            NULL, &err);
-    CHECK(err);
+
+    cl_mem mem = get_mem_cached(context, dev_ctx, index, len, broadcastId);
 
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
 
     CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem));
-
-    (*context->arguments)[index] = mem;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[index] = new kernel_arg(host, len, true, false,
@@ -406,7 +494,7 @@ static cl_mem set_kernel_arg(void *host, size_t len, int index,
 static void fetch_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx) {
     assert(context->arguments->find(index) != context->arguments->end());
-    cl_mem mem = context->arguments->at(index);
+    cl_mem mem = context->arguments->at(index).get_mem();
 
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
@@ -439,12 +527,11 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
 
-    cl_mem mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, size, NULL,
-            &err);
-    CHECK(err);
+    cl_mem mem = get_mem_cached(context, dev_ctx, argnum, size, -1);
+#ifdef VERBOSE
+    fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n", context->host_thread_index, mem, size, argnum);
+#endif
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(mem), &mem));
-
-    (*context->arguments)[argnum] = mem;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[argnum] = new kernel_arg(NULL, size, true,
@@ -467,7 +554,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
     swat_context *context = (swat_context *)lctx;
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(none), &none));
 
-    (*context->arguments)[argnum] = none;
+    (*context->arguments)[argnum] = mem_and_size();
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[argnum] = new kernel_arg(&none, sizeof(none),
@@ -479,6 +566,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 
     exit_trace("setNullArrayArg");
 }
+
 
 JNI_JAVA(int, OpenCLBridge, createHeap)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum, jint size,
@@ -492,11 +580,9 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
     jint local_argnum = argnum;
 
     // The heap
-    cl_mem mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, size,
-            NULL, &err);
-    CHECK(err);
+    cl_mem mem = get_mem_cached(context, dev_ctx, local_argnum, size, -1);
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
-    (*context->arguments)[local_argnum++] = mem;
+    local_argnum++;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL, size,
@@ -504,13 +590,11 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // free_index
-    mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, sizeof(zero), NULL,
-            &err);
-    CHECK(err);
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(zero), -1);
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, sizeof(zero),
                 &zero, 0, NULL, NULL));
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
-    (*context->arguments)[local_argnum++] = mem;
+    local_argnum++;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
@@ -527,15 +611,19 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // processing_succeeded
-    mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE,
-            sizeof(int) * max_n_buffered, NULL, &err);
-    CHECK(err);
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(int) * max_n_buffered, -1);
+#ifdef VERBOSE
+    fprintf(stderr, "%d: Allocating %p, %lu bytes for processing_succeeded\n", context->host_thread_index, mem, sizeof(int) * max_n_buffered);
+#endif
     cl_event fill_event;
-    CHECK(clEnqueueFillBuffer(dev_ctx->cmd, mem, &zero, sizeof(zero), 0,
-                sizeof(int) * max_n_buffered, 0, NULL, &fill_event));
+    int *zeros = (int *)malloc(max_n_buffered * sizeof(int));
+    memset(zeros, 0x00, max_n_buffered * sizeof(int));
+    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_FALSE, 0,
+                max_n_buffered * sizeof(int), zeros, 0, NULL, &fill_event));
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
     CHECK(clWaitForEvents(1, &fill_event));
-    (*context->arguments)[local_argnum++] = mem;
+    free(zeros);
+    local_argnum++;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
@@ -543,14 +631,16 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
 
     // any_failed
-    mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, sizeof(unsigned),
-            NULL, &err);
-    CHECK(err);
-    CHECK(clEnqueueFillBuffer(dev_ctx->cmd, mem, &zero, sizeof(zero), 0,
-                sizeof(unsigned), 0, NULL, &fill_event));
+    mem = get_mem_cached(context, dev_ctx, local_argnum, sizeof(unsigned), -1);
+#ifdef VERBOSE
+    fprintf(stderr, "%d: Allocating %p, %lu bytes for any_failed\n", context->host_thread_index, mem, sizeof(unsigned));
+#endif
+    unsigned one_zero = 0;
+    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, mem, CL_FALSE, 0, sizeof(unsigned),
+                &one_zero, 0, NULL, &fill_event));
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(mem), &mem));
     CHECK(clWaitForEvents(1, &fill_event));
-    (*context->arguments)[local_argnum++] = mem;
+    local_argnum++;
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
@@ -571,23 +661,25 @@ JNI_JAVA(void, OpenCLBridge, resetHeap)
 
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    map<int, cl_mem> *arguments = context->arguments;
+    map<int, mem_and_size> *arguments = context->arguments;
     int free_index_arg_index = starting_argnum + 1;
     int any_failed_arg_index = starting_argnum + 4;
 
     assert(arguments->find(free_index_arg_index) != arguments->end());
     assert(arguments->find(any_failed_arg_index) != arguments->end());
 
-    cl_mem free_index_mem = (*arguments)[free_index_arg_index];
-    cl_mem any_failed_mem = (*arguments)[any_failed_arg_index];
+    cl_mem free_index_mem = arguments->at(free_index_arg_index).get_mem();
+    cl_mem any_failed_mem = arguments->at(any_failed_arg_index).get_mem();
 
     unsigned zero = 0;
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, free_index_mem, CL_TRUE, 0,
                 sizeof(zero), &zero, 0, NULL, NULL));
 
     cl_event fill_event;
-    CHECK(clEnqueueFillBuffer(dev_ctx->cmd, any_failed_mem, &zero, sizeof(zero),
-                0, sizeof(unsigned), 0, NULL, &fill_event));
+    // CHECK(clEnqueueFillBuffer(dev_ctx->cmd, any_failed_mem, &zero, sizeof(zero),
+    //             0, sizeof(unsigned), 0, NULL, &fill_event));
+    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, any_failed_mem, CL_FALSE, 0,
+                sizeof(zero), &zero, 0, NULL, &fill_event));
     CHECK(clWaitForEvents(1, &fill_event));
 
     exit_trace("resetHeap");

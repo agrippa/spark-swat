@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <map>
+#include <set>
+#include <string>
 #include <pthread.h>
 
 #include "common.h"
@@ -20,6 +22,21 @@ using namespace std;
 
 #define JNI_JAVA(type, className, methodName) JNIEXPORT type JNICALL Java_org_apache_spark_rdd_cl_##className##_##methodName
 
+class mem_and_size {
+    public:
+        mem_and_size(cl_mem set_mem, size_t set_size) : mem(set_mem),
+            size(set_size), valid(true) { }
+        mem_and_size() : valid(false) { }
+
+        cl_mem get_mem() { assert(valid); return mem; }
+        size_t get_size() { assert(valid); return size; }
+        bool is_valid() { return valid; }
+    private:
+        cl_mem mem;
+        size_t size;
+        bool valid;
+};
+
 typedef struct _device_context {
     cl_platform_id platform;
     cl_device_id dev;
@@ -29,13 +46,16 @@ typedef struct _device_context {
     pthread_mutex_t lock;
 
     map<jlong, cl_mem> *broadcast_cache;
+    map<string, cl_program> *program_cache;
 } device_context;
 
 typedef struct _swat_context {
-    cl_program program;
+    // cl_program program;
     cl_kernel kernel;
+    int host_thread_index;
 
-    map<int, cl_mem> *arguments;
+    map<int, mem_and_size> *arguments;
+    set<cl_mem> *all_allocated;
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;

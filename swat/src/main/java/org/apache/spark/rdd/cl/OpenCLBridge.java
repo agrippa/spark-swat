@@ -18,8 +18,10 @@ public class OpenCLBridge {
         System.load(swatHome + "/swat-bridge/libbridge.so");
     }
 
-    public static native long createSwatContext(String _source, long dev_ctx,
-        boolean requiresDouble, boolean requiresHeap);
+    public static native long createSwatContext(String label, String _source,
+            long dev_ctx, int host_thread_index, boolean requiresDouble,
+            boolean requiresHeap);
+    public static native void cleanupSwatContext(long ctx);
     public static native long getDeviceContext(int host_thread_index);
 
     public static native void setIntArg(long ctx, int index, int arg);

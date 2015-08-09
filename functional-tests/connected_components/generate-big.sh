@@ -9,4 +9,4 @@ rm -f $DATA_DIR/links/*
 # scala -classpath ./target/sparkconnectedcomponents-0.0.0.jar GenerateInput \
 #           $DATA_DIR/links 1000 10000000 300000000 $DATA_DIR/info
 scala -classpath ./target/sparkconnectedcomponents-0.0.0.jar GenerateInput \
-          $DATA_DIR/links 1000 100000 300000 $DATA_DIR/info
+          $DATA_DIR/links 1000 1000000 3000000 $DATA_DIR/info

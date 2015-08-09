@@ -28,6 +28,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
+  val profile : Boolean = true
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -42,7 +43,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val inputClassType2Name = CodeGenUtil.cleanClassName(
         inputClassType2.getName)
 
-    System.err.println("Creating tuple2 class model for " + inputClassType1Name + " " + inputClassType2Name + " " + obj.getClass.getName + " " + param.getDir)
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         inputClassType1Name, inputClassType2Name, param.getDir != DIRECTION.IN)
     hardCodedClassModels.addClassModelFor(Class.forName("scala.Tuple2"), tuple2ClassModel)
@@ -58,10 +58,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
 
-    System.err.println("SWAT Hello from Thread " +
-        Thread.currentThread().getName() + ", attemptId=" + context.attemptId +
-        ", partitionId=" + context.partitionId + " stageId=" + context.stageId +
-        " runningLocally=" + context.runningLocally);
+    // System.err.println("SWAT Hello from Thread " +
+    //     Thread.currentThread().getName() + ", attemptId=" + context.attemptId +
+    //     ", partitionId=" + context.partitionId + " stageId=" + context.stageId +
+    //     " runningLocally=" + context.runningLocally);
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
@@ -81,6 +81,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
       var index = 0
       var nLoaded = 0
+      var totalNLoaded = 0
+      val overallStart = System.currentTimeMillis
 
       def next() : U = {
         if (index >= nLoaded) {
@@ -92,6 +94,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             acc(nLoaded) = nested.next
             nLoaded = nLoaded + 1
           }
+          totalNLoaded += nLoaded
 
           if (!knowType && nLoaded > 0) {
             if (acc(0).isInstanceOf[Tuple2[_, _]]) {
@@ -107,6 +110,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
 
           if (entryPoint == null) {
+            var genStart : Long = 0
+            if (profile) genStart = System.currentTimeMillis
+
             entryPoint = classModel.getEntrypoint("apply", descriptor,
                 f, params, hardCodedClassModels);
 
@@ -114,6 +120,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                 entryPoint, params)
             openCL = writerAndKernel.kernel
             // System.err.println(openCL)
+
+            var initStart : Long = 0
+            if (profile) {
+              System.err.println("SWAT PROF CodeGeneration " +
+                  (System.currentTimeMillis - genStart) + " ms")
+              initStart = System.currentTimeMillis
+            }
 
             val threadNamePrefix = "Executor task launch worker-"
             val threadName = Thread.currentThread.getName
@@ -123,10 +136,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
 
             dev_ctx = OpenCLBridge.getDeviceContext(threadId)
-            ctx = OpenCLBridge.createSwatContext(openCL, dev_ctx,
+            ctx = OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
+            if (profile) {
+              System.err.println("SWAT PROF Initialization " +
+                  (System.currentTimeMillis - initStart) + " ms")
+            }
           }
 
+          var writeStart, runStart, readStart : Long = 0
+          if (profile) writeStart = System.currentTimeMillis
           var argnum : Int = 0
           argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, dev_ctx, 0, acc,
                   nLoaded, true, entryPoint)
@@ -150,6 +169,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
+          if (profile) {
+            System.err.println("SWAT PROF Write " +
+                (System.currentTimeMillis - writeStart) + " ms")
+            runStart = System.currentTimeMillis
+          }
           if (entryPoint.requiresHeap) {
             val anyFailed : Array[Int] = new Array[Int](1)
             do {
@@ -161,8 +185,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
 
+          if (profile) {
+            System.err.println("SWAT PROF Run " +
+                (System.currentTimeMillis - runStart) + " ms")
+            readStart = System.currentTimeMillis
+          }
           OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               output, entryPoint, sampleOutput.asInstanceOf[U])
+
+          if (profile) {
+            System.err.println("SWAT PROF Read " +
+                (System.currentTimeMillis - readStart) + " ms")
+          }
         }
 
         val curr = index
@@ -171,7 +205,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       }
 
       def hasNext : Boolean = {
-        (index < nLoaded || nested.hasNext)
+        val nonEmpty = (index < nLoaded || nested.hasNext)
+        if (!nonEmpty) {
+          OpenCLBridge.cleanupSwatContext(ctx)
+          if (profile) {
+            System.err.println("SWAT PROF Processed " + totalNLoaded +
+                " elements")
+            System.err.println("SWAT PROF Total " +
+                (System.currentTimeMillis - overallStart) + " ms")
+          }
+        }
+        nonEmpty
       }
     }
     iter

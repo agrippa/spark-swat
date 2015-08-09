@@ -21,10 +21,10 @@ class Triple(val x: Float, val y: Float, val z: Float)
   }
 }
 
-object SparkKMeans {
+object SparkNBody {
     def main(args : Array[String]) {
         if (args.length < 1) {
-            println("usage: SparkKMeans cmd")
+            println("usage: SparkNBody cmd")
             return;
         }
 
@@ -33,7 +33,7 @@ object SparkKMeans {
         if (cmd == "convert") {
             convert(args.slice(1, args.length))
         } else if (cmd == "run") {
-            run_kmeans(args.slice(1, args.length))
+            run_nbody(args.slice(1, args.length))
         }
     }
 
@@ -48,12 +48,12 @@ object SparkKMeans {
         return new SparkContext(conf)
     }
 
-    def run_kmeans(args : Array[String]) {
+    def run_nbody(args : Array[String]) {
         if (args.length != 2) {
-            println("usage: SparkKMeans run iters input-path");
+            println("usage: SparkNBody run iters input-path");
             return;
         }
-        val sc = get_spark_context("Spark KMeans");
+        val sc = get_spark_context("Spark NBody");
 
         val iters = args(0).toInt;
         val inputPath = args(1);
@@ -126,10 +126,10 @@ object SparkKMeans {
 
     def convert(args : Array[String]) {
         if (args.length != 2) {
-            println("usage: SparkKMeans convert input-dir output-dir");
+            println("usage: SparkNBody convert input-dir output-dir");
             return
         }
-        val sc = get_spark_context("Spark KMeans Converter");
+        val sc = get_spark_context("Spark NBody Converter");
 
         val inputDir = args(0)
         var outputDir = args(1)
