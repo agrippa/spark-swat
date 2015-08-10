@@ -115,8 +115,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             var genStart : Long = 0
             if (profile) genStart = System.currentTimeMillis
 
-            entryPoint = classModel.getEntrypoint("apply", descriptor,
-                f, params, hardCodedClassModels);
+            EntrypointCache.cache.synchronized {
+              if (EntrypointCache.cache.containsKey(f.getClass.getName)) {
+                entryPoint = EntrypointCache.cache.get(f.getClass.getName)
+              } else {
+                entryPoint = classModel.getEntrypoint("apply", descriptor,
+                    f, params, hardCodedClassModels);
+                EntrypointCache.cache.put(f.getClass.getName, entryPoint)
+              }
+            }
 
             val writerAndKernel = KernelWriter.writeToString(
                 entryPoint, params)
@@ -232,4 +239,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   override def map[V: ClassTag](f: U => V): RDD[V] = {
     new CLMappedRDD(this, sparkContext.clean(f), CLWrapper.counter.getAndAdd(1))
   }
+}
+
+object EntrypointCache {
+  val cache : java.util.Map[java.lang.String, Entrypoint] = new java.util.HashMap[java.lang.String, Entrypoint]()
 }

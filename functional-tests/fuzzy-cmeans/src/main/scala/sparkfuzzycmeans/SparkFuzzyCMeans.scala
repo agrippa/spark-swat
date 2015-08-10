@@ -88,10 +88,12 @@ object SparkFuzzyCMeans {
             CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw)
         // val point_cluster_pairs  = point_cluster_pairs_raw
 
+        System.err.println("Initial centers:")
         var centers : Array[Point] = new Array[Point](K)
         for (i <- samples.indices) {
             val s = samples(i)
 
+            System.err.println("  " + s.x + ", " + s.y + ", " + s.z)
             centers(i) = new Point(s.x, s.y, s.z)
         }
 
@@ -109,14 +111,22 @@ object SparkFuzzyCMeans {
                   var i = 0
                   while (i < K) {
                       val dist : Float = point.dist(broadcastedCenters.value(i))
-                      val ratio : Float = target_dist / dist
-                      sum += ratio
+                      if (dist != 0.0f) {
+                        val ratio : Float = target_dist / dist
+                        sum += ratio
+                      }
 
                       i += 1
                   }
-                  val u : Float = 1 / (scala.math.pow(sum, 2 / (m - 1)).asInstanceOf[Float])
-                  val u_m : Float = scala.math.pow(u, m).asInstanceOf[Float]
-                  (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
+
+                  if (sum == 0.0f) {
+                    // because target_dist == 0.0f
+                    (pair._1, new PointMembership(point.x, point.y, point.z, 1.0f))
+                  } else {
+                    val u : Float = 1 / (scala.math.pow(sum, 2 / (m - 1)).asInstanceOf[Float])
+                    val u_m : Float = scala.math.pow(u, m).asInstanceOf[Float]
+                    (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
+                  }
                 })
 
             val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
