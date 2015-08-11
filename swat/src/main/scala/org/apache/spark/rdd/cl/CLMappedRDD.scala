@@ -207,6 +207,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           }
           OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               output, entryPoint, sampleOutput.asInstanceOf[U])
+          OpenCLBridge.postKernelCleanup(ctx);
 
           if (profile) {
             System.err.println("SWAT PROF Read " +

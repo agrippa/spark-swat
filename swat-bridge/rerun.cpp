@@ -65,7 +65,7 @@ void list_devices() {
                 num_devices);
         CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
                     num_devices, devices, NULL));
-        for (int d = 0; d < num_devices; d++) {
+        for (unsigned d = 0; d < num_devices; d++) {
             cl_device_id dev = devices[d];
             cl_device_type type;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_TYPE, sizeof(type), &type,
@@ -114,13 +114,13 @@ void list_devices() {
     free(platforms);
 }
 
-void find_platform_and_device(int target_device, cl_platform_id *platform,
+void find_platform_and_device(unsigned target_device, cl_platform_id *platform,
         cl_device_id *device) {
     cl_uint num_platforms = get_num_opencl_platforms();
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
     CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
-    int device_index = 0;
+    unsigned device_index = 0;
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
             platform_index++) {

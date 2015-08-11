@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "kernel_arg.h"
+#include "allocator.h"
 
 using namespace std;
 
@@ -24,15 +25,15 @@ using namespace std;
 
 class mem_and_size {
     public:
-        mem_and_size(cl_mem set_mem, size_t set_size) : mem(set_mem),
+        mem_and_size(cl_region *set_mem, size_t set_size) : mem(set_mem),
             size(set_size), valid(true) { }
         mem_and_size() : valid(false) { }
 
-        cl_mem get_mem() { assert(valid); return mem; }
+        cl_region *get_mem() { assert(valid); return mem; }
         size_t get_size() { assert(valid); return size; }
         bool is_valid() { return valid; }
     private:
-        cl_mem mem;
+        cl_region *mem;
         size_t size;
         bool valid;
 };
@@ -85,9 +86,11 @@ typedef struct _device_context {
 
     pthread_mutex_t lock;
 
-    map<jlong, cl_mem> *broadcast_cache;
+    cl_allocator *allocator;
+
     map<string, cl_program> *program_cache;
-    map<rdd_partition_offset, mem_and_size> *rdd_cache;
+    // map<jlong, cl_region *> *broadcast_cache;
+    // map<rdd_partition_offset, mem_and_size> *rdd_cache;
 } device_context;
 
 typedef struct _swat_context {
@@ -95,8 +98,8 @@ typedef struct _swat_context {
     cl_kernel kernel;
     int host_thread_index;
 
-    map<int, mem_and_size> *arguments;
-    set<cl_mem> *all_allocated;
+    map<int, cl_region *> *arguments;
+    // set<cl_mem> *all_allocated;
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;

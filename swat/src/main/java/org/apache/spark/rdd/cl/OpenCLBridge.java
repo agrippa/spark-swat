@@ -23,6 +23,7 @@ public class OpenCLBridge {
             boolean requiresHeap);
     public static native void cleanupSwatContext(long ctx);
     public static native long getDeviceContext(int host_thread_index);
+    public static native void postKernelCleanup(long ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);
 

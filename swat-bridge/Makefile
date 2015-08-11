@@ -1,9 +1,9 @@
 GXX=g++
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=
-GXX_FLAGS=-g -O2
+DEFINES=-DVERBOSE -DTRACE
+GXX_FLAGS=-g -O0 -Wall
 
-SRC=bridge.cpp ocl_util.cpp
+SRC=bridge.cpp ocl_util.cpp allocator.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
 TARGET=libbridge.so
 
@@ -14,13 +14,16 @@ else
 	GXX_FLAGS += -lOpenCL
 endif
 
-all: ${TARGET} rerun
+all: ${TARGET} rerun query_tool
 
 ${TARGET}: ${SRC}
 	${GXX} ${GXX_FLAGS} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared
 
 rerun: rerun.cpp ocl_util.cpp
 	${GXX} ${GXX_FLAGS} ${DEFINES} rerun.cpp ocl_util.cpp -o rerun
+
+query_tool: query_tool.cpp
+	${GXX} ${GXX_FLAGS} query_tool.cpp ocl_util.cpp -o query_tool
 
 clean:
 	rm -f ${TARGET} rerun

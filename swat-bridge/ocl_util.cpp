@@ -65,7 +65,7 @@ const char *get_device_type_str(cl_device_id device) {
         case (CL_DEVICE_TYPE_CPU):
             return "CPU";
         default:
-            fprintf(stderr, "Unsupported device type %d\n", type);
+            fprintf(stderr, "Unsupported device type %d\n", (int)type);
             exit(1);
     }
 }
@@ -74,4 +74,11 @@ cl_device_type get_device_type(cl_device_id device) {
     cl_device_type type;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(type), &type, NULL));
     return type;
+}
+
+cl_uint get_num_compute_units(cl_device_id device) {
+    cl_uint compute_units;
+    CHECK(clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,
+                sizeof(compute_units), &compute_units, NULL));
+    return compute_units;
 }
