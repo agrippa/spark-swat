@@ -28,7 +28,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  val profile : Boolean = false
+  val profile : Boolean = true
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
@@ -54,10 +54,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   }
 
   override def compute(split: Partition, context: TaskContext) = {
-    // val N = 1024
-    val N = sys.env("SWAT_ACC_CHUNKING").toInt
+    val N = 65536
+    // val N = sys.env("SWAT_ACC_CHUNKING").toInt
     val acc : Array[T] = new Array[T](N)
     val output : Array[U] = new Array[U](N)
+
+    val threadNamePrefix = "Executor task launch worker-"
+    val threadName = Thread.currentThread.getName
+    if (!threadName.startsWith(threadNamePrefix)) {
+        throw new RuntimeException("Unexpected thread name \"" + threadName + "\"")
+    }
+    val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
 
     // System.err.println("SWAT Hello from Thread " +
     //     Thread.currentThread().getName() + ", attemptId=" + context.attemptId +
@@ -89,6 +96,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         if (index >= nLoaded) {
           assert(nested.hasNext)
 
+          var ioStart : Long = 0
+          if (profile) ioStart = System.currentTimeMillis
           index = 0
           nLoaded = 0
           while (nLoaded < N && nested.hasNext) {
@@ -97,6 +106,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           }
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
+
+          if (profile) {
+              System.err.println("SWAT PROF " + threadId + " Input-I/O " +
+                  (System.currentTimeMillis - ioStart) + " ms")
+          }
 
           if (!knowType && nLoaded > 0) {
             if (acc(0).isInstanceOf[Tuple2[_, _]]) {
@@ -132,28 +146,21 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
             var initStart : Long = 0
             if (profile) {
-              System.err.println("SWAT PROF CodeGeneration " +
+              System.err.println("SWAT PROF " + threadId + " CodeGeneration " +
                   (System.currentTimeMillis - genStart) + " ms")
               initStart = System.currentTimeMillis
             }
-
-            val threadNamePrefix = "Executor task launch worker-"
-            val threadName = Thread.currentThread.getName
-            if (!threadName.startsWith(threadNamePrefix)) {
-                throw new RuntimeException("Unexpected thread name \"" + threadName + "\"")
-            }
-            val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
 
             dev_ctx = OpenCLBridge.getDeviceContext(threadId)
             ctx = OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
             if (profile) {
-              System.err.println("SWAT PROF Initialization " +
+              System.err.println("SWAT PROF " + threadId + " Initialization " +
                   (System.currentTimeMillis - initStart) + " ms")
             }
           }
 
-          var writeStart, runStart, readStart : Long = 0
+          var writeStart, runStart, readStart, postStart : Long = 0
           if (profile) writeStart = System.currentTimeMillis
           var argnum : Int = 0
           argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, dev_ctx, 0, acc,
@@ -179,7 +186,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
           if (profile) {
-            System.err.println("SWAT PROF Write " +
+            System.err.println("SWAT PROF " + threadId + " Write " +
                 (System.currentTimeMillis - writeStart) + " ms")
             runStart = System.currentTimeMillis
           }
@@ -194,24 +201,29 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             } while (anyFailed(0) > 0)
 
             if (profile) {
-              System.err.println("SWAT PROF Retries " + retries)
+              System.err.println("SWAT PROF " + threadId + " Retries " + retries)
             }
           } else {
             OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
 
           if (profile) {
-            System.err.println("SWAT PROF Run " +
+            System.err.println("SWAT PROF " + threadId + " Run " +
                 (System.currentTimeMillis - runStart) + " ms")
             readStart = System.currentTimeMillis
           }
           OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               output, entryPoint, sampleOutput.asInstanceOf[U])
-          OpenCLBridge.postKernelCleanup(ctx);
 
           if (profile) {
-            System.err.println("SWAT PROF Read " +
+            System.err.println("SWAT PROF " + threadId + " Read " +
                 (System.currentTimeMillis - readStart) + " ms")
+            postStart = System.currentTimeMillis
+          }
+          OpenCLBridge.postKernelCleanup(ctx);
+          if (profile) {
+              System.err.println("SWAT PROF " + threadId + " Post " +
+                  (System.currentTimeMillis - postStart) + " ms")
           }
         }
 
@@ -225,9 +237,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         if (!nonEmpty) {
           OpenCLBridge.cleanupSwatContext(ctx)
           if (profile) {
-            System.err.println("SWAT PROF Processed " + totalNLoaded +
+            System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded +
                 " elements")
-            System.err.println("SWAT PROF Total " +
+            System.err.println("SWAT PROF " + threadId + " Total " +
                 (System.currentTimeMillis - overallStart) + " ms")
           }
         }

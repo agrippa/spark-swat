@@ -13,12 +13,22 @@ extern void exit_trace(const char *lbl);
 }
 #endif
 
-void bucket_insert_before(cl_region *target, cl_region *to_insert,
+static void lock_allocator(cl_allocator *allocator) {
+    int perr = pthread_mutex_lock(&allocator->lock);
+    assert(perr == 0);
+}
+
+static void unlock_allocator(cl_allocator *allocator) {
+    int perr = pthread_mutex_unlock(&allocator->lock);
+    assert(perr == 0);
+}
+
+static void bucket_insert_before(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
     enter_trace("bucket_insert_before");
     assert(target && to_insert);
 
-    cl_region *prev = target->prev;
+    cl_region *prev = target->bucket_prev;
     target->bucket_prev = to_insert;
     if (prev) {
         prev->bucket_next = to_insert;
@@ -30,8 +40,10 @@ void bucket_insert_before(cl_region *target, cl_region *to_insert,
     exit_trace("bucket_insert_before");
 }
 
-void remove_from_bucket(cl_region *region) {
+static void remove_from_bucket(cl_region *region) {
+    enter_trace("remove_from_bucket");
     cl_bucket *bucket = region->parent;
+
     if (bucket->head == region && bucket->tail == region) {
         bucket->head = bucket->tail = NULL;
     } else if (bucket->head == region) {
@@ -50,13 +62,16 @@ void remove_from_bucket(cl_region *region) {
     }
     region->bucket_next = region->bucket_prev = NULL;
     region->parent = NULL;
+    exit_trace("remove_from_bucket");
 }
 
-void add_to_bucket(cl_region *region, cl_bucket *bucket) {
+static void add_to_bucket(cl_region *region, cl_bucket *bucket) {
+    enter_trace("add_to_bucket");
     assert(region->parent == NULL);
 
     if (bucket->head == NULL) {
         // empty bucket
+        assert(bucket->tail == NULL);
         bucket->head = bucket->tail = region;
         region->bucket_next = NULL;
         region->bucket_prev = NULL;
@@ -69,16 +84,22 @@ void add_to_bucket(cl_region *region, cl_bucket *bucket) {
                 inserted = true;
                 break;
             }
+            iter = iter->bucket_next;
         }
         if (!inserted) {
             bucket->tail->bucket_next = region;
+            region->bucket_prev = bucket->tail;
+            region->bucket_next = NULL;
             bucket->tail = region;
         }
     }
     region->parent = bucket;
+    exit_trace("add_to_bucket");
 }
 
-void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets, cl_bucket *large_bucket) {
+static void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets,
+        cl_bucket *large_bucket) {
+    enter_trace("insert_into_buckets_helper");
     assert(region->size >= MIN_ALLOC_SIZE);
     bool inserted = false;
     for (int b = 0; b < NBUCKETS; b++) {
@@ -91,27 +112,35 @@ void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets, cl_bucket
     if (!inserted) {
         add_to_bucket(region, large_bucket);
     }
+    exit_trace("insert_into_buckets_helper");
 }
 
-void insert_into_buckets(cl_region *region, cl_alloc *alloc, bool try_to_keep) {
+static void insert_into_buckets(cl_region *region, cl_alloc *alloc, bool try_to_keep) {
+    enter_trace("insert_into_buckets");
     if (try_to_keep) {
         insert_into_buckets_helper(region, alloc->keep_buckets, &alloc->keep_large_bucket);
     } else {
         insert_into_buckets_helper(region, alloc->buckets, &alloc->large_bucket);
     }
+    exit_trace("insert_into_buckets");
 }
 
-cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
+static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
+    enter_trace("search_bucket");
+    cl_region *result = NULL;
     for (cl_region *r = bucket->head; r != NULL; r = r->bucket_next) {
         if (r->size >= rounded_size) {
-            return r;
+            result = r;
+            break;
         }
     }
-    return NULL;
+    exit_trace("search_bucket");
+    return result;
 }
 
-void split(cl_region *target, size_t first_partition_size,
+static void split(cl_region *target, size_t first_partition_size,
         cl_region **first_out, cl_region **second_out) {
+    enter_trace("split");
     cl_alloc *alloc = target->grandparent;
 
     cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
@@ -138,23 +167,24 @@ void split(cl_region *target, size_t first_partition_size,
 
     *first_out = target;
     *second_out = new_region;
+    exit_trace("split");
 }
 
-cl_region *split_from_front(cl_region *target, size_t rounded_size) {
+static cl_region *split_from_front(cl_region *target, size_t rounded_size) {
     if (target->size == rounded_size) return target;
     cl_region *front, *back;
     split(target, rounded_size, &front, &back);
     return front;
 }
 
-cl_region *split_from_back(cl_region *target, size_t rounded_size) {
+static cl_region *split_from_back(cl_region *target, size_t rounded_size) {
     if (target->size == rounded_size) return target;
     cl_region *front, *back;
     split(target, target->size - rounded_size, &front, &back);
     return back;
 }
 
-cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *buckets) {
+static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *buckets) {
     cl_region *target_region = NULL;
 
     for (int b = 0; b < NBUCKETS && target_region == NULL; b++) {
@@ -178,12 +208,20 @@ cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *buckets
 
 void add_hold(cl_region *target) {
     enter_trace("add_hold");
+
+    lock_allocator(target->grandparent->allocator);
+
     target->refs += 1;
+
+    unlock_allocator(target->grandparent->allocator);
+
     exit_trace("add_hold");
 }
 
 bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     enter_trace("free_cl_region");
+
+    lock_allocator(to_free->grandparent->allocator);
 
     assert(!to_free->free);
     assert(to_free->valid);
@@ -194,24 +232,37 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         to_free->free = true;
     }
 
+    bool return_value = (to_free->refs == 0);
+
+    unlock_allocator(to_free->grandparent->allocator);
+
     exit_trace("free_cl_region");
-    return (to_free->refs == 0);
+    return return_value;
 }
 
 void re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
     enter_trace("re_allocate_cl_region");
+
+    lock_allocator(target_region->grandparent->allocator);
+
     remove_from_bucket(target_region);
     assert(expected_seq == target_region->seq);
     assert(target_region->valid && target_region->free &&
             target_region->refs == 0);
     target_region->free = false;
     target_region->refs = 1;
+
+    unlock_allocator(target_region->grandparent->allocator);
+
     exit_trace("re_allocate_cl_region");
 }
 
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     enter_trace("allocate_cl_region");
     assert(allocator);
+
+    lock_allocator(allocator);
+
     size_t rounded_size = pow(2, ceil(log(size)/log(2)));
 
     cl_region *target_region = NULL;
@@ -298,6 +349,9 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     }
 
     exit_trace("allocate_cl_region");
+
+    unlock_allocator(allocator);
+
     return target_region;
 }
 
@@ -315,6 +369,9 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx) {
     allocator->nallocs = nallocs;
     allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
 
+    int perr = pthread_mutex_init(&allocator->lock, NULL);
+    assert(perr == 0);
+
     for (int i = 0; i < nallocs; i++) {
         cl_ulong alloc_size = max_alloc_size;
         cl_ulong leftover = global_mem_size - (i * max_alloc_size);
@@ -327,6 +384,7 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx) {
         CHECK(err);
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
+        (allocator->allocs)[i].allocator = allocator;
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
         first_region->sub_mem = NULL;

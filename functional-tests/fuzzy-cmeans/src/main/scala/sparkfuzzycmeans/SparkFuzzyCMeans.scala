@@ -74,7 +74,7 @@ object SparkFuzzyCMeans {
         val raw_points : RDD[Point] = sc.objectFile(inputPath)
         val collected_points : Array[Point] = raw_points.collect
         val npoints : Int = collected_points.length
-        val samples : Array[Point] = raw_points.takeSample(false, K);
+        val samples : Array[Point] = raw_points.takeSample(false, K, 1);
         val broadcasted_points = sc.broadcast(collected_points)
 
         val point_cluster_pairs_raw : RDD[(Int, Point)] =
@@ -84,6 +84,8 @@ object SparkFuzzyCMeans {
 
               (cluster_id, broadcasted_points.value(point_id))
             })
+        point_cluster_pairs_raw.cache
+
         val point_cluster_pairs : CLWrapperRDD[(Int, Point)] =
             CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw)
         // val point_cluster_pairs  = point_cluster_pairs_raw
@@ -97,6 +99,7 @@ object SparkFuzzyCMeans {
             centers(i) = new Point(s.x, s.y, s.z)
         }
 
+        val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
             val broadcastedCenters = sc.broadcast(centers)
@@ -155,6 +158,7 @@ object SparkFuzzyCMeans {
             }
             iter += 1
         }
+        System.err.println("Total time " + (System.currentTimeMillis - startTime) + " ms")
     }
 
     def convert(args : Array[String]) {

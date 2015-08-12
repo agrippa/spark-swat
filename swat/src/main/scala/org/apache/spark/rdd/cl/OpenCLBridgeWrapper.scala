@@ -230,6 +230,7 @@ object OpenCLBridgeWrapper {
   def fetchTuple2TypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[Tuple2[_, _]], typeName : String,
       _1typeName : String, _2typeName : String, entryPoint : Entrypoint) {
+    val startTime = System.currentTimeMillis
     val c : ClassModel = entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
         new DescMatcher(Array(convertClassNameToDesc(_1typeName),
         convertClassNameToDesc(_2typeName))))
@@ -255,15 +256,19 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb1.array, bb1.array.length)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array, bb2.array.length)
 
+    val midTime = System.currentTimeMillis
+
     for (i <- 0 until arg.size) {
       arg(i) = (readTupleMemberFromStream(member0.desc, entryPoint, bb1),
           readTupleMemberFromStream(member1.desc, entryPoint, bb2))
     }
+    System.err.println("fetch tuple2 took " + (midTime - startTime) + " " + (System.currentTimeMillis - midTime))
   }
 
   def fetchObjectTypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[_], typeName : String, entryPoint : Entrypoint) {
-    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(typeName, new NameMatcher(typeName))
+    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+        typeName, new NameMatcher(typeName))
     val arrLength : Int = arg.length
     val structSize : Int = c.getTotalStructSize
 

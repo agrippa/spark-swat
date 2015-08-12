@@ -1,7 +1,7 @@
 GXX=g++
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=-DVERBOSE -DTRACE
-GXX_FLAGS=-g -O0 -Wall
+DEFINES=
+GXX_FLAGS=-g -O2 -Wall
 
 SRC=bridge.cpp ocl_util.cpp allocator.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux

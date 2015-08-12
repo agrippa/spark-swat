@@ -1,12 +1,16 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
-#include <CL/cl.h>
 #include <assert.h>
+#include <pthread.h>
+
+#include <CL/cl.h>
+
 #include "ocl_util.h"
 
-#define MIN_ALLOC_SIZE  (1 << 10)
-#define NBUCKETS    10
+// #define MIN_ALLOC_SIZE  (1 << 10)
+#define MIN_ALLOC_SIZE  1
+#define NBUCKETS    20
 
 #define BUCKET_MIN_SIZE_INCL(my_bucket) ((size_t)(MIN_ALLOC_SIZE * (2 << (my_bucket))))
 #define BUCKET_MAX_SIZE_EXCL(my_bucket) ((size_t)(BUCKET_MIN_SIZE_INCL(my_bucket + 1)))
@@ -20,6 +24,8 @@ struct _cl_region;
 typedef struct _cl_region cl_region;
 struct _cl_alloc;
 typedef struct _cl_alloc cl_alloc;
+struct _cl_allocator;
+typedef struct _cl_allocator cl_allocator;
 
 typedef struct _cl_region {
     cl_mem sub_mem;
@@ -47,11 +53,15 @@ typedef struct _cl_alloc {
     cl_bucket keep_buckets[NBUCKETS];
     cl_bucket keep_large_bucket;
     cl_region *region_list;
+
+    cl_allocator *allocator;
 } cl_alloc;
 
 typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
+
+    pthread_mutex_t lock;
 } cl_allocator;
 
 extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx);
