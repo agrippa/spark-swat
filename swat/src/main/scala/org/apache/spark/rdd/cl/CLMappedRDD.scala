@@ -23,7 +23,6 @@ import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int)
     extends RDD[U](prev) {
-  var knowType : Boolean = false
   var entryPoint : Entrypoint = null
   var openCL : String = null
   var ctx : Long = -1L
@@ -119,7 +118,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           if (profile) ioStart = System.currentTimeMillis
           val firstSample : T = nested.next
 
-          if (!knowType) {
+          if (entryPoint == null) {
+            var genStart, initStart : Long = 0
+            if (profile) genStart = System.currentTimeMillis
+
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
@@ -129,12 +131,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
               createHardCodedClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
             }
-            knowType = true
-          }
-
-          if (entryPoint == null) {
-            var genStart, initStart : Long = 0
-            if (profile) genStart = System.currentTimeMillis
 
             EntrypointCache.cache.synchronized {
               if (EntrypointCache.cache.containsKey(f.getClass.getName)) {
@@ -178,10 +174,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           acc.get.append(firstSample)
           while (nLoaded < N && nested.hasNext) {
             acc.get.append(nested.next)
-            // acc(nLoaded) = nested.next
             nLoaded = nLoaded + 1
           }
-          System.err.println("nLoaded = " +nLoaded)
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
@@ -191,12 +185,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
           var writeStart, runStart, readStart, postStart : Long = 0
           if (profile) writeStart = System.currentTimeMillis
-          var argnum : Int = 0
-          argnum = argnum + acc.get.copyToDevice(argnum, ctx, dev_ctx, cl_id, split.index, myOffset)
-          // argnum = argnum + OpenCLBridgeWrapper.setArrayArg[T](ctx, dev_ctx, 0, acc,
-          //         nLoaded, true, entryPoint, cl_id, split.index, myOffset, bbCache)
+          var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, cl_id,
+                  split.index, myOffset)
           val outArgNum : Int = argnum
-          argnum = argnum + OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
+          argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
               dev_ctx, argnum, N, classTag[U].runtimeClass,
               entryPoint, sampleOutput.asInstanceOf[U])
 
@@ -204,13 +196,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           while (iter.hasNext) {
             val field = iter.next
             val isBroadcast = entryPoint.isBroadcastField(field)
-            argnum = argnum + OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
+            argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
                 field.getName, field.getDescriptor, entryPoint, isBroadcast, bbCache)
           }
 
           val heapArgStart : Int = argnum
           if (entryPoint.requiresHeap) {
-            argnum = argnum + OpenCLBridge.createHeap(ctx, dev_ctx, argnum, 100 * 1024 * 1024, nLoaded)
+            argnum += OpenCLBridge.createHeap(ctx, dev_ctx, argnum, 100 * 1024 * 1024, nLoaded)
           }   
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
