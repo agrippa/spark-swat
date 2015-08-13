@@ -8,6 +8,7 @@ import java.io.FileOutputStream
 import java.util.ArrayList
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.lang.reflect.Constructor
 
 import reflect.runtime.{universe => ru}
 
@@ -110,6 +111,15 @@ object OpenCLBridgeWrapper {
       val firstMemberBufferLength = firstMemberSize * argLength
       val secondMemberBufferLength = secondMemberSize * argLength
 
+      val firstMemberClassModel : ClassModel =
+            entryPoint.getModelFromObjectArrayFieldsClasses(
+                    sample._1.getClass.getName,
+                    new NameMatcher(sample._1.getClass.getName))
+      val secondMemberClassModel : ClassModel =
+            entryPoint.getModelFromObjectArrayFieldsClasses(
+                    sample._2.getClass.getName,
+                    new NameMatcher(sample._1.getClass.getName))
+
       val bb1 : ByteBuffer = bbCache.getBuffer(firstMemberBufferLength)
       val bb2 : ByteBuffer = bbCache.getBuffer(secondMemberBufferLength)
       // val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberBufferLength)
@@ -130,10 +140,10 @@ object OpenCLBridgeWrapper {
          * buffer will never be referenced anyway.
          */
         if (firstMemberSize > 0) {
-          writeTupleMemberToStream(tupleEle._1, entryPoint, bb1)
+          writeTupleMemberToStream(tupleEle._1, entryPoint, bb1, firstMemberClassModel)
         }
         if (secondMemberSize > 0) {
-          writeTupleMemberToStream(tupleEle._2, entryPoint, bb2)
+          writeTupleMemberToStream(tupleEle._2, entryPoint, bb2, secondMemberClassModel)
         }
       }
 
@@ -199,16 +209,13 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def writeTupleMemberToStream[T](tupleMember : T, entryPoint : Entrypoint, bb : ByteBuffer) {
+  def writeTupleMemberToStream[T](tupleMember : T, entryPoint : Entrypoint,
+          bb : ByteBuffer, memberClassModel : ClassModel) {
     tupleMember.getClass.getName match {
-      case "java.lang.Integer" => { val v = tupleMember.asInstanceOf[java.lang.Integer].intValue; bb.putInt(v); }
-      case "java.lang.Float" => { val v = tupleMember.asInstanceOf[java.lang.Float].floatValue; bb.putFloat(v); }
-      case "java.lang.Double" => { val v = tupleMember.asInstanceOf[java.lang.Double].doubleValue; bb.putDouble(v); }
+      case "java.lang.Integer" => { bb.putInt(tupleMember.asInstanceOf[java.lang.Integer].intValue); }
+      case "java.lang.Float" => { bb.putFloat(tupleMember.asInstanceOf[java.lang.Float].floatValue); }
+      case "java.lang.Double" => { bb.putDouble(tupleMember.asInstanceOf[java.lang.Double].doubleValue); }
       case _ => {
-        val memberClassModel : ClassModel =
-          entryPoint.getModelFromObjectArrayFieldsClasses(
-              tupleMember.getClass.getName,
-              new NameMatcher(tupleMember.getClass.getName))
         if (memberClassModel != null) {
           writeObjectToStream(tupleMember.asInstanceOf[java.lang.Object], memberClassModel, bb)
         } else {
@@ -219,18 +226,21 @@ object OpenCLBridgeWrapper {
   }
 
   def writeObjectToStream(ele : java.lang.Object, c : ClassModel, bb : ByteBuffer) {
-    val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
+    val structMemberInfo = c.getStructMemberInfoArray
+    // val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
 
-    val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
-    while (fieldIter.hasNext) {
-      val fieldDesc : FieldDescriptor = fieldIter.next
+    for (i <- structMemberInfo.indices) {
+    // val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
+    // while (fieldIter.hasNext) {
+      // val fieldDesc : FieldDescriptor = fieldIter.next
+      val fieldDesc : FieldDescriptor = structMemberInfo(i)
       val typ : TypeSpec = fieldDesc.typ
       val offset : java.lang.Long = fieldDesc.offset
 
       typ match {
-        case TypeSpec.I => { val v : Int = UnsafeWrapper.getInt(ele, offset); bb.putInt(v); }
-        case TypeSpec.F =>  { val v : Float = UnsafeWrapper.getFloat(ele, offset); bb.putFloat(v); }
-        case TypeSpec.D => { val v : Double = UnsafeWrapper.getDouble(ele, offset); bb.putDouble(v); }
+        case TypeSpec.I => { bb.putInt(UnsafeWrapper.getInt(ele, offset)); }
+        case TypeSpec.F =>  { bb.putFloat(UnsafeWrapper.getFloat(ele, offset)); }
+        case TypeSpec.D => { bb.putDouble(UnsafeWrapper.getDouble(ele, offset)); }
         case _ => throw new RuntimeException("Unsupported type " + typ);
       }
     }
@@ -259,12 +269,6 @@ object OpenCLBridgeWrapper {
           member0.desc) * arrLength)
     val bb2 : ByteBuffer = bbCache.getBuffer(entryPoint.getSizeOf(
           member1.desc) * arrLength)
-    // val bb1 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
-    //       member0.desc) * arrLength)
-    // val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
-    //       member1.desc) * arrLength)
-    // bb1.order(ByteOrder.LITTLE_ENDIAN)
-    // bb2.order(ByteOrder.LITTLE_ENDIAN)
 
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
             entryPoint.getSizeOf(member0.desc) * arrLength)
@@ -272,14 +276,6 @@ object OpenCLBridgeWrapper {
             entryPoint.getSizeOf(member1.desc) * arrLength)
 
     new Tuple2OutputBufferWrapper(bb1, bb2, arrLength, member0.desc, member1.desc, entryPoint)
-
-    // val midTime = System.currentTimeMillis
-
-    // for (i <- 0 until arg.size) {
-    //   arg(i) = (readTupleMemberFromStream(member0.desc, entryPoint, bb1),
-    //       readTupleMemberFromStream(member1.desc, entryPoint, bb2))
-    // }
-    // System.err.println("fetch tuple2 took " + (midTime - startTime) + " " + (System.currentTimeMillis - midTime))
   }
 
   def fetchObjectTypedArrayArgIntoOutputBuffer(ctx : scala.Long, dev_ctx : scala.Long,
@@ -324,19 +320,21 @@ object OpenCLBridgeWrapper {
   }
 
   def readTupleMemberFromStream[T](tupleMemberDesc : String, entryPoint : Entrypoint,
-      bb : ByteBuffer) : T = {
+      bb : ByteBuffer, clazz : Class[_], memberClassModel : ClassModel,
+      constructor : Constructor[T]) : T = {
     tupleMemberDesc match {
       case "I" => { return new java.lang.Integer(bb.getInt).asInstanceOf[T] }
       case "F" => { return new java.lang.Float(bb.getFloat).asInstanceOf[T] }
       case "D" => { return new java.lang.Double(bb.getDouble).asInstanceOf[T] }
       case _ => {
-        val clazz : Class[_] = CodeGenUtil.getClassForDescriptor(tupleMemberDesc)
-        val memberClassModel : ClassModel =
-            entryPoint.getModelFromObjectArrayFieldsClasses(clazz.getName,
-                new NameMatcher(clazz.getName))
+        // val clazz : Class[_] = CodeGenUtil.getClassForDescriptor(tupleMemberDesc)
+        // val memberClassModel : ClassModel =
+        //     entryPoint.getModelFromObjectArrayFieldsClasses(clazz.getName,
+        //         new NameMatcher(clazz.getName))
         if (memberClassModel != null) {
-          val constructedObj : T = OpenCLBridge.constructObjectFromDefaultConstructor(
-              clazz).asInstanceOf[T]
+          val constructedObj : T = constructor.newInstance().asInstanceOf[T]
+          // val constructedObj : T = OpenCLBridge.constructObjectFromDefaultConstructor(
+          //     clazz).asInstanceOf[T]
           readObjectFromStream(constructedObj, memberClassModel, bb)
           return constructedObj
         } else {
@@ -355,9 +353,9 @@ object OpenCLBridgeWrapper {
       val offset : java.lang.Long = fieldDesc.offset
 
       typ match {
-        case TypeSpec.I => { val v : Int = bb.getInt; UnsafeWrapper.putInt(ele, offset, v); }
-        case TypeSpec.F =>  { val v : Float = bb.getFloat; UnsafeWrapper.putFloat(ele, offset, v); }
-        case TypeSpec.D => { val v : Double = bb.getDouble; UnsafeWrapper.putDouble(ele, offset, v); }
+        case TypeSpec.I => { UnsafeWrapper.putInt(ele, offset, bb.getInt); }
+        case TypeSpec.F =>  { UnsafeWrapper.putFloat(ele, offset, bb.getFloat); }
+        case TypeSpec.D => { UnsafeWrapper.putDouble(ele, offset, bb.getDouble); }
         case _ => throw new RuntimeException("Unsupported type");
       }
     }

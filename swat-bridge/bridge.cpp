@@ -549,9 +549,9 @@ JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
     for (map<int, cl_region *>::iterator i = ctx->arguments->begin(),
             e = ctx->arguments->end(); i != e; i++) {
         cl_region *region = i->second;
-        assert(region);
-
-        free_cl_region(region, false);
+        if (region) {
+            free_cl_region(region, false);
+        }
     }
 }
 

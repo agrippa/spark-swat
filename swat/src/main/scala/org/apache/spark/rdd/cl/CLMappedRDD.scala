@@ -27,7 +27,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  val profile : Boolean = false
+  val profile : Boolean = true
 
   override val partitioner = None
 
@@ -61,7 +61,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
-    val N = 65536 * 16
+    val N = 65536 * 32
     // val acc : Array[T] = new Array[T](N)
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
@@ -114,8 +114,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             outputBuffer.get.releaseBuffers(bbCache)
           }
 
-          var ioStart : Long = 0
-          if (profile) ioStart = System.currentTimeMillis
           val firstSample : T = nested.next
 
           if (entryPoint == null) {
@@ -140,12 +138,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
                     f, params, hardCodedClassModels);
                 EntrypointCache.cache.put(f.getClass.getName, entryPoint)
               }
-            }
 
-            val writerAndKernel = KernelWriter.writeToString(
-                entryPoint, params)
-            openCL = writerAndKernel.kernel
-            // System.err.println(openCL)
+              if (EntrypointCache.kernelCache.containsKey(f.getClass.getName)) {
+                openCL = EntrypointCache.kernelCache.get(f.getClass.getName)
+              } else {
+                val writerAndKernel = KernelWriter.writeToString(
+                    entryPoint, params)
+                openCL = writerAndKernel.kernel
+                // System.err.println(openCL)
+                EntrypointCache.kernelCache.put(f.getClass.getName, openCL)
+              }
+            }
 
             if (profile) {
               profPrint("CodeGeneration", genStart, threadId)
@@ -170,6 +173,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             }
           }
 
+          var ioStart : Long = 0
+          if (profile) ioStart = System.currentTimeMillis
           var nLoaded = 1
           acc.get.append(firstSample)
           while (nLoaded < N && nested.hasNext) {
@@ -269,4 +274,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 object EntrypointCache {
   val cache : java.util.Map[java.lang.String, Entrypoint] =
       new java.util.HashMap[java.lang.String, Entrypoint]()
+  val kernelCache : java.util.Map[java.lang.String, java.lang.String] =
+      new java.util.HashMap[java.lang.String, java.lang.String]()
 }

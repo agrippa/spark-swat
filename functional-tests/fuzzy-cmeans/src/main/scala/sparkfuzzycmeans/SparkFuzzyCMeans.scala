@@ -85,7 +85,8 @@ object SparkFuzzyCMeans {
 
               (cluster_id, broadcasted_points.value(point_id))
             })
-        point_cluster_pairs_raw.cache
+        point_cluster_pairs_raw.cache.count
+        // point_cluster_pairs_raw.cache
 
         val point_cluster_pairs : RDD[(Int, Point)] =
             if (useSwat) CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw) else point_cluster_pairs_raw
@@ -99,12 +100,15 @@ object SparkFuzzyCMeans {
             centers(i) = new Point(s.x, s.y, s.z)
         }
 
-        val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
             val broadcastedCenters = sc.broadcast(centers)
 
+            val startTime = System.currentTimeMillis
+            // val memberships : RDD[Double] = point_cluster_pairs.map(pair => { 1.0 })
             val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
+                //   (pair._1, new PointMembership(1.0f, 1.0f, 1.0f, 1.0f))
+                // })
                   val center : Point = broadcastedCenters.value(pair._1)
                   val point : Point = pair._2
 
@@ -131,34 +135,35 @@ object SparkFuzzyCMeans {
                     (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
                   }
                 })
+            memberships.count
+            System.err.println("Iter " + iter + " time " + (System.currentTimeMillis - startTime) + " ms")
 
-            val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
-                  new PointMembership(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, p1.membership + p2.membership)
-                })
+            // val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
+            //       new PointMembership(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, p1.membership + p2.membership)
+            //     })
 
-            val new_clusters : RDD[(Int, Point)] = updates.map(input => {
-                  val divisor : Float = input._2.membership
+            // val new_clusters : RDD[(Int, Point)] = updates.map(input => {
+            //       val divisor : Float = input._2.membership
 
-                  (input._1, new Point(input._2.x / divisor, input._2.y / divisor,
-                        input._2.z / divisor))
-                })
+            //       (input._1, new Point(input._2.x / divisor, input._2.y / divisor,
+            //             input._2.z / divisor))
+            //     })
 
-            val new_centers_with_ids : Array[(Int, Point)] = new_clusters.collect
-            for (c_id <- new_centers_with_ids) {
-                centers(c_id._1) = c_id._2
-            }
+            // val new_centers_with_ids : Array[(Int, Point)] = new_clusters.collect
+            // for (c_id <- new_centers_with_ids) {
+            //     centers(c_id._1) = c_id._2
+            // }
 
             broadcastedCenters.unpersist(true)
 
-            println("Iteration " + (iter + 1))
-            for (i <- centers.indices) {
-                val p : Point = centers(i)
-                println("  Cluster " + i + ", (" + p.x + ", " + p.y +
-                        ", " + p.z + ")")
-            }
+            // println("Iteration " + (iter + 1))
+            // for (i <- centers.indices) {
+            //     val p : Point = centers(i)
+            //     println("  Cluster " + i + ", (" + p.x + ", " + p.y +
+            //             ", " + p.z + ")")
+            // }
             iter += 1
         }
-        System.err.println("Total time " + (System.currentTimeMillis - startTime) + " ms")
     }
 
     def convert(args : Array[String]) {

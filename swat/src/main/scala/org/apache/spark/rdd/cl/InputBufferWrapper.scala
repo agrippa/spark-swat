@@ -94,6 +94,15 @@ class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
   val firstMemberSize = if (structMembers.get(0).name.equals("_1")) size0 else size1
   val secondMemberSize = if (structMembers.get(0).name.equals("_1")) size1 else size0
 
+  val firstMemberClassModel : ClassModel =
+        entryPoint.getModelFromObjectArrayFieldsClasses(
+                sample._1.getClass.getName,
+                new NameMatcher(sample._1.getClass.getName))
+  val secondMemberClassModel : ClassModel =
+        entryPoint.getModelFromObjectArrayFieldsClasses(
+                sample._2.getClass.getName,
+                new NameMatcher(sample._2.getClass.getName))
+
   val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberSize * nele)
   val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberSize * nele)
   bb1.order(ByteOrder.LITTLE_ENDIAN)
@@ -106,10 +115,12 @@ class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
   override def append(obj : Tuple2[_, _]) {
     assert(hasSpace())
     if (firstMemberSize > 0) {
-      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1)
+      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1,
+              firstMemberClassModel)
     }
     if (secondMemberSize > 0) {
-      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._2, entryPoint, bb2)
+      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._2, entryPoint, bb2,
+              secondMemberClassModel)
     }
   }
 
