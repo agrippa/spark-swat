@@ -345,10 +345,12 @@ object OpenCLBridgeWrapper {
   }
 
   def readObjectFromStream[T](ele : T, c : ClassModel, bb : ByteBuffer) {
-    val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
-    val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
-    while (fieldIter.hasNext) {
-      val fieldDesc : FieldDescriptor = fieldIter.next
+    val structMemberInfo = c.getStructMemberInfoArray
+    // val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
+    // val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
+    // while (fieldIter.hasNext) {
+    for (i <- structMemberInfo.indices) {
+      val fieldDesc : FieldDescriptor = structMemberInfo(i)
       val typ : TypeSpec = fieldDesc.typ
       val offset : java.lang.Long = fieldDesc.offset
 
