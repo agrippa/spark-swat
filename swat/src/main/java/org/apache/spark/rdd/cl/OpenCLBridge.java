@@ -72,7 +72,8 @@ public class OpenCLBridge {
             int starting_argnum);
 
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
-            String name, String desc, Entrypoint entryPoint, boolean isBroadcast) {
+            String name, String desc, Entrypoint entryPoint, boolean isBroadcast,
+            ByteBufferCache bbCache) {
         int argsUsed = 1;
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
@@ -126,8 +127,9 @@ public class OpenCLBridge {
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
-              argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx, dev_ctx, index,
-                  fieldInstance, arrayElementTypeName, true, entryPoint, broadcastId, -1, -1, -1);
+              argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx,
+                      dev_ctx, index, fieldInstance, arrayElementTypeName, true,
+                      entryPoint, broadcastId, -1, -1, -1, bbCache);
             }
 
             if (lengthUsed) {
@@ -142,24 +144,33 @@ public class OpenCLBridge {
         return argsUsed;
     }
 
+    private static final Map<Class, Constructor> constructorCache =
+        new HashMap<Class, Constructor>();
+
     public static <T> T constructObjectFromDefaultConstructor(Class<T> clazz)
             throws InstantiationException, IllegalAccessException,
                    InvocationTargetException {
         Constructor defaultConstructor = null;
-        Constructor[] allConstructors = clazz.getDeclaredConstructors();
-        for (Constructor c : allConstructors) {
-            if (c.getParameterTypes().length == 0) {
-                defaultConstructor = c;
-                break;
+        if (constructorCache.containsKey(clazz)) {
+            defaultConstructor = constructorCache.get(clazz);
+        } else {
+            Constructor[] allConstructors = clazz.getDeclaredConstructors();
+            for (Constructor c : allConstructors) {
+                if (c.getParameterTypes().length == 0) {
+                    defaultConstructor = c;
+                    break;
+                }
             }
+
+            if (defaultConstructor == null) {
+                throw new RuntimeException("Expected default constructor for " +
+                        "class " + clazz.getName());
+            }
+
+            defaultConstructor.setAccessible(true);
+            constructorCache.put(clazz, defaultConstructor);
         }
 
-        if (defaultConstructor == null) {
-            throw new RuntimeException("Expected default constructor for " +
-                    "class " + clazz.getName());
-        }
-
-        defaultConstructor.setAccessible(true);
         T newObj;
         try {
             newObj = (T)defaultConstructor.newInstance();

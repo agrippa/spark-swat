@@ -8,6 +8,7 @@ import com.amd.aparapi.internal.model.Entrypoint
 trait OutputBufferWrapper[T] {
   def next() : T
   def hasNext() : Boolean
+  def releaseBuffers(bbCache : ByteBufferCache)
 }
 
 class PrimitiveOutputBufferWrapper[T](val arr : Array[T])
@@ -23,6 +24,8 @@ class PrimitiveOutputBufferWrapper[T](val arr : Array[T])
   override def hasNext() : Boolean = {
     iter < arr.length
   }
+
+  override def releaseBuffers(bbCache : ByteBufferCache) { }
 }
 
 class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
@@ -39,6 +42,10 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
   override def hasNext() : Boolean = {
     iter < N
   }
+
+  override def releaseBuffers(bbCache : ByteBufferCache) {
+    bbCache.releaseBuffer(bb)
+  }
 }
 
 class Tuple2OutputBufferWrapper(val bb1 : ByteBuffer, val bb2 : ByteBuffer,
@@ -47,11 +54,17 @@ class Tuple2OutputBufferWrapper(val bb1 : ByteBuffer, val bb2 : ByteBuffer,
   var iter : Int = 0
 
   override def next() : Tuple2[_, _] = {
+    iter += 1
     (OpenCLBridgeWrapper.readTupleMemberFromStream(member0Desc, entryPoint, bb1),
      OpenCLBridgeWrapper.readTupleMemberFromStream(member1Desc, entryPoint, bb2))
   }
 
   override def hasNext() : Boolean = {
     iter < N
+  }
+
+  override def releaseBuffers(bbCache : ByteBufferCache) {
+    bbCache.releaseBuffer(bb1)
+    bbCache.releaseBuffer(bb2)
   }
 }

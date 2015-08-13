@@ -60,8 +60,8 @@ object SparkFuzzyCMeans {
     }
 
     def run_fuzzy_cmeans(args : Array[String]) {
-        if (args.length != 3) {
-            println("usage: SparkFuzzyCMeans run K iters input-path");
+        if (args.length != 4) {
+            println("usage: SparkFuzzyCMeans run K iters input-path use-swat");
             return;
         }
         val sc = get_spark_context("Spark Fuzzy CMeans");
@@ -69,6 +69,7 @@ object SparkFuzzyCMeans {
         val K = args(0).toInt;
         val iters = args(1).toInt;
         val inputPath = args(2);
+        val useSwat = args(3).toBoolean
 
         val m = 2
         val raw_points : RDD[Point] = sc.objectFile(inputPath)
@@ -86,9 +87,8 @@ object SparkFuzzyCMeans {
             })
         point_cluster_pairs_raw.cache
 
-        val point_cluster_pairs : CLWrapperRDD[(Int, Point)] =
-            CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw)
-        // val point_cluster_pairs  = point_cluster_pairs_raw
+        val point_cluster_pairs : RDD[(Int, Point)] =
+            if (useSwat) CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw) else point_cluster_pairs_raw
 
         System.err.println("Initial centers:")
         var centers : Array[Point] = new Array[Point](K)

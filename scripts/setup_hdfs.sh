@@ -9,9 +9,6 @@ rm -rf /tmp/hadoop-$(whoami)/dfs
 echo Sedding core-site
 sed  "s/MASTER/$(hostname)/g" $HADOOP_HOME/etc/hadoop/core-site.xml.template > \
          $HADOOP_HOME/etc/hadoop/core-site.xml
-# echo Sedding mapred-site
-# sed  "s/MASTER/$(hostname)/g" $HADOOP_HOME/etc/hadoop/mapred-site.xml.template > \
-#          $HADOOP_HOME/etc/hadoop/mapred-site.xml
 echo Updating hdfs-site
 cp $HADOOP_HOME/etc/hadoop/hdfs-site.xml.template $HADOOP_HOME/etc/hadoop/hdfs-site.xml
 

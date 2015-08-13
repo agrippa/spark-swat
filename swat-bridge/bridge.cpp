@@ -281,7 +281,8 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                 cl_context ctx = clCreateContext(ctx_props, 1, &curr_dev, NULL, NULL, &err);
                 CHECK(err);
 
-                cl_command_queue cmd = clCreateCommandQueue(ctx, curr_dev, 0, &err);
+                cl_command_queue cmd = clCreateCommandQueue(ctx, curr_dev,
+                        CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
                 CHECK(err);
 
                 device_ctxs[global_device_id].platform = platforms[platform_index];
@@ -758,6 +759,11 @@ JNI_JAVA(void, OpenCLBridge, run)
 
 #ifdef BRIDGE_DEBUG
     save_to_dump_file(context);
+#endif
+
+#ifdef VERBOSE
+    fprintf(stderr, "Host thread %d launching kernel on OpenCL device %s\n",
+            context->host_thread_index, get_device_name(dev_ctx->dev));
 #endif
 
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,

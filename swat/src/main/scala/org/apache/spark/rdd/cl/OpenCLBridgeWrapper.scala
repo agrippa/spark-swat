@@ -68,19 +68,21 @@ object OpenCLBridgeWrapper {
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[T], typeName : String, isInput : Boolean,
       entryPoint : Entrypoint, broadcastId : Long, rddid : Int,
-      partitionid : Int, offset : Int) : Int = {
+      partitionid : Int, offset : Int, bbCache : ByteBufferCache) : Int = {
     return setObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg.length,
-        typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset)
+        typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset,
+        bbCache)
   }
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[T], argLength : Int, typeName : String,
       isInput : Boolean, entryPoint : Entrypoint, broadcastId : Long, rdd : Int,
-      partition : Int, offset : Int) : Int = {
-    if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[T]]]) {
+      partition : Int, offset : Int, bbCache : ByteBufferCache) : Int = {
+    if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[_]]]) {
       return setObjectTypedArrayArg(ctx, dev_ctx, argnum,
-        arg.asInstanceOf[scala.runtime.ObjectRef[Array[T]]].elem, argLength,
-        typeName, isInput, entryPoint, broadcastId, rdd, partition, offset)
+        arg.asInstanceOf[scala.runtime.ObjectRef[Array[_]]].elem, argLength,
+        typeName, isInput, entryPoint, broadcastId, rdd, partition, offset,
+        bbCache)
     }
 
     if (arg(0).isInstanceOf[Tuple2[_, _]]) {
@@ -108,13 +110,15 @@ object OpenCLBridgeWrapper {
       val firstMemberBufferLength = firstMemberSize * argLength
       val secondMemberBufferLength = secondMemberSize * argLength
 
-      val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberBufferLength)
-      val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberBufferLength)
-      bb1.order(ByteOrder.LITTLE_ENDIAN)
-      bb2.order(ByteOrder.LITTLE_ENDIAN)
+      val bb1 : ByteBuffer = bbCache.getBuffer(firstMemberBufferLength)
+      val bb2 : ByteBuffer = bbCache.getBuffer(secondMemberBufferLength)
+      // val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberBufferLength)
+      // val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberBufferLength)
+      // bb1.order(ByteOrder.LITTLE_ENDIAN)
+      // bb2.order(ByteOrder.LITTLE_ENDIAN)
 
       for (eleIndex <- 0 until argLength) {
-        val ele : T = arg(eleIndex)
+        val ele = arg(eleIndex)
         val tupleEle : Tuple2[_, _] = ele.asInstanceOf[Tuple2[_, _]]
 
         /*
@@ -133,30 +137,33 @@ object OpenCLBridgeWrapper {
         }
       }
 
-      if (bb1.remaining != 0) {
-        throw new RuntimeException("Expected to completely use bb1, but has " +
-            bb1.remaining + " bytes left out of a total " +
-            firstMemberBufferLength)
-      }
-      if (bb2.remaining != 0) {
-        throw new RuntimeException("Expected to completely use bb2, but has " +
-            bb2.remaining + " bytes left out of a total " +
-            secondMemberBufferLength)
-      }
+      // if (bb1.remaining != 0) {
+      //   throw new RuntimeException("Expected to completely use bb1, but has " +
+      //       bb1.remaining + " bytes left out of a total " +
+      //       firstMemberBufferLength)
+      // }
+      // if (bb2.remaining != 0) {
+      //   throw new RuntimeException("Expected to completely use bb2, but has " +
+      //       bb2.remaining + " bytes left out of a total " +
+      //       secondMemberBufferLength)
+      // }
 
       if (firstMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
-            bb1.array.length, broadcastId, rdd, partition, offset, 0)
+            firstMemberBufferLength, broadcastId, rdd, partition, offset, 0)
       } else {
         OpenCLBridge.setNullArrayArg(ctx, argnum)
       }
 
       if (secondMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
-            bb2.array.length, broadcastId, rdd, partition, offset, 1)
+            secondMemberBufferLength, broadcastId, rdd, partition, offset, 1)
       } else {
         OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
       }
+
+      bbCache.releaseBuffer(bb1)
+      bbCache.releaseBuffer(bb2)
 
       if (isInput) {
         OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
@@ -170,22 +177,24 @@ object OpenCLBridgeWrapper {
           typeName, new NameMatcher(typeName))
       val structSize = c.getTotalStructSize
 
-      val bb : ByteBuffer = ByteBuffer.allocate(structSize * argLength)
-      bb.order(ByteOrder.LITTLE_ENDIAN)
+      val bb : ByteBuffer = bbCache.getBuffer(structSize * argLength)
+      // val bb : ByteBuffer = ByteBuffer.allocate(structSize * argLength)
+      // bb.order(ByteOrder.LITTLE_ENDIAN)
 
       for (eleIndex <- 0 until argLength) {
-        val ele : T = arg(eleIndex)
-        writeObjectToStream[T](ele, c, bb)
+        val ele = arg(eleIndex)
+        writeObjectToStream(ele.asInstanceOf[java.lang.Object], c, bb)
       }
 
-      if (bb.remaining != 0) {
-        throw new RuntimeException("Expected to completely use bb, but has " +
-            bb.remaining + " bytes left out of a total " +
-            (structSize * argLength))
-      }
+      // if (bb.remaining != 0) {
+      //   throw new RuntimeException("Expected to completely use bb, but has " +
+      //       bb.remaining + " bytes left out of a total " +
+      //       (structSize * argLength))
+      // }
 
       OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-          bb.array.length, broadcastId, rdd, partition, offset, 0)
+          structSize * argLength, broadcastId, rdd, partition, offset, 0)
+      bbCache.releaseBuffer(bb)
       return 1
     }
   }
@@ -201,7 +210,7 @@ object OpenCLBridgeWrapper {
               tupleMember.getClass.getName,
               new NameMatcher(tupleMember.getClass.getName))
         if (memberClassModel != null) {
-          writeObjectToStream[T](tupleMember, memberClassModel, bb)
+          writeObjectToStream(tupleMember.asInstanceOf[java.lang.Object], memberClassModel, bb)
         } else {
           throw new RuntimeException("Unsupported type " + tupleMember.getClass.getName)
         }
@@ -209,7 +218,7 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def writeObjectToStream[T](ele : T, c : ClassModel, bb : ByteBuffer) {
+  def writeObjectToStream(ele : java.lang.Object, c : ClassModel, bb : ByteBuffer) {
     val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
 
     val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
@@ -228,13 +237,13 @@ object OpenCLBridgeWrapper {
   }
 
   def fetchTuple2TypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, arg : Array[Tuple2[_, _]], typeName : String,
-      _1typeName : String, _2typeName : String, entryPoint : Entrypoint) {
+      argnum : Int, arrLength : Int, typeName : String,
+      _1typeName : String, _2typeName : String, entryPoint : Entrypoint,
+      bbCache : ByteBufferCache) : Tuple2OutputBufferWrapper = {
     val startTime = System.currentTimeMillis
     val c : ClassModel = entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
         new DescMatcher(Array(convertClassNameToDesc(_1typeName),
         convertClassNameToDesc(_2typeName))))
-    val arrLength : Int = arg.length
     val structSize : Int = c.getTotalStructSize
 
     val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
@@ -246,37 +255,68 @@ object OpenCLBridgeWrapper {
     val member1 : FieldNameInfo =
         if (structMembers.get(0).name.equals("_1")) structMembers.get(1) else
             structMembers.get(0)
-    val bb1 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
+    val bb1 : ByteBuffer = bbCache.getBuffer(entryPoint.getSizeOf(
           member0.desc) * arrLength)
-    val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
+    val bb2 : ByteBuffer = bbCache.getBuffer(entryPoint.getSizeOf(
           member1.desc) * arrLength)
-    bb1.order(ByteOrder.LITTLE_ENDIAN)
-    bb2.order(ByteOrder.LITTLE_ENDIAN)
+    // val bb1 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
+    //       member0.desc) * arrLength)
+    // val bb2 : ByteBuffer = ByteBuffer.allocate(entryPoint.getSizeOf(
+    //       member1.desc) * arrLength)
+    // bb1.order(ByteOrder.LITTLE_ENDIAN)
+    // bb2.order(ByteOrder.LITTLE_ENDIAN)
 
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb1.array, bb1.array.length)
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array, bb2.array.length)
+    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
+            entryPoint.getSizeOf(member0.desc) * arrLength)
+    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
+            entryPoint.getSizeOf(member1.desc) * arrLength)
 
-    val midTime = System.currentTimeMillis
+    new Tuple2OutputBufferWrapper(bb1, bb2, arrLength, member0.desc, member1.desc, entryPoint)
 
-    for (i <- 0 until arg.size) {
-      arg(i) = (readTupleMemberFromStream(member0.desc, entryPoint, bb1),
-          readTupleMemberFromStream(member1.desc, entryPoint, bb2))
-    }
-    System.err.println("fetch tuple2 took " + (midTime - startTime) + " " + (System.currentTimeMillis - midTime))
+    // val midTime = System.currentTimeMillis
+
+    // for (i <- 0 until arg.size) {
+    //   arg(i) = (readTupleMemberFromStream(member0.desc, entryPoint, bb1),
+    //       readTupleMemberFromStream(member1.desc, entryPoint, bb2))
+    // }
+    // System.err.println("fetch tuple2 took " + (midTime - startTime) + " " + (System.currentTimeMillis - midTime))
+  }
+
+  def fetchObjectTypedArrayArgIntoOutputBuffer(ctx : scala.Long, dev_ctx : scala.Long,
+      argnum : Int, arrLength : Int, typeName : String,
+      clazz : java.lang.Class[_], entryPoint : Entrypoint,
+      bbCache : ByteBufferCache) : OutputBufferWrapper[_] = {
+    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+        typeName, new NameMatcher(typeName))
+    val structSize : Int = c.getTotalStructSize
+
+    // assert(!arg(0).isInstanceOf[Tuple2[_, _]])
+    // val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
+    // bb.order(ByteOrder.LITTLE_ENDIAN)
+    val bb : ByteBuffer = bbCache.getBuffer(structSize * arrLength)
+
+    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
+
+    new ObjectOutputBufferWrapper(bb, arrLength, c, clazz)
+    // for (ele <- arg) {
+    //   readObjectFromStream(ele, c, bb)
+    // }
   }
 
   def fetchObjectTypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, arg : Array[_], typeName : String, entryPoint : Entrypoint) {
+      argnum : Int, arg : Array[_], typeName : String, entryPoint : Entrypoint,
+      bbCache : ByteBufferCache) {
     val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
         typeName, new NameMatcher(typeName))
     val arrLength : Int = arg.length
     val structSize : Int = c.getTotalStructSize
 
     assert(!arg(0).isInstanceOf[Tuple2[_, _]])
-    val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
-    bb.order(ByteOrder.LITTLE_ENDIAN)
+    // val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
+    // bb.order(ByteOrder.LITTLE_ENDIAN)
+    val bb : ByteBuffer = bbCache.getBuffer(structSize * arrLength)
 
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, bb.array.length)
+    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
 
     for (ele <- arg) {
       readObjectFromStream(ele, c, bb)
@@ -325,8 +365,8 @@ object OpenCLBridgeWrapper {
 
   def setArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
       arg : Array[T], argLength : Int, isInput : Boolean,
-      entryPoint : Entrypoint, rddid : Int, partitionid : Int, offset : Int) :
-      Int = {
+      entryPoint : Entrypoint, rddid : Int, partitionid : Int, offset : Int,
+      bbCache : ByteBufferCache) : Int = {
 
     if (arg.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
@@ -343,13 +383,14 @@ object OpenCLBridgeWrapper {
     } else {
       // Assume is some serializable object array
       val argClass : java.lang.Class[_] = arg(0).getClass
-      return setObjectTypedArrayArg[T](ctx, dev_ctx, argnum, arg, argLength,
-          argClass.getName, isInput, entryPoint, -1, rddid, partitionid, offset)
+      return setObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, argLength,
+          argClass.getName, isInput, entryPoint, -1, rddid, partitionid, offset,
+          bbCache)
     }
   }
 
   def fetchArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
-      arg : Array[T], entryPoint : Entrypoint) {
+      arg : Array[T], entryPoint : Entrypoint, bbCache : ByteBufferCache) {
     if (arg.isInstanceOf[Array[Double]]) {
       val casted : Array[Double] = arg.asInstanceOf[Array[Double]]
       OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
@@ -363,7 +404,7 @@ object OpenCLBridgeWrapper {
       throw new RuntimeException("This code path does not support Tuple2 anymore")
     } else {
       fetchObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg(0).getClass.getName,
-          entryPoint)
+          entryPoint, bbCache)
     }
   }
 
@@ -413,31 +454,32 @@ object OpenCLBridgeWrapper {
   }
 
   def fetchArgFromUnitializedArray[T : ClassTag](ctx : scala.Long,
-      dev_ctx : scala.Long, argnum : Int, arg : Array[T],
-      entryPoint : Entrypoint, sampleOutput : T) {
+      dev_ctx : scala.Long, argnum : Int, N : Int,
+      entryPoint : Entrypoint, sampleOutput : T, bbCache : ByteBufferCache) :
+      OutputBufferWrapper[T] = {
     val clazz : java.lang.Class[_] = classTag[T].runtimeClass
 
     if (clazz.equals(classOf[Double])) {
-      val casted : Array[Double] = arg.asInstanceOf[Array[Double]]
+      val casted : Array[Double] = new Array[Double](N)
       OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
+      new PrimitiveOutputBufferWrapper[Double](casted).asInstanceOf[OutputBufferWrapper[T]]
     } else if (clazz.equals(classOf[Int])) {
-      val casted : Array[Int] = arg.asInstanceOf[Array[Int]]
+      val casted : Array[Int] = new Array[Int](N)
       OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
+      new PrimitiveOutputBufferWrapper[Int](casted).asInstanceOf[OutputBufferWrapper[T]]
     } else if (clazz.equals(classOf[Float])) {
-      val casted : Array[Float] = arg.asInstanceOf[Array[Float]]
+      val casted : Array[Float] = new Array[Float](N)
       OpenCLBridge.fetchFloatArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
+      new PrimitiveOutputBufferWrapper[Float](casted).asInstanceOf[OutputBufferWrapper[T]]
     } else if (clazz.equals(classOf[Tuple2[_, _]])) {
       val sampleTuple : Tuple2[_, _] = sampleOutput.asInstanceOf[Tuple2[_, _]]
       fetchTuple2TypedArrayArg(ctx, dev_ctx, argnum,
-          arg.asInstanceOf[Array[Tuple2[_, _]]], clazz.getName,
+          N, clazz.getName,
           sampleTuple._1.getClass.getName, sampleTuple._2.getClass.getName,
-          entryPoint)
+          entryPoint, bbCache).asInstanceOf[OutputBufferWrapper[T]]
     } else {
-      for (i <- 0 until arg.size) {
-        arg(i) = OpenCLBridge.constructObjectFromDefaultConstructor(
-            clazz).asInstanceOf[T]
-      }
-      fetchObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, clazz.getName, entryPoint)
+      fetchObjectTypedArrayArgIntoOutputBuffer(ctx, dev_ctx, argnum, N,
+            clazz.getName, clazz, entryPoint, bbCache).asInstanceOf[OutputBufferWrapper[T]]
     }
   }
 
