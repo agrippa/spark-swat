@@ -64,6 +64,7 @@ typedef struct _cl_allocator {
     pthread_mutex_t lock;
 } cl_allocator;
 
+extern bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq);
 extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx);
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);

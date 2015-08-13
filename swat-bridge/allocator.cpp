@@ -240,13 +240,16 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     return return_value;
 }
 
-void re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
+bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
     enter_trace("re_allocate_cl_region");
 
     lock_allocator(target_region->grandparent->allocator);
 
+    if (target_region->seq != expected_seq) {
+        return false;
+    }
+
     remove_from_bucket(target_region);
-    assert(expected_seq == target_region->seq);
     assert(target_region->valid && target_region->free &&
             target_region->refs == 0);
     target_region->free = false;
@@ -255,6 +258,8 @@ void re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
     unlock_allocator(target_region->grandparent->allocator);
 
     exit_trace("re_allocate_cl_region");
+
+    return true;
 }
 
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {

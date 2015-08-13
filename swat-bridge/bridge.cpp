@@ -35,6 +35,43 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     swat_context *context = (swat_context *)lctx; \
     int err = pthread_mutex_lock(&dev_ctx->lock); \
     assert(err == 0); \
+    if (broadcastId >= 0 && \
+            dev_ctx->broadcast_cache->find(broadcastId) != \
+            dev_ctx->broadcast_cache->end()) { \
+        cl_region *region = dev_ctx->broadcast_cache->at(broadcastId).first; \
+        if (!region->free) { \
+            fprintf(stderr, "Reusing cached allocation\n"); \
+            add_hold(region); \
+            CHECK(clSetKernelArg(context->kernel, index, \
+                        sizeof(region->sub_mem), &region->sub_mem)); \
+            (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
+        } else { \
+            bool success = re_allocate_cl_region(region, \
+                    dev_ctx->broadcast_cache->at(broadcastId).second); \
+            if (success) { \
+                fprintf(stderr, "Reusing cached allocation\n"); \
+                CHECK(clSetKernelArg(context->kernel, index, \
+                            sizeof(region->sub_mem), &region->sub_mem)); \
+                (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
+            } else { \
+                cl_region *new_region = set_kernel_arg(arr, len, index, context, \
+                        dev_ctx, broadcastId, rddid); \
+                (*dev_ctx->broadcast_cache)[broadcastId] = pair<cl_region *, size_t>( \
+                        new_region, new_region->seq); \
+                (*context->arguments)[index] = pair<cl_region *, bool>( \
+                        new_region, true); \
+            } \
+        } \
+    } else { \
+        cl_region *new_region = set_kernel_arg(arr, len, index, context, \
+                dev_ctx, broadcastId, rddid); \
+        if (broadcastId >= 0) { \
+            dev_ctx->broadcast_cache->insert( \
+                    pair<jlong, pair<cl_region *, size_t> >(broadcastId, \
+                        pair<cl_region *, size_t>(new_region, \
+                            new_region->seq))); \
+        } \
+    } \
     /* \
     if (broadcastId >= 0 && \
             dev_ctx->broadcast_cache->find(broadcastId) != \
@@ -54,9 +91,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         CHECK(clSetKernelArg(context->kernel, index, sizeof(mem), &mem)); \
         (*context->arguments)[index] = mem_and_size(mem, len); \
     } else { \
-    */ \
         set_kernel_arg(arr, len, index, context, dev_ctx, broadcastId, rddid); \
-        /* \
         if (broadcastId >= 0) { \
             dev_ctx->broadcast_cache->insert(pair<jlong, cl_mem>(broadcastId, mem)); \
         } else if (rddid >= 0) { \
@@ -295,8 +330,8 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
 
                 device_ctxs[global_device_id].allocator = init_allocator(curr_dev, ctx);
 
-                // device_ctxs[global_device_id].broadcast_cache =
-                //     new map<jlong, cl_region *>();
+                device_ctxs[global_device_id].broadcast_cache =
+                    new map<jlong, pair<cl_region *, size_t> >();
                 device_ctxs[global_device_id].program_cache =
                     new map<string, cl_program>();
                 // device_ctxs[global_device_id].rdd_cache =
@@ -457,7 +492,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     // context->program = program;
     context->kernel = kernel;
     context->host_thread_index = host_thread_index;
-    context->arguments = new map<int, cl_region *>();
+    context->arguments = new map<int, pair<cl_region *, bool> >();
     // context->all_allocated = new set<cl_mem>();
 #ifdef BRIDGE_DEBUG
     context->debug_arguments = new map<int, kernel_arg *>();
@@ -471,26 +506,16 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 
 static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
         int index, size_t size, jlong broadcastId, jint rdd) {
-    // if (context->arguments->find(index) != context->arguments->end() &&
-    //         context->arguments->at(index).get_size() >= size) {
-    //     return context->arguments->at(index).get_mem();
-    // } else {
-        cl_region *region = allocate_cl_region(size, dev_ctx->allocator);
-        assert(region);
+    cl_region *region = allocate_cl_region(size, dev_ctx->allocator);
+    assert(region);
 
-        // cl_mem mem = clCreateBuffer(dev_ctx->ctx, CL_MEM_READ_WRITE, size,
-        //         NULL, &err);
 #ifdef VERBOSE
-        fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n",
-                context->host_thread_index, region, size, index);
+    fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n",
+            context->host_thread_index, region, size, index);
 #endif
 
-        // if (broadcastId < 0 && rdd < 0) {
-        //     context->all_allocated->insert(mem);
-        // }
-        (*context->arguments)[index] = region;
-        return region;
-    // }
+    (*context->arguments)[index] = pair<cl_region *, bool>(region, broadcastId >= 0);
+    return region;
 }
 
 static cl_region *set_kernel_arg(void *host, size_t len, int index,
@@ -516,7 +541,7 @@ static cl_region *set_kernel_arg(void *host, size_t len, int index,
 static void fetch_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx) {
     assert(context->arguments->find(index) != context->arguments->end());
-    cl_mem mem = context->arguments->at(index)->sub_mem;
+    cl_mem mem = context->arguments->at(index).first->sub_mem;
 
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
@@ -546,11 +571,11 @@ JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
         (JNIEnv *jenv, jclass clazz, jlong lctx) {
     swat_context *ctx = (swat_context *)lctx;
 
-    for (map<int, cl_region *>::iterator i = ctx->arguments->begin(),
+    for (map<int, pair<cl_region *, bool> >::iterator i = ctx->arguments->begin(),
             e = ctx->arguments->end(); i != e; i++) {
-        cl_region *region = i->second;
+        cl_region *region = i->second.first;
         if (region) {
-            free_cl_region(region, false);
+            free_cl_region(region, i->second.second);
         }
     }
 }
@@ -585,7 +610,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
     swat_context *context = (swat_context *)lctx;
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(none), &none));
 
-    (*context->arguments)[argnum] = NULL;
+    (*context->arguments)[argnum] = pair<cl_region *, bool>(NULL, false);
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[argnum] = new kernel_arg(&none, sizeof(none),
@@ -694,15 +719,15 @@ JNI_JAVA(void, OpenCLBridge, resetHeap)
 
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    map<int, cl_region *> *arguments = context->arguments;
+    map<int, pair<cl_region *, bool> > *arguments = context->arguments;
     int free_index_arg_index = starting_argnum + 1;
     int any_failed_arg_index = starting_argnum + 4;
 
     assert(arguments->find(free_index_arg_index) != arguments->end());
     assert(arguments->find(any_failed_arg_index) != arguments->end());
 
-    cl_region *free_index_mem = arguments->at(free_index_arg_index);
-    cl_region *any_failed_mem = arguments->at(any_failed_arg_index);
+    cl_region *free_index_mem = arguments->at(free_index_arg_index).first;
+    cl_region *any_failed_mem = arguments->at(any_failed_arg_index).first;
 
     unsigned zero = 0;
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, free_index_mem->sub_mem, CL_TRUE, 0,
