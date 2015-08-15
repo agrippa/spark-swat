@@ -12,6 +12,18 @@
 #define MIN_ALLOC_SIZE  1
 #define NBUCKETS    20
 
+
+#ifdef TRACE
+extern void enter_trace(const char *lbl);
+extern void exit_trace(const char *lbl);
+
+#define ENTER_TRACE(lbl) enter_trace(lbl)
+#define EXIT_TRACE(lbl) exit_trace(lbl)
+#else
+#define ENTER_TRACE(lbl)
+#define EXIT_TRACE(lbl)
+#endif
+
 #define BUCKET_MIN_SIZE_INCL(my_bucket) ((size_t)(MIN_ALLOC_SIZE * (2 << (my_bucket))))
 #define BUCKET_MAX_SIZE_EXCL(my_bucket) ((size_t)(BUCKET_MIN_SIZE_INCL(my_bucket + 1)))
 #define BELONGS_TO_BUCKET(my_size, my_bucket) \
@@ -30,22 +42,18 @@ typedef struct _cl_allocator cl_allocator;
 typedef struct _cl_region {
     cl_mem sub_mem;
     size_t offset, size;
-    size_t seq;
     cl_bucket *parent;
     cl_alloc *grandparent;
     cl_region *bucket_next, *bucket_prev;
     cl_region *next, *prev;
     int refs;
-    bool valid;
-    bool free;
     bool keeping;
     long birth;
     /*
      * assume there can only be one outstanding reference to a region in one
      * cache
      */
-    bool merged;
-    bool cached;
+    bool invalidated;
 } cl_region;
 
 typedef struct _cl_bucket {
@@ -73,7 +81,7 @@ typedef struct _cl_allocator {
     pthread_mutex_t lock;
 } cl_allocator;
 
-extern bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq);
+extern bool re_allocate_cl_region(cl_region *target_region);
 extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue cmd);
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);

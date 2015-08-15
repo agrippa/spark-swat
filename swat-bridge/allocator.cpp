@@ -1,31 +1,33 @@
 #include "allocator.h"
 
 #include <math.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern void enter_trace(const char *lbl);
-extern void exit_trace(const char *lbl);
 
 #ifdef __cplusplus
 }
 #endif
 
 static void lock_allocator(cl_allocator *allocator) {
+    ENTER_TRACE("lock_allocation");
     int perr = pthread_mutex_lock(&allocator->lock);
     assert(perr == 0);
+    EXIT_TRACE("lock_allocation");
 }
 
 static void unlock_allocator(cl_allocator *allocator) {
+    ENTER_TRACE("unlock_allocation");
     int perr = pthread_mutex_unlock(&allocator->lock);
     assert(perr == 0);
+    EXIT_TRACE("unlock_allocation");
 }
 
 static void bucket_insert_after(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
-    enter_trace("bucket_insert_after");
+    ENTER_TRACE("bucket_insert_after");
     assert(target && to_insert);
 
     cl_region *next = target->bucket_next;
@@ -37,12 +39,12 @@ static void bucket_insert_after(cl_region *target, cl_region *to_insert,
     }
     to_insert->bucket_prev = target;
     to_insert->bucket_next = next;
-    exit_trace("bucket_insert_after");
+    EXIT_TRACE("bucket_insert_after");
 }
 
 static void bucket_insert_before(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
-    enter_trace("bucket_insert_before");
+    ENTER_TRACE("bucket_insert_before");
     assert(target && to_insert);
 
     cl_region *prev = target->bucket_prev;
@@ -54,11 +56,11 @@ static void bucket_insert_before(cl_region *target, cl_region *to_insert,
     }
     to_insert->bucket_next = target;
     to_insert->bucket_prev = prev;
-    exit_trace("bucket_insert_before");
+    EXIT_TRACE("bucket_insert_before");
 }
 
 static void remove_from_bucket(cl_region *region) {
-    enter_trace("remove_from_bucket");
+    ENTER_TRACE("remove_from_bucket");
     cl_bucket *bucket = region->parent;
 
     if (bucket->head == region && bucket->tail == region) {
@@ -79,11 +81,11 @@ static void remove_from_bucket(cl_region *region) {
     }
     region->bucket_next = region->bucket_prev = NULL;
     region->parent = NULL;
-    exit_trace("remove_from_bucket");
+    EXIT_TRACE("remove_from_bucket");
 }
 
 static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
-    enter_trace("add_to_normal_bucket");
+    ENTER_TRACE("add_to_normal_bucket");
     assert(region->parent == NULL);
 
     if (bucket->head == NULL) {
@@ -111,11 +113,11 @@ static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
         }
     }
     region->parent = bucket;
-    exit_trace("add_to_normal_bucket");
+    EXIT_TRACE("add_to_normal_bucket");
 }
 
 static void add_to_keep_bucket(cl_region *region, cl_bucket *bucket) {
-    enter_trace("add_to_keep_bucket");
+    ENTER_TRACE("add_to_keep_bucket");
     assert(region->parent == NULL);
 
     if (bucket->head == NULL) {
@@ -149,12 +151,12 @@ static void add_to_keep_bucket(cl_region *region, cl_bucket *bucket) {
         }
     }
     region->parent = bucket;
-    exit_trace("add_to_keep_bucket");
+    EXIT_TRACE("add_to_keep_bucket");
 }
 
 static void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets,
         cl_bucket *large_bucket) {
-    enter_trace("insert_into_buckets_helper");
+    ENTER_TRACE("insert_into_buckets_helper");
     assert(region->size >= MIN_ALLOC_SIZE);
     bool inserted = false;
     for (int b = 0; b < NBUCKETS; b++) {
@@ -175,22 +177,22 @@ static void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets,
             add_to_normal_bucket(region, large_bucket);
         }
     }
-    exit_trace("insert_into_buckets_helper");
+    EXIT_TRACE("insert_into_buckets_helper");
 }
 
 static void insert_into_buckets(cl_region *region, cl_alloc *alloc, bool try_to_keep) {
-    enter_trace("insert_into_buckets");
+    ENTER_TRACE("insert_into_buckets");
     region->keeping = try_to_keep;
     if (try_to_keep) {
         insert_into_buckets_helper(region, alloc->keep_buckets, &alloc->keep_large_bucket);
     } else {
         insert_into_buckets_helper(region, alloc->buckets, &alloc->large_bucket);
     }
-    exit_trace("insert_into_buckets");
+    EXIT_TRACE("insert_into_buckets");
 }
 
 static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
-    enter_trace("search_bucket");
+    ENTER_TRACE("search_bucket");
     cl_region *result = NULL;
     for (cl_region *r = bucket->head; r != NULL; r = r->bucket_next) {
         if (r->size >= rounded_size) {
@@ -198,8 +200,40 @@ static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
             break;
         }
     }
-    exit_trace("search_bucket");
+    EXIT_TRACE("search_bucket");
     return result;
+}
+
+static cl_region *copy_cl_region(cl_region *input) {
+    cl_region *copy = (cl_region *)malloc(sizeof(cl_region));
+    memcpy(copy, input, sizeof(cl_region));
+    copy->refs = 0;
+    copy->parent = NULL;
+    copy->bucket_next = NULL;
+    copy->bucket_prev = NULL;
+    copy->keeping = false; // can't be keeping because no one can have a reference
+    copy->invalidated = false;
+    return copy;
+}
+
+static cl_region *swap_out_for_copy(cl_region *input) {
+    assert(input->parent == NULL); // not in buckets
+    cl_region *copy = copy_cl_region(input);
+    if (copy->prev) {
+        copy->prev->next = copy;
+    }
+    if (copy->next) {
+        copy->next->prev = copy;
+    }
+    if (copy->grandparent->region_list_head == input) {
+        copy->grandparent->region_list_head = copy;
+    }
+    if (input->keeping) {
+        input->invalidated = true;
+    } else {
+        free(input);
+    }
+    return copy;
 }
 
 /*
@@ -209,55 +243,52 @@ static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
  */
 static void split(cl_region *target, size_t first_partition_size,
         cl_region **first_out, cl_region **second_out) {
-    enter_trace("split");
+    ENTER_TRACE("split");
+    assert(target->refs == 0);
+
     cl_alloc *alloc = target->grandparent;
 
-    cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
+    cl_region *lower_region = copy_cl_region(target);
+    cl_region *upper_region = copy_cl_region(target);
 
-#ifdef VERBOSE
-    fprintf(stderr, "Splitting (%p offset=%lu size=%lu) into %p and %p, "
-            "prev=%p, next=%p\n", target, target->offset, target->size, target,
-            new_region, target->prev, target->next);
-#endif
+    lower_region->sub_mem = NULL;
+    upper_region->sub_mem = NULL;
 
-    new_region->sub_mem = NULL;
-    new_region->offset = target->offset + first_partition_size;
-    new_region->size = target->size - first_partition_size;
-    new_region->seq = target->seq + 1;
-    new_region->parent = NULL;
-    new_region->grandparent = target->grandparent;
-    new_region->bucket_next = new_region->bucket_prev = NULL;
-    new_region->next = target->next;
-    new_region->prev = target;
-    new_region->refs = 0;
-    new_region->valid = false;
-    new_region->keeping = false;
-    new_region->free = true;
-    new_region->merged = false;
-    new_region->cached = false;
+    upper_region->offset += first_partition_size;
 
-    remove_from_bucket(target);
-    target->size = first_partition_size;
-    target->next = new_region;
-    target->seq = target->seq + 1;
-    target->keeping = false;
+    lower_region->size = first_partition_size;
+    upper_region->size -= first_partition_size;
 
-    if (new_region->next) {
-        new_region->next->prev = new_region;
+    lower_region->prev = target->prev;
+    lower_region->next = upper_region;
+    upper_region->next = target->next;
+    upper_region->prev = lower_region;
+    if (target->prev) {
+        target->prev->next = lower_region;
+    }
+    if (target->next) {
+        target->next->prev = upper_region;
     }
 
-#ifdef VERBOSE
-    fprintf(stderr, "  target=(%p offset=%lu size=%lu) new_region=(%p "
-            "offset=%lu size=%lu)\n", target, target->offset, target->size,
-            new_region, new_region->offset, new_region->size);
-#endif
+    if (alloc->region_list_head == target) {
+        assert(lower_region->prev == NULL);
+        alloc->region_list_head = lower_region;
+    }
 
-    insert_into_buckets(target, alloc, false);
-    insert_into_buckets(new_region, alloc, false);
+    remove_from_bucket(target);
 
-    *first_out = target;
-    *second_out = new_region;
-    exit_trace("split");
+    if (target->keeping) {
+        target->invalidated = true;
+    } else {
+        free(target);
+    }
+
+    insert_into_buckets(lower_region, alloc, false);
+    insert_into_buckets(upper_region, alloc, false);
+
+    *first_out = lower_region;
+    *second_out = upper_region;
+    EXIT_TRACE("split");
 }
 
 static cl_region *split_from_front(cl_region *target, size_t rounded_size) {
@@ -278,7 +309,16 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *
     cl_region *target_region = NULL;
 
     for (int b = 0; b < NBUCKETS && target_region == NULL; b++) {
-        if (BUCKET_MIN_SIZE_INCL(b) <= rounded_size) {
+#ifdef VERBOSE
+        fprintf(stderr, "  bucket=%d rounded_size=%lu min_bucket_incl=%lu "
+                "match? %d\n", b, rounded_size, BUCKET_MIN_SIZE_INCL(b),
+                (BUCKET_MIN_SIZE_INCL(b) >= rounded_size));
+#endif
+        /*
+         * Look at all buckets that have allocations larger than or equal to
+         * rounded_size.
+         */
+        if (BUCKET_MIN_SIZE_INCL(b) >= rounded_size) {
             /*
              * Buckets are sorted smallest to larges. Allocations in each
              * bucket are also sorted smallest to largest. This means that
@@ -289,6 +329,7 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *
             cl_region *match = search_bucket(rounded_size, bucket);
             if (match) {
                 target_region = match;
+                break;
             }
         }
     }
@@ -301,13 +342,15 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *
  * update region_list_head.
  */
 bool free_cl_region(cl_region *to_free, bool try_to_keep) {
-    enter_trace("free_cl_region");
+    ENTER_TRACE("free_cl_region");
 
     lock_allocator(to_free->grandparent->allocator);
 
-    assert(!to_free->free);
-    assert(to_free->valid);
-    to_free->refs = to_free->refs - 1;
+    assert(to_free->refs > 0);
+    assert(to_free->sub_mem);
+    assert(!to_free->invalidated);
+    assert(to_free->parent == NULL); // not in a bucket
+    to_free->refs -= 1;
 
     if (to_free->refs == 0) {
         cl_region *next = to_free->next;
@@ -331,10 +374,9 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         assert(prev == NULL || to_free->offset == prev->offset + prev->size);
         to_free->keeping = try_to_keep;
         if (!try_to_keep) to_free->birth = 0;
-        to_free->cached = try_to_keep;
 
-        if (!try_to_keep && (next && next->free && !next->keeping) &&
-                (prev && prev->free && !prev->keeping)) {
+        if (!try_to_keep && (next && next->refs == 0 && !next->keeping) &&
+                (prev && prev->refs == 0 && !prev->keeping)) {
             // Merge with next and prev
 #ifdef VERBOSE
             fprintf(stderr, "Merging prev=(%p offset=%lu size=%lu) and "
@@ -343,11 +385,8 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     next->offset, next->size, to_free, to_free->offset,
                     to_free->size);
 #endif
+            prev->sub_mem = NULL;
             prev->size += to_free->size + next->size;
-            // seq doesn't matter because none are marked keeping
-            // parent will be handled when we remove from bucket and re-insert
-            // grandparent remains the same
-            // bucket_next, bucket_prev will be handled on remove and re-insert
             prev->next = next->next;
             if (prev->next) {
                 prev->next->prev = prev;
@@ -356,18 +395,12 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             fprintf(stderr, "  prev=(%p offset=%lu size=%lu)\n", prev,
                     prev->offset, prev->size);
 #endif
-            // prev remains the same
-            // refs remain the same
-            prev->valid = false;
-            // free remains the same
-            // keeping remains the same
-            // birth doesn't matter for !keeping
             remove_from_bucket(next);
             free(next);
             free(to_free);
             remove_from_bucket(prev);
             insert_into_buckets(prev, prev->grandparent, false);
-        } else if (!try_to_keep && next && next->free && !next->keeping) {
+        } else if (!try_to_keep && next && next->refs == 0 && !next->keeping) {
             // Merge with just next
 #ifdef VERBOSE
             fprintf(stderr, "Merging next=(%p offset=%lu size=%lu) for "
@@ -375,11 +408,8 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     next->size, to_free, to_free->offset, to_free->size);
 #endif
 
+            to_free->sub_mem = NULL;
             to_free->size += next->size;
-            // seq doesn't matter because none are marked keeping
-            // parent will be handled when we remove from bucket and re-insert
-            // grandparent remains the same
-            // bucket_next, bucket_prev will be handled on remove and re-insert
             to_free->next = next->next;
             if (to_free->next) {
                 to_free->next->prev = to_free;
@@ -388,16 +418,10 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             fprintf(stderr, "  to_free=(%p offset=%lu size=%lu)\n", to_free,
                     to_free->offset, to_free->size);
 #endif
-            // prev remains the same
-            // refs is already 0
-            to_free->valid = false;
-            to_free->free = true;
-            // keeping handled by insert_into_buckets
-            // birth doesn't matter for !keeping
             remove_from_bucket(next);
             free(next);
             insert_into_buckets(to_free, to_free->grandparent, false);
-        } else if (!try_to_keep && prev && prev->free && !prev->keeping) {
+        } else if (!try_to_keep && prev && prev->refs == 0 && !prev->keeping) {
             // Merge with just prev
 #ifdef VERBOSE
             fprintf(stderr, "Merging prev=(%p offset=%lu size=%lu) for "
@@ -415,13 +439,12 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     prev->offset, prev->size);
 #endif
 
-            prev->valid = false;
+            prev->sub_mem = NULL;
             free(to_free);
             remove_from_bucket(prev);
             insert_into_buckets(prev, prev->grandparent, false);
         } else {
             insert_into_buckets(to_free, to_free->grandparent, try_to_keep);
-            to_free->free = true;
             to_free->keeping = try_to_keep;
         }
 #ifdef VERBOSE
@@ -436,33 +459,35 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
     unlock_allocator(to_free->grandparent->allocator);
 
-    exit_trace("free_cl_region");
+    EXIT_TRACE("free_cl_region");
     return return_value;
 }
 
-bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
-    enter_trace("re_allocate_cl_region");
+bool re_allocate_cl_region(cl_region *target_region) {
+    ENTER_TRACE("re_allocate_cl_region");
 
-    lock_allocator(target_region->grandparent->allocator);
-
-    if (target_region->seq != expected_seq) {
-        return false;
-    }
-    if (target_region->merged) {
+    if (target_region->invalidated) {
         free(target_region);
         return false;
     }
 
-    if (target_region->free) {
+    lock_allocator(target_region->grandparent->allocator);
+
+    /*
+     * keeping may be false if this is a RDD/broadcast that hasn't been freed
+     * yet, in which case it must have some refs. This isn't a strong check.
+     */
+    assert(target_region->keeping || target_region->refs > 0);
+    assert(!target_region->invalidated);
+
+    if (target_region->refs == 0) {
 #ifdef VERBOSE
         fprintf(stderr, "Before Re-Allocating (%p %lu %lu)\n", target_region,
                 target_region->offset, target_region->size);
         print_allocator(target_region->grandparent->allocator, -1);
 #endif
         remove_from_bucket(target_region);
-        assert(target_region->valid && target_region->free &&
-                target_region->refs == 0);
-        target_region->free = false;
+        assert(target_region->sub_mem);
         target_region->refs = 1;
 #ifdef VERBOSE
         fprintf(stderr, "After Re-Allocating (%p %lu %lu)\n", target_region,
@@ -474,25 +499,26 @@ bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq) {
         target_region->refs += 1;
     }
     target_region->birth = target_region->grandparent->allocator->curr_time;
-    target_region->merged = false;
 
     unlock_allocator(target_region->grandparent->allocator);
 
-    exit_trace("re_allocate_cl_region");
+    EXIT_TRACE("re_allocate_cl_region");
 
     return true;
 }
 
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
-    enter_trace("allocate_cl_region");
+    ENTER_TRACE("allocate_cl_region");
     assert(allocator);
+    assert(size > 0);
 
     lock_allocator(allocator);
 
     size_t rounded_size = pow(2, ceil(log(size)/log(2)));
 
 #ifdef VERBOSE
-    fprintf(stderr, "Allocatin %lu bytes:\n", rounded_size);
+    fprintf(stderr, "Allocating %lu (actual=%lu) bytes, allocator state "
+            "beforehand:\n", rounded_size, size);
     print_allocator(allocator, -1);
 #endif
 
@@ -564,7 +590,23 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
                 int count_successors = 0;
                 cl_region *succ = curr->next;
 
-                while (succ && succ->free && acc_bytes < rounded_size) {
+                if (curr->refs > 0) { // not free
+                    curr = curr->next;
+                    continue;
+                }
+
+#ifdef VERBOSE
+                fprintf(stderr, "  Starting search from (%p offset=%lu size=%lu)\n",
+                        curr, curr->offset, curr->size);
+#endif
+
+                /*
+                 * When we hit this condition, we're pretty desparate to find
+                 * any memory region that will handle this allocation. We throw
+                 * out trying to keep everything a power of two and just grab
+                 * anything that will handle size.
+                 */
+                while (succ && succ->refs == 0 && acc_bytes < size) {
                     acc_bytes += succ->size;
                     youngest = (succ->birth > youngest ? succ->birth : youngest);
                     count_successors++;
@@ -574,7 +616,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
                 /*
                  * Look for the group with the oldest, youngest member
                  */
-                if (acc_bytes >= rounded_size && (best_candidate == NULL ||
+                if (acc_bytes >= size && (best_candidate == NULL ||
                             youngest < best_candidate_birth)) {
                     best_candidate = curr;
                     best_candidate_successors = count_successors;
@@ -586,50 +628,85 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
         }
 
         assert(best_candidate);
+#ifdef VERBOSE
+        fprintf(stderr, "best_candidate=(%p offset=%lu size=%lu refs=%d), "
+                "successors=%d\n", best_candidate, best_candidate->offset,
+                best_candidate->size, best_candidate->refs, best_candidate_successors);
+        if (best_candidate->keeping) {
+            fprintf(stderr, "Evicting %p offset=%lu size=%lu\n", best_candidate,
+                    best_candidate->offset, best_candidate->size);
+        }
+#endif
+        cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
+        memcpy(new_region, best_candidate, sizeof(cl_region));
+
         cl_region *succ = best_candidate->next;
         int count_succ = 0;
         while (count_succ < best_candidate_successors) {
 
-            best_candidate->size += succ->size;
+            new_region->size += succ->size;
             // no need to handle parent
             // grandparent unchanged
             // bucket_next, bucket_prev will be handled later
-            best_candidate->next = succ->next;  // eventually the last successor->next
+            new_region->next = succ->next;  // eventually the last successor->next
             // prev remains the same
             // refs is already 0
+#ifdef VERBOSE
+            if (succ->keeping) {
+                fprintf(stderr, "Evicting %p offset=%lu size=%lu\n", succ,
+                        succ->offset, succ->size);
+            }
+#endif
 
             count_succ++;
             cl_region *next = succ->next;
 
             remove_from_bucket(succ);
             /*
-             * cached is set in free_cl_region when an item is finally freed, so
+             * keeping is set in free_cl_region when an item is finally freed, so
              * we know it must be set to the actual value here because we are
              * only dealing with freed objects.
              */
-            if (succ->cached) {
+            if (succ->keeping) {
                 succ->next = NULL;
                 succ->prev = NULL;
-                succ->merged = true;
+                succ->invalidated = true;
             } else {
                 free(succ);
             }
             succ = next;
         }
 
-        if (best_candidate->next) {
-            best_candidate->next->prev = best_candidate;
+        if (new_region->next) {
+            new_region->next->prev = new_region;
         }
-        best_candidate->valid = false;
-        // free is already true
-        best_candidate->keeping = false;
-        best_candidate->birth = 0;
-        best_candidate->merged = true;
+        if (new_region->prev) {
+            new_region->prev->next = new_region;
+        }
+        if (new_region->grandparent->region_list_head == best_candidate) {
+            new_region->grandparent->region_list_head = new_region;
+        }
+        new_region->sub_mem = NULL;
+        new_region->refs = 0;
+        new_region->keeping = false;
+        new_region->birth = 0;
+        new_region->invalidated = false;
 
         remove_from_bucket(best_candidate);
-        insert_into_buckets(best_candidate, best_candidate->grandparent, false);
+        new_region->bucket_next = NULL;
+        new_region->bucket_prev = NULL;
+        new_region->parent = NULL;
+        insert_into_buckets(new_region, new_region->grandparent, false);
 
-        target_region = best_candidate;
+        if (best_candidate->keeping) {
+            best_candidate->invalidated = true;
+            best_candidate->next = NULL;
+            best_candidate->prev = NULL;
+        } else {
+            free(best_candidate);
+        }
+
+        target_region = new_region;
     }
     assert(target_region);
 
@@ -655,42 +732,40 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
      */
     cl_alloc *alloc = target_region->grandparent;
     remove_from_bucket(target_region);
-    assert(target_region->free && target_region->refs == 0);
-    target_region->free = false;
-    target_region->refs = 1;
-    target_region->seq = target_region->seq + 1;
-    if (!target_region->valid) {
+    assert(target_region->refs == 0 && target_region->refs == 0);
+
+    cl_region *copy = swap_out_for_copy(target_region);
+    copy->refs = 1;
+    if (copy->sub_mem == NULL) {
         cl_int err;
         cl_buffer_region sub_region;
-        sub_region.origin = target_region->offset;
-        sub_region.size = target_region->size;
-        target_region->sub_mem = clCreateSubBuffer(alloc->mem, 0,
+        sub_region.origin = copy->offset;
+        sub_region.size = copy->size;
+        copy->sub_mem = clCreateSubBuffer(alloc->mem, 0,
                 CL_BUFFER_CREATE_TYPE_REGION, &sub_region, &err);
         CHECK(err);
-        target_region->valid = true;
-        target_region->keeping = false;
+        copy->keeping = false;
     }
-    target_region->birth = target_region->grandparent->allocator->curr_time;
-    target_region->merged = false;
+    copy->birth = copy->grandparent->allocator->curr_time;
 
-    exit_trace("allocate_cl_region");
+    EXIT_TRACE("allocate_cl_region");
 
 #ifdef VERBOSE
-    if (target_region) {
-        fprintf(stderr, "After trying to allocate %lu bytes, target_region=(%p "
-                "%lu %lu)\n", rounded_size, target_region, target_region->offset,
-                target_region->size);
+    if (copy) {
+        fprintf(stderr, "After trying to allocate %lu bytes, copy=(%p "
+                "%lu %lu)\n", rounded_size, copy, copy->offset,
+                copy->size);
         print_allocator(allocator, -1);
     }
 #endif
 
     unlock_allocator(allocator);
 
-    return target_region;
+    return copy;
 }
 
 cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue cmd) {
-    enter_trace("init_allocator");
+    ENTER_TRACE("init_allocator");
     cl_ulong global_mem_size, max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_GLOBAL_MEM_SIZE,
                 sizeof(global_mem_size), &global_mem_size, NULL));
@@ -698,7 +773,6 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
                 sizeof(max_alloc_size), &max_alloc_size, NULL));
 
     int nallocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
-    // int nallocs = 3;
 
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
     allocator->nallocs = nallocs;
@@ -738,7 +812,6 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
         first_region->sub_mem = NULL;
         first_region->offset = 0;
         first_region->size = alloc_size;
-        first_region->seq = 0;
         first_region->parent = NULL;
         first_region->grandparent = allocator->allocs + i;
         first_region->bucket_next = NULL;
@@ -746,12 +819,9 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
         first_region->next = NULL;
         first_region->prev = NULL;
         first_region->refs = 0;
-        first_region->valid = false;
-        first_region->free = true;
         first_region->keeping = false;
         first_region->birth = 0;
-        first_region->merged = false;
-        first_region->cached = false;
+        first_region->invalidated = false;
 
         for (int b = 0; b < NBUCKETS; b++) {
             (allocator->allocs)[i].buckets[b].parent = allocator->allocs + i;
@@ -770,52 +840,58 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
         (allocator->allocs)[i].region_list_head = first_region;
         insert_into_buckets(first_region, allocator->allocs + i, false);
     }
-    exit_trace("init_allocator");
+    EXIT_TRACE("init_allocator");
 
     return allocator;
 }
 
-static void print_bucket(int bucket_lbl, cl_bucket *bucket) {
-    if (bucket->head == NULL) return;
+static size_t print_bucket(int bucket_lbl, cl_bucket *bucket) {
+    if (bucket->head == NULL) return 0;
+    size_t count_bytes = 0;
 
     fprintf(stderr, "             %d: ", bucket_lbl);
     cl_region *curr = bucket->head;
     while (curr) {
-        fprintf(stderr, " (%p %lu %lu)", curr, curr->offset, curr->size);
+        assert(curr->refs == 0);
+        fprintf(stderr, " (%p off=%lu size=%lu)", curr, curr->offset, curr->size);
+        count_bytes += curr->size;
         curr = curr->bucket_next;
     }
     fprintf(stderr, "\n");
+    return count_bytes;
 }
 
 void print_allocator(cl_allocator *allocator, int lbl) {
     fprintf(stderr, "allocator %d -> { %d allocs\n", lbl, allocator->nallocs);
     for (int i = 0; i < allocator->nallocs; i++) {
         cl_alloc *alloc = allocator->allocs + i;
+        size_t free_bytes = 0;
         fprintf(stderr, "    alloc %d -> {\n", i);
         fprintf(stderr, "          size=%lu\n", alloc->size);
         fprintf(stderr, "          buckets = {\n");
         for (int b = 0; b < NBUCKETS; b++) {
-            print_bucket(b, alloc->buckets + b);
+            free_bytes += print_bucket(b, alloc->buckets + b);
         }
         fprintf(stderr, "            }\n");
         fprintf(stderr, "          keep_buckets = {\n");
         for (int b = 0; b < NBUCKETS; b++) {
-            print_bucket(b, alloc->keep_buckets + b);
+            free_bytes += print_bucket(b, alloc->keep_buckets + b);
         }
         fprintf(stderr, "            }\n");
         fprintf(stderr, "          large_bucket =\n");
-        print_bucket(-1, &alloc->large_bucket);
+        free_bytes += print_bucket(-1, &alloc->large_bucket);
         fprintf(stderr, "          keep_large_bucket =\n");
-        print_bucket(-1, &alloc->keep_large_bucket);
+        free_bytes += print_bucket(-1, &alloc->keep_large_bucket);
+        fprintf(stderr, "          free_bytes = %lu\n", free_bytes);
         fprintf(stderr, "      }\n");
     }
     fprintf(stderr, "  }\n");
 }
 
 void bump_time(cl_allocator *allocator) {
-    enter_trace("bump_time");
+    ENTER_TRACE("bump_time");
     lock_allocator(allocator);
     allocator->curr_time += 1;
     unlock_allocator(allocator);
-    exit_trace("bump_time");
+    EXIT_TRACE("bump_time");
 }

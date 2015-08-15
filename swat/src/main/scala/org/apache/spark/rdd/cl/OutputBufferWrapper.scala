@@ -70,16 +70,19 @@ class Tuple2OutputBufferWrapper(val bb1 : ByteBuffer, val bb2 : ByteBuffer,
   val member1Constructor = if (member1Class == null) null else
         OpenCLBridge.getDefaultConstructor(member1Class)
 
+  val member0Obj = if (member0Constructor == null) null else member0Constructor.newInstance()
+  val member1Obj = if (member1Constructor == null) null else member1Constructor.newInstance()
+
   override def next() : Tuple2[_, _] = {
     iter += 1
     (OpenCLBridgeWrapper.readTupleMemberFromStream(member0Desc, entryPoint, bb1,
                                                    member0Class,
                                                    member0ClassModel,
-                                                   member0Constructor),
+                                                   member0Obj),
      OpenCLBridgeWrapper.readTupleMemberFromStream(member1Desc, entryPoint, bb2,
                                                    member1Class,
                                                    member1ClassModel,
-                                                   member1Constructor))
+                                                   member1Obj))
   }
 
   override def hasNext() : Boolean = {

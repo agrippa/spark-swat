@@ -294,9 +294,6 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
 
     new ObjectOutputBufferWrapper(bb, arrLength, c, clazz)
-    // for (ele <- arg) {
-    //   readObjectFromStream(ele, c, bb)
-    // }
   }
 
   def fetchObjectTypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
@@ -308,8 +305,6 @@ object OpenCLBridgeWrapper {
     val structSize : Int = c.getTotalStructSize
 
     assert(!arg(0).isInstanceOf[Tuple2[_, _]])
-    // val bb : ByteBuffer = ByteBuffer.allocate(structSize * arrLength)
-    // bb.order(ByteOrder.LITTLE_ENDIAN)
     val bb : ByteBuffer = bbCache.getBuffer(structSize * arrLength)
 
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
@@ -321,20 +316,13 @@ object OpenCLBridgeWrapper {
 
   def readTupleMemberFromStream[T](tupleMemberDesc : String, entryPoint : Entrypoint,
       bb : ByteBuffer, clazz : Class[_], memberClassModel : ClassModel,
-      constructor : Constructor[T]) : T = {
+      constructedObj : T) : T = {
     tupleMemberDesc match {
       case "I" => { return new java.lang.Integer(bb.getInt).asInstanceOf[T] }
       case "F" => { return new java.lang.Float(bb.getFloat).asInstanceOf[T] }
       case "D" => { return new java.lang.Double(bb.getDouble).asInstanceOf[T] }
       case _ => {
-        // val clazz : Class[_] = CodeGenUtil.getClassForDescriptor(tupleMemberDesc)
-        // val memberClassModel : ClassModel =
-        //     entryPoint.getModelFromObjectArrayFieldsClasses(clazz.getName,
-        //         new NameMatcher(clazz.getName))
         if (memberClassModel != null) {
-          val constructedObj : T = constructor.newInstance().asInstanceOf[T]
-          // val constructedObj : T = OpenCLBridge.constructObjectFromDefaultConstructor(
-          //     clazz).asInstanceOf[T]
           readObjectFromStream(constructedObj, memberClassModel, bb)
           return constructedObj
         } else {
@@ -346,9 +334,6 @@ object OpenCLBridgeWrapper {
 
   def readObjectFromStream[T](ele : T, c : ClassModel, bb : ByteBuffer) {
     val structMemberInfo = c.getStructMemberInfoArray
-    // val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
-    // val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
-    // while (fieldIter.hasNext) {
     for (i <- structMemberInfo.indices) {
       val fieldDesc : FieldDescriptor = structMemberInfo(i)
       val typ : TypeSpec = fieldDesc.typ

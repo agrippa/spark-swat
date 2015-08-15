@@ -105,10 +105,7 @@ object SparkFuzzyCMeans {
             val broadcastedCenters = sc.broadcast(centers)
 
             val startTime = System.currentTimeMillis
-            // val memberships : RDD[Double] = point_cluster_pairs.map(pair => { 1.0 })
             val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
-                //   (pair._1, new PointMembership(1.0f, 1.0f, 1.0f, 1.0f))
-                // })
                   val center : Point = broadcastedCenters.value(pair._1)
                   val point : Point = pair._2
 
@@ -135,6 +132,11 @@ object SparkFuzzyCMeans {
                     (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
                   }
                 })
+            // val collected : Array[(Int, PointMembership)] = memberships.collect
+            // for (c <- collected) {
+            //     System.err.println(c._1 + " " + c._2.x + " " + c._2.y + " " +
+            //         c._2.z + " " + c._2.membership)
+            // }
             memberships.count
             System.err.println("Iter " + iter + " time " + (System.currentTimeMillis - startTime) + " ms")
 

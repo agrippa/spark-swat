@@ -27,7 +27,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  val profile : Boolean = true
+  val profile : Boolean = false
 
   override val partitioner = None
 
