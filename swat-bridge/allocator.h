@@ -38,6 +38,14 @@ typedef struct _cl_region {
     int refs;
     bool valid;
     bool free;
+    bool keeping;
+    long birth;
+    /*
+     * assume there can only be one outstanding reference to a region in one
+     * cache
+     */
+    bool merged;
+    bool cached;
 } cl_region;
 
 typedef struct _cl_bucket {
@@ -52,7 +60,7 @@ typedef struct _cl_alloc {
     cl_bucket large_bucket;
     cl_bucket keep_buckets[NBUCKETS];
     cl_bucket keep_large_bucket;
-    cl_region *region_list;
+    cl_region *region_list_head;
 
     cl_allocator *allocator;
 } cl_alloc;
@@ -60,14 +68,16 @@ typedef struct _cl_alloc {
 typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
+    long curr_time;
 
     pthread_mutex_t lock;
 } cl_allocator;
 
 extern bool re_allocate_cl_region(cl_region *target_region, size_t expected_seq);
-extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx);
+extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue cmd);
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
-extern void add_hold(cl_region *target);
+extern void print_allocator(cl_allocator *allocator, int lbl);
+extern void bump_time(cl_allocator *allocator);
 
 #endif

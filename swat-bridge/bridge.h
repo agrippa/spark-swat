@@ -90,17 +90,15 @@ typedef struct _device_context {
 
     map<string, cl_program> *program_cache;
     map<jlong, pair<cl_region *, size_t> > *broadcast_cache;
-    // map<jlong, cl_region *> *broadcast_cache;
+    map<rdd_partition_offset, pair<cl_region *, size_t> > *rdd_cache;
     // map<rdd_partition_offset, mem_and_size> *rdd_cache;
 } device_context;
 
 typedef struct _swat_context {
-    // cl_program program;
     cl_kernel kernel;
     int host_thread_index;
 
     map<int, pair<cl_region *, bool> > *arguments;
-    // set<cl_mem> *all_allocated;
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
