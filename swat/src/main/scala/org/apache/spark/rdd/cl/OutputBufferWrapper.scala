@@ -1,6 +1,7 @@
 package org.apache.spark.rdd.cl
 
 import java.nio.ByteBuffer
+import java.lang.reflect.Constructor
 
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
@@ -52,39 +53,46 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
   }
 }
 
-class Tuple2OutputBufferWrapper(val bb1 : ByteBuffer, val bb2 : ByteBuffer,
+class Tuple2OutputBufferWrapper[K, V](val bb1 : ByteBuffer, val bb2 : ByteBuffer,
     val N : Int, val member0Desc : String, val member1Desc : String,
-    val entryPoint : Entrypoint) extends OutputBufferWrapper[Tuple2[_, _]] {
+    val entryPoint : Entrypoint) extends OutputBufferWrapper[Tuple2[K, V]] {
   var iter : Int = 0
 
   val member0Class : Class[_] = CodeGenUtil.getClassForDescriptor(member0Desc)
   val member1Class : Class[_] = CodeGenUtil.getClassForDescriptor(member1Desc)
 
-  val member0ClassModel = if (member0Class == null) null else
-        entryPoint.getModelFromObjectArrayFieldsClasses(member0Class.getName,
-        new NameMatcher(member0Class.getName))
-  val member1ClassModel = if (member1Class == null) null else
-        entryPoint.getModelFromObjectArrayFieldsClasses(member1Class.getName,
-        new NameMatcher(member1Class.getName))
+  val member0ClassModel : Option[ClassModel] = if (member0Class == null) None else
+        Some(entryPoint.getModelFromObjectArrayFieldsClasses(member0Class.getName,
+        new NameMatcher(member0Class.getName)))
+  val member1ClassModel : Option[ClassModel] = if (member1Class == null) None else
+        Some(entryPoint.getModelFromObjectArrayFieldsClasses(member1Class.getName,
+        new NameMatcher(member1Class.getName)))
 
-  val member0Constructor = if (member0Class == null) null else
-        OpenCLBridge.getDefaultConstructor(member0Class)
-  val member1Constructor = if (member1Class == null) null else
-        OpenCLBridge.getDefaultConstructor(member1Class)
+  val member0Constructor : Option[Constructor[K]]= if (member0Class == null) None else
+        Some(OpenCLBridge.getDefaultConstructor(member0Class).asInstanceOf[Constructor[K]])
+  val member1Constructor : Option[Constructor[V]] = if (member1Class == null) None else
+        Some(OpenCLBridge.getDefaultConstructor(member1Class).asInstanceOf[Constructor[V]])
 
-  val member0Obj = if (member0Constructor == null) null else member0Constructor.newInstance()
-  val member1Obj = if (member1Constructor == null) null else member1Constructor.newInstance()
+  val member0Obj : Option[K] = if (member0Constructor.isEmpty) None else
+      Some(member0Constructor.get.newInstance())
+  val member1Obj : Option[V] = if (member1Constructor.isEmpty) None else
+      Some(member1Constructor.get.newInstance())
 
-  val structMember0Info : Array[FieldDescriptor] = if (member0ClassModel == null) null else member0ClassModel.getStructMemberInfoArray
-  val structMember1Info : Array[FieldDescriptor] = if (member1ClassModel == null) null else member1ClassModel.getStructMemberInfoArray
+  val structMember0Info : Option[Array[FieldDescriptor]] =
+      if (member0ClassModel.isEmpty) None else
+          Some(member0ClassModel.get.getStructMemberInfoArray)
+  val structMember1Info : Option[Array[FieldDescriptor]] =
+      if (member1ClassModel.isEmpty) None else
+          Some(member1ClassModel.get.getStructMemberInfoArray)
 
-  override def next() : Tuple2[_, _] = {
+  override def next() : Tuple2[K, V] = {
     iter += 1
-    (OpenCLBridgeWrapper.readTupleMemberFromStream(member0Desc, bb1,
+    // (member0Obj, member1Obj)
+    (OpenCLBridgeWrapper.readTupleMemberFromStream[K](member0Desc, bb1,
                                                    member0Class,
                                                    member0ClassModel,
                                                    member0Obj, structMember0Info),
-     OpenCLBridgeWrapper.readTupleMemberFromStream(member1Desc, bb2,
+     OpenCLBridgeWrapper.readTupleMemberFromStream[V](member1Desc, bb2,
                                                    member1Class,
                                                    member1ClassModel,
                                                    member1Obj, structMember1Info))

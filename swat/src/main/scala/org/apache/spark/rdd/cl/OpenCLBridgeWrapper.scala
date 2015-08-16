@@ -251,7 +251,7 @@ object OpenCLBridgeWrapper {
   def fetchTuple2TypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arrLength : Int, typeName : String,
       _1typeName : String, _2typeName : String, entryPoint : Entrypoint,
-      bbCache : ByteBufferCache) : Tuple2OutputBufferWrapper = {
+      bbCache : ByteBufferCache) : Tuple2OutputBufferWrapper[_, _] = {
     val startTime = System.currentTimeMillis
     val c : ClassModel = entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
         new DescMatcher(Array(convertClassNameToDesc(_1typeName),
@@ -317,16 +317,16 @@ object OpenCLBridgeWrapper {
   }
 
   def readTupleMemberFromStream[T](tupleMemberDesc : String,
-      bb : ByteBuffer, clazz : Class[_], memberClassModel : ClassModel,
-      constructedObj : T, structMemberInfo : Array[FieldDescriptor]) : T = {
+      bb : ByteBuffer, clazz : Class[_], memberClassModel : Option[ClassModel],
+      constructedObj : Option[T], structMemberInfo : Option[Array[FieldDescriptor]]) : T = {
     tupleMemberDesc match {
       case "I" => { return new java.lang.Integer(bb.getInt).asInstanceOf[T] }
       case "F" => { return new java.lang.Float(bb.getFloat).asInstanceOf[T] }
       case "D" => { return new java.lang.Double(bb.getDouble).asInstanceOf[T] }
       case _ => {
-        if (memberClassModel != null) {
-          readObjectFromStream(constructedObj, memberClassModel, bb, structMemberInfo)
-          return constructedObj
+        if (!memberClassModel.isEmpty) {
+          readObjectFromStream(constructedObj.get, memberClassModel.get, bb, structMemberInfo.get)
+          return constructedObj.get
         } else {
           throw new RuntimeException("Unsupported type " + tupleMemberDesc)
         }
