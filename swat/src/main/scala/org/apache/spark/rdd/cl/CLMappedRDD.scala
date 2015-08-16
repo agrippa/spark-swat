@@ -27,7 +27,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  // val profile : Boolean = true
 
   override val partitioner = None
 
@@ -90,12 +89,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
       val nested = firstParent[T].iterator(split, context)
       var sampleOutput : java.lang.Object = None
 
-      // if (profile && threadId == 1) {
-      //     System.err.println("compute called from:")
-      //     for (trace <- Thread.currentThread.getStackTrace) {
-      //       System.err.println("  " + trace.toString)
-      //     }
-      // }
+//       if (threadId == 1) { // PROFILE
+//           System.err.println("compute called from:") // PROFILE
+//           for (trace <- Thread.currentThread.getStackTrace) { // PROFILE
+//             System.err.println("  " + trace.toString) // PROFILE
+//           } // PROFILE
+//       } // PROFILE
 
       var totalNLoaded = 0
       val overallStart = System.currentTimeMillis
@@ -112,8 +111,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           val firstSample : T = nested.next
 
           if (entryPoint == null) {
-            // var genStart, initStart : Long = 0
-            // if (profile) genStart = System.currentTimeMillis
+//             val genStart = System.currentTimeMillis // PROFILE
 
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
@@ -145,17 +143,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
               }
             }
 
-            // if (profile) {
-            //   profPrint("CodeGeneration", genStart, threadId)
-            //   initStart = System.currentTimeMillis
-            // }
+//             profPrint("CodeGeneration", genStart, threadId) // PROFILE
+//             val initStart = System.currentTimeMillis // PROFILE
 
             dev_ctx = OpenCLBridge.getDeviceContext(threadId)
             ctx = OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
-            // if (profile) {
-            //   profPrint("Initialization", initStart, threadId)
-            // }
+//             profPrint("Initialization", initStart, threadId) // PROFILE
 
             if (firstSample.isInstanceOf[Double] ||
                 firstSample.isInstanceOf[Int] ||
@@ -168,7 +162,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             }
           }
 
-          val ioStart : Long = System.currentTimeMillis // PROFILE
+//           val ioStart : Long = System.currentTimeMillis // PROFILE
           var nLoaded = 1
           acc.get.append(firstSample)
           while (nLoaded < N && nested.hasNext) {
@@ -178,10 +172,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
-          profPrint("Input-I/O", ioStart, threadId) // PROFILE
+//           profPrint("Input-I/O", ioStart, threadId) // PROFILE
 
-          // var writeStart, runStart, readStart, postStart : Long = 0
-          // if (profile) writeStart = System.currentTimeMillis
+//           val writeStart = System.currentTimeMillis // PROFILE
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, cl_id,
                   split.index, myOffset)
           val outArgNum : Int = argnum
@@ -204,10 +197,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
-          // if (profile) {
-          //   profPrint("Write", writeStart, threadId)
-          //   runStart = System.currentTimeMillis
-          // }
+//           profPrint("Write", writeStart, threadId) // PROFILE
+//           val runStart = System.currentTimeMillis // PROFILE
           if (entryPoint.requiresHeap) {
             val anyFailed : Array[Int] = new Array[Int](1)
             var retries : Int = 0
@@ -222,21 +213,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
 
-          // if (profile) {
-          //   profPrint("Run", runStart, threadId)
-          //   readStart = System.currentTimeMillis
-          // }
+//           profPrint("Run", runStart, threadId) // PROFILE
+//           val readStart = System.currentTimeMillis // PROFILE
           outputBuffer = Some(OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               nLoaded, entryPoint, sampleOutput.asInstanceOf[U], bbCache))
 
-          // if (profile) {
-          //   profPrint("Read", readStart, threadId)
-          //   postStart = System.currentTimeMillis
-          // }
+//           profPrint("Read", readStart, threadId) // PROFILE
+//           val postStart = System.currentTimeMillis // PROFILE
           OpenCLBridge.postKernelCleanup(ctx);
-          // if (profile) {
-          //   profPrint("Post", postStart, threadId)
-          // }
+//           profPrint("Post", postStart, threadId) // PROFILE
         }
 
         outputBuffer.get.next
@@ -246,11 +231,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         val nonEmpty = (nested.hasNext || (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
         if (!nonEmpty) {
           OpenCLBridge.cleanupSwatContext(ctx)
-          // if (profile) {
-          //   System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded +
-          //       " elements")
-          //   profPrint("Total", overallStart, threadId)
-          // }
+//           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
+//               " elements") // PROFILE
+//           profPrint("Total", overallStart, threadId) // PROFILE
         }
         nonEmpty
       }

@@ -31,10 +31,10 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
          jint partitionid, jint offsetid, jint componentid) { \
     ENTER_TRACE("set"#utype"ArrayArg"); \
     jsize len = argLength * sizeof(ctype); \
-    ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
     device_context *dev_ctx = (device_context *)l_dev_ctx; \
     swat_context *context = (swat_context *)lctx; \
     int err = pthread_mutex_lock(&dev_ctx->lock); \
+    jboolean isCopy; \
     assert(err == 0); \
     if (broadcastId >= 0 && \
             dev_ctx->broadcast_cache->find(broadcastId) != \
@@ -45,8 +45,10 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
+            void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
+            jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             (*dev_ctx->broadcast_cache)[broadcastId] = new_region; \
         } \
     } else if (rddid >= 0 && dev_ctx->rdd_cache->find(rdd_partition_offset( \
@@ -59,13 +61,17 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
+            void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
+            jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             dev_ctx->rdd_cache->find(uuid)->second = new_region; \
         } \
     } else { \
+        void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                 dev_ctx, broadcastId, rddid); \
+        jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
         if (broadcastId >= 0) { \
             bool success = dev_ctx->broadcast_cache->insert( \
                     pair<jlong, cl_region *>(broadcastId, new_region)).second; \
@@ -80,7 +86,6 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     } \
     err = pthread_mutex_unlock(&dev_ctx->lock); \
     assert(err == 0); \
-    jenv->Release##utype##ArrayElements(arg, arr, 0); \
     EXIT_TRACE("set"#utype"ArrayArg"); \
 }
 
@@ -90,9 +95,9 @@ JNI_JAVA(void, OpenCLBridge, fetch##utype##ArrayArg) \
          j##ltype##Array arg, jint argLength, jlong broadcastId) { \
     ENTER_TRACE("fetch"#utype"ArrayArg"); \
     jsize len = argLength * sizeof(ctype); \
-    ctype *arr = jenv->Get##utype##ArrayElements(arg, 0); \
+    void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL); \
     fetch_kernel_arg(arr, len, index, (swat_context *)lctx, (device_context *)l_dev_ctx); \
-    jenv->Release##utype##ArrayElements(arg, arr, 0); \
+    jenv->ReleasePrimitiveArrayCritical(arg, arr, 0); \
     EXIT_TRACE("fetch"#utype"ArrayArg"); \
 }
 
@@ -122,11 +127,10 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     jarray arr = (jarray)jenv->GetObjectField(obj, field); \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
-    ltype *arr_eles = jenv->Get##utype##ArrayElements((j##ltype##Array)arr, \
-            0); \
+    void *arr_eles = jenv->GetPrimitiveArrayCritical((j##ltype##Array)arr, NULL); \
     set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
             (device_context *)l_dev_ctx, -1, -1); \
-    jenv->Release##utype##ArrayElements((j##ltype##Array)arr, arr_eles, 0); \
+    jenv->ReleasePrimitiveArrayCritical((j##ltype##Array)arr, arr_eles, JNI_ABORT); \
     EXIT_TRACE("set"#utype"ArrayArgByName"); \
 }
 
@@ -770,6 +774,30 @@ JNI_JAVA(void, OpenCLBridge, run)
                 &global_range, NULL, 0, NULL, &event));
     CHECK(clWaitForEvents(1, &event));
     EXIT_TRACE("run");
+}
+
+JNI_JAVA(int, OpenCLBridge, setIntArrFromBB)
+        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength, jbyteArray bb,
+         jint position, jint remaining, jlong fieldOffset) {
+    assert(remaining % sizeof(int) == 0);
+    int remainingInts = remaining / sizeof(int);
+    int to_process = (remainingInts > bufferLength ? bufferLength : remainingInts);
+    void **addressOfArr = (void **)l_addressOfArr;
+
+    jboolean copied;
+    jbyte *bb_elements = jenv->GetByteArrayElements(bb, &copied);
+    int *bb_iter = (int *)(((unsigned char *)bb_elements) + position);
+
+    /*
+    for (int i = 0; i < to_process; i++) {
+        void *ele = addressOfArr[i];
+        *((int *)(((unsigned char *)ele) + fieldOffset)) = *bb_iter;
+        // *((int *)(((unsigned char *)ele) + fieldOffset)) = 42;
+        bb_iter++;
+    }
+    */
+    jenv->ReleaseByteArrayElements(bb, bb_elements, JNI_ABORT);
+    return to_process;
 }
 
 #ifdef __cplusplus

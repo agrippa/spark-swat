@@ -4,6 +4,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.rdd.cl._
 import Array._
 import scala.math._
+import scala.collection.mutable.ListBuffer
 import org.apache.spark.rdd._
 import java.net._
 
@@ -79,11 +80,13 @@ object SparkFuzzyCMeans {
         val broadcasted_points = sc.broadcast(collected_points)
 
         val point_cluster_pairs_raw : RDD[(Int, Point)] =
-            sc.parallelize(0 to npoints * K - 1).map(i => {
-              val cluster_id = i / npoints
-              val point_id = i % npoints
-
-              (cluster_id, broadcasted_points.value(point_id))
+            // sc.parallelize(0 to npoints - 1, sc.defaultParallelism * 2).flatMap(point_id => {
+            sc.parallelize(0 to npoints - 1).flatMap(point_id => {
+              var buffer = new ListBuffer[Tuple2[Int, Point]]()
+              for (i <- 0 until K) {
+                  buffer += new Tuple2[Int, Point](i, broadcasted_points.value(point_id))
+              }
+              buffer.toList
             })
         point_cluster_pairs_raw.cache.count
         // point_cluster_pairs_raw.cache
@@ -138,8 +141,8 @@ object SparkFuzzyCMeans {
             //     System.err.println(c._1 + " " + c._2.x + " " + c._2.y + " " +
             //         c._2.z + " " + c._2.membership)
             // }
-            memberships.count
-            System.err.println("Iter " + iter + " time " + (System.currentTimeMillis - startTime) + " ms")
+            val c = memberships.count
+            System.err.println("Iter " + iter + " time " + (System.currentTimeMillis - startTime) + " ms, count=" + c)
 
             // val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
             //       new PointMembership(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, p1.membership + p2.membership)
