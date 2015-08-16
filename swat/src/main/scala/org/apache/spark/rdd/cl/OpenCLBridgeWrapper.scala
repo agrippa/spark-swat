@@ -212,9 +212,15 @@ object OpenCLBridgeWrapper {
   def writeTupleMemberToStream[T](tupleMember : T, entryPoint : Entrypoint,
           bb : ByteBuffer, memberClassModel : ClassModel) {
     tupleMember.getClass.getName match {
-      case "java.lang.Integer" => { bb.putInt(tupleMember.asInstanceOf[java.lang.Integer].intValue); }
-      case "java.lang.Float" => { bb.putFloat(tupleMember.asInstanceOf[java.lang.Float].floatValue); }
-      case "java.lang.Double" => { bb.putDouble(tupleMember.asInstanceOf[java.lang.Double].doubleValue); }
+      case "java.lang.Integer" => {
+        bb.putInt(tupleMember.asInstanceOf[java.lang.Integer].intValue);
+      }
+      case "java.lang.Float" => {
+        bb.putFloat(tupleMember.asInstanceOf[java.lang.Float].floatValue);
+      }
+      case "java.lang.Double" => {
+        bb.putDouble(tupleMember.asInstanceOf[java.lang.Double].doubleValue);
+      }
       case _ => {
         if (memberClassModel != null) {
           writeObjectToStream(tupleMember.asInstanceOf[java.lang.Object], memberClassModel, bb)
@@ -227,12 +233,8 @@ object OpenCLBridgeWrapper {
 
   def writeObjectToStream(ele : java.lang.Object, c : ClassModel, bb : ByteBuffer) {
     val structMemberInfo = c.getStructMemberInfoArray
-    // val structMemberInfo : java.util.List[FieldDescriptor] = c.getStructMemberInfo
 
     for (i <- structMemberInfo.indices) {
-    // val fieldIter : java.util.Iterator[FieldDescriptor] = structMemberInfo.iterator
-    // while (fieldIter.hasNext) {
-      // val fieldDesc : FieldDescriptor = fieldIter.next
       val fieldDesc : FieldDescriptor = structMemberInfo(i)
       val typ : TypeSpec = fieldDesc.typ
       val offset : java.lang.Long = fieldDesc.offset
@@ -310,20 +312,20 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
 
     for (ele <- arg) {
-      readObjectFromStream(ele, c, bb)
+      readObjectFromStream(ele, c, bb, c.getStructMemberInfoArray)
     }
   }
 
-  def readTupleMemberFromStream[T](tupleMemberDesc : String, entryPoint : Entrypoint,
+  def readTupleMemberFromStream[T](tupleMemberDesc : String,
       bb : ByteBuffer, clazz : Class[_], memberClassModel : ClassModel,
-      constructedObj : T) : T = {
+      constructedObj : T, structMemberInfo : Array[FieldDescriptor]) : T = {
     tupleMemberDesc match {
       case "I" => { return new java.lang.Integer(bb.getInt).asInstanceOf[T] }
       case "F" => { return new java.lang.Float(bb.getFloat).asInstanceOf[T] }
       case "D" => { return new java.lang.Double(bb.getDouble).asInstanceOf[T] }
       case _ => {
         if (memberClassModel != null) {
-          readObjectFromStream(constructedObj, memberClassModel, bb)
+          readObjectFromStream(constructedObj, memberClassModel, bb, structMemberInfo)
           return constructedObj
         } else {
           throw new RuntimeException("Unsupported type " + tupleMemberDesc)
@@ -332,8 +334,9 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def readObjectFromStream[T](ele : T, c : ClassModel, bb : ByteBuffer) {
-    val structMemberInfo = c.getStructMemberInfoArray
+  def readObjectFromStream[T](ele : T, c : ClassModel, bb : ByteBuffer,
+      structMemberInfo : Array[FieldDescriptor]) {
+    // val structMemberInfo = c.getStructMemberInfoArray
     for (i <- structMemberInfo.indices) {
       val fieldDesc : FieldDescriptor = structMemberInfo(i)
       val typ : TypeSpec = fieldDesc.typ

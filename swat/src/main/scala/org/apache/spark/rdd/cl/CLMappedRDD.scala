@@ -27,7 +27,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   var openCL : String = null
   var ctx : Long = -1L
   var dev_ctx : Long = -1L
-  val profile : Boolean = false
+  // val profile : Boolean = true
 
   override val partitioner = None
 
@@ -61,7 +61,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
-    val N = 65536 * 32
+    val N = 65536 * 16
     // val acc : Array[T] = new Array[T](N)
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
@@ -73,11 +73,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         throw new RuntimeException("Unexpected thread name \"" + threadName + "\"")
     }
     val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
-
-    // System.err.println("SWAT Hello from Thread " +
-    //     Thread.currentThread().getName() + ", attemptId=" + context.attemptId +
-    //     ", partitionId=" + context.partitionId + " stageId=" + context.stageId +
-    //     " runningLocally=" + context.runningLocally);
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
@@ -95,12 +90,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
       val nested = firstParent[T].iterator(split, context)
       var sampleOutput : java.lang.Object = None
 
-      if (profile && threadId == 1) {
-          System.err.println("compute called from:")
-          for (trace <- Thread.currentThread.getStackTrace) {
-            System.err.println("  " + trace.toString)
-          }
-      }
+      // if (profile && threadId == 1) {
+      //     System.err.println("compute called from:")
+      //     for (trace <- Thread.currentThread.getStackTrace) {
+      //       System.err.println("  " + trace.toString)
+      //     }
+      // }
 
       var totalNLoaded = 0
       val overallStart = System.currentTimeMillis
@@ -117,8 +112,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           val firstSample : T = nested.next
 
           if (entryPoint == null) {
-            var genStart, initStart : Long = 0
-            if (profile) genStart = System.currentTimeMillis
+            // var genStart, initStart : Long = 0
+            // if (profile) genStart = System.currentTimeMillis
 
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
@@ -150,17 +145,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
               }
             }
 
-            if (profile) {
-              profPrint("CodeGeneration", genStart, threadId)
-              initStart = System.currentTimeMillis
-            }
+            // if (profile) {
+            //   profPrint("CodeGeneration", genStart, threadId)
+            //   initStart = System.currentTimeMillis
+            // }
 
             dev_ctx = OpenCLBridge.getDeviceContext(threadId)
             ctx = OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
                 entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
-            if (profile) {
-              profPrint("Initialization", initStart, threadId)
-            }
+            // if (profile) {
+            //   profPrint("Initialization", initStart, threadId)
+            // }
 
             if (firstSample.isInstanceOf[Double] ||
                 firstSample.isInstanceOf[Int] ||
@@ -173,8 +168,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             }
           }
 
-          var ioStart : Long = 0
-          if (profile) ioStart = System.currentTimeMillis
+          val ioStart : Long = System.currentTimeMillis // PROFILE
           var nLoaded = 1
           acc.get.append(firstSample)
           while (nLoaded < N && nested.hasNext) {
@@ -184,12 +178,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
-          if (profile) {
-            profPrint("Input-I/O", ioStart, threadId)
-          }
+          profPrint("Input-I/O", ioStart, threadId) // PROFILE
 
-          var writeStart, runStart, readStart, postStart : Long = 0
-          if (profile) writeStart = System.currentTimeMillis
+          // var writeStart, runStart, readStart, postStart : Long = 0
+          // if (profile) writeStart = System.currentTimeMillis
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, cl_id,
                   split.index, myOffset)
           val outArgNum : Int = argnum
@@ -212,10 +204,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
 
-          if (profile) {
-            profPrint("Write", writeStart, threadId)
-            runStart = System.currentTimeMillis
-          }
+          // if (profile) {
+          //   profPrint("Write", writeStart, threadId)
+          //   runStart = System.currentTimeMillis
+          // }
           if (entryPoint.requiresHeap) {
             val anyFailed : Array[Int] = new Array[Int](1)
             var retries : Int = 0
@@ -230,39 +222,40 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             OpenCLBridge.run(ctx, dev_ctx, nLoaded);
           }
 
-          if (profile) {
-            profPrint("Run", runStart, threadId)
-            readStart = System.currentTimeMillis
-          }
+          // if (profile) {
+          //   profPrint("Run", runStart, threadId)
+          //   readStart = System.currentTimeMillis
+          // }
           outputBuffer = Some(OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx, dev_ctx, outArgNum,
               nLoaded, entryPoint, sampleOutput.asInstanceOf[U], bbCache))
 
-          if (profile) {
-            profPrint("Read", readStart, threadId)
-            postStart = System.currentTimeMillis
-          }
+          // if (profile) {
+          //   profPrint("Read", readStart, threadId)
+          //   postStart = System.currentTimeMillis
+          // }
           OpenCLBridge.postKernelCleanup(ctx);
-          if (profile) {
-            profPrint("Post", postStart, threadId)
-          }
+          // if (profile) {
+          //   profPrint("Post", postStart, threadId)
+          // }
         }
 
         outputBuffer.get.next
       }
 
       def hasNext : Boolean = {
-        val nonEmpty = (nested.hasNext || outputBuffer.get.hasNext)
+        val nonEmpty = (nested.hasNext || (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
         if (!nonEmpty) {
           OpenCLBridge.cleanupSwatContext(ctx)
-          if (profile) {
-            System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded +
-                " elements")
-            profPrint("Total", overallStart, threadId)
-          }
+          // if (profile) {
+          //   System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded +
+          //       " elements")
+          //   profPrint("Total", overallStart, threadId)
+          // }
         }
         nonEmpty
       }
     }
+
     iter
   }
 

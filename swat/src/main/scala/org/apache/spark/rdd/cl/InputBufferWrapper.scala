@@ -113,7 +113,6 @@ class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
   }
 
   override def append(obj : Tuple2[_, _]) {
-    assert(hasSpace())
     if (firstMemberSize > 0) {
       OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1,
               firstMemberClassModel)

@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.model.ClassModel.NameMatcher
+import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 
 trait OutputBufferWrapper[T] {
   def next() : T
@@ -34,10 +35,11 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
     extends OutputBufferWrapper[T] {
   var iter : Int = 0
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
+  val structMemberInfo : Array[FieldDescriptor] = if (classModel == null) null else classModel.getStructMemberInfoArray
 
   override def next() : T = {
     val new_obj : T = constructor.newInstance().asInstanceOf[T]
-    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb)
+    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb, structMemberInfo)
     new_obj
   }
 
@@ -73,16 +75,19 @@ class Tuple2OutputBufferWrapper(val bb1 : ByteBuffer, val bb2 : ByteBuffer,
   val member0Obj = if (member0Constructor == null) null else member0Constructor.newInstance()
   val member1Obj = if (member1Constructor == null) null else member1Constructor.newInstance()
 
+  val structMember0Info : Array[FieldDescriptor] = if (member0ClassModel == null) null else member0ClassModel.getStructMemberInfoArray
+  val structMember1Info : Array[FieldDescriptor] = if (member1ClassModel == null) null else member1ClassModel.getStructMemberInfoArray
+
   override def next() : Tuple2[_, _] = {
     iter += 1
-    (OpenCLBridgeWrapper.readTupleMemberFromStream(member0Desc, entryPoint, bb1,
+    (OpenCLBridgeWrapper.readTupleMemberFromStream(member0Desc, bb1,
                                                    member0Class,
                                                    member0ClassModel,
-                                                   member0Obj),
-     OpenCLBridgeWrapper.readTupleMemberFromStream(member1Desc, entryPoint, bb2,
+                                                   member0Obj, structMember0Info),
+     OpenCLBridgeWrapper.readTupleMemberFromStream(member1Desc, bb2,
                                                    member1Class,
                                                    member1ClassModel,
-                                                   member1Obj))
+                                                   member1Obj, structMember1Info))
   }
 
   override def hasNext() : Boolean = {

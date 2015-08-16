@@ -514,7 +514,8 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
 
     lock_allocator(allocator);
 
-    size_t rounded_size = pow(2, ceil(log(size)/log(2)));
+    size_t rounded_size = size;
+    // size_t rounded_size = pow(2, ceil(log(size)/log(2)));
 
 #ifdef VERBOSE
     fprintf(stderr, "Allocating %lu (actual=%lu) bytes, allocator state "

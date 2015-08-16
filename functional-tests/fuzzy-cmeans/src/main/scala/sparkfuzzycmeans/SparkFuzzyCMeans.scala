@@ -106,31 +106,32 @@ object SparkFuzzyCMeans {
 
             val startTime = System.currentTimeMillis
             val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
-                  val center : Point = broadcastedCenters.value(pair._1)
-                  val point : Point = pair._2
+                  (pair._1, new PointMembership(pair._2.x, pair._2.y, pair._2.z, 1.0f))
+                  // val center : Point = broadcastedCenters.value(pair._1)
+                  // val point : Point = pair._2
 
-                  val target_dist : Float = point.dist(center)
+                  // val target_dist : Float = point.dist(center)
 
-                  var sum : Float = 0.0f
-                  var i = 0
-                  while (i < K) {
-                      val dist : Float = point.dist(broadcastedCenters.value(i))
-                      if (dist != 0.0f) {
-                        val ratio : Float = target_dist / dist
-                        sum += ratio
-                      }
+                  // var sum : Float = 0.0f
+                  // var i = 0
+                  // while (i < K) {
+                  //     val dist : Float = point.dist(broadcastedCenters.value(i))
+                  //     if (dist != 0.0f) {
+                  //       val ratio : Float = target_dist / dist
+                  //       sum += ratio
+                  //     }
 
-                      i += 1
-                  }
+                  //     i += 1
+                  // }
 
-                  if (sum == 0.0f) {
-                    // because target_dist == 0.0f
-                    (pair._1, new PointMembership(point.x, point.y, point.z, 1.0f))
-                  } else {
-                    val u : Float = 1 / (scala.math.pow(sum, 2 / (m - 1)).asInstanceOf[Float])
-                    val u_m : Float = scala.math.pow(u, m).asInstanceOf[Float]
-                    (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
-                  }
+                  // if (sum == 0.0f) {
+                  //   // because target_dist == 0.0f
+                  //   (pair._1, new PointMembership(point.x, point.y, point.z, 1.0f))
+                  // } else {
+                  //   val u : Float = 1 / (scala.math.pow(sum, 2 / (m - 1)).asInstanceOf[Float])
+                  //   val u_m : Float = scala.math.pow(u, m).asInstanceOf[Float]
+                  //   (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
+                  // }
                 })
             // val collected : Array[(Int, PointMembership)] = memberships.collect
             // for (c <- collected) {

@@ -373,23 +373,12 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
 
 JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
         (JNIEnv *jenv, jclass clazz, jlong l_ctx) {
-    swat_context *ctx = (swat_context *)l_ctx;
-    /*
-    for (set<cl_mem>::iterator i = ctx->all_allocated->begin(),
-            e = ctx->all_allocated->end(); i != e; i++) {
-        cl_mem mem = *i;
-#ifdef VERBOSE
-        fprintf(stderr, "%d: Releasing mem object %p\n", ctx->host_thread_index, mem);
-#endif
-        CHECK(clReleaseMemObject(mem));
+    if (l_ctx != -1L) {
+        swat_context *ctx = (swat_context *)l_ctx;
+        CHECK(clReleaseKernel(ctx->kernel));
+        delete ctx->arguments;
+        free(ctx);
     }
-    */
-
-    // CHECK(clReleaseProgram(ctx->program));
-    CHECK(clReleaseKernel(ctx->kernel));
-    delete ctx->arguments;
-    // delete ctx->all_allocated;
-    free(ctx);
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
