@@ -9,6 +9,7 @@ import java.util.ArrayList
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.lang.reflect.Constructor
+import java.lang.reflect.Field
 
 import reflect.runtime.{universe => ru}
 
@@ -42,6 +43,25 @@ class ObjectMatcher(sample : Tuple2[_, _]) extends HardCodedClassModelMatcher {
 }
 
 object OpenCLBridgeWrapper {
+
+  val javaLangIntegerClass : Class[java.lang.Integer] = Class.forName(
+      "java.lang.Integer").asInstanceOf[Class[java.lang.Integer]]
+  val javaLangFloatClass : Class[java.lang.Float] = Class.forName(
+      "java.lang.Float").asInstanceOf[Class[java.lang.Float]]
+  val javaLangDoubleClass : Class[java.lang.Double] = Class.forName(
+      "java.lang.Double").asInstanceOf[Class[java.lang.Double]]
+  
+  val intValueField : Field = javaLangIntegerClass.getDeclaredField("value")
+  intValueField.setAccessible(true)
+  val floatValueField : Field = javaLangFloatClass.getDeclaredField("value")
+  floatValueField.setAccessible(true)
+  val doubleValueField : Field = javaLangDoubleClass.getDeclaredField("value")
+  doubleValueField.setAccessible(true)
+
+  val intValueOffset : Long = UnsafeWrapper.objectFieldOffset(intValueField)
+  val floatValueOffset : Long = UnsafeWrapper.objectFieldOffset(floatValueField)
+  val doubleValueOffset : Long = UnsafeWrapper.objectFieldOffset(doubleValueField)
+
   def convertClassNameToDesc(className : String) : String = {
     className match {
       case "java.lang.Integer" => "I";
@@ -480,4 +500,16 @@ object OpenCLBridgeWrapper {
   def getBroadcastId(obj : java.lang.Object) : Long = {
     return obj.asInstanceOf[Broadcast[_]].id
   }
+
+  /*
+   * Based on StackOverflow question "How can I get the memory location of a
+   * object in java?"
+   */
+  def addressOfContainedArray[T : ClassTag](arr : Array[T],
+          wrapper : Array[java.lang.Object], baseWrapperOffset : Long, baseOffset : Long) : Long = {
+    // Get the address of arr as if it were a long field
+    val arrAddress : Long = UnsafeWrapper.getLong(wrapper, baseWrapperOffset)
+    arrAddress + baseOffset
+  }
+
 }

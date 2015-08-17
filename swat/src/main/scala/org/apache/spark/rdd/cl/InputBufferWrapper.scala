@@ -9,6 +9,7 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldNameInfo
+import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import java.nio.ByteBuffer
 
@@ -77,8 +78,8 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 }
 
-class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
-    entryPoint : Entrypoint) extends InputBufferWrapper[Tuple2[_, _]] {
+class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val sample : Tuple2[K, V],
+    entryPoint : Entrypoint) extends InputBufferWrapper[Tuple2[K, V]] {
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
         new ObjectMatcher(sample))
@@ -88,11 +89,16 @@ class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
   assert(structMembers.get(0).name.equals("_1") ||
       structMembers.get(1).name.equals("_1"))
 
-  val size0 = entryPoint.getSizeOf(structMembers.get(0).desc)
-  val size1 = entryPoint.getSizeOf(structMembers.get(1).desc)
+  val desc0 = structMembers.get(0).desc
+  val desc1 = structMembers.get(1).desc
+  val size0 = entryPoint.getSizeOf(desc0)
+  val size1 = entryPoint.getSizeOf(desc1)
 
-  val firstMemberSize = if (structMembers.get(0).name.equals("_1")) size0 else size1
-  val secondMemberSize = if (structMembers.get(0).name.equals("_1")) size1 else size0
+  val zeroIsfirst = structMembers.get(0).name.equals("_1")
+  val firstMemberDesc = if (zeroIsfirst) desc0 else desc1
+  val secondMemberDesc = if (zeroIsfirst) desc1 else desc0
+  val firstMemberSize = if (zeroIsfirst) size0 else size1
+  val secondMemberSize = if (zeroIsfirst) size1 else size0
 
   val firstMemberClassModel : ClassModel =
         entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -103,47 +109,154 @@ class Tuple2InputBufferWrapper(val nele : Int, val sample : Tuple2[_, _],
                 sample._2.getClass.getName,
                 new NameMatcher(sample._2.getClass.getName))
 
+  val chunking : Int = 128
+
+  val member0Buffer : Array[K] = new Array[K](chunking)
+  val member0BufferWrapper : Array[java.lang.Object] = Array(member0Buffer)
+  val member0BaseWrapperOffset : Long = UnsafeWrapper.arrayBaseOffset(
+          member0BufferWrapper.getClass)
+  val member0BaseOffset : Long = UnsafeWrapper.arrayBaseOffset(
+          member0Buffer.getClass)
+  val member0Offsets : Array[Long] = getObjFieldOffsets(firstMemberDesc,
+          firstMemberClassModel)
+  val member0Sizes : Array[Int] = getObjFieldSizes(firstMemberDesc,
+          firstMemberClassModel)
+  val member0Size : Int = getTotalSize(firstMemberDesc, firstMemberClassModel)
+
+  val member1Buffer : Array[V] = new Array[V](chunking)
+  val member1BufferWrapper : Array[java.lang.Object] = Array(member1Buffer)
+  val member1BaseWrapperOffset : Long = UnsafeWrapper.arrayBaseOffset(
+          member1BufferWrapper.getClass)
+  val member1BaseOffset : Long = UnsafeWrapper.arrayBaseOffset(
+          member1Buffer.getClass)
+  val member1Offsets : Array[Long] = getObjFieldOffsets(secondMemberDesc,
+          secondMemberClassModel)
+  val member1Sizes : Array[Int] = getObjFieldSizes(secondMemberDesc,
+          secondMemberClassModel)
+  val member1Size : Int = getTotalSize(secondMemberDesc, secondMemberClassModel)
+
+  var localBuffered : Int = 0
+
+  var buffered :  Int = 0
   val bb1 : ByteBuffer = ByteBuffer.allocate(firstMemberSize * nele)
   val bb2 : ByteBuffer = ByteBuffer.allocate(secondMemberSize * nele)
   bb1.order(ByteOrder.LITTLE_ENDIAN)
   bb2.order(ByteOrder.LITTLE_ENDIAN)
 
-  override def hasSpace() : Boolean = {
-    bb1.position < bb1.capacity
+  def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
+    desc match {
+      case "I" => { Array(OpenCLBridgeWrapper.intValueOffset) }
+      case "F" => { Array(OpenCLBridgeWrapper.floatValueOffset) }
+      case "D" => { Array(OpenCLBridgeWrapper.doubleValueOffset) }
+      case _ => {
+        classModel.getStructMemberOffsets
+      }
+    }
   }
 
-  override def append(obj : Tuple2[_, _]) {
+  def getObjFieldSizes(desc : String, classModel : ClassModel) : Array[Int] = {
+    desc match {
+      case "I" => { Array(4) }
+      case "F" => { Array(4) }
+      case "D" => { Array(8) }
+      case _ => {
+        classModel.getStructMemberSizes
+      }
+    }
+  }
+
+  def getTotalSize(desc : String, classMOdel : ClassModel) : Int = {
+    desc match {
+      case "I" => { 4 }
+      case "F" => { 4 }
+      case "D" => { 8 }
+      case _ => {
+        classModel.getTotalStructSize
+      }
+    }
+  }
+
+  override def hasSpace() : Boolean = {
+    buffered < nele
+  }
+
+  def saveToBB() {
     if (firstMemberSize > 0) {
-      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1,
-              firstMemberClassModel)
+      OpenCLBridge.writeToBBFromObjArray(
+              OpenCLBridgeWrapper.addressOfContainedArray(member0Buffer,
+                  member0BufferWrapper, member0BaseWrapperOffset,
+                  member0BaseOffset), localBuffered, bb1.array, bb1.position,
+              member0Sizes, member0Offsets)
+          bb1.position(bb1.position + (member0Size * localBuffered))
+          // var i = 0
+          // while (i < localBuffered) {
+          //   OpenCLBridgeWrapper.writeTupleMemberToStream(member0Buffer(i), entryPoint, bb1,
+          //           firstMemberClassModel)
+          //   i += 1
+          // }
     }
     if (secondMemberSize > 0) {
-      OpenCLBridgeWrapper.writeTupleMemberToStream(obj._2, entryPoint, bb2,
-              secondMemberClassModel)
+      OpenCLBridge.writeToBBFromObjArray(
+              OpenCLBridgeWrapper.addressOfContainedArray(member1Buffer,
+                  member1BufferWrapper, member1BaseWrapperOffset,
+                  member1BaseOffset), localBuffered, bb2.array, bb2.position,
+              member1Sizes, member1Offsets)
+          bb2.position(bb2.position + (member1Size * localBuffered))
+
+        // var i = 0
+        //     while (i < localBuffered) {
+        //         OpenCLBridgeWrapper.writeTupleMemberToStream(member1Buffer(i), entryPoint, bb2,
+        //                 secondMemberClassModel)
+        //             i += 1
+        //     }
     }
+    localBuffered = 0
+  }
+
+  override def append(obj : Tuple2[K, V]) {
+      if (localBuffered == chunking) {
+          saveToBB()
+      }
+
+      if (firstMemberSize > 0) {
+          member0Buffer(localBuffered) = obj._1
+              // OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1,
+              //         firstMemberClassModel)
+      }
+      if (secondMemberSize > 0) {
+          member1Buffer(localBuffered) = obj._2
+              // OpenCLBridgeWrapper.writeTupleMemberToStream(obj._2, entryPoint, bb2,
+              //         secondMemberClassModel)
+      }
+      localBuffered += 1
+          buffered += 1
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      rddid : Int, partitionid : Int, offset : Int) : Int = {
-    if (firstMemberSize > 0) {
-      OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
-          bb1.position, -1, rddid, partitionid, offset, 0)
-    } else {
-      OpenCLBridge.setNullArrayArg(ctx, argnum)
-    }
+          rddid : Int, partitionid : Int, offset : Int) : Int = {
+      if (localBuffered > 0) {
+          saveToBB()
+      }
+      if (firstMemberSize > 0) {
+          OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
+                  bb1.position, -1, rddid, partitionid, offset, 0)
+      } else {
+          OpenCLBridge.setNullArrayArg(ctx, argnum)
+      }
 
-    if (secondMemberSize > 0) {
-      OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
-          bb2.position, -1, rddid, partitionid, offset, 1)
-    } else {
-      OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
-    }
+      if (secondMemberSize > 0) {
+          OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
+                  bb2.position, -1, rddid, partitionid, offset, 1)
+      } else {
+          OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
+      }
 
-    bb1.clear
-    bb2.clear
+      bb1.clear
+          bb2.clear
+          buffered = 0
 
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
-        structSize * nele)
-    return 3
+          OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
+                  structSize * nele)
+          return 3
   }
 }

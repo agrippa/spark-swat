@@ -85,24 +85,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   val member1Constructor : Option[Constructor[V]] = if (member1Class == null) None else
         Some(OpenCLBridge.getDefaultConstructor(member1Class).asInstanceOf[Constructor[V]])
 
-  val javaLangIntegerClass : Class[java.lang.Integer] = Class.forName(
-      "java.lang.Integer").asInstanceOf[Class[java.lang.Integer]]
-  val javaLangFloatClass : Class[java.lang.Float] = Class.forName(
-      "java.lang.Float").asInstanceOf[Class[java.lang.Float]]
-  val javaLangDoubleClass : Class[java.lang.Double] = Class.forName(
-      "java.lang.Double").asInstanceOf[Class[java.lang.Double]]
-  
-  val intValueField : Field = javaLangIntegerClass.getDeclaredField("value")
-  intValueField.setAccessible(true)
-  val floatValueField : Field = javaLangFloatClass.getDeclaredField("value")
-  floatValueField.setAccessible(true)
-  val doubleValueField : Field = javaLangDoubleClass.getDeclaredField("value")
-  doubleValueField.setAccessible(true)
-
-  val intValueOffset : Long = UnsafeWrapper.objectFieldOffset(intValueField)
-  val floatValueOffset : Long = UnsafeWrapper.objectFieldOffset(floatValueField)
-  val doubleValueOffset : Long = UnsafeWrapper.objectFieldOffset(doubleValueField)
-
   val bufLength : Int = 512
   var localIter : Int = 0
   var localCount : Int = 0
@@ -127,17 +109,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   initArray(member0Desc, member0Arr, member0Constructor)
   initArray(member1Desc, member1Arr, member1Constructor)
 
-  /*
-   * Based on StackOverflow question "How can I get the memory location of a
-   * object in java?"
-   */
-  def addressOfContainedArray[T : ClassTag](arr : Array[T],
-          wrapper : Array[java.lang.Object], baseWrapperOffset : Long, baseOffset : Long) : Long = {
-    // Get the address of arr as if it were a long field
-    val arrAddress : Long = UnsafeWrapper.getLong(wrapper, baseWrapperOffset)
-    arrAddress + baseOffset
-  }
-
   def fillArray[T : ClassTag](arr : Array[T],
           arrWrapper : Array[java.lang.Object], baseWrapperOffset : Long,
           baseOffset : Long, desc : String, clazz : Class[_],
@@ -149,25 +120,29 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
 
     desc match {
       case "I" => {
-        localCount = OpenCLBridge.setIntArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setIntArrFromBB(
+            OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
-            bb.position, bb.remaining, intValueOffset)
+            bb.position, bb.remaining, OpenCLBridgeWrapper.intValueOffset)
         bb.position(bb.position + (4 * localCount))
       }
       case "F" => {
-        localCount = OpenCLBridge.setFloatArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setFloatArrFromBB(
+            OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
-            bb.position, bb.remaining, intValueOffset)
+            bb.position, bb.remaining, OpenCLBridgeWrapper.floatValueOffset)
         bb.position(bb.position + (4 * localCount))
       }
       case "D" => {
-        localCount = OpenCLBridge.setDoubleArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setDoubleArrFromBB(
+            OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
-            bb.position, bb.remaining, intValueOffset)
+            bb.position, bb.remaining, OpenCLBridgeWrapper.doubleValueOffset)
         bb.position(bb.position + (8 * localCount))
       }
       case _ => {
-        localCount = OpenCLBridge.setObjectArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setObjectArrFromBB(
+            OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bb.remaining, structMemberSizes.get,
             structMemberOffsets.get, structSize)

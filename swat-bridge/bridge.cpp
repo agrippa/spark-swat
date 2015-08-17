@@ -863,6 +863,34 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     return to_process;
 }
 
+JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
+        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
+         jbyteArray out, jint position, jintArray fieldSizes,
+         jlongArray fieldOffsets) {
+    void **addressOfArr = (void **)l_addressOfArr;
+    const unsigned nfields = jenv->GetArrayLength(fieldSizes);
+
+    unsigned char *bb_contents = (unsigned char *)jenv->GetPrimitiveArrayCritical(out, NULL);
+    int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
+    long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
+
+    unsigned char *bb_iter = bb_contents + position;
+
+    for (unsigned i = 0; i < bufferLength; i++) {
+        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
+
+        for (unsigned j = 0; j < nfields; j++) {
+            const int size = sizes[j];
+            memcpy(bb_iter, ele + offsets[j], size);
+            bb_iter += size;
+        }
+    }
+
+    jenv->ReleasePrimitiveArrayCritical(out, bb_contents, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
+}
+
 #ifdef __cplusplus
 }
 #endif

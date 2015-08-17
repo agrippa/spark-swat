@@ -81,6 +81,10 @@ public class OpenCLBridge {
             int bufLength, byte[] bb, int position, int remaining,
             int[] fieldSizes, long[] fieldOffsets, int structSize);
 
+    public static native void writeToBBFromObjArray(long addressOfArr,
+            int bufferLength, byte[] out, int position, int[] fieldSizes,
+            long[] fieldOffsets);
+
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint, boolean isBroadcast,
             ByteBufferCache bbCache) {
