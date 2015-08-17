@@ -780,23 +780,33 @@ JNI_JAVA(int, OpenCLBridge, setIntArrFromBB)
         (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength, jbyteArray bb,
          jint position, jint remaining, jlong fieldOffset) {
     assert(remaining % sizeof(int) == 0);
-    int remainingInts = remaining / sizeof(int);
-    int to_process = (remainingInts > bufferLength ? bufferLength : remainingInts);
+    const int remainingInts = remaining / sizeof(int);
+    const unsigned to_process = (remainingInts > bufferLength ? bufferLength : remainingInts);
     void **addressOfArr = (void **)l_addressOfArr;
 
     jboolean copied;
-    jbyte *bb_elements = jenv->GetByteArrayElements(bb, &copied);
+    void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, &copied);
     int *bb_iter = (int *)(((unsigned char *)bb_elements) + position);
 
-    /*
-    for (int i = 0; i < to_process; i++) {
-        void *ele = addressOfArr[i];
-        *((int *)(((unsigned char *)ele) + fieldOffset)) = *bb_iter;
-        // *((int *)(((unsigned char *)ele) + fieldOffset)) = 42;
+    const unsigned chunking = 2;
+    const unsigned round_down = (to_process / chunking) * chunking;
+    for (unsigned i = 0; i < round_down; i += chunking) {
+        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
+        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
+
+        *((int *)(ele1 + fieldOffset)) = *(bb_iter);
+        *((int *)(ele2 + fieldOffset)) = *(bb_iter + 1);
+
+        bb_iter += chunking;
+    }
+
+    for (unsigned i = round_down; i < to_process; i++) {
+        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
+        *((int *)(ele + fieldOffset)) = *(bb_iter);
         bb_iter++;
     }
-    */
-    jenv->ReleaseByteArrayElements(bb, bb_elements, JNI_ABORT);
+
+    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
     return to_process;
 }
 
