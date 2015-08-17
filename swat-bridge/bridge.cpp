@@ -776,39 +776,43 @@ JNI_JAVA(void, OpenCLBridge, run)
     EXIT_TRACE("run");
 }
 
-JNI_JAVA(int, OpenCLBridge, setIntArrFromBB)
-        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength, jbyteArray bb,
-         jint position, jint remaining, jlong fieldOffset) {
-    assert(remaining % sizeof(int) == 0);
-    const int remainingInts = remaining / sizeof(int);
-    const unsigned to_process = (remainingInts > bufferLength ? bufferLength : remainingInts);
-    void **addressOfArr = (void **)l_addressOfArr;
-
-    jboolean copied;
-    void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, &copied);
-    int *bb_iter = (int *)(((unsigned char *)bb_elements) + position);
-
-    const unsigned chunking = 2;
-    const unsigned round_down = (to_process / chunking) * chunking;
-    for (unsigned i = 0; i < round_down; i += chunking) {
-        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
-        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
-
-        *((int *)(ele1 + fieldOffset)) = *(bb_iter);
-        *((int *)(ele2 + fieldOffset)) = *(bb_iter + 1);
-
-        bb_iter += chunking;
-    }
-
-    for (unsigned i = round_down; i < to_process; i++) {
-        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
-        *((int *)(ele + fieldOffset)) = *(bb_iter);
-        bb_iter++;
-    }
-
-    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
-    return to_process;
+#define LOAD_FROM_BB(type, capitalized_type) \
+JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
+        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength, jbyteArray bb, \
+         jint position, jint remaining, jlong fieldOffset) { \
+    assert(remaining % sizeof( type ) == 0); \
+    const int remainingEles = remaining / sizeof( type ); \
+    const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles); \
+    void **addressOfArr = (void **)l_addressOfArr; \
+    \
+    void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, NULL); \
+    type *bb_iter = ( type *)(((unsigned char *)bb_elements) + position); \
+    \
+    const unsigned chunking = 2; \
+    const unsigned round_down = (to_process / chunking) * chunking; \
+    for (unsigned i = 0; i < round_down; i += chunking) { \
+        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i]; \
+        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1]; \
+        \
+        *(( type *)(ele1 + fieldOffset)) = *(bb_iter); \
+        *(( type *)(ele2 + fieldOffset)) = *(bb_iter + 1); \
+        \
+        bb_iter += chunking; \
+    } \
+    \
+    for (unsigned i = round_down; i < to_process; i++) { \
+        unsigned char * const ele = (unsigned char * const)addressOfArr[i]; \
+        *(( type *)(ele + fieldOffset)) = *(bb_iter); \
+        bb_iter++; \
+    } \
+    \
+    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT); \
+    return to_process; \
 }
+
+LOAD_FROM_BB(int, Int)
+LOAD_FROM_BB(float, Float)
+LOAD_FROM_BB(double, Double)
 
 #ifdef __cplusplus
 }

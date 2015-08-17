@@ -73,6 +73,10 @@ public class OpenCLBridge {
 
     public static native int setIntArrFromBB(long addressOfArr, int bufLength,
             byte[] bb, int position, int remaining, long fieldOffset);
+    public static native int setFloatArrFromBB(long addressOfArr, int bufLength,
+            byte[] bb, int position, int remaining, long fieldOffset);
+    public static native int setDoubleArrFromBB(long addressOfArr, int bufLength,
+            byte[] bb, int position, int remaining, long fieldOffset);
 
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint, boolean isBroadcast,

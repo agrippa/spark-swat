@@ -140,21 +140,22 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](val bb1 : ByteBuffer
 
     desc match {
       case "I" => {
-        i = OpenCLBridge.setIntArrFromBB(addressOfContainedArray(arr, arrWrapper, baseWrapperOffset, baseOffset),
-            bufLength, bb.array, bb.position, bb.remaining, intValueOffset)
+        i = OpenCLBridge.setIntArrFromBB(addressOfContainedArray(arr,
+            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            bb.position, bb.remaining, intValueOffset)
         bb.position(bb.position + (4 * i))
       }
       case "F" => {
-        while (i < bufLength && bb.remaining > 0) {
-          UnsafeWrapper.putFloat(arr(i), floatValueOffset, bb.getFloat)
-          i += 1
-        }
+        i = OpenCLBridge.setFloatArrFromBB(addressOfContainedArray(arr,
+            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            bb.position, bb.remaining, intValueOffset)
+        bb.position(bb.position + (4 * i))
       }
       case "D" => {
-        while (i < bufLength && bb.remaining > 0) {
-          UnsafeWrapper.putDouble(arr(i), doubleValueOffset, bb.getDouble)
-          i += 1
-        }
+        i = OpenCLBridge.setDoubleArrFromBB(addressOfContainedArray(arr,
+            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            bb.position, bb.remaining, intValueOffset)
+        bb.position(bb.position + (8 * i))
       }
       case _ => {
         while (i < bufLength && bb.remaining > 0) {
