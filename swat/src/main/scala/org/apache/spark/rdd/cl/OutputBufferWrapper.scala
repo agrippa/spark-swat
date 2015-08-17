@@ -40,11 +40,15 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
     extends OutputBufferWrapper[T] {
   var iter : Int = 0
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
-  val structMemberInfo : Array[FieldDescriptor] = if (classModel == null) null else classModel.getStructMemberInfoArray
+  val structMemberTypes : Option[Array[Int]] = if (classModel == null) None else
+      Some(classModel.getStructMemberTypes)
+  val structMemberOffsets : Option[Array[Long]] = if (classModel == null) None else
+      Some(classModel.getStructMemberOffsets)
 
   override def next() : T = {
     val new_obj : T = constructor.newInstance().asInstanceOf[T]
-    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb, structMemberInfo)
+    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb,
+            structMemberTypes.get, structMemberOffsets.get)
     new_obj
   }
 
@@ -57,10 +61,14 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
   }
 }
 
-class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](val bb1 : ByteBuffer, val bb2 : ByteBuffer,
-    val N : Int, val member0Desc : String, val member1Desc : String,
+class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
+    val bb1 : ByteBuffer, val bb2 : ByteBuffer, val N : Int,
+    val member0Desc : String, val member1Desc : String,
     val entryPoint : Entrypoint) extends OutputBufferWrapper[Tuple2[K, V]] {
   var iter : Int = 0
+
+  val member0Size : Int = entryPoint.getSizeOf(member0Desc)
+  val member1Size : Int = entryPoint.getSizeOf(member1Desc)
 
   val member0Class : Class[_] = CodeGenUtil.getClassForDescriptor(member0Desc)
   val member1Class : Class[_] = CodeGenUtil.getClassForDescriptor(member1Desc)
@@ -131,10 +139,12 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](val bb1 : ByteBuffer
   }
 
   def fillArray[T : ClassTag](arr : Array[T],
-          arrWrapper : Array[java.lang.Object], baseWrapperOffset : Long, baseOffset : Long,
-          desc : String, clazz : Class[_],
-      classModel : Option[ClassModel], bb : ByteBuffer,
-      structMemberInfo : Option[Array[FieldDescriptor]]) {
+          arrWrapper : Array[java.lang.Object], baseWrapperOffset : Long,
+          baseOffset : Long, desc : String, clazz : Class[_],
+          classModel : Option[ClassModel], bb : ByteBuffer,
+          structMemberTypes : Option[Array[Int]],
+          structMemberOffsets : Option[Array[Long]],
+          structMemberSizes : Option[Array[Int]], structSize : Int) {
     localIter = 0
     var i : Int = 0
 
@@ -158,10 +168,16 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](val bb1 : ByteBuffer
         bb.position(bb.position + (8 * i))
       }
       case _ => {
-        while (i < bufLength && bb.remaining > 0) {
-          OpenCLBridgeWrapper.readObjectFromStream(arr(i), classModel.get, bb, structMemberInfo.get)
-          i += 1
-        }
+        i = OpenCLBridge.setObjectArrFromBB(addressOfContainedArray(arr,
+            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            bb.position, bb.remaining, structMemberSizes.get,
+            structMemberOffsets.get, structSize)
+        bb.position(bb.position + (structSize * i))
+        // while (i < bufLength && bb.remaining > 0) {
+        //   OpenCLBridgeWrapper.readObjectFromStream(arr(i), classModel.get, bb,
+        //       structMemberTypes.get, structMemberOffsets.get)
+        //   i += 1
+        // }
       }
     }
     localCount = i
@@ -181,24 +197,40 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](val bb1 : ByteBuffer
   // }
   // val tuple = (member0Obj, member1Obj)
 
-  val structMember0Info : Option[Array[FieldDescriptor]] =
+  val structMember0Types : Option[Array[Int]] =
       if (member0ClassModel.isEmpty) None else
-          Some(member0ClassModel.get.getStructMemberInfoArray)
-  val structMember1Info : Option[Array[FieldDescriptor]] =
+          Some(member0ClassModel.get.getStructMemberTypes)
+  val structMember0Offsets : Option[Array[Long]] =
+      if (member0ClassModel.isEmpty) None else
+          Some(member0ClassModel.get.getStructMemberOffsets)
+  val structMember0Sizes : Option[Array[Int]] =
+      if (member0ClassModel.isEmpty) None else
+          Some(member0ClassModel.get.getStructMemberSizes)
+  val structMember1Types : Option[Array[Int]] =
       if (member1ClassModel.isEmpty) None else
-          Some(member1ClassModel.get.getStructMemberInfoArray)
+          Some(member1ClassModel.get.getStructMemberTypes)
+  val structMember1Offsets : Option[Array[Long]] =
+      if (member1ClassModel.isEmpty) None else
+          Some(member1ClassModel.get.getStructMemberOffsets)
+  val structMember1Sizes : Option[Array[Int]] =
+      if (member1ClassModel.isEmpty) None else
+          Some(member1ClassModel.get.getStructMemberSizes)
 
-  fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset, member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1,
-      structMember0Info)
-  // fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset, member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2,
-  //     structMember1Info)
+  fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
+      member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1,
+      structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
+  fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
+      member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2,
+      structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
 
   override def next() : Tuple2[K, V] = {
     if (localIter == localCount) {
-      fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset, member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1,
-          structMember0Info)
-      // fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset, member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2,
-      //     structMember1Info)
+      fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
+          member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1,
+          structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
+      fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
+          member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2,
+          structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
     }
     iter += 1
     localIter += 1

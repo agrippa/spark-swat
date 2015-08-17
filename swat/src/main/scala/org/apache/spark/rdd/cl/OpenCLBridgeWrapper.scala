@@ -232,19 +232,22 @@ object OpenCLBridgeWrapper {
   }
 
   def writeObjectToStream(ele : java.lang.Object, c : ClassModel, bb : ByteBuffer) {
-    val structMemberInfo = c.getStructMemberInfoArray
+    val structMemberTypes : Array[Int] = c.getStructMemberTypes
+    val structMemberOffsets : Array[Long] = c.getStructMemberOffsets
+    assert(structMemberTypes.length == structMemberOffsets.length)
 
-    for (i <- structMemberInfo.indices) {
-      val fieldDesc : FieldDescriptor = structMemberInfo(i)
-      val typ : TypeSpec = fieldDesc.typ
-      val offset : java.lang.Long = fieldDesc.offset
+    var i = 0
+    while (i < structMemberTypes.length) {
+      val typ : Int = structMemberTypes(i)
+      val offset : Long = structMemberOffsets(i)
 
       typ match {
-        case TypeSpec.I => { bb.putInt(UnsafeWrapper.getInt(ele, offset)); }
-        case TypeSpec.F =>  { bb.putFloat(UnsafeWrapper.getFloat(ele, offset)); }
-        case TypeSpec.D => { bb.putDouble(UnsafeWrapper.getDouble(ele, offset)); }
+        case ClassModel.INT => { bb.putInt(UnsafeWrapper.getInt(ele, offset)); }
+        case ClassModel.FLOAT =>  { bb.putFloat(UnsafeWrapper.getFloat(ele, offset)); }
+        case ClassModel.DOUBLE => { bb.putDouble(UnsafeWrapper.getDouble(ele, offset)); }
         case _ => throw new RuntimeException("Unsupported type " + typ);
       }
+      i += 1
     }
   }
 
@@ -312,20 +315,23 @@ object OpenCLBridgeWrapper {
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
 
     for (ele <- arg) {
-      readObjectFromStream(ele, c, bb, c.getStructMemberInfoArray)
+      readObjectFromStream(ele, c, bb, c.getStructMemberTypes,
+              c.getStructMemberOffsets)
     }
   }
 
   def readTupleMemberFromStream[T](tupleMemberDesc : String,
       bb : ByteBuffer, clazz : Class[_], memberClassModel : Option[ClassModel],
-      constructedObj : Option[T], structMemberInfo : Option[Array[FieldDescriptor]]) : T = {
+      constructedObj : Option[T], structMemberTypes : Option[Array[Int]],
+      structMemberOffsets : Option[Array[Long]]) : T = {
     tupleMemberDesc match {
       case "I" => { return new java.lang.Integer(bb.getInt).asInstanceOf[T] }
       case "F" => { return new java.lang.Float(bb.getFloat).asInstanceOf[T] }
       case "D" => { return new java.lang.Double(bb.getDouble).asInstanceOf[T] }
       case _ => {
         if (!memberClassModel.isEmpty) {
-          readObjectFromStream(constructedObj.get, memberClassModel.get, bb, structMemberInfo.get)
+          readObjectFromStream(constructedObj.get, memberClassModel.get, bb,
+                  structMemberTypes.get, structMemberOffsets.get)
           return constructedObj.get
         } else {
           throw new RuntimeException("Unsupported type " + tupleMemberDesc)
@@ -335,19 +341,19 @@ object OpenCLBridgeWrapper {
   }
 
   def readObjectFromStream[T](ele : T, c : ClassModel, bb : ByteBuffer,
-      structMemberInfo : Array[FieldDescriptor]) {
-    // val structMemberInfo = c.getStructMemberInfoArray
-    for (i <- structMemberInfo.indices) {
-      val fieldDesc : FieldDescriptor = structMemberInfo(i)
-      val typ : TypeSpec = fieldDesc.typ
-      val offset : java.lang.Long = fieldDesc.offset
+      structMemberTypes : Array[Int], structMemberOffsets : Array[Long]) {
+    var i = 0
+    while (i < structMemberTypes.length) {
+      val typ : Int = structMemberTypes(i)
+      val offset : Long = structMemberOffsets(i)
 
       typ match {
-        case TypeSpec.I => { UnsafeWrapper.putInt(ele, offset, bb.getInt); }
-        case TypeSpec.F =>  { UnsafeWrapper.putFloat(ele, offset, bb.getFloat); }
-        case TypeSpec.D => { UnsafeWrapper.putDouble(ele, offset, bb.getDouble); }
+        case ClassModel.INT => { UnsafeWrapper.putInt(ele, offset, bb.getInt); }
+        case ClassModel.FLOAT =>  { UnsafeWrapper.putFloat(ele, offset, bb.getFloat); }
+        case ClassModel.DOUBLE => { UnsafeWrapper.putDouble(ele, offset, bb.getDouble); }
         case _ => throw new RuntimeException("Unsupported type");
       }
+      i += 1
     }
   }
 

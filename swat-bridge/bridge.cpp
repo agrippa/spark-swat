@@ -814,6 +814,37 @@ LOAD_FROM_BB(int, Int)
 LOAD_FROM_BB(float, Float)
 LOAD_FROM_BB(double, Double)
 
+JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
+        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
+         jbyteArray bb, jint position, jint remaining, jintArray fieldSizes,
+         jlongArray fieldOffsets, jint structSize) {
+    assert(remaining % structSize == 0);
+    unsigned nfields = jenv->GetArrayLength(fieldSizes);
+    const int remainingEles = remaining / structSize;
+    const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
+    void **addressOfArr = (void **)l_addressOfArr;
+
+    unsigned char *bb_iter = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
+
+    int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
+    long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
+
+    for (unsigned i = 0; i < to_process; i++) {
+        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
+
+        for (unsigned j = 0; j < nfields; j++) {
+            const int size = sizes[j];
+            memcpy(ele + offsets[j], bb_iter, size);
+            bb_iter += size;
+        }
+    }
+
+    jenv->ReleasePrimitiveArrayCritical(bb, bb_iter, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
+    return to_process;
+}
+
 #ifdef __cplusplus
 }
 #endif
