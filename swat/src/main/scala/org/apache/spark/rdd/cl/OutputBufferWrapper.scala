@@ -103,7 +103,7 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   val floatValueOffset : Long = UnsafeWrapper.objectFieldOffset(floatValueField)
   val doubleValueOffset : Long = UnsafeWrapper.objectFieldOffset(doubleValueField)
 
-  val bufLength : Int = 128
+  val bufLength : Int = 512
   var localIter : Int = 0
   var localCount : Int = 0
   val member0Arr : Array[K] = new Array[K](bufLength)
@@ -146,56 +146,35 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
           structMemberOffsets : Option[Array[Long]],
           structMemberSizes : Option[Array[Int]], structSize : Int) {
     localIter = 0
-    var i : Int = 0
 
     desc match {
       case "I" => {
-        i = OpenCLBridge.setIntArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setIntArrFromBB(addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bb.remaining, intValueOffset)
-        bb.position(bb.position + (4 * i))
+        bb.position(bb.position + (4 * localCount))
       }
       case "F" => {
-        i = OpenCLBridge.setFloatArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setFloatArrFromBB(addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bb.remaining, intValueOffset)
-        bb.position(bb.position + (4 * i))
+        bb.position(bb.position + (4 * localCount))
       }
       case "D" => {
-        i = OpenCLBridge.setDoubleArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setDoubleArrFromBB(addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bb.remaining, intValueOffset)
-        bb.position(bb.position + (8 * i))
+        bb.position(bb.position + (8 * localCount))
       }
       case _ => {
-        i = OpenCLBridge.setObjectArrFromBB(addressOfContainedArray(arr,
+        localCount = OpenCLBridge.setObjectArrFromBB(addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bb.remaining, structMemberSizes.get,
             structMemberOffsets.get, structSize)
-        bb.position(bb.position + (structSize * i))
-        // while (i < bufLength && bb.remaining > 0) {
-        //   OpenCLBridgeWrapper.readObjectFromStream(arr(i), classModel.get, bb,
-        //       structMemberTypes.get, structMemberOffsets.get)
-        //   i += 1
-        // }
+        bb.position(bb.position + (structSize * localCount))
       }
     }
-    localCount = i
   }
-
-  // val member0Obj : K = member0Desc match {
-  //     case "I" => { new java.lang.Integer(0).asInstanceOf[K] }
-  //     case "F" => { new java.lang.Float(0.0f).asInstanceOf[K] }
-  //     case "D" => { new java.lang.Double(0.0).asInstanceOf[K] }
-  //     case _ => { member0Constructor.get.newInstance().asInstanceOf[K] }
-  // }
-  // val member1Obj : V = member1Desc match {
-  //     case "I" => { new java.lang.Integer(0).asInstanceOf[V] }
-  //     case "F" => { new java.lang.Float(0.0f).asInstanceOf[V] }
-  //     case "D" => { new java.lang.Double(0.0).asInstanceOf[V] }
-  //     case _ => { member1Constructor.get.newInstance().asInstanceOf[V] }
-  // }
-  // val tuple = (member0Obj, member1Obj)
 
   val structMember0Types : Option[Array[Int]] =
       if (member0ClassModel.isEmpty) None else
@@ -235,32 +214,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     iter += 1
     localIter += 1
     (member0Arr(localIter - 1), member1Arr(localIter - 1))
-
-    // member0Desc match {
-    //   case "I" => { UnsafeWrapper.putInt(member0Obj, intValueOffset, bb1.getInt) }
-    //   case "F" => { UnsafeWrapper.putFloat(member0Obj, floatValueOffset, bb1.getFloat) }
-    //   case "D" => { UnsafeWrapper.putDouble(member0Obj, doubleValueOffset, bb1.getDouble) }
-    //   case _ => { OpenCLBridgeWrapper.readObjectFromStream(member0Obj,
-    //           member0ClassModel.get, bb1, structMember0Info.get) }
-    // }
-    // member1Desc match {
-    //   case "I" => { UnsafeWrapper.putInt(member1Obj, intValueOffset, bb2.getInt) }
-    //   case "F" => { UnsafeWrapper.putFloat(member1Obj, floatValueOffset, bb2.getFloat) }
-    //   case "D" => { UnsafeWrapper.putDouble(member1Obj, doubleValueOffset, bb2.getDouble) }
-    //   case _ => { OpenCLBridgeWrapper.readObjectFromStream(member1Obj,
-    //           member1ClassModel.get, bb2, structMember1Info.get) }
-    // }
-
-    // tuple
-
-    // (OpenCLBridgeWrapper.readTupleMemberFromStream[K](member0Desc, bb1,
-    //                                                member0Class,
-    //                                                member0ClassModel,
-    //                                                member0Obj, structMember0Info),
-    //  OpenCLBridgeWrapper.readTupleMemberFromStream[V](member1Desc, bb2,
-    //                                                member1Class,
-    //                                                member1ClassModel,
-    //                                                member1Obj, structMember1Info))
   }
 
   override def hasNext() : Boolean = {

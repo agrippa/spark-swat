@@ -1,6 +1,7 @@
 #ifndef OCL_UTIL_H
 #define OCL_UTIL_H
 
+#include <stdlib.h>
 #include <stdio.h>
 
 #ifdef __APPLE__

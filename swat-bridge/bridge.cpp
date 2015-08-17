@@ -825,15 +825,17 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     void **addressOfArr = (void **)l_addressOfArr;
 
     unsigned char *bb_iter = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
-
     int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
     long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
 
-    for (unsigned i = 0; i < to_process; i++) {
+    const unsigned chunking = 2;
+    const unsigned round_down = (to_process / chunking) * chunking;
+    for (unsigned i = 0; i < round_down; i+=chunking) {
         unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
-        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i];
-        unsigned char *bb_iter1 = bb_iter;
-        unsigned char *bb_iter2 = bb_iter + structSize;
+        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
+
+        unsigned char * bb_iter1 = bb_iter;
+        unsigned char * bb_iter2 = bb_iter + structSize;
 
         for (unsigned j = 0; j < nfields; j++) {
             const int size = sizes[j];
@@ -844,6 +846,15 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
             bb_iter2 += size;
         }
         bb_iter += (2 * structSize);
+    }
+    for (unsigned i = round_down; i < to_process; i++) {
+        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
+
+        for (unsigned j = 0; j < nfields; j++) {
+            const int size = sizes[j];
+            memcpy(ele1 + offsets[j], bb_iter, size);
+            bb_iter += size;
+        }
     }
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_iter, JNI_ABORT);
