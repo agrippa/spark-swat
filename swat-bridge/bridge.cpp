@@ -830,13 +830,20 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
 
     for (unsigned i = 0; i < to_process; i++) {
-        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
+        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
+        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i];
+        unsigned char *bb_iter1 = bb_iter;
+        unsigned char *bb_iter2 = bb_iter + structSize;
 
         for (unsigned j = 0; j < nfields; j++) {
             const int size = sizes[j];
-            memcpy(ele + offsets[j], bb_iter, size);
-            bb_iter += size;
+            memcpy(ele1 + offsets[j], bb_iter1, size);
+            memcpy(ele2 + offsets[j], bb_iter2, size);
+
+            bb_iter1 += size;
+            bb_iter2 += size;
         }
+        bb_iter += (2 * structSize);
     }
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_iter, JNI_ABORT);
