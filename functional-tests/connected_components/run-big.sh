@@ -4,6 +4,8 @@ if [[ $# != 1 ]]; then
     echo 'usage: run.sh run|run-cl|check'
     exit 1
 fi
+# --conf "spark.executor.extraJavaOptions=-Xloggc:/tmp/SWAT.log -verbose:gc -verbose:jni -XX:+PrintGCDetails" \
+# --conf "spark.executor.extraJavaOptions=-Xloggc:/tmp/SWAT.log -verbose:jni" \
 
 spark-submit --class SparkConnectedComponents \
         --jars ${SWAT_HOME}/swat/target/swat-1.0-SNAPSHOT.jar,${APARAPI_HOME}/com.amd.aparapi/dist/aparapi.jar,${ASM_HOME}/lib/asm-5.0.3.jar,${ASM_HOME}/lib/asm-util-5.0.3.jar \

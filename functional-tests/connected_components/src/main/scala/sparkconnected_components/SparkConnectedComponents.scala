@@ -75,9 +75,11 @@ object SparkConnectedComponents {
             membership(i) = i
         }
 
+        var startTime = System.currentTimeMillis
         var done = false
         var iters = 0
         do {
+          val iterStartTime = System.currentTimeMillis
           val broadcastMembership = sc.broadcast(membership)
 
           val updates : RDD[(Int, Int)] = edges.map(edge => {
@@ -94,6 +96,7 @@ object SparkConnectedComponents {
                     }
                 }
               })
+
           val new_classifications : RDD[(Int, Int)] = updates.reduceByKey(
               (cluster1, cluster2) => { if (cluster1 < cluster2) cluster1 else cluster2 })
           val collected_new_classifications : Array[(Int, Int)] = new_classifications.collect
@@ -105,13 +108,20 @@ object SparkConnectedComponents {
               assert(classification._2 == -1)
             }
           }
+          iters += 1
 
           done = (collected_new_classifications.length == 1)
 
           broadcastMembership.unpersist(true)
 
-          iters += 1
+          val iterEndTime = System.currentTimeMillis
+          System.err.println("iter=" + iters + ", " +
+                  (iterEndTime - iterStartTime) + " ms, collected.length=" +
+                  collected_new_classifications.length)
         } while (!done);
+
+        var endTime = System.currentTimeMillis
+        System.err.println("Overall time = " + (endTime - startTime) + " ms")
 
         val allClusters : java.util.Set[java.lang.Integer] =
             new java.util.HashSet[java.lang.Integer]()
@@ -145,9 +155,11 @@ object SparkConnectedComponents {
             membership(i) = i
         }
 
+        var startTime = System.currentTimeMillis
         var done = false
         var iters = 0
         do {
+          val iterStartTime = System.currentTimeMillis
           val broadcastMembership = sc.broadcast(membership)
 
           val updates : RDD[(Int, Int)] = edges.map(edge => {
@@ -164,6 +176,7 @@ object SparkConnectedComponents {
                     }
                 }
               })
+
           val new_classifications : RDD[(Int, Int)] = updates.reduceByKey(
               (cluster1, cluster2) => { if (cluster1 < cluster2) cluster1 else cluster2 })
           val collected_new_classifications : Array[(Int, Int)] = new_classifications.collect
@@ -176,12 +189,20 @@ object SparkConnectedComponents {
             }
           }
 
+          iters += 1
+
           done = (collected_new_classifications.length == 1)
 
           broadcastMembership.unpersist(true)
 
-          iters += 1
+          val iterEndTime = System.currentTimeMillis
+          System.err.println("iter=" + iters + ", " +
+                  (iterEndTime - iterStartTime) + " ms, collected.length=" +
+                  collected_new_classifications.length)
         } while (!done);
+
+        var endTime = System.currentTimeMillis
+        System.err.println("Overall time = " + (endTime - startTime) + " ms")
 
         val allClusters : java.util.Set[java.lang.Integer] =
             new java.util.HashSet[java.lang.Integer]()

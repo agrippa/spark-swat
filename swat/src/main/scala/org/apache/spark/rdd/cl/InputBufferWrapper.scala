@@ -29,7 +29,6 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   }
 
   override def append(obj : T) {
-    assert(hasSpace())
     arr(filled) = obj
     filled += 1
   }
@@ -186,77 +185,61 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
               OpenCLBridgeWrapper.addressOfContainedArray(member0Buffer,
                   member0BufferWrapper, member0BaseWrapperOffset,
                   member0BaseOffset), localBuffered, bb1.array, bb1.position,
-              member0Sizes, member0Offsets)
-          bb1.position(bb1.position + (member0Size * localBuffered))
-          // var i = 0
-          // while (i < localBuffered) {
-          //   OpenCLBridgeWrapper.writeTupleMemberToStream(member0Buffer(i), entryPoint, bb1,
-          //           firstMemberClassModel)
-          //   i += 1
-          // }
+              member0Sizes, member0Offsets, member0Size)
+      bb1.position(bb1.position + (member0Size * localBuffered))
     }
     if (secondMemberSize > 0) {
       OpenCLBridge.writeToBBFromObjArray(
               OpenCLBridgeWrapper.addressOfContainedArray(member1Buffer,
                   member1BufferWrapper, member1BaseWrapperOffset,
                   member1BaseOffset), localBuffered, bb2.array, bb2.position,
-              member1Sizes, member1Offsets)
-          bb2.position(bb2.position + (member1Size * localBuffered))
-
-        // var i = 0
-        //     while (i < localBuffered) {
-        //         OpenCLBridgeWrapper.writeTupleMemberToStream(member1Buffer(i), entryPoint, bb2,
-        //                 secondMemberClassModel)
-        //             i += 1
-        //     }
+              member1Sizes, member1Offsets, member1Size)
+      bb2.position(bb2.position + (member1Size * localBuffered))
     }
-    localBuffered = 0
   }
 
   override def append(obj : Tuple2[K, V]) {
-      if (localBuffered == chunking) {
-          saveToBB()
-      }
+    if (localBuffered == chunking) {
+        saveToBB()
+        localBuffered = 0
+    }
 
-      if (firstMemberSize > 0) {
-          member0Buffer(localBuffered) = obj._1
-              // OpenCLBridgeWrapper.writeTupleMemberToStream(obj._1, entryPoint, bb1,
-              //         firstMemberClassModel)
-      }
-      if (secondMemberSize > 0) {
-          member1Buffer(localBuffered) = obj._2
-              // OpenCLBridgeWrapper.writeTupleMemberToStream(obj._2, entryPoint, bb2,
-              //         secondMemberClassModel)
-      }
-      localBuffered += 1
-          buffered += 1
+    if (firstMemberSize > 0) {
+      member0Buffer(localBuffered) = obj._1
+    }
+    if (secondMemberSize > 0) {
+      member1Buffer(localBuffered) = obj._2
+    }
+    localBuffered += 1
+    buffered += 1
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           rddid : Int, partitionid : Int, offset : Int) : Int = {
-      if (localBuffered > 0) {
-          saveToBB()
-      }
-      if (firstMemberSize > 0) {
-          OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
-                  bb1.position, -1, rddid, partitionid, offset, 0)
-      } else {
-          OpenCLBridge.setNullArrayArg(ctx, argnum)
-      }
+    if (localBuffered > 0) {
+        saveToBB()
+        localBuffered = 0
+    }
+    if (firstMemberSize > 0) {
+        OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
+                bb1.position, -1, rddid, partitionid, offset, 0)
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, argnum)
+    }
 
-      if (secondMemberSize > 0) {
-          OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
-                  bb2.position, -1, rddid, partitionid, offset, 1)
-      } else {
-          OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
-      }
+    if (secondMemberSize > 0) {
+        OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
+                bb2.position, -1, rddid, partitionid, offset, 1)
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, argnum + 1)
+    }
 
-      bb1.clear
-          bb2.clear
-          buffered = 0
+    bb1.clear
+    bb2.clear
+    buffered = 0
 
-          OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
-                  structSize * nele)
-          return 3
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 2,
+            structSize * nele)
+    return 3
   }
 }

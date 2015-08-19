@@ -71,19 +71,19 @@ public class OpenCLBridge {
     public static native void resetHeap(long ctx, long dev_ctx,
             int starting_argnum);
 
-    public static native int setIntArrFromBB(long addressOfArr, int bufLength,
+    public static native int setIntArrFromBB(java.lang.Object[] arr, long addressOfArr, int bufLength,
             byte[] bb, int position, int remaining, long fieldOffset);
-    public static native int setFloatArrFromBB(long addressOfArr, int bufLength,
+    public static native int setFloatArrFromBB(java.lang.Object[] arr, long addressOfArr, int bufLength,
             byte[] bb, int position, int remaining, long fieldOffset);
-    public static native int setDoubleArrFromBB(long addressOfArr, int bufLength,
+    public static native int setDoubleArrFromBB(java.lang.Object[] arr, long addressOfArr, int bufLength,
             byte[] bb, int position, int remaining, long fieldOffset);
-    public static native int setObjectArrFromBB(long addressOfArr,
+    public static native int setObjectArrFromBB(java.lang.Object[] arr, long addressOfArr,
             int bufLength, byte[] bb, int position, int remaining,
             int[] fieldSizes, long[] fieldOffsets, int structSize);
 
     public static native void writeToBBFromObjArray(long addressOfArr,
             int bufferLength, byte[] out, int position, int[] fieldSizes,
-            long[] fieldOffsets);
+            long[] fieldOffsets, int structSize);
 
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
             String name, String desc, Entrypoint entryPoint, boolean isBroadcast,

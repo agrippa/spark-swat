@@ -35,6 +35,7 @@ cl_uint get_total_num_devices() {
 
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
+    CHECK_ALLOC(platforms)
     CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
@@ -51,6 +52,7 @@ char *get_device_name(cl_device_id device) {
     size_t name_len;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, 0, NULL, &name_len));
     char *device_name = (char *)malloc(name_len + 1);
+    CHECK_ALLOC(device_name)
     CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, device_name,
                 NULL));
     device_name[name_len] = '\0';

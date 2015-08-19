@@ -53,10 +53,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         !CodeGenUtil.isPrimitive(inputClassType2Name))
   }
 
-  def profPrint(lbl : String, startTime : Long, threadId : Int) {
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " +
-          (System.currentTimeMillis - startTime) + " ms")
-  }
+  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+          (System.currentTimeMillis - startTime) + " ms") // PROFILE
+  } // PROFILE
 
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt

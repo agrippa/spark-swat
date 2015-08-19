@@ -1,5 +1,4 @@
 #include <jni.h>
-#include <assert.h>
 #include <string.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -35,7 +34,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     swat_context *context = (swat_context *)lctx; \
     int err = pthread_mutex_lock(&dev_ctx->lock); \
     jboolean isCopy; \
-    assert(err == 0); \
+    ASSERT(err == 0); \
     if (broadcastId >= 0 && \
             dev_ctx->broadcast_cache->find(broadcastId) != \
             dev_ctx->broadcast_cache->end()) { \
@@ -46,6 +45,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
+            CHECK_JNI(arr) \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
@@ -69,23 +69,24 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         } \
     } else { \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
+        CHECK_JNI(arr) \
         cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                 dev_ctx, broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
         if (broadcastId >= 0) { \
             bool success = dev_ctx->broadcast_cache->insert( \
                     pair<jlong, cl_region *>(broadcastId, new_region)).second; \
-            assert(success); \
+            ASSERT(success); \
         } else if (rddid >= 0) { \
             bool success = dev_ctx->rdd_cache->insert( \
                     pair<rdd_partition_offset, cl_region *>( \
                         rdd_partition_offset(rddid, partitionid, offsetid, \
                             componentid), new_region)).second; \
-            assert(success); \
+            ASSERT(success); \
         } \
     } \
     err = pthread_mutex_unlock(&dev_ctx->lock); \
-    assert(err == 0); \
+    ASSERT(err == 0); \
     EXIT_TRACE("set"#utype"ArrayArg"); \
 }
 
@@ -96,6 +97,7 @@ JNI_JAVA(void, OpenCLBridge, fetch##utype##ArrayArg) \
     ENTER_TRACE("fetch"#utype"ArrayArg"); \
     jsize len = argLength * sizeof(ctype); \
     void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL); \
+    CHECK_JNI(arr) \
     fetch_kernel_arg(arr, len, index, (swat_context *)lctx, (device_context *)l_dev_ctx); \
     jenv->ReleasePrimitiveArrayCritical(arg, arr, 0); \
     EXIT_TRACE("fetch"#utype"ArrayArg"); \
@@ -108,8 +110,11 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     ENTER_TRACE("set"#utype"ArgByName"); \
     swat_context *context = (swat_context *)lctx; \
     jclass enclosing_class = jenv->GetObjectClass(obj); \
+    CHECK_JNI(enclosing_class) \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
+    CHECK_JNI(raw_name) \
     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
+    CHECK_JNI(field) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     ltype val = jenv->Get##utype##Field(obj, field); \
     clSetKernelArgWrapper(context, context->kernel, index, sizeof(val), &val); \
@@ -122,12 +127,17 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
          jstring name) { \
     ENTER_TRACE("set"#utype"ArrayArgByName"); \
     jclass enclosing_class = jenv->GetObjectClass(obj); \
+    CHECK_JNI(enclosing_class) \
     const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
+    CHECK_JNI(raw_name) \
     jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
+    CHECK_JNI(field) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     jarray arr = (jarray)jenv->GetObjectField(obj, field); \
+    CHECK_JNI(arr) \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
     void *arr_eles = jenv->GetPrimitiveArrayCritical((j##ltype##Array)arr, NULL); \
+    CHECK_JNI(arr_eles) \
     set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
             (device_context *)l_dev_ctx, -1, -1); \
     jenv->ReleasePrimitiveArrayCritical((j##ltype##Array)arr, arr_eles, JNI_ABORT); \
@@ -183,26 +193,29 @@ static int checkExtension(char *exts, size_t ext_len, const char *ext) {
 static int checkAllAssertions(cl_device_id device, int requiresDouble,
         int requiresHeap) {
 
+    int result = 1;
     int requires_extension_check = (requiresDouble || requiresHeap);
     if (requires_extension_check) {
         size_t ext_len;
         CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
         char *exts = (char *)malloc(ext_len);
+        CHECK_ALLOC(exts)
         CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_len, exts, NULL));
 
         if (requiresDouble && !checkExtension(exts, ext_len, "cl_khr_fp64")) {
-            return 0;
+            result = 0;
+        } else {
+            if (requiresHeap &&
+                    (!checkExtension(exts, ext_len, "cl_khr_global_int32_base_atomics") ||
+                     !checkExtension(exts, ext_len, "cl_khr_global_int32_extended_atomics") ||
+                     !checkExtension(exts, ext_len, "cl_khr_local_int32_base_atomics") ||
+                     !checkExtension(exts, ext_len, "cl_khr_local_int32_extended_atomics"))) {
+                result = 0;
+            }
         }
-
-        if (requiresHeap &&
-                (!checkExtension(exts, ext_len, "cl_khr_global_int32_base_atomics") ||
-                 !checkExtension(exts, ext_len, "cl_khr_global_int32_extended_atomics") ||
-                 !checkExtension(exts, ext_len, "cl_khr_local_int32_base_atomics") ||
-                 !checkExtension(exts, ext_len, "cl_khr_local_int32_extended_atomics"))) {
-            return 0;
-        }
+        free(exts);
     }
-    return 1;
+    return result;
 }
 
 /*
@@ -239,6 +252,13 @@ static void parseDeviceConfig(int *gpu_weight_out, int *cpu_weight_out) {
     int gpu_weight = atoi(gpu_weight_str);
     int cpu_weight = atoi(cpu_weight_str);
 
+    if (cpu_weight > 0) {
+        fprintf(stderr, "ERROR: There seems to be a bug in the Intel OpenCL "
+                "compiler that causes a SEGFAULT from clBuildProgram, so don't "
+                "set CPU weight.\n");
+        exit(1);
+    }
+
     *gpu_weight_out = gpu_weight;
     *cpu_weight_out = cpu_weight;
 }
@@ -259,23 +279,26 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
      * work fine but this shouldn't be happening to begin with.
      */
     int perr = pthread_mutex_lock(&device_ctxs_lock);
-    assert(perr == 0);
+    ASSERT(perr == 0);
 
     if (device_ctxs == NULL) {
         cl_uint total_num_devices = get_total_num_devices();
         device_ctxs = (device_context *)malloc(total_num_devices * sizeof(device_context));
+        CHECK_ALLOC(device_ctxs)
         n_device_ctxs = total_num_devices;
 
         cl_uint num_platforms = get_num_opencl_platforms();
 
         cl_platform_id *platforms =
             (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
+        CHECK_ALLOC(platforms)
         CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
 
         unsigned global_device_id = 0;
         for (unsigned platform_index = 0; platform_index < num_platforms; platform_index++) {
             cl_uint num_devices = get_num_devices(platforms[platform_index]);
             cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
+            CHECK_ALLOC(devices)
             CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
                         num_devices, devices, NULL));
 
@@ -305,7 +328,7 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                 device_ctxs[global_device_id].cmd = cmd;
 
                 int perr = pthread_mutex_init(&(device_ctxs[global_device_id].lock), NULL);
-                assert(perr == 0);
+                ASSERT(perr == 0);
 
                 device_ctxs[global_device_id].allocator = init_allocator(curr_dev, ctx, cmd);
 
@@ -335,6 +358,7 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
         }
 
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
+        CHECK_ALLOC(virtual_devices)
         int curr_virtual_device = 0;
         for (unsigned i = 0; i < total_num_devices; i++) {
             cl_device_id curr_dev = device_ctxs[i].dev;
@@ -357,7 +381,7 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                 virtual_devices[curr_virtual_device++] = i;
             }
         }
-        assert(curr_virtual_device == n_virtual_devices);
+        ASSERT(curr_virtual_device == n_virtual_devices);
     }
 
     device_context *my_ctx = device_ctxs +
@@ -370,8 +394,7 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
 #endif
 
     perr = pthread_mutex_unlock(&device_ctxs_lock);
-    assert(perr == 0);
-
+    ASSERT(perr == 0);
     return (jlong)my_ctx;
 }
 
@@ -390,11 +413,10 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
          jlong l_dev_ctx, jint host_thread_index, jboolean requiresDouble,
          jboolean requiresHeap) {
     ENTER_TRACE("createContext");
-
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_device_id device = dev_ctx->dev;
 
-    assert(checkAllAssertions(device, requiresDouble, requiresHeap) == 1);
+    ASSERT(checkAllAssertions(device, requiresDouble, requiresHeap) == 1);
 
 #ifdef VERBOSE
     char *device_name = get_device_name(device);
@@ -404,13 +426,13 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
             requiresHeap);
     free(device_name);
 #endif
-
     const char *raw_label = jenv->GetStringUTFChars(label, NULL);
+    CHECK_JNI(raw_label)
     std::string label_str(raw_label);
     jenv->ReleaseStringUTFChars(label, raw_label);
 
     int perr = pthread_mutex_lock(&dev_ctx->lock);
-    assert(perr == 0);
+    ASSERT(perr == 0);
    
     cl_int err;
     cl_program program;
@@ -418,15 +440,17 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         program = dev_ctx->program_cache->at(label_str);
     } else {
         const char *raw_source = jenv->GetStringUTFChars(source, NULL);
-        size_t source_len = strlen(raw_source);
+        CHECK_JNI(raw_source)
+        jsize source_len = jenv->GetStringLength(source);
 #ifdef BRIDGE_DEBUG
         char *store_source = (char *)malloc(source_len + 1);
+        CHECK_ALLOC(store_source)
         memcpy(store_source, raw_source, source_len);
         store_source[source_len] = '\0';
 #endif
 
         size_t source_size[] = { source_len };
-        program = clCreateProgramWithSource(dev_ctx->ctx, 1, &raw_source,
+        program = clCreateProgramWithSource(dev_ctx->ctx, 1, (const char **)&raw_source,
                 source_size, &err);
         CHECK(err);
 
@@ -436,6 +460,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
             CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0,
                         NULL, &build_log_size));
             char *build_log = (char *)malloc(build_log_size + 1);
+            CHECK_ALLOC(build_log)
             CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                         build_log_size, build_log, NULL));
             build_log[build_log_size] = '\0';
@@ -443,32 +468,30 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
             fprintf(stderr, "Build failure:\n%s\n", build_log);
             free(build_log);
         }
-        jenv->ReleaseStringUTFChars(source, raw_source);
         CHECK(err);
+        jenv->ReleaseStringUTFChars(source, raw_source);
 
         bool success = dev_ctx->program_cache->insert(pair<string, cl_program>(label_str,
                     program)).second;
-        assert(success);
+        ASSERT(success);
     }
 
     perr = pthread_mutex_unlock(&dev_ctx->lock);
-    assert(perr == 0);
+    ASSERT(perr == 0);
 
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
 
     swat_context *context = (swat_context *)malloc(sizeof(swat_context));
-    // context->program = program;
+    CHECK_ALLOC(context)
     context->kernel = kernel;
     context->host_thread_index = host_thread_index;
     context->arguments = new map<int, pair<cl_region *, bool> >();
-    // context->all_allocated = new set<cl_mem>();
 #ifdef BRIDGE_DEBUG
     context->debug_arguments = new map<int, kernel_arg *>();
     context->kernel_src = store_source;
     context->kernel_src_len = source_len;
 #endif
-
     EXIT_TRACE("createContext");
     return (jlong)context;
 }
@@ -489,7 +512,6 @@ static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
 static cl_region *set_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx, jlong broadcastId, jint rdd) {
     cl_region *region = get_mem_cached(context, dev_ctx, index, len, broadcastId, rdd);
-
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
 
@@ -508,7 +530,7 @@ static cl_region *set_kernel_arg(void *host, size_t len, int index,
 
 static void fetch_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx) {
-    assert(context->arguments->find(index) != context->arguments->end());
+    ASSERT(context->arguments->find(index) != context->arguments->end());
     cl_mem mem = context->arguments->at(index).first->sub_mem;
 
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
@@ -539,13 +561,12 @@ JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
         (JNIEnv *jenv, jclass clazz, jlong lctx) {
     swat_context *ctx = (swat_context *)lctx;
     cl_allocator *allocator = NULL;
-
     for (map<int, pair<cl_region *, bool> >::iterator i = ctx->arguments->begin(),
             e = ctx->arguments->end(); i != e; i++) {
         cl_region *region = i->second.first;
         if (region) {
             if (allocator) {
-                assert(allocator == region->grandparent->allocator);
+                ASSERT(allocator == region->grandparent->allocator);
             } else {
                 allocator = region->grandparent->allocator;
             }
@@ -564,7 +585,6 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
     ENTER_TRACE("setArgUnitialized");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-
     cl_region *region = get_mem_cached(context, dev_ctx, argnum, size, -1, -1);
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(region->sub_mem), &region->sub_mem));
 
@@ -597,7 +617,6 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a null value\n", argnum);
 #endif
-
     EXIT_TRACE("setNullArrayArg");
 }
 
@@ -611,7 +630,6 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     jint local_argnum = argnum;
-
     // The heap
     cl_region *region = get_mem_cached(context, dev_ctx, local_argnum, size, -1, -1);
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
@@ -652,6 +670,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 #endif
     cl_event fill_event;
     int *zeros = (int *)malloc(max_n_buffered * sizeof(int));
+    CHECK_ALLOC(zeros)
     memset(zeros, 0x00, max_n_buffered * sizeof(int));
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE, 0,
                 max_n_buffered * sizeof(int), zeros, 0, NULL, &fill_event));
@@ -686,7 +705,6 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
     fprintf(stderr, "Creating heap at %d->%d (inclusive)\n", argnum,
             local_argnum - 1);
 #endif
-
     EXIT_TRACE("createHeap");
     return (local_argnum - argnum); // Number of kernel arguments added
 }
@@ -694,15 +712,14 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 JNI_JAVA(void, OpenCLBridge, resetHeap)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint starting_argnum) {
     ENTER_TRACE("resetHeap");
-
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     map<int, pair<cl_region *, bool> > *arguments = context->arguments;
     int free_index_arg_index = starting_argnum + 1;
     int any_failed_arg_index = starting_argnum + 4;
 
-    assert(arguments->find(free_index_arg_index) != arguments->end());
-    assert(arguments->find(any_failed_arg_index) != arguments->end());
+    ASSERT(arguments->find(free_index_arg_index) != arguments->end());
+    ASSERT(arguments->find(any_failed_arg_index) != arguments->end());
 
     cl_region *free_index_mem = arguments->at(free_index_arg_index).first;
     cl_region *any_failed_mem = arguments->at(any_failed_arg_index).first;
@@ -712,12 +729,9 @@ JNI_JAVA(void, OpenCLBridge, resetHeap)
                 sizeof(zero), &zero, 0, NULL, NULL));
 
     cl_event fill_event;
-    // CHECK(clEnqueueFillBuffer(dev_ctx->cmd, any_failed_mem, &zero, sizeof(zero),
-    //             0, sizeof(unsigned), 0, NULL, &fill_event));
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, any_failed_mem->sub_mem, CL_FALSE, 0,
                 sizeof(zero), &zero, 0, NULL, &fill_event));
     CHECK(clWaitForEvents(1, &fill_event));
-
     EXIT_TRACE("resetHeap");
 }
 
@@ -776,61 +790,79 @@ JNI_JAVA(void, OpenCLBridge, run)
     EXIT_TRACE("run");
 }
 
-#define LOAD_FROM_BB(type, capitalized_type) \
+#define SET_FROM_BB(type, capitalized_type, sig, targetClassName) \
 JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
-        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength, jbyteArray bb, \
+        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, long l_addressOfArr, jint bufferLength, jbyteArray bb, \
          jint position, jint remaining, jlong fieldOffset) { \
-    assert(remaining % sizeof( type ) == 0); \
+    ENTER_TRACE("set"#capitalized_type"ArrFromBB"); \
+    ASSERT(remaining % sizeof( type ) == 0); \
     const int remainingEles = remaining / sizeof( type ); \
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles); \
     void **addressOfArr = (void **)l_addressOfArr; \
     \
     void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, NULL); \
+    CHECK_JNI(bb_elements) \
     type *bb_iter = ( type *)(((unsigned char *)bb_elements) + position); \
     \
+    jclass targetClass = jenv->FindClass(targetClassName); \
+    CHECK_JNI(targetClass) \
+    jfieldID valueField = jenv->GetFieldID(targetClass, "value", sig); \
+    CHECK_JNI(valueField) \
     const unsigned chunking = 2; \
     const unsigned round_down = (to_process / chunking) * chunking; \
     for (unsigned i = 0; i < round_down; i += chunking) { \
-        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i]; \
-        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1]; \
+        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i); \
+        CHECK_JNI(obj1) \
+        jobject obj2 = jenv->GetObjectArrayElement(targetToHold, i + 1); \
+        CHECK_JNI(obj2) \
         \
-        *(( type *)(ele1 + fieldOffset)) = *(bb_iter); \
-        *(( type *)(ele2 + fieldOffset)) = *(bb_iter + 1); \
+        jenv->Set##capitalized_type##Field(obj1, valueField, *bb_iter); \
+        jenv->Set##capitalized_type##Field(obj2, valueField, *(bb_iter + 1)); \
         \
         bb_iter += chunking; \
     } \
     \
     for (unsigned i = round_down; i < to_process; i++) { \
-        unsigned char * const ele = (unsigned char * const)addressOfArr[i]; \
-        *(( type *)(ele + fieldOffset)) = *(bb_iter); \
+        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i); \
+        CHECK_JNI(obj1) \
+        jenv->Set##capitalized_type##Field(obj1, valueField, *bb_iter); \
         bb_iter++; \
     } \
     \
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT); \
+    EXIT_TRACE("set"#capitalized_type"ArrFromBB"); \
     return to_process; \
 }
 
-LOAD_FROM_BB(int, Int)
-LOAD_FROM_BB(float, Float)
-LOAD_FROM_BB(double, Double)
+SET_FROM_BB(int, Int, "I", "java/lang/Integer")
+SET_FROM_BB(float, Float, "F", "java/lang/Float")
+SET_FROM_BB(double, Double, "D", "java/lang/Double")
 
 JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
-        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
+        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, long l_addressOfArr, jint bufferLength,
          jbyteArray bb, jint position, jint remaining, jintArray fieldSizes,
          jlongArray fieldOffsets, jint structSize) {
-    assert(remaining % structSize == 0);
+    ENTER_TRACE("setObjectArrFromBB");
+    ASSERT(remaining % structSize == 0);
     unsigned nfields = jenv->GetArrayLength(fieldSizes);
     const int remainingEles = remaining / structSize;
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
     void **addressOfArr = (void **)l_addressOfArr;
 
     unsigned char *bb_iter = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
+    CHECK_JNI(bb_iter)
     int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
+    CHECK_JNI(sizes)
     long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
+    CHECK_JNI(offsets)
 
     const unsigned chunking = 2;
     const unsigned round_down = (to_process / chunking) * chunking;
-    for (unsigned i = 0; i < round_down; i+=chunking) {
+    for (unsigned i = 0; i < round_down; i += chunking) {
+        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i);
+        CHECK_JNI(obj1)
+        jobject obj2 = jenv->GetObjectArrayElement(targetToHold, i + 1);
+        CHECK_JNI(obj2)
         unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
         unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
 
@@ -845,7 +877,10 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
             bb_iter1 += size;
             bb_iter2 += size;
         }
-        bb_iter += (2 * structSize);
+        bb_iter += (chunking * structSize);
+
+        jenv->DeleteLocalRef(obj1);
+        jenv->DeleteLocalRef(obj2);
     }
     for (unsigned i = round_down; i < to_process; i++) {
         unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
@@ -860,25 +895,29 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     jenv->ReleasePrimitiveArrayCritical(bb, bb_iter, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
+    EXIT_TRACE("setObjectArrFromBB");
     return to_process;
 }
 
 JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
         (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
          jbyteArray out, jint position, jintArray fieldSizes,
-         jlongArray fieldOffsets) {
+         jlongArray fieldOffsets, jint structSize) {
+    ENTER_TRACE("writeToBBFromObjArray");
     void **addressOfArr = (void **)l_addressOfArr;
     const unsigned nfields = jenv->GetArrayLength(fieldSizes);
 
     unsigned char *bb_contents = (unsigned char *)jenv->GetPrimitiveArrayCritical(out, NULL);
+    CHECK_JNI(bb_contents)
     int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
+    CHECK_JNI(sizes)
     long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
+    CHECK_JNI(offsets)
 
     unsigned char *bb_iter = bb_contents + position;
 
     for (unsigned i = 0; i < bufferLength; i++) {
         unsigned char * const ele = (unsigned char * const)addressOfArr[i];
-
         for (unsigned j = 0; j < nfields; j++) {
             const int size = sizes[j];
             memcpy(bb_iter, ele + offsets[j], size);
@@ -889,6 +928,7 @@ JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
     jenv->ReleasePrimitiveArrayCritical(out, bb_contents, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
+    EXIT_TRACE("writeToBBFromObjArray");
 }
 
 #ifdef __cplusplus

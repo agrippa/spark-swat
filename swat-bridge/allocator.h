@@ -15,8 +15,16 @@
 
 
 #ifdef TRACE
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void enter_trace(const char *lbl);
 extern void exit_trace(const char *lbl);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define ENTER_TRACE(lbl) enter_trace(lbl)
 #define EXIT_TRACE(lbl) exit_trace(lbl)
@@ -78,6 +86,7 @@ typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
     long curr_time;
+    cl_uint address_align;
 
     pthread_mutex_t lock;
 } cl_allocator;

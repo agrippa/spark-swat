@@ -14,21 +14,21 @@ extern "C" {
 static void lock_allocator(cl_allocator *allocator) {
     ENTER_TRACE("lock_allocation");
     int perr = pthread_mutex_lock(&allocator->lock);
-    assert(perr == 0);
+    ASSERT(perr == 0);
     EXIT_TRACE("lock_allocation");
 }
 
 static void unlock_allocator(cl_allocator *allocator) {
     ENTER_TRACE("unlock_allocation");
     int perr = pthread_mutex_unlock(&allocator->lock);
-    assert(perr == 0);
+    ASSERT(perr == 0);
     EXIT_TRACE("unlock_allocation");
 }
 
 static void bucket_insert_after(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
     ENTER_TRACE("bucket_insert_after");
-    assert(target && to_insert);
+    ASSERT(target && to_insert);
 
     cl_region *next = target->bucket_next;
     target->bucket_next = to_insert;
@@ -45,7 +45,7 @@ static void bucket_insert_after(cl_region *target, cl_region *to_insert,
 static void bucket_insert_before(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
     ENTER_TRACE("bucket_insert_before");
-    assert(target && to_insert);
+    ASSERT(target && to_insert);
 
     cl_region *prev = target->bucket_prev;
     target->bucket_prev = to_insert;
@@ -86,11 +86,11 @@ static void remove_from_bucket(cl_region *region) {
 
 static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
     ENTER_TRACE("add_to_normal_bucket");
-    assert(region->parent == NULL);
+    ASSERT(region->parent == NULL);
 
     if (bucket->head == NULL) {
         // empty bucket
-        assert(bucket->tail == NULL);
+        ASSERT(bucket->tail == NULL);
         bucket->head = bucket->tail = region;
         region->bucket_next = NULL;
         region->bucket_prev = NULL;
@@ -118,11 +118,11 @@ static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
 
 static void add_to_keep_bucket(cl_region *region, cl_bucket *bucket) {
     ENTER_TRACE("add_to_keep_bucket");
-    assert(region->parent == NULL);
+    ASSERT(region->parent == NULL);
 
     if (bucket->head == NULL) {
         // empty bucket
-        assert(bucket->tail == NULL);
+        ASSERT(bucket->tail == NULL);
         bucket->head = bucket->tail = region;
         region->bucket_next = NULL;
         region->bucket_prev = NULL;
@@ -157,7 +157,7 @@ static void add_to_keep_bucket(cl_region *region, cl_bucket *bucket) {
 static void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets,
         cl_bucket *large_bucket) {
     ENTER_TRACE("insert_into_buckets_helper");
-    assert(region->size >= MIN_ALLOC_SIZE);
+    ASSERT(region->size >= MIN_ALLOC_SIZE);
     bool inserted = false;
     for (int b = 0; b < NBUCKETS; b++) {
         if (BELONGS_TO_BUCKET(region->size, b)) {
@@ -206,6 +206,7 @@ static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
 
 static cl_region *copy_cl_region(cl_region *input) {
     cl_region *copy = (cl_region *)malloc(sizeof(cl_region));
+    CHECK_ALLOC(copy)
     memcpy(copy, input, sizeof(cl_region));
     copy->refs = 0;
     copy->parent = NULL;
@@ -217,7 +218,7 @@ static cl_region *copy_cl_region(cl_region *input) {
 }
 
 static cl_region *swap_out_for_copy(cl_region *input) {
-    assert(input->parent == NULL); // not in buckets
+    ASSERT(input->parent == NULL); // not in buckets
     cl_region *copy = copy_cl_region(input);
     if (copy->prev) {
         copy->prev->next = copy;
@@ -244,7 +245,7 @@ static cl_region *swap_out_for_copy(cl_region *input) {
 static void split(cl_region *target, size_t first_partition_size,
         cl_region **first_out, cl_region **second_out) {
     ENTER_TRACE("split");
-    assert(target->refs == 0);
+    ASSERT(target->refs == 0);
 
     cl_alloc *alloc = target->grandparent;
 
@@ -271,7 +272,7 @@ static void split(cl_region *target, size_t first_partition_size,
     }
 
     if (alloc->region_list_head == target) {
-        assert(lower_region->prev == NULL);
+        ASSERT(lower_region->prev == NULL);
         alloc->region_list_head = lower_region;
     }
 
@@ -346,10 +347,10 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
     lock_allocator(to_free->grandparent->allocator);
 
-    assert(to_free->refs > 0);
-    assert(to_free->sub_mem);
-    assert(!to_free->invalidated);
-    assert(to_free->parent == NULL); // not in a bucket
+    ASSERT(to_free->refs > 0);
+    ASSERT(to_free->sub_mem);
+    ASSERT(!to_free->invalidated);
+    ASSERT(to_free->parent == NULL); // not in a bucket
     to_free->refs -= 1;
 
     if (to_free->refs == 0) {
@@ -368,10 +369,10 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         }
         print_allocator(to_free->grandparent->allocator, -1);
 #endif
-        assert(next == NULL || next->prev == to_free);
-        assert(prev == NULL || prev->next == to_free);
-        assert(next == NULL || next->offset == to_free->offset + to_free->size);
-        assert(prev == NULL || to_free->offset == prev->offset + prev->size);
+        ASSERT(next == NULL || next->prev == to_free);
+        ASSERT(prev == NULL || prev->next == to_free);
+        ASSERT(next == NULL || next->offset == to_free->offset + to_free->size);
+        ASSERT(prev == NULL || to_free->offset == prev->offset + prev->size);
         to_free->keeping = try_to_keep;
         if (!try_to_keep) to_free->birth = 0;
 
@@ -477,8 +478,8 @@ bool re_allocate_cl_region(cl_region *target_region) {
      * keeping may be false if this is a RDD/broadcast that hasn't been freed
      * yet, in which case it must have some refs. This isn't a strong check.
      */
-    assert(target_region->keeping || target_region->refs > 0);
-    assert(!target_region->invalidated);
+    ASSERT(target_region->keeping || target_region->refs > 0);
+    ASSERT(!target_region->invalidated);
 
     if (target_region->refs == 0) {
 #ifdef VERBOSE
@@ -487,7 +488,7 @@ bool re_allocate_cl_region(cl_region *target_region) {
         print_allocator(target_region->grandparent->allocator, -1);
 #endif
         remove_from_bucket(target_region);
-        assert(target_region->sub_mem);
+        ASSERT(target_region->sub_mem);
         target_region->refs = 1;
 #ifdef VERBOSE
         fprintf(stderr, "After Re-Allocating (%p %lu %lu)\n", target_region,
@@ -509,12 +510,14 @@ bool re_allocate_cl_region(cl_region *target_region) {
 
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     ENTER_TRACE("allocate_cl_region");
-    assert(allocator);
-    assert(size > 0);
+    ASSERT(allocator);
+    ASSERT(size > 0);
 
     lock_allocator(allocator);
 
-    size_t rounded_size = size;
+    // size_t rounded_size = size;
+    size_t rounded_size = size + (allocator->address_align -
+            (size % allocator->address_align));
     // size_t rounded_size = pow(2, ceil(log(size)/log(2)));
 
 #ifdef VERBOSE
@@ -628,7 +631,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
             }
         }
 
-        assert(best_candidate);
+        ASSERT(best_candidate);
 #ifdef VERBOSE
         fprintf(stderr, "best_candidate=(%p offset=%lu size=%lu refs=%d), "
                 "successors=%d\n", best_candidate, best_candidate->offset,
@@ -639,6 +642,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
         }
 #endif
         cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
+        CHECK_ALLOC(new_region)
         memcpy(new_region, best_candidate, sizeof(cl_region));
 
         cl_region *succ = best_candidate->next;
@@ -709,7 +713,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
 
         target_region = new_region;
     }
-    assert(target_region);
+    ASSERT(target_region);
 
     if (target_region->size > rounded_size) {
         // Split region
@@ -733,7 +737,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
      */
     cl_alloc *alloc = target_region->grandparent;
     remove_from_bucket(target_region);
-    assert(target_region->refs == 0 && target_region->refs == 0);
+    ASSERT(target_region->refs == 0 && target_region->refs == 0);
 
     cl_region *copy = swap_out_for_copy(target_region);
     copy->refs = 1;
@@ -774,13 +778,19 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
                 sizeof(max_alloc_size), &max_alloc_size, NULL));
 
     int nallocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
+    cl_uint address_align;
+    CHECK(clGetDeviceInfo(dev, CL_DEVICE_MEM_BASE_ADDR_ALIGN,
+                sizeof(address_align), &address_align, NULL));
 
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
+    CHECK_ALLOC(allocator)
     allocator->nallocs = nallocs;
     allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
+    CHECK_ALLOC(allocator->allocs)
+    allocator->address_align = address_align;
 
     int perr = pthread_mutex_init(&allocator->lock, NULL);
-    assert(perr == 0);
+    ASSERT(perr == 0);
 
     for (int i = 0; i < nallocs; i++) {
         cl_ulong alloc_size = max_alloc_size;
@@ -796,7 +806,7 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
             CHECK(err);
             err = clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, sizeof(err), &err, 0, NULL, NULL);
             if (err == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
-                assert(i == nallocs - 1);
+                ASSERT(i == nallocs - 1);
                 alloc_size -= (20 * 1024 * 1024);
                 CHECK(clReleaseMemObject(mem));
             } else {
@@ -810,6 +820,7 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
         (allocator->allocs)[i].allocator = allocator;
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
+        CHECK_ALLOC(first_region)
         first_region->sub_mem = NULL;
         first_region->offset = 0;
         first_region->size = alloc_size;
@@ -853,7 +864,7 @@ static size_t print_bucket(int bucket_lbl, cl_bucket *bucket) {
     fprintf(stderr, "             %d: ", bucket_lbl);
     cl_region *curr = bucket->head;
     while (curr) {
-        assert(curr->refs == 0);
+        ASSERT(curr->refs == 0);
         fprintf(stderr, " (%p off=%lu size=%lu)", curr, curr->offset, curr->size);
         count_bytes += curr->size;
         curr = curr->bucket_next;
