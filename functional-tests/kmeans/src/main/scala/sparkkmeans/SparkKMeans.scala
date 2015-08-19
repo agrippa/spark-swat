@@ -49,8 +49,8 @@ object SparkKMeans {
     }
 
     def run_kmeans(args : Array[String]) {
-        if (args.length != 3) {
-            println("usage: SparkKMeans run K iters input-path");
+        if (args.length != 4) {
+            println("usage: SparkKMeans run K iters input-path use-swat?");
             return;
         }
         val sc = get_spark_context("Spark KMeans");
@@ -58,9 +58,10 @@ object SparkKMeans {
         val K = args(0).toInt;
         val iters = args(1).toInt;
         val inputPath = args(2);
+        val useSwat = args(3).toBoolean
 
         val raw_points : RDD[Point] = sc.objectFile(inputPath)
-        val points : CLWrapperRDD[Point] = CLWrapper.cl[Point](raw_points)
+        val points = if (useSwat) CLWrapper.cl[Point](raw_points) else raw_points
         val samples : Array[Point] = points.takeSample(false, K);
 
         var centers = new Array[(Int, Point)](K)
@@ -70,6 +71,7 @@ object SparkKMeans {
             centers(i) = (i, new Point(s.x, s.y, s.z))
         }
 
+        val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
             val classified = points.map(point => {
@@ -109,6 +111,8 @@ object SparkKMeans {
             }
             iter += 1
         }
+        val endTime = System.currentTimeMillis
+        System.err.println("Overall time = " + (endTime - startTime) + " ms")
     }
 
     def convert(args : Array[String]) {

@@ -90,9 +90,15 @@ object OpenCLBridgeWrapper {
       argnum : Int, arg : Array[T], typeName : String, isInput : Boolean,
       entryPoint : Entrypoint, broadcastId : Long, rddid : Int,
       partitionid : Int, offset : Int, bbCache : ByteBufferCache) : Int = {
-    return setObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg.length,
-        typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset,
-        bbCache)
+    if (arg.isInstanceOf[scala.runtime.ObjectRef[Array[_]]]) {
+      return setObjectTypedArrayArg(ctx, dev_ctx, argnum,
+          arg.asInstanceOf[scala.runtime.ObjectRef[Array[_]]].elem, typeName,
+          isInput, entryPoint, broadcastId, rddid, partitionid, offset, bbCache)
+    } else {
+      return setObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg.length,
+          typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset,
+          bbCache)
+    }
   }
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
@@ -138,7 +144,7 @@ object OpenCLBridgeWrapper {
       val secondMemberClassModel : ClassModel =
             entryPoint.getModelFromObjectArrayFieldsClasses(
                     sample._2.getClass.getName,
-                    new NameMatcher(sample._1.getClass.getName))
+                    new NameMatcher(sample._2.getClass.getName))
 
       val bb1 : ByteBuffer = bbCache.getBuffer(firstMemberBufferLength)
       val bb2 : ByteBuffer = bbCache.getBuffer(secondMemberBufferLength)
