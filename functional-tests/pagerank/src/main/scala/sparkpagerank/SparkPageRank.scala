@@ -48,8 +48,8 @@ object SparkPageRank {
     }
 
     def run_pagerank(args : Array[String]) {
-        if (args.length != 3) {
-            println("usage: SparkPageRank run iters input-link-path input-docs-path");
+        if (args.length != 4) {
+            println("usage: SparkPageRank run iters input-link-path input-docs-path use-swat?");
             return;
         }
         val sc = get_spark_context("Spark Page Rank");
@@ -57,10 +57,10 @@ object SparkPageRank {
         val iters = args(0).toInt;
         val inputLinksPath = args(1);
         val inputDocsPath = args(2)
+        val useSwat = args(3).toBoolean
 
         val raw_links : RDD[Link] = sc.objectFile(inputLinksPath)
-        val links : CLWrapperRDD[Link] = CLWrapper.cl[Link](raw_links)
-        // val links = raw_links
+        val links = if (useSwat) CLWrapper.cl[Link](raw_links) else raw_links
 
         val raw_docs : RDD[(Float, Int)] = sc.objectFile(inputDocsPath)
         val collected_docs : Array[(Float, Int)] = raw_docs.collect
@@ -73,6 +73,7 @@ object SparkPageRank {
 
         val broadcastDocLinkCounts = sc.broadcast(doc_link_counts)
 
+        val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
             val broadcastDocRanks = sc.broadcast(doc_ranks)
@@ -93,6 +94,8 @@ object SparkPageRank {
             iter += 1
             broadcastDocRanks.unpersist
         }
+        val endTime = System.currentTimeMillis
+        System.err.println("Overall time = " + (endTime - startTime))
     }
 
     def convert(args : Array[String]) {

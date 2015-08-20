@@ -806,27 +806,12 @@ JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
     CHECK_JNI(targetClass) \
     jfieldID valueField = jenv->GetFieldID(targetClass, "value", sig); \
     CHECK_JNI(valueField) \
-    const unsigned chunking = 2; \
-    const unsigned round_down = (to_process / chunking) * chunking; \
-    for (unsigned i = 0; i < round_down; i += chunking) { \
-        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i); \
-        CHECK_JNI(obj1) \
-        jobject obj2 = jenv->GetObjectArrayElement(targetToHold, i + 1); \
-        CHECK_JNI(obj2) \
-        \
-        jenv->Set##capitalized_type##Field(obj1, valueField, *bb_iter); \
-        jenv->Set##capitalized_type##Field(obj2, valueField, *(bb_iter + 1)); \
-        \
-        bb_iter += chunking; \
-    } \
-    \
-    for (unsigned i = round_down; i < to_process; i++) { \
-        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i); \
-        CHECK_JNI(obj1) \
-        jenv->Set##capitalized_type##Field(obj1, valueField, *bb_iter); \
+    for (unsigned i = 0; i < to_process; i++) { \
+        jobject obj = jenv->GetObjectArrayElement(targetToHold, i); \
+        CHECK_JNI(obj) \
+        jenv->Set##capitalized_type##Field(obj, valueField, *bb_iter); \
         bb_iter++; \
     } \
-    \
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT); \
     EXIT_TRACE("set"#capitalized_type"ArrFromBB"); \
     return to_process; \
@@ -920,42 +905,16 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         jenv->DeleteLocalRef(fieldNameStr);
     }
 
-    const unsigned chunking = 2;
-    const unsigned round_down = (to_process / chunking) * chunking;
-    for (unsigned i = 0; i < round_down; i += chunking) {
+    for (unsigned i = 0; i < to_process; i++) {
         jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i);
         CHECK_JNI(obj1)
-        jobject obj2 = jenv->GetObjectArrayElement(targetToHold, i + 1);
-        CHECK_JNI(obj2)
-        // unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
-        // unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
-
-        unsigned char * bb_iter1 = bb_iter;
-        unsigned char * bb_iter2 = bb_iter + structSize;
 
         for (unsigned j = 0; j < nfields; j++) {
-            int size = setFieldInObject(jenv, obj1, types[j], fields[j], bb_iter1);
-            setFieldInObject(jenv, obj2, types[j], fields[j], bb_iter2);
-            bb_iter1 += size;
-            bb_iter2 += size;
-        }
-        bb_iter += (chunking * structSize);
-
-        jenv->DeleteLocalRef(obj1);
-        jenv->DeleteLocalRef(obj2);
-    }
-
-    for (unsigned i = round_down; i < to_process; i++) {
-        jobject obj = jenv->GetObjectArrayElement(targetToHold, i);
-        CHECK_JNI(obj)
-        // unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
-
-        for (unsigned j = 0; j < nfields; j++) {
-            const int size = setFieldInObject(jenv, obj, types[j], fields[j], bb_iter);
+            int size = setFieldInObject(jenv, obj1, types[j], fields[j], bb_iter);
             bb_iter += size;
         }
 
-        jenv->DeleteLocalRef(obj);
+        jenv->DeleteLocalRef(obj1);
     }
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
