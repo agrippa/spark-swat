@@ -61,7 +61,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
     val N = 65536 * 16
-    // val acc : Array[T] = new Array[T](N)
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
     val bbCache : ByteBufferCache = new ByteBufferCache(2)

@@ -836,10 +836,34 @@ SET_FROM_BB(int, Int, "I", "java/lang/Integer")
 SET_FROM_BB(float, Float, "F", "java/lang/Float")
 SET_FROM_BB(double, Double, "D", "java/lang/Double")
 
+static int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID field, unsigned char *bb_iter) {
+    int size;
+    switch (type) {
+        case (0): // INT
+            jenv->SetIntField(obj, field, *((int *)bb_iter));
+            size = 4;
+            break;
+        case (1): // FLOAT
+            jenv->SetFloatField(obj, field, *((float *)bb_iter));
+            size = 4;
+            break;
+        case (2): // DOUBLE
+            jenv->SetDoubleField(obj, field, *((double *)bb_iter));
+            size = 8;
+            break;
+        default:
+            fprintf(stderr, "%s:%d - Unknown type in types array for "
+                    "object\n", __FILE__, __LINE__);
+            exit(1);
+    }
+    return size;
+}
+
 JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
-        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, long l_addressOfArr, jint bufferLength,
-         jbyteArray bb, jint position, jint remaining, jintArray fieldSizes,
-         jlongArray fieldOffsets, jint structSize) {
+        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold,
+         long l_addressOfArr, jint bufferLength,
+         jbyteArray bb, jint position, jint remaining, jintArray fieldTypes, jintArray fieldSizes,
+         jlongArray fieldOffsets, jint structSize, jstring targetClassNameStr, jobjectArray fieldNamesArray) {
     ENTER_TRACE("setObjectArrFromBB");
     ASSERT(remaining % structSize == 0);
     unsigned nfields = jenv->GetArrayLength(fieldSizes);
@@ -847,12 +871,54 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
     void **addressOfArr = (void **)l_addressOfArr;
 
-    unsigned char *bb_iter = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
-    CHECK_JNI(bb_iter)
+    unsigned char *bb_elements = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
+    CHECK_JNI(bb_elements);
+    unsigned char *bb_iter = bb_elements + position;
     int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
     CHECK_JNI(sizes)
     long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
     CHECK_JNI(offsets)
+    int *types = (int *)jenv->GetPrimitiveArrayCritical(fieldTypes, NULL);
+    CHECK_JNI(types)
+
+    const char *targetClassName = jenv->GetStringUTFChars(targetClassNameStr, NULL);
+    CHECK_JNI(targetClassName);
+    jclass targetClass = jenv->FindClass(targetClassName);
+    CHECK_JNI(targetClass);
+    jenv->ReleaseStringUTFChars(targetClassNameStr, targetClassName);
+
+    jfieldID *fields = (jfieldID *)malloc(nfields * sizeof(jfieldID));
+    for (int i = 0; i < nfields; i++) {
+        jstring fieldNameStr = (jstring)jenv->GetObjectArrayElement(fieldNamesArray, i);
+        CHECK_JNI(fieldNameStr);
+
+        const char *fieldName = jenv->GetStringUTFChars(fieldNameStr, NULL);
+        CHECK_JNI(fieldName);
+
+        const char *sig;
+        switch (types[i]) {
+            case (0): // INT
+                sig = "I";
+                break;
+            case (1): // FLOAT
+                sig = "F";
+                break;
+            case (2): // DOUBLE
+                sig = "D";
+                break;
+            default:
+                fprintf(stderr, "%s:%d - Unknown type in types array for "
+                        "object\n", __FILE__, __LINE__);
+                exit(1);
+        }
+        jfieldID field = jenv->GetFieldID(targetClass, fieldName, sig);
+        CHECK_JNI(field);
+        fields[i] = field;
+
+        jenv->ReleaseStringUTFChars(fieldNameStr, fieldName);
+
+        jenv->DeleteLocalRef(fieldNameStr);
+    }
 
     const unsigned chunking = 2;
     const unsigned round_down = (to_process / chunking) * chunking;
@@ -861,17 +927,15 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         CHECK_JNI(obj1)
         jobject obj2 = jenv->GetObjectArrayElement(targetToHold, i + 1);
         CHECK_JNI(obj2)
-        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
-        unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
+        // unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
+        // unsigned char * const ele2 = (unsigned char * const)addressOfArr[i + 1];
 
         unsigned char * bb_iter1 = bb_iter;
         unsigned char * bb_iter2 = bb_iter + structSize;
 
         for (unsigned j = 0; j < nfields; j++) {
-            const int size = sizes[j];
-            memcpy(ele1 + offsets[j], bb_iter1, size);
-            memcpy(ele2 + offsets[j], bb_iter2, size);
-
+            int size = setFieldInObject(jenv, obj1, types[j], fields[j], bb_iter1);
+            setFieldInObject(jenv, obj2, types[j], fields[j], bb_iter2);
             bb_iter1 += size;
             bb_iter2 += size;
         }
@@ -880,19 +944,24 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         jenv->DeleteLocalRef(obj1);
         jenv->DeleteLocalRef(obj2);
     }
+
     for (unsigned i = round_down; i < to_process; i++) {
-        unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
+        jobject obj = jenv->GetObjectArrayElement(targetToHold, i);
+        CHECK_JNI(obj)
+        // unsigned char * const ele1 = (unsigned char * const)addressOfArr[i];
 
         for (unsigned j = 0; j < nfields; j++) {
-            const int size = sizes[j];
-            memcpy(ele1 + offsets[j], bb_iter, size);
+            const int size = setFieldInObject(jenv, obj, types[j], fields[j], bb_iter);
             bb_iter += size;
         }
+
+        jenv->DeleteLocalRef(obj);
     }
 
-    jenv->ReleasePrimitiveArrayCritical(bb, bb_iter, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
+    jenv->ReleasePrimitiveArrayCritical(fieldTypes, types, JNI_ABORT);
     EXIT_TRACE("setObjectArrFromBB");
     return to_process;
 }

@@ -59,7 +59,7 @@ object SparkSimple {
                     error = true
                 }
 
-                if (error) System.exit(1)
+                // if (error) System.exit(1)
             }
         }
     }
@@ -91,7 +91,8 @@ object SparkSimple {
         val inputPath = args(0)
         val inputs : RDD[Float] = sc.objectFile[Float](inputPath).cache
         val outputs : RDD[(Float, Point)] =
-            inputs.map(v => (v, new Point(v + 1.0f + m, v + 2.0f + arr(0).x, v + 3.0f + arr(1).y)))
+            // inputs.map(v => (v, new Point(v + 1.0f + m, v + 2.0f + arr(0).x, v + 3.0f + arr(1).y)))
+            inputs.map(v => (v, new Point(1.0f + m, v, 3.0f)))
         val outputs2 : Array[(Float, Point)] = outputs.collect
         sc.stop
         outputs2
@@ -115,7 +116,8 @@ object SparkSimple {
         val inputs : RDD[Float] = sc.objectFile[Float](inputPath).cache
         val inputs_cl : CLWrapperRDD[Float] = CLWrapper.cl[Float](inputs)
         val outputs : RDD[(Float, Point)] =
-            inputs_cl.map(v => (v, new Point(v + 1.0f + m, v + 2.0f + arr(0).x, v + 3.0f + arr(1).y)))
+            // inputs_cl.map(v => (v, new Point(v + 1.0f + m, v + 2.0f + arr(0).x, v + 3.0f + arr(1).y)))
+            inputs_cl.map(v => (v, new Point(1.0f + m, v, 3.0f)))
         val outputs2 : Array[(Float, Point)] = outputs.collect
         sc.stop
         outputs2

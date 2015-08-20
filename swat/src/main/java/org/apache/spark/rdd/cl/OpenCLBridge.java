@@ -78,8 +78,9 @@ public class OpenCLBridge {
     public static native int setDoubleArrFromBB(java.lang.Object[] arr, long addressOfArr, int bufLength,
             byte[] bb, int position, int remaining, long fieldOffset);
     public static native int setObjectArrFromBB(java.lang.Object[] arr, long addressOfArr,
-            int bufLength, byte[] bb, int position, int remaining,
-            int[] fieldSizes, long[] fieldOffsets, int structSize);
+            int bufLength, byte[] bb, int position, int remaining, int[] fieldTypes,
+            int[] fieldSizes, long[] fieldOffsets, int structSize,
+            String targetClassName, String[] fieldNamesArray);
 
     public static native void writeToBBFromObjArray(long addressOfArr,
             int bufferLength, byte[] out, int position, int[] fieldSizes,

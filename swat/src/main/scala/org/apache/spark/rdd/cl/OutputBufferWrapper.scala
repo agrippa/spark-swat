@@ -117,6 +117,7 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
           arrWrapper : Array[java.lang.Object], baseWrapperOffset : Long,
           baseOffset : Long, desc : String, clazz : Class[_],
           classModel : Option[ClassModel], bb : ByteBuffer, bbLength : Int,
+          structMemberNames : Option[Array[java.lang.String]],
           structMemberTypes : Option[Array[Int]],
           structMemberOffsets : Option[Array[Long]],
           structMemberSizes : Option[Array[Int]], structSize : Int) : Int = {
@@ -148,14 +149,17 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
         count = OpenCLBridge.setObjectArrFromBB(arr.asInstanceOf[Array[java.lang.Object]],
             OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
-            bb.position, bbLength - bb.position, structMemberSizes.get,
-            structMemberOffsets.get, structSize)
+            bb.position, bbLength - bb.position, structMemberTypes.get, structMemberSizes.get,
+            structMemberOffsets.get, structSize, desc, structMemberNames.get)
         bb.position(bb.position + (structSize * count))
       }
     }
     return count
   }
 
+  val structMember0Names : Option[Array[java.lang.String]] =
+      if (member0ClassModel.isEmpty) None else
+          Some(member0ClassModel.get.getStructMemberNames)
   val structMember0Types : Option[Array[Int]] =
       if (member0ClassModel.isEmpty) None else
           Some(member0ClassModel.get.getStructMemberTypes)
@@ -165,6 +169,10 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   val structMember0Sizes : Option[Array[Int]] =
       if (member0ClassModel.isEmpty) None else
           Some(member0ClassModel.get.getStructMemberSizes)
+
+  val structMember1Names : Option[Array[java.lang.String]] =
+      if (member1ClassModel.isEmpty) None else
+          Some(member1ClassModel.get.getStructMemberNames)
   val structMember1Types : Option[Array[Int]] =
       if (member1ClassModel.isEmpty) None else
           Some(member1ClassModel.get.getStructMemberTypes)
@@ -177,10 +185,10 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
 
   localCount = fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
       member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1, bb1Length,
-      structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
+      structMember0Names, structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
   val tmpLocalCount = fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
       member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2, bb2Length,
-      structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
+      structMember1Names, structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
   if (localCount != tmpLocalCount) {
       throw new RuntimeException("localCount=" + localCount + " tmpLocalCount=" + tmpLocalCount)
   }
@@ -192,10 +200,10 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
 
       val firstCount : Int = fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
           member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1, bb1Length,
-          structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
+          structMember0Names, structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
       val secondCount : Int = fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
           member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2, bb2Length,
-          structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
+          structMember1Names, structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
       if (firstCount != secondCount) {
           throw new RuntimeException()
       }
