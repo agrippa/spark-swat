@@ -40,10 +40,12 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             dev_ctx->broadcast_cache->end()) { \
         cl_region *region = dev_ctx->broadcast_cache->at(broadcastId); \
         if (re_allocate_cl_region(region)) { \
+            /* fprintf(stderr, "Cached broadcast\n"); */ \
             CHECK(clSetKernelArg(context->kernel, index, \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
+            /* fprintf(stderr, "Failed caching broadcast\n"); */ \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
@@ -55,12 +57,15 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
                     rddid, partitionid, offsetid, componentid)) != \
                 dev_ctx->rdd_cache->end()) { \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
+        /* fprintf(stderr, "Checking for %d %d %d %d in cache\n", rddid, partitionid, offsetid, componentid); */ \
         cl_region *region = dev_ctx->rdd_cache->at(uuid); \
         if (re_allocate_cl_region(region)) { \
+            /* fprintf(stderr, "Cached RDD\n"); */ \
             CHECK(clSetKernelArg(context->kernel, index, \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
+            /* fprintf(stderr, "Failed caching RDD\n"); */ \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
@@ -78,6 +83,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
                     pair<jlong, cl_region *>(broadcastId, new_region)).second; \
             ASSERT(success); \
         } else if (rddid >= 0) { \
+            /* fprintf(stderr, "Adding %d %d %d %d to cache\n", rddid, partitionid, offsetid, componentid); */ \
             bool success = dev_ctx->rdd_cache->insert( \
                     pair<rdd_partition_offset, cl_region *>( \
                         rdd_partition_offset(rddid, partitionid, offsetid, \
