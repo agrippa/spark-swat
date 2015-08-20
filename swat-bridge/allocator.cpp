@@ -464,15 +464,23 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     return return_value;
 }
 
-bool re_allocate_cl_region(cl_region *target_region) {
+bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     ENTER_TRACE("re_allocate_cl_region");
 
     if (target_region->invalidated) {
         free(target_region);
+        EXIT_TRACE("re_allocate_cl_region");
         return false;
     }
 
     lock_allocator(target_region->grandparent->allocator);
+
+    /*
+     * For now, it is the responsibility of the higher layers to track which
+     * device they are associated with and only re-allocated items on that
+     * device. We simply enforce that restriction here.
+     */
+    ASSERT(GET_DEVICE_FOR(target_region) == target_device);
 
     /*
      * keeping may be false if this is a RDD/broadcast that hasn't been freed
@@ -769,7 +777,8 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     return copy;
 }
 
-cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue cmd) {
+cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
+        cl_command_queue cmd) {
     ENTER_TRACE("init_allocator");
     cl_ulong global_mem_size, max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_GLOBAL_MEM_SIZE,
@@ -788,6 +797,7 @@ cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue 
     allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
     CHECK_ALLOC(allocator->allocs)
     allocator->address_align = address_align;
+    allocator->device_index = device_index;
 
     int perr = pthread_mutex_init(&allocator->lock, NULL);
     ASSERT(perr == 0);

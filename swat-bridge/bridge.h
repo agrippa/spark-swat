@@ -83,15 +83,16 @@ typedef struct _device_context {
     cl_device_id dev;
     cl_context ctx;
     cl_command_queue cmd;
+    int device_index;
 
+    // pthread_rwlock_t lock;
     pthread_mutex_t lock;
 
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;
     map<jlong, cl_region *> *broadcast_cache;
-    map<rdd_partition_offset, cl_region *> *rdd_cache;
-    // map<rdd_partition_offset, mem_and_size> *rdd_cache;
+    // map<rdd_partition_offset, cl_region *> *rdd_cache;
 } device_context;
 
 typedef struct _swat_context {

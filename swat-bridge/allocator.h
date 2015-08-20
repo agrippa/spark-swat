@@ -87,15 +87,19 @@ typedef struct _cl_allocator {
     int nallocs;
     long curr_time;
     cl_uint address_align;
+    int device_index;
 
     pthread_mutex_t lock;
 } cl_allocator;
 
-extern bool re_allocate_cl_region(cl_region *target_region);
-extern cl_allocator *init_allocator(cl_device_id dev, cl_context ctx, cl_command_queue cmd);
+extern bool re_allocate_cl_region(cl_region *target_region, int target_device);
+extern cl_allocator *init_allocator(cl_device_id dev, int device_index,
+        cl_context ctx, cl_command_queue cmd);
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
 extern void print_allocator(cl_allocator *allocator, int lbl);
 extern void bump_time(cl_allocator *allocator);
+
+#define GET_DEVICE_FOR(my_region) ((my_region)->grandparent->allocator->device_index)
 
 #endif

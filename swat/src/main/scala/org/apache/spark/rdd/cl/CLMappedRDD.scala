@@ -25,8 +25,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
     extends RDD[U](prev) {
   var entryPoint : Entrypoint = null
   var openCL : String = null
-  var ctx : Long = -1L
-  var dev_ctx : Long = -1L
+  // var ctx : Long = -1L
+  val ctxCache : java.util.Map[Long, Long] = new java.util.HashMap[Long, Long]()
+  // var dev_ctx : Long = -1L
 
   override val partitioner = None
 
@@ -107,6 +108,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             outputBuffer.get.releaseBuffers(bbCache)
           }
 
+          val deviceHint : Int = OpenCLBridge.getDeviceHintFor(cl_id, split.index, totalNLoaded, 0)
+
           val firstSample : T = nested.next
 
           if (entryPoint == null) {
@@ -142,14 +145,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
               }
             }
 
-//             profPrint("CodeGeneration", genStart, threadId) // PROFILE
-//             val initStart = System.currentTimeMillis // PROFILE
-
-            dev_ctx = OpenCLBridge.getDeviceContext(threadId)
-            ctx = OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
-                entryPoint.requiresDoublePragma, entryPoint.requiresHeap);
-//             profPrint("Initialization", initStart, threadId) // PROFILE
-
             if (firstSample.isInstanceOf[Double] ||
                 firstSample.isInstanceOf[Int] ||
                 firstSample.isInstanceOf[Float]) {
@@ -162,7 +157,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
               acc = Some(new ObjectInputBufferWrapper(N,
                           firstSample.getClass.getName, entryPoint))
             }
+//             profPrint("CodeGeneration", genStart, threadId) // PROFILE
           }
+
+//           val initStart = System.currentTimeMillis // PROFILE
+          val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
+          val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
+          val ctx : Long = if (ctxCache.containsKey(dev_ctx))
+                ctxCache.get(dev_ctx) else
+                OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
+                        entryPoint.requiresDoublePragma, entryPoint.requiresHeap)
+//             profPrint("Initialization", initStart, threadId) // PROFILE
 
 //           val ioStart : Long = System.currentTimeMillis // PROFILE
           var nLoaded = 1
@@ -231,9 +236,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
       def hasNext : Boolean = {
         val nonEmpty = (nested.hasNext || (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
-        if (!nonEmpty && ctx != -1L) {
-          OpenCLBridge.cleanupSwatContext(ctx)
-          ctx = -1L
+        if (!nonEmpty && !ctxCache.isEmpty) {
+          val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] = ctxCache.entrySet.iterator
+          while (iter.hasNext) {
+              val curr : java.util.Map.Entry[Long, Long] = iter.next
+              OpenCLBridge.cleanupSwatContext(curr.getValue)
+          }
+          ctxCache.clear
 //           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
 //               " elements") // PROFILE
 //           profPrint("Total", overallStart, threadId) // PROFILE

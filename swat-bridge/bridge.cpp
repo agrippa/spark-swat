@@ -14,6 +14,16 @@ static pthread_mutex_t device_ctxs_lock = PTHREAD_MUTEX_INITIALIZER;
 static int *virtual_devices = NULL;
 static int n_virtual_devices = 0;
 
+/*
+ * Inter-device RDD cache
+ * TODO This currently restricts each RDD block to have a single mapping to a
+ * single device. It might be beneficial to have multiple mappings to multiple
+ * devices? Maybe help with load balancing? But would increase complexity.
+ */
+static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
+static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
+// static pthread_mutex_t rdd_cache_lock = PTHREAD_MUTEX_INITIALIZER;
+
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype arg) { \
@@ -35,17 +45,18 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     int err = pthread_mutex_lock(&dev_ctx->lock); \
     jboolean isCopy; \
     ASSERT(err == 0); \
-    if (broadcastId >= 0 && \
-            dev_ctx->broadcast_cache->find(broadcastId) != \
-            dev_ctx->broadcast_cache->end()) { \
-        cl_region *region = dev_ctx->broadcast_cache->at(broadcastId); \
-        if (re_allocate_cl_region(region)) { \
-            /* fprintf(stderr, "Cached broadcast\n"); */ \
+    if (broadcastId >= 0) { \
+        ASSERT(rddid < 0); \
+        cl_region *region = NULL; \
+        map<jlong, cl_region *>::iterator found = dev_ctx->broadcast_cache->find(broadcastId); \
+        if (found != dev_ctx->broadcast_cache->end()) { \
+            region = found->second; \
+        } \
+        if (region && re_allocate_cl_region(region, dev_ctx->device_index)) { \
             CHECK(clSetKernelArg(context->kernel, index, \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
-            /* fprintf(stderr, "Failed caching broadcast\n"); */ \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
@@ -53,43 +64,51 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             (*dev_ctx->broadcast_cache)[broadcastId] = new_region; \
         } \
-    } else if (rddid >= 0 && dev_ctx->rdd_cache->find(rdd_partition_offset( \
-                    rddid, partitionid, offsetid, componentid)) != \
-                dev_ctx->rdd_cache->end()) { \
+    } else if (rddid >= 0) { \
+        ASSERT(broadcastId < 0); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
-        /* fprintf(stderr, "Checking for %d %d %d %d in cache\n", rddid, partitionid, offsetid, componentid); */ \
-        cl_region *region = dev_ctx->rdd_cache->at(uuid); \
-        if (re_allocate_cl_region(region)) { \
-            /* fprintf(stderr, "Cached RDD\n"); */ \
+        cl_region *region = NULL; \
+        err = pthread_rwlock_rdlock(&rdd_cache_lock); \
+        ASSERT(err == 0); \
+        map<rdd_partition_offset, map<int, cl_region *> *>::iterator found = rdd_cache->find(uuid); \
+        if (found != rdd_cache->end()) { \
+            map<int, cl_region *> *cached = found->second; \
+            map<int, cl_region *>::iterator found_in_cache = cached->find(dev_ctx->device_index); \
+            if (found_in_cache != cached->end()) { \
+                region = found_in_cache->second; \
+            } \
+        } \
+        bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
+        err = pthread_rwlock_unlock(&rdd_cache_lock); \
+        ASSERT(err == 0); \
+        if (reallocated) { \
             CHECK(clSetKernelArg(context->kernel, index, \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
-            /* fprintf(stderr, "Failed caching RDD\n"); */ \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
-            dev_ctx->rdd_cache->find(uuid)->second = new_region; \
+            err = pthread_rwlock_wrlock(&rdd_cache_lock); \
+            ASSERT(err == 0); \
+            if (rdd_cache->find(uuid) == rdd_cache->end()) { \
+                bool success = rdd_cache->insert( \
+                        pair<rdd_partition_offset, map<int, cl_region *> *>( \
+                            uuid, new map<int, cl_region *>())).second; \
+                ASSERT(success); \
+            } \
+            (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region; \
+            err = pthread_rwlock_unlock(&rdd_cache_lock); \
+            ASSERT(err == 0); \
         } \
     } else { \
+        ASSERT(rddid < 0 && broadcastId < 0); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
         cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                 dev_ctx, broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
-        if (broadcastId >= 0) { \
-            bool success = dev_ctx->broadcast_cache->insert( \
-                    pair<jlong, cl_region *>(broadcastId, new_region)).second; \
-            ASSERT(success); \
-        } else if (rddid >= 0) { \
-            /* fprintf(stderr, "Adding %d %d %d %d to cache\n", rddid, partitionid, offsetid, componentid); */ \
-            bool success = dev_ctx->rdd_cache->insert( \
-                    pair<rdd_partition_offset, cl_region *>( \
-                        rdd_partition_offset(rddid, partitionid, offsetid, \
-                            componentid), new_region)).second; \
-            ASSERT(success); \
-        } \
     } \
     err = pthread_mutex_unlock(&dev_ctx->lock); \
     ASSERT(err == 0); \
@@ -269,11 +288,7 @@ static void parseDeviceConfig(int *gpu_weight_out, int *cpu_weight_out) {
     *cpu_weight_out = cpu_weight;
 }
 
-JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
-        (JNIEnv *jenv, jclass clazz, int host_thread_index) {
-
-    int cpu_weight, gpu_weight;
-    parseDeviceConfig(&gpu_weight, &cpu_weight);
+static void populateDeviceContexts() {
 
     /*
      * clGetPlatformIDs called inside get_num_opencl_platforms is supposed to be
@@ -288,25 +303,28 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
     ASSERT(perr == 0);
 
     if (device_ctxs == NULL) {
+        int cpu_weight, gpu_weight;
+        parseDeviceConfig(&gpu_weight, &cpu_weight);
+
         cl_uint total_num_devices = get_total_num_devices();
         device_ctxs = (device_context *)malloc(total_num_devices * sizeof(device_context));
         CHECK_ALLOC(device_ctxs)
-        n_device_ctxs = total_num_devices;
+            n_device_ctxs = total_num_devices;
 
         cl_uint num_platforms = get_num_opencl_platforms();
 
         cl_platform_id *platforms =
             (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
         CHECK_ALLOC(platforms)
-        CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+            CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
 
         unsigned global_device_id = 0;
         for (unsigned platform_index = 0; platform_index < num_platforms; platform_index++) {
             cl_uint num_devices = get_num_devices(platforms[platform_index]);
             cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
             CHECK_ALLOC(devices)
-            CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                        num_devices, devices, NULL));
+                CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
+                            num_devices, devices, NULL));
 
             for (unsigned i = 0; i < num_devices; i++) {
                 cl_device_id curr_dev = devices[i];
@@ -332,18 +350,18 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
                 device_ctxs[global_device_id].dev = curr_dev;
                 device_ctxs[global_device_id].ctx = ctx;
                 device_ctxs[global_device_id].cmd = cmd;
+                device_ctxs[global_device_id].device_index = global_device_id;
 
                 int perr = pthread_mutex_init(&(device_ctxs[global_device_id].lock), NULL);
                 ASSERT(perr == 0);
 
-                device_ctxs[global_device_id].allocator = init_allocator(curr_dev, ctx, cmd);
+                device_ctxs[global_device_id].allocator = init_allocator(
+                        curr_dev, global_device_id, ctx, cmd);
 
                 device_ctxs[global_device_id].broadcast_cache =
                     new map<jlong, cl_region *>();
                 device_ctxs[global_device_id].program_cache =
                     new map<string, cl_program>();
-                device_ctxs[global_device_id].rdd_cache =
-                    new map<rdd_partition_offset, cl_region *>();
 
                 global_device_id++;
 
@@ -363,9 +381,15 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
             free(devices);
         }
 
+        int perr = pthread_rwlock_wrlock(&rdd_cache_lock);
+        ASSERT(perr == 0);
+        rdd_cache = new map<rdd_partition_offset, map<int, cl_region *> *>();
+        perr = pthread_rwlock_unlock(&rdd_cache_lock);
+        ASSERT(perr == 0);
+
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
         CHECK_ALLOC(virtual_devices)
-        int curr_virtual_device = 0;
+            int curr_virtual_device = 0;
         for (unsigned i = 0; i < total_num_devices; i++) {
             cl_device_id curr_dev = device_ctxs[i].dev;
 
@@ -390,18 +414,70 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
         ASSERT(curr_virtual_device == n_virtual_devices);
     }
 
-    device_context *my_ctx = device_ctxs +
-        virtual_devices[host_thread_index % n_virtual_devices];
-#ifdef VERBOSE
-    fprintf(stderr, "Host thread %d using virtual device %d, physical "
-            "device %d: %s\n", host_thread_index,
-            host_thread_index % n_virtual_devices,
-            virtual_devices[host_thread_index % n_virtual_devices], get_device_name(my_ctx->dev));
-#endif
-
     perr = pthread_mutex_unlock(&device_ctxs_lock);
     ASSERT(perr == 0);
-    return (jlong)my_ctx;
+}
+
+JNI_JAVA(jint, OpenCLBridge, getDeviceToUse)
+        (JNIEnv *jenv, jclass clazz, jint hint, jint host_thread_index) {
+    ENTER_TRACE("getDeviceToUse");
+    populateDeviceContexts();
+
+    int result;
+    if (hint != -1) {
+        result = hint;
+    } else {
+        result = virtual_devices[host_thread_index % n_virtual_devices];
+    }
+    EXIT_TRACE("getDeviceToUse");
+    return result;
+}
+
+JNI_JAVA(jint, OpenCLBridge, getDeviceHintFor)
+        (JNIEnv *jenv, jclass clazz, jint rdd, jint partition, jint offset,
+         jint component) {
+    ENTER_TRACE("getDeviceHintFor");
+    ASSERT(rdd >= 0);
+    rdd_partition_offset uuid(rdd, partition, offset, component);
+    int result = -1;
+
+    int perr = pthread_rwlock_rdlock(&rdd_cache_lock);
+    ASSERT(perr == 0);
+
+    if (rdd_cache) {
+        map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
+            rdd_cache->find(uuid);
+        if (found != rdd_cache->end()) {
+            for (map<int, cl_region *>::iterator i = found->second->begin(),
+                    e = found->second->end(); i != e; i++) {
+                cl_region *region = i->second;
+                /*
+                 * If this RDD might still be persisted on a device, try to map the
+                 * computation to that device.
+                 */
+                if (!region->invalidated) {
+                    ASSERT(GET_DEVICE_FOR(region) == i->first);
+                    result = i->first;
+                    break;
+                }
+            }
+        }
+    }
+
+    perr = pthread_rwlock_unlock(&rdd_cache_lock);
+    ASSERT(perr == 0);
+
+    EXIT_TRACE("getDeviceHintFor");
+    return result;
+}
+
+JNI_JAVA(jlong, OpenCLBridge, getActualDeviceContext)
+        (JNIEnv *jenv, jclass clazz, int device_index) {
+
+    populateDeviceContexts();
+
+    ASSERT(device_index < n_device_ctxs);
+    return (jlong)(device_ctxs + device_index);
 }
 
 JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
