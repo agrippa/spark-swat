@@ -400,12 +400,10 @@ JNI_JAVA(jlong, OpenCLBridge, getDeviceContext)
 
 JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
         (JNIEnv *jenv, jclass clazz, jlong l_ctx) {
-    if (l_ctx != -1L) {
-        swat_context *ctx = (swat_context *)l_ctx;
-        CHECK(clReleaseKernel(ctx->kernel));
-        delete ctx->arguments;
-        free(ctx);
-    }
+    swat_context *ctx = (swat_context *)l_ctx;
+    CHECK(clReleaseKernel(ctx->kernel));
+    delete ctx->arguments;
+    free(ctx);
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)

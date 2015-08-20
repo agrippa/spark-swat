@@ -62,7 +62,7 @@ object SparkKMeans {
 
         val raw_points : RDD[Point] = sc.objectFile(inputPath)
         val points = if (useSwat) CLWrapper.cl[Point](raw_points) else raw_points
-        val samples : Array[Point] = points.takeSample(false, K);
+        val samples : Array[Point] = points.takeSample(false, K, 1);
 
         var centers = new Array[(Int, Point)](K)
         for (i <- samples.indices) {
@@ -88,9 +88,7 @@ object SparkKMeans {
 
                     i += 1
                 }
-                (centers(closest_center)._1, new Point(
-                     centers(closest_center)._2.x, centers(closest_center)._2.y,
-                     centers(closest_center)._2.z))
+                (centers(closest_center)._1, new Point(point.x, point.y, point.z))
             })
             val counts = classified.countByKey()
             val sums = classified.reduceByKey((a, b) => new Point(a.x + b.x,

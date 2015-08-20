@@ -232,8 +232,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
       def hasNext : Boolean = {
         val nonEmpty = (nested.hasNext || (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
-        if (!nonEmpty) {
+        if (!nonEmpty && ctx != -1L) {
           OpenCLBridge.cleanupSwatContext(ctx)
+          ctx = -1L
 //           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
 //               " elements") // PROFILE
 //           profPrint("Total", overallStart, threadId) // PROFILE

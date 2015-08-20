@@ -49,6 +49,7 @@ class ObjectOutputBufferWrapper[T](val bb : ByteBuffer, val N : Int,
     val new_obj : T = constructor.newInstance().asInstanceOf[T]
     OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb,
             structMemberTypes.get, structMemberOffsets.get)
+    iter += 1
     new_obj
   }
 
@@ -127,11 +128,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
             OpenCLBridgeWrapper.addressOfContainedArray(arr,
             arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bbLength - bb.position, OpenCLBridgeWrapper.intValueOffset)
-        // for (i <- 0 until count) {
-        //     if (arr(i).asInstanceOf[java.lang.Integer].intValue != 3) {
-        //     System.err.println("Got " + arr(i).asInstanceOf[java.lang.Integer].intValue + " at " + i)
-        //     }
-        // }
         bb.position(bb.position + (4 * count))
       }
       case "F" => {
