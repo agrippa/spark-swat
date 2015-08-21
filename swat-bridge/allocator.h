@@ -80,16 +80,21 @@ typedef struct _cl_alloc {
     cl_region *region_list_head;
 
     cl_allocator *allocator;
+    long curr_time;
+    pthread_mutex_t lock;
 } cl_alloc;
 
+/*
+ * There is a one-to-one mapping between allocators and OpenCL devices. All of
+ * the fields of the allocator object are constant after creation. The allocator
+ * is the root of a region of cl_alloc objects, each representing a subset of
+ * the memory in a device.
+ */
 typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
-    long curr_time;
     cl_uint address_align;
     int device_index;
-
-    pthread_mutex_t lock;
 } cl_allocator;
 
 extern bool re_allocate_cl_region(cl_region *target_region, int target_device);

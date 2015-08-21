@@ -11,18 +11,18 @@ extern "C" {
 }
 #endif
 
-static void lock_allocator(cl_allocator *allocator) {
-    ENTER_TRACE("lock_allocation");
-    int perr = pthread_mutex_lock(&allocator->lock);
+static void lock_alloc(cl_alloc *alloc) {
+    ENTER_TRACE("lock_alloc");
+    int perr = pthread_mutex_lock(&alloc->lock);
     ASSERT(perr == 0);
-    EXIT_TRACE("lock_allocation");
+    EXIT_TRACE("lock_alloc");
 }
 
-static void unlock_allocator(cl_allocator *allocator) {
-    ENTER_TRACE("unlock_allocation");
-    int perr = pthread_mutex_unlock(&allocator->lock);
+static void unlock_alloc(cl_alloc *alloc) {
+    ENTER_TRACE("unlock_alloc");
+    int perr = pthread_mutex_unlock(&alloc->lock);
     ASSERT(perr == 0);
-    EXIT_TRACE("unlock_allocation");
+    EXIT_TRACE("unlock_alloc");
 }
 
 static void bucket_insert_after(cl_region *target, cl_region *to_insert,
@@ -345,7 +345,7 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *
 bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     ENTER_TRACE("free_cl_region");
 
-    lock_allocator(to_free->grandparent->allocator);
+    lock_alloc(to_free->grandparent);
 
     ASSERT(to_free->refs > 0);
     ASSERT(to_free->sub_mem);
@@ -378,7 +378,10 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
         if (!try_to_keep && (next && next->refs == 0 && !next->keeping) &&
                 (prev && prev->refs == 0 && !prev->keeping)) {
-            // Merge with next and prev
+            /*
+             * Merge with next and prev if neither is 1) free, or 2) an
+             * allocation we're trying to hold on to as long as possible.
+             */
 #ifdef VERBOSE
             fprintf(stderr, "Merging prev=(%p offset=%lu size=%lu) and "
                     "next=(%p offset=%lu size=%lu) for to_free=(%p offset=%lu "
@@ -458,7 +461,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
     bool return_value = (to_free->refs == 0);
 
-    unlock_allocator(to_free->grandparent->allocator);
+    unlock_alloc(to_free->grandparent);
 
     EXIT_TRACE("free_cl_region");
     return return_value;
@@ -473,7 +476,7 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
         return false;
     }
 
-    lock_allocator(target_region->grandparent->allocator);
+    lock_alloc(target_region->grandparent);
 
     /*
      * For now, it is the responsibility of the higher layers to track which
@@ -507,9 +510,9 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     } else {
         target_region->refs += 1;
     }
-    target_region->birth = target_region->grandparent->allocator->curr_time;
+    target_region->birth = target_region->grandparent->curr_time;
 
-    unlock_allocator(target_region->grandparent->allocator);
+    unlock_alloc(target_region->grandparent);
 
     EXIT_TRACE("re_allocate_cl_region");
 
@@ -520,8 +523,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     ENTER_TRACE("allocate_cl_region");
     ASSERT(allocator);
     ASSERT(size > 0);
-
-    lock_allocator(allocator);
 
     // size_t rounded_size = size;
     size_t rounded_size = size + (allocator->address_align -
@@ -539,7 +540,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     // First look in the normal buckets
     for (int a = 0; a < allocator->nallocs && target_region == NULL; a++) {
         cl_alloc *alloc = allocator->allocs + a;
+
+        lock_alloc(alloc);
         target_region = find_matching_region_in_alloc(rounded_size, alloc->buckets);
+        if (target_region == NULL) {
+            unlock_alloc(alloc);
+        }
     }
 #ifdef VERBOSE
     fprintf(stderr, "Got target_region=%p from searching buckets for region of "
@@ -550,7 +556,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     if (target_region == NULL) {
         for (int a = 0; a < allocator->nallocs && target_region == NULL; a++) {
             cl_alloc *alloc = allocator->allocs + a;
+
+            lock_alloc(alloc);
             target_region = search_bucket(rounded_size, &alloc->large_bucket);
+            if (target_region == NULL) {
+                unlock_alloc(alloc);
+            }
         }
     }
 #ifdef VERBOSE
@@ -562,7 +573,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     if (target_region == NULL) {
         for (int a = 0; a < allocator->nallocs && target_region == NULL; a++) {
             cl_alloc *alloc = allocator->allocs + a;
+
+            lock_alloc(alloc);
             target_region = find_matching_region_in_alloc(rounded_size, alloc->keep_buckets);
+            if (target_region == NULL) {
+                unlock_alloc(alloc);
+            }
         }
     }
 #ifdef VERBOSE
@@ -574,7 +590,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     if (target_region == NULL) {
         for (int a = 0; a < allocator->nallocs && target_region == NULL; a++) {
             cl_alloc *alloc = allocator->allocs + a;
+
+            lock_alloc(alloc);
             target_region = search_bucket(rounded_size, &alloc->keep_large_bucket);
+            if (target_region == NULL) {
+                unlock_alloc(alloc);
+            }
         }
     }
 #ifdef VERBOSE
@@ -594,6 +615,8 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
 
         for (int a = 0; a < allocator->nallocs; a++) {
             cl_alloc *alloc = allocator->allocs + a;
+            lock_alloc(alloc);
+
             cl_region *curr = alloc->region_list_head;
 
             while (curr) {
@@ -612,12 +635,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
                         curr, curr->offset, curr->size);
 #endif
 
-                /*
-                 * When we hit this condition, we're pretty desparate to find
-                 * any memory region that will handle this allocation. We throw
-                 * out trying to keep everything a power of two and just grab
-                 * anything that will handle size.
-                 */
                 while (succ && succ->refs == 0 && acc_bytes < size) {
                     acc_bytes += succ->size;
                     youngest = (succ->birth > youngest ? succ->birth : youngest);
@@ -637,6 +654,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
 
                 curr = curr->next;
             }
+
+            if (best_candidate) {
+                // Break out with the alloc lock still held
+                break;
+            }
+            unlock_alloc(alloc);
         }
 
         ASSERT(best_candidate);
@@ -759,7 +782,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
         CHECK(err);
         copy->keeping = false;
     }
-    copy->birth = copy->grandparent->allocator->curr_time;
+    copy->birth = copy->grandparent->curr_time;
 
     EXIT_TRACE("allocate_cl_region");
 
@@ -772,7 +795,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     }
 #endif
 
-    unlock_allocator(allocator);
+    unlock_alloc(alloc);
 
     return copy;
 }
@@ -798,9 +821,6 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
     CHECK_ALLOC(allocator->allocs)
     allocator->address_align = address_align;
     allocator->device_index = device_index;
-
-    int perr = pthread_mutex_init(&allocator->lock, NULL);
-    ASSERT(perr == 0);
 
     for (int i = 0; i < nallocs; i++) {
         cl_ulong alloc_size = max_alloc_size;
@@ -828,6 +848,9 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
         (allocator->allocs)[i].allocator = allocator;
+
+        int perr = pthread_mutex_init(&(allocator->allocs)[i].lock, NULL);
+        ASSERT(perr == 0);
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
         CHECK_ALLOC(first_region)
@@ -912,8 +935,11 @@ void print_allocator(cl_allocator *allocator, int lbl) {
 
 void bump_time(cl_allocator *allocator) {
     ENTER_TRACE("bump_time");
-    lock_allocator(allocator);
-    allocator->curr_time += 1;
-    unlock_allocator(allocator);
+    for (int i = 0; i < allocator->nallocs; i++) {
+        cl_alloc *curr = allocator->allocs + i;
+        lock_alloc(curr);
+        curr->curr_time += 1;
+        unlock_alloc(curr);
+    }
     EXIT_TRACE("bump_time");
 }
