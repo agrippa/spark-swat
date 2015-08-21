@@ -10,19 +10,25 @@
 
 static device_context *device_ctxs = NULL;
 static int n_device_ctxs = 0;
+/*
+ * Only used when initializing device contexts to ensure only one thread
+ * initializes them. Should be very little contention on this lock.
+ */
 static pthread_mutex_t device_ctxs_lock = PTHREAD_MUTEX_INITIALIZER;
 static int *virtual_devices = NULL;
 static int n_virtual_devices = 0;
 
 /*
  * Inter-device RDD cache
- * TODO This currently restricts each RDD block to have a single mapping to a
- * single device. It might be beneficial to have multiple mappings to multiple
- * devices? Maybe help with load balancing? But would increase complexity.
  */
 static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
+/*
+ * Read lock is acquired when looking for a hint for which device to run on.
+ * Read lock is also acquired when checking if there's a cached version of a
+ * piece of an RDD. Write lock is acquired when we need to update metadata on
+ * the RDD caching.
+ */
 static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
-// static pthread_mutex_t rdd_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
@@ -42,17 +48,21 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
     jsize len = argLength * sizeof(ctype); \
     device_context *dev_ctx = (device_context *)l_dev_ctx; \
     swat_context *context = (swat_context *)lctx; \
-    int err = pthread_mutex_lock(&dev_ctx->lock); \
     jboolean isCopy; \
-    ASSERT(err == 0); \
     if (broadcastId >= 0) { \
         ASSERT(rddid < 0); \
+        int err = pthread_rwlock_rdlock(&dev_ctx->broadcast_lock); \
+        ASSERT(err == 0); \
+        \
         cl_region *region = NULL; \
         map<jlong, cl_region *>::iterator found = dev_ctx->broadcast_cache->find(broadcastId); \
         if (found != dev_ctx->broadcast_cache->end()) { \
             region = found->second; \
         } \
-        if (region && re_allocate_cl_region(region, dev_ctx->device_index)) { \
+        bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
+        err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
+        ASSERT(err == 0); \
+        if (reallocated) { \
             CHECK(clSetKernelArg(context->kernel, index, \
                         sizeof(region->sub_mem), &region->sub_mem)); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
@@ -62,13 +72,17 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             cl_region *new_region = set_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
+            err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock); \
+            ASSERT(err == 0); \
             (*dev_ctx->broadcast_cache)[broadcastId] = new_region; \
+            err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
+            ASSERT(err == 0); \
         } \
     } else if (rddid >= 0) { \
         ASSERT(broadcastId < 0); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
         cl_region *region = NULL; \
-        err = pthread_rwlock_rdlock(&rdd_cache_lock); \
+        int err = pthread_rwlock_rdlock(&rdd_cache_lock); \
         ASSERT(err == 0); \
         map<rdd_partition_offset, map<int, cl_region *> *>::iterator found = rdd_cache->find(uuid); \
         if (found != rdd_cache->end()) { \
@@ -110,8 +124,6 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
                 dev_ctx, broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
     } \
-    err = pthread_mutex_unlock(&dev_ctx->lock); \
-    ASSERT(err == 0); \
     EXIT_TRACE("set"#utype"ArrayArg"); \
 }
 
@@ -289,6 +301,10 @@ static void parseDeviceConfig(int *gpu_weight_out, int *cpu_weight_out) {
 }
 
 static void populateDeviceContexts() {
+    // Try to avoid having to do any locking
+    if (device_ctxs != NULL) {
+        return;
+    }
 
     /*
      * clGetPlatformIDs called inside get_num_opencl_platforms is supposed to be
@@ -307,9 +323,10 @@ static void populateDeviceContexts() {
         parseDeviceConfig(&gpu_weight, &cpu_weight);
 
         cl_uint total_num_devices = get_total_num_devices();
-        device_ctxs = (device_context *)malloc(total_num_devices * sizeof(device_context));
-        CHECK_ALLOC(device_ctxs)
-            n_device_ctxs = total_num_devices;
+        device_context *tmp_device_ctxs = (device_context *)malloc(
+                total_num_devices * sizeof(device_context));
+        CHECK_ALLOC(tmp_device_ctxs);
+        n_device_ctxs = total_num_devices;
 
         cl_uint num_platforms = get_num_opencl_platforms();
 
@@ -346,21 +363,27 @@ static void populateDeviceContexts() {
                         CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
                 CHECK(err);
 
-                device_ctxs[global_device_id].platform = platforms[platform_index];
-                device_ctxs[global_device_id].dev = curr_dev;
-                device_ctxs[global_device_id].ctx = ctx;
-                device_ctxs[global_device_id].cmd = cmd;
-                device_ctxs[global_device_id].device_index = global_device_id;
+                tmp_device_ctxs[global_device_id].platform = platforms[platform_index];
+                tmp_device_ctxs[global_device_id].dev = curr_dev;
+                tmp_device_ctxs[global_device_id].ctx = ctx;
+                tmp_device_ctxs[global_device_id].cmd = cmd;
+                tmp_device_ctxs[global_device_id].device_index = global_device_id;
 
-                int perr = pthread_mutex_init(&(device_ctxs[global_device_id].lock), NULL);
+                int perr = pthread_rwlock_init(
+                        &(tmp_device_ctxs[global_device_id].broadcast_lock),
+                        NULL);
+                ASSERT(perr == 0);
+                perr = pthread_mutex_init(
+                        &(tmp_device_ctxs[global_device_id].program_cache_lock),
+                        NULL);
                 ASSERT(perr == 0);
 
-                device_ctxs[global_device_id].allocator = init_allocator(
+                tmp_device_ctxs[global_device_id].allocator = init_allocator(
                         curr_dev, global_device_id, ctx, cmd);
 
-                device_ctxs[global_device_id].broadcast_cache =
+                tmp_device_ctxs[global_device_id].broadcast_cache =
                     new map<jlong, cl_region *>();
-                device_ctxs[global_device_id].program_cache =
+                tmp_device_ctxs[global_device_id].program_cache =
                     new map<string, cl_program>();
 
                 global_device_id++;
@@ -381,17 +404,13 @@ static void populateDeviceContexts() {
             free(devices);
         }
 
-        int perr = pthread_rwlock_wrlock(&rdd_cache_lock);
-        ASSERT(perr == 0);
         rdd_cache = new map<rdd_partition_offset, map<int, cl_region *> *>();
-        perr = pthread_rwlock_unlock(&rdd_cache_lock);
-        ASSERT(perr == 0);
 
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
         CHECK_ALLOC(virtual_devices)
             int curr_virtual_device = 0;
         for (unsigned i = 0; i < total_num_devices; i++) {
-            cl_device_id curr_dev = device_ctxs[i].dev;
+            cl_device_id curr_dev = tmp_device_ctxs[i].dev;
 
             int weight;
             switch (get_device_type(curr_dev)) {
@@ -412,6 +431,8 @@ static void populateDeviceContexts() {
             }
         }
         ASSERT(curr_virtual_device == n_virtual_devices);
+
+        device_ctxs = tmp_device_ctxs;
     }
 
     perr = pthread_mutex_unlock(&device_ctxs_lock);
@@ -511,7 +532,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     std::string label_str(raw_label);
     jenv->ReleaseStringUTFChars(label, raw_label);
 
-    int perr = pthread_mutex_lock(&dev_ctx->lock);
+    int perr = pthread_mutex_lock(&dev_ctx->program_cache_lock);
     ASSERT(perr == 0);
    
     cl_int err;
@@ -556,7 +577,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         ASSERT(success);
     }
 
-    perr = pthread_mutex_unlock(&dev_ctx->lock);
+    perr = pthread_mutex_unlock(&dev_ctx->program_cache_lock);
     ASSERT(perr == 0);
 
     cl_kernel kernel = clCreateKernel(program, "run", &err);
