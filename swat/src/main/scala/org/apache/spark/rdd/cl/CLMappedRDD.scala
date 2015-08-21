@@ -54,10 +54,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
         !CodeGenUtil.isPrimitive(inputClassType2Name))
   }
 
-  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-          (System.currentTimeMillis - startTime) + " ms") // PROFILE
-  } // PROFILE
+//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+//           (System.currentTimeMillis - startTime) + " ms") // PROFILE
+//   } // PROFILE
 
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
@@ -162,6 +162,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
 //           val initStart = System.currentTimeMillis // PROFILE
           val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
+//           System.err.println("Selected device " + device_index) // PROFILE
           val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
           val ctx : Long = if (ctxCache.containsKey(dev_ctx))
                 ctxCache.get(dev_ctx) else
