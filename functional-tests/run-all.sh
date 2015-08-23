@@ -42,6 +42,7 @@ done
 if [[ -z $TESTNAME || $TESTNAME == "connected_components" ]]; then
     # connected_components
     cd connected_components
+    mvn clean; mvn package
     ./convert-big.sh
     ./run-big.sh run &> spark.log
     ./run-big.sh run-cl &> swat.log
@@ -59,6 +60,7 @@ fi
 if [[ -z $TESTNAME || $TESTNAME == "fuzzy" ]]; then
     # fuzzy cmeans
     cd fuzzy-cmeans
+    mvn clean; mvn package
     ./convert-big.sh
     ./run-big.sh 3 false &> spark.log
     ./run-big.sh 3 true &> swat.log
@@ -76,6 +78,7 @@ fi
 if [[ -z $TESTNAME || $TESTNAME == "kmeans" ]]; then
     # kmeans
     cd kmeans
+    mvn clean; mvn package
     ./convert-big.sh
     ./run-big.sh 3 false &> spark.log
     ./run-big.sh 3 true &> swat.log
@@ -93,6 +96,7 @@ fi
 if [[ -z $TESTNAME || $TESTNAME == "pagerank" ]]; then
     # pagerank
     cd pagerank
+    mvn clean; mvn package
     ./convert-big.sh
     ./run-big.sh 3 false &> spark.log
     ./run-big.sh 3 true &> swat.log
@@ -110,6 +114,7 @@ fi
 if [[ -z $TESTNAME || $TESTNAME == "nbody" ]]; then
     # nbody
     cd nbody
+    mvn clean; mvn package
     ./convert-big.sh
     ./run-big.sh 3 false &> spark.log
     ./run-big.sh 3 true &> swat.log
