@@ -1031,9 +1031,10 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
 JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
         (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
          jbyteArray out, jint position, jintArray fieldSizes,
-         jlongArray fieldOffsets, jint structSize) {
+         jlongArray fieldOffsets, jint structSize, jint arrayIndexScale) {
     ENTER_TRACE("writeToBBFromObjArray");
-    void **addressOfArr = (void **)l_addressOfArr;
+    ASSERT(arrayIndexScale == 4 || arrayIndexScale == 8);
+    unsigned char *addressOfArr = (unsigned char *)l_addressOfArr;
     const unsigned nfields = jenv->GetArrayLength(fieldSizes);
 
     unsigned char *bb_contents = (unsigned char *)jenv->GetPrimitiveArrayCritical(out, NULL);
@@ -1046,7 +1047,9 @@ JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
     unsigned char *bb_iter = bb_contents + position;
 
     for (unsigned i = 0; i < bufferLength; i++) {
-        unsigned char * const ele = (unsigned char * const)addressOfArr[i];
+        unsigned char * ele = NULL;
+        memcpy(&ele, addressOfArr + (i * arrayIndexScale), arrayIndexScale);
+
         for (unsigned j = 0; j < nfields; j++) {
             const int size = sizes[j];
             memcpy(bb_iter, ele + offsets[j], size);

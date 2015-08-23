@@ -18,6 +18,7 @@ trait InputBufferWrapper[T] {
   def hasSpace() : Boolean
   def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       rddid : Int, partitionid : Int, offset : Int) : Int
+  def flush()
 }
 
 class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferWrapper[T]{
@@ -32,6 +33,8 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     arr(filled) = obj
     filled += 1
   }
+
+  override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       rddid : Int, partitionid : Int, offset : Int) : Int = {
@@ -62,6 +65,8 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   override def hasSpace() : Boolean = {
     bb.position < bb.capacity
   }
+
+  override def flush() { }
 
   override def append(obj : T) {
     assert(hasSpace())
@@ -108,7 +113,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
                 sample._2.getClass.getName,
                 new NameMatcher(sample._2.getClass.getName))
 
-  val chunking : Int = 128
+  val chunking : Int = 512
 
   val member0Buffer : Array[K] = new Array[K](chunking)
   val member0BufferWrapper : Array[java.lang.Object] = Array(member0Buffer)
@@ -121,6 +126,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
   val member0Sizes : Array[Int] = getObjFieldSizes(firstMemberDesc,
           firstMemberClassModel)
   val member0Size : Int = getTotalSize(firstMemberDesc, firstMemberClassModel)
+  val member0ArrayIndexScale : Int = UnsafeWrapper.arrayIndexScale(member0Buffer.getClass)
 
   val member1Buffer : Array[V] = new Array[V](chunking)
   val member1BufferWrapper : Array[java.lang.Object] = Array(member1Buffer)
@@ -133,6 +139,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
   val member1Sizes : Array[Int] = getObjFieldSizes(secondMemberDesc,
           secondMemberClassModel)
   val member1Size : Int = getTotalSize(secondMemberDesc, secondMemberClassModel)
+  val member1ArrayIndexScale : Int = UnsafeWrapper.arrayIndexScale(member1Buffer.getClass)
 
   var localBuffered : Int = 0
 
@@ -185,7 +192,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
               OpenCLBridgeWrapper.addressOfContainedArray(member0Buffer,
                   member0BufferWrapper, member0BaseWrapperOffset,
                   member0BaseOffset), localBuffered, bb1.array, bb1.position,
-              member0Sizes, member0Offsets, member0Size)
+              member0Sizes, member0Offsets, member0Size, member0ArrayIndexScale)
       bb1.position(bb1.position + (member0Size * localBuffered))
     }
     if (secondMemberSize > 0) {
@@ -193,15 +200,19 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
               OpenCLBridgeWrapper.addressOfContainedArray(member1Buffer,
                   member1BufferWrapper, member1BaseWrapperOffset,
                   member1BaseOffset), localBuffered, bb2.array, bb2.position,
-              member1Sizes, member1Offsets, member1Size)
+              member1Sizes, member1Offsets, member1Size, member1ArrayIndexScale)
       bb2.position(bb2.position + (member1Size * localBuffered))
     }
   }
 
+  override def flush() {
+    saveToBB()
+    localBuffered = 0
+  }
+
   override def append(obj : Tuple2[K, V]) {
     if (localBuffered == chunking) {
-        saveToBB()
-        localBuffered = 0
+        flush
     }
 
     if (firstMemberSize > 0) {
@@ -217,8 +228,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int, val s
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           rddid : Int, partitionid : Int, offset : Int) : Int = {
     if (localBuffered > 0) {
-        saveToBB()
-        localBuffered = 0
+        flush
     }
     if (firstMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,

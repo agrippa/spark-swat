@@ -61,7 +61,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 
   override def compute(split: Partition, context: TaskContext) = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
-    val N = 65536 * 16
+    val N = 65536 * 8
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
     val bbCache : ByteBufferCache = new ByteBufferCache(2)
@@ -164,11 +164,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
 //           System.err.println("Selected device " + device_index) // PROFILE
           val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
-          val ctx : Long = if (ctxCache.containsKey(dev_ctx))
-                ctxCache.get(dev_ctx) else
-                OpenCLBridge.createSwatContext(f.getClass.getName, openCL, dev_ctx, threadId,
-                        entryPoint.requiresDoublePragma, entryPoint.requiresHeap)
-//             profPrint("Initialization", initStart, threadId) // PROFILE
+          if (!ctxCache.containsKey(dev_ctx)) {
+            ctxCache.put(dev_ctx, OpenCLBridge.createSwatContext(
+                        f.getClass.getName, openCL, dev_ctx, threadId,
+                        entryPoint.requiresDoublePragma,
+                        entryPoint.requiresHeap))
+          }
+          val ctx : Long = ctxCache.get(dev_ctx)
+                
+//           profPrint("Initialization", initStart, threadId) // PROFILE
 
 //           val ioStart : Long = System.currentTimeMillis // PROFILE
           var nLoaded = 1
@@ -181,6 +185,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
           totalNLoaded += nLoaded
 
 //           profPrint("Input-I/O", ioStart, threadId) // PROFILE
+//           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
 //           val writeStart = System.currentTimeMillis // PROFILE
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, cl_id,
