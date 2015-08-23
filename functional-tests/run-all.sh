@@ -2,7 +2,13 @@
 
 set -e
 
-OUTPUT=perf.log
+FILE_SUFFIX=""
+for NODE in $(cat $SPARK_HOME/conf/slaves); do
+    COUNT_GPUS=$(ssh $NODE nvidia-smi | grep Tesla | wc -l)
+    FILE_SUFFIX="$FILE_SUFFIX.$COUNT_GPUS"
+done
+
+OUTPUT=perf$FILE_SUFFIX.log
 echo "" > $OUTPUT # clear it
 
 TESTNAME=

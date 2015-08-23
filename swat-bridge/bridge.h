@@ -85,8 +85,12 @@ typedef struct _device_context {
     cl_command_queue cmd;
     int device_index;
 
-    // pthread_rwlock_t lock;
-    pthread_mutex_t lock;
+    /*
+     * Locked for setting args on device (for broadcast cache?) and when
+     * building a program for a new device (which should happen infrequently).
+     */
+    pthread_rwlock_t broadcast_lock;
+    pthread_mutex_t program_cache_lock;
 
     cl_allocator *allocator;
 
