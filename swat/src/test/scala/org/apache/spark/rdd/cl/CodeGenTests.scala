@@ -56,7 +56,7 @@ object CodeGenTests {
     val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
     val openCL : String = writerAndKernel.kernel
 
-    val dev_ctx : Long = OpenCLBridge.getDeviceContext(0)
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
     val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
         openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
         entryPoint.requiresHeap);
