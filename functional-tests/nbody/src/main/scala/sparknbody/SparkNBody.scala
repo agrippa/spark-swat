@@ -49,15 +49,16 @@ object SparkNBody {
     }
 
     def run_nbody(args : Array[String]) {
-        if (args.length != 3) {
-            println("usage: SparkNBody run iters input-path use-swat?");
+        if (args.length != 4) {
+            println("usage: SparkNBody run iters input-path input-pairs-path use-swat?");
             return;
         }
         val sc = get_spark_context("Spark NBody");
 
         val iters = args(0).toInt;
         val inputPath = args(1);
-        val useSwat = args(2).toBoolean
+        val inputPairsPath = args(2)
+        val useSwat = args(3).toBoolean
 
         val points_rdd : RDD[Point] = sc.objectFile(inputPath)
         var points : Array[Point] = points_rdd.collect
@@ -65,18 +66,19 @@ object SparkNBody {
         for (i <- velocities.indices) {
           velocities(i) = new Triple(0.0f, 0.0f, 0.0f)
         }
+        System.err.println("npoints = " + points.length)
 
-        val raw_range : RDD[Int] = sc.parallelize(0 to points.length * points.length - 1)
-        val raw_pairs : RDD[(Int, Int)] = raw_range.map(i => {
-            (i / points.length, i % points.length)
-          }).filter(pair => pair._1 < pair._2)
+        val raw_pairs : RDD[(Int, Int)] = sc.objectFile(inputPairsPath)
         val pairs = if (useSwat) CLWrapper.cl[(Int, Int)](raw_pairs) else raw_pairs
+        pairs.cache
 
         val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
             val broadcastedPoints = sc.broadcast(points)
             val broadcastedVelocities = sc.broadcast(velocities)
+
+            System.err.println("iter=" + iter + " npoints=" + points.length)
 
             val accel = pairs.map(pair => {
                 val target : Int = pair._1
@@ -111,6 +113,11 @@ object SparkNBody {
                                 broadcastedVelocities.value(id).z + accel.z))
               })
 
+            val collectedVelocities : Array[Tuple2[Int, Triple]] = vel.collect
+            for (i <- collectedVelocities) {
+              velocities(i._1) = i._2
+            }
+
             val newPos = vel.map(velocity => {
                 val id = velocity._1
                 val vel = velocity._2
@@ -118,9 +125,13 @@ object SparkNBody {
                 new Point(broadcastedPoints.value(id).x + vel.x,
                                broadcastedPoints.value(id).y + vel.y,
                                broadcastedPoints.value(id).z + vel.z,
-                               broadcastedPoints.value(id).mass) })
+                               broadcastedPoints.value(id).mass)
+              })
 
             points = newPos.collect
+
+            broadcastedPoints.unpersist(true)
+            broadcastedVelocities.unpersist(true)
 
             iter += 1
         }
@@ -129,16 +140,18 @@ object SparkNBody {
     }
 
     def convert(args : Array[String]) {
-        if (args.length != 2) {
-            println("usage: SparkNBody convert input-dir output-dir");
+        if (args.length != 4) {
+            println("usage: SparkNBody convert input-dir output-dir input-pairs-dir output-pairs-dir");
             return
         }
         val sc = get_spark_context("Spark NBody Converter");
 
         val inputDir = args(0)
         var outputDir = args(1)
-        val input = sc.textFile(inputDir)
+        val inputPairsDir = args(2)
+        val outputPairsDir = args(3)
 
+        val input = sc.textFile(inputDir)
         input.map(line => {
             val tokens = line.split(" ")
             val x = tokens(0).toFloat
@@ -146,6 +159,13 @@ object SparkNBody {
             val z = tokens(2).toFloat
             val mass = tokens(3).toFloat
             new Point(x, y, z, mass) }).saveAsObjectFile(outputDir)
+
+        val inputPairs = sc.textFile(inputPairsDir)
+        inputPairs.map(line => {
+            val tokens = line.split(" ")
+            val p1 = tokens(0).toInt
+            val p2 = tokens(1).toInt
+            (p1, p2) }).saveAsObjectFile(outputPairsDir)
     }
 
 }

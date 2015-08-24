@@ -2,9 +2,9 @@ import java.io._
 
 object GenerateInput {
     def main(args : Array[String]) {
-        if (args.length != 4) {
+        if (args.length != 6) {
             println("usage: GenerateInput output-dir n-output-files " +
-                "n-points-per-file info-file")
+                "n-points-per-file info-file pairs-output-dir pairs-per-file")
             return;
         }
 
@@ -12,8 +12,8 @@ object GenerateInput {
         val nOutputFiles = args(1).toInt
         val pointsPerFile = args(2).toInt
         val infoFile = args(3)
-        // val pairOutputDir = args(4)
-        // val pairsPerFile = args(5).toInt
+        val pairsOutputDir = args(4)
+        val pairsPerFile = args(5).toInt
 
         val r = new scala.util.Random(1)
         val range = 100.0
@@ -36,6 +36,31 @@ object GenerateInput {
             }
             writer.close
         }
+
+        var curr_file = 0
+        var count_pairs = 0
+        var writer = new PrintWriter(new File(pairsOutputDir + "/input." + curr_file))
+        var p1 = 0
+        while (p1 <= npoints) {
+            var p2 = 0
+            while (p2 <= npoints) {
+                if (count_pairs > pairsPerFile) {
+                    writer.close
+                    curr_file += 1
+                    writer = new PrintWriter(new File(pairsOutputDir + "/input." + curr_file))
+                    count_pairs = 0
+                }
+
+                if (p1 != p2) {
+                    writer.write(p1 + " " + p2 + "\n")
+
+                    count_pairs += 1
+                }
+                p2 += 1
+            }
+            p1 += 1
+        }
+        writer.close
 
         // var targetPoint = 0
         // var sourcePoint = 0

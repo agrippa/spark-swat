@@ -10,4 +10,4 @@ spark-submit --class SparkNBody \
         --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
         --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/nbody/target/sparknbody-0.0.0.jar \
-        run $1 hdfs://$(hostname):54310/converted $2
+        run $1 hdfs://$(hostname):54310/converted hdfs://$(hostname):54310/converted-pairs $2

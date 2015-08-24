@@ -62,6 +62,7 @@ object SparkKMeans {
 
         val raw_points : RDD[Point] = sc.objectFile(inputPath)
         val points = if (useSwat) CLWrapper.cl[Point](raw_points) else raw_points
+        points.cache
         val samples : Array[Point] = points.takeSample(false, K, 1);
 
         var centers = new Array[(Int, Point)](K)
