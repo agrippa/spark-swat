@@ -101,6 +101,9 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   val member0BaseOffset : Long = UnsafeWrapper.arrayBaseOffset(member0Arr.getClass)
   val member1BaseOffset : Long = UnsafeWrapper.arrayBaseOffset(member1Arr.getClass)
 
+  val member0ArrayIndexScale = UnsafeWrapper.arrayIndexScale(member0Arr.getClass)
+  val member1ArrayIndexScale = UnsafeWrapper.arrayIndexScale(member1Arr.getClass)
+
   def initArray[T : ClassTag](desc : String, arr : Array[T], constructor : Option[Constructor[T]]) {
     desc match {
       case "I" => { for (i <- 0 until bufLength) arr(i) = new java.lang.Integer(0).asInstanceOf[T] }
@@ -110,9 +113,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     }
   }
 
-  initArray(member0Desc, member0Arr, member0Constructor)
-  initArray(member1Desc, member1Arr, member1Constructor)
-
   def fillArray[T : ClassTag](arr : Array[T],
           arrWrapper : Array[java.lang.Object], baseWrapperOffset : Long,
           baseOffset : Long, desc : String, clazz : Class[_],
@@ -120,37 +120,37 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
           structMemberNames : Option[Array[java.lang.String]],
           structMemberTypes : Option[Array[Int]],
           structMemberOffsets : Option[Array[Long]],
-          structMemberSizes : Option[Array[Int]], structSize : Int) : Int = {
+          structMemberSizes : Option[Array[Int]], structSize : Int, arrayIndexScale: Int) : Int = {
     var count : Int = 0
 
     desc match {
       case "I" => {
         count = OpenCLBridge.setIntArrFromBB(arr.asInstanceOf[Array[java.lang.Object]],
-            OpenCLBridgeWrapper.addressOfContainedArray(arr,
-            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            OpenCLBridgeWrapper.addressOfContainedArray(arrWrapper,
+            baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bbLength - bb.position, OpenCLBridgeWrapper.intValueOffset)
         bb.position(bb.position + (4 * count))
       }
       case "F" => {
         count = OpenCLBridge.setFloatArrFromBB(arr.asInstanceOf[Array[java.lang.Object]],
-            OpenCLBridgeWrapper.addressOfContainedArray(arr,
-            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            OpenCLBridgeWrapper.addressOfContainedArray(arrWrapper,
+            baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bbLength - bb.position, OpenCLBridgeWrapper.floatValueOffset)
         bb.position(bb.position + (4 * count))
       }
       case "D" => {
         count = OpenCLBridge.setDoubleArrFromBB(arr.asInstanceOf[Array[java.lang.Object]],
-            OpenCLBridgeWrapper.addressOfContainedArray(arr,
-            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            OpenCLBridgeWrapper.addressOfContainedArray(arrWrapper,
+            baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bbLength - bb.position, OpenCLBridgeWrapper.doubleValueOffset)
         bb.position(bb.position + (8 * count))
       }
       case _ => {
         count = OpenCLBridge.setObjectArrFromBB(arr.asInstanceOf[Array[java.lang.Object]],
-            OpenCLBridgeWrapper.addressOfContainedArray(arr,
-            arrWrapper, baseWrapperOffset, baseOffset), bufLength, bb.array,
+            OpenCLBridgeWrapper.addressOfContainedArray(arrWrapper,
+            baseWrapperOffset, baseOffset), bufLength, bb.array,
             bb.position, bbLength - bb.position, structMemberTypes.get, structMemberSizes.get,
-            structMemberOffsets.get, structSize, desc, structMemberNames.get)
+            structMemberOffsets.get, structSize, desc, structMemberNames.get, arrayIndexScale)
         bb.position(bb.position + (structSize * count))
       }
     }
@@ -183,16 +183,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
       if (member1ClassModel.isEmpty) None else
           Some(member1ClassModel.get.getStructMemberSizes)
 
-  localCount = fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
-      member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1, bb1Length,
-      structMember0Names, structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
-  val tmpLocalCount = fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
-      member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2, bb2Length,
-      structMember1Names, structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
-  if (localCount != tmpLocalCount) {
-      throw new RuntimeException("localCount=" + localCount + " tmpLocalCount=" + tmpLocalCount)
-  }
-
   override def next() : Tuple2[K, V] = {
     if (localIter == localCount) {
       initArray(member0Desc, member0Arr, member0Constructor)
@@ -200,10 +190,10 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
 
       val firstCount : Int = fillArray(member0Arr, member0ArrWrapper, member0BaseWrapperOffset,
           member0BaseOffset, member0Desc, member0Class, member0ClassModel, bb1, bb1Length,
-          structMember0Names, structMember0Types, structMember0Offsets, structMember0Sizes, member0Size)
+          structMember0Names, structMember0Types, structMember0Offsets, structMember0Sizes, member0Size, member0ArrayIndexScale)
       val secondCount : Int = fillArray(member1Arr, member1ArrWrapper, member1BaseWrapperOffset,
           member1BaseOffset, member1Desc, member1Class, member1ClassModel, bb2, bb2Length,
-          structMember1Names, structMember1Types, structMember1Offsets, structMember1Sizes, member1Size)
+          structMember1Names, structMember1Types, structMember1Offsets, structMember1Sizes, member1Size, member1ArrayIndexScale)
       if (firstCount != secondCount) {
           throw new RuntimeException()
       }

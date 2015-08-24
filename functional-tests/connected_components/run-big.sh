@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [[ $# != 1 ]]; then
-    echo 'usage: run.sh run|run-cl|check'
+if [[ $# != 3 ]]; then
+    echo 'usage: run.sh run|run-cl|check use-swat? use-cache?'
     exit 1
 fi
 # --conf "spark.executor.extraJavaOptions=-Xloggc:/tmp/SWAT.log -verbose:gc -verbose:jni -XX:+PrintGCDetails" \
@@ -12,4 +12,4 @@ spark-submit --class SparkConnectedComponents \
         --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
         --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/connected_components/target/sparkconnectedcomponents-0.0.0.jar \
-        $1 hdfs://$(hostname):54310/converted-links $SPARK_DATA/connected_components/info
+        $1 $2 hdfs://$(hostname):54310/converted-links $SPARK_DATA/connected_components/info $3

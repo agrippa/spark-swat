@@ -83,8 +83,11 @@ public class OpenCLBridge {
     public static native int setObjectArrFromBB(java.lang.Object[] arr, long addressOfArr,
             int bufLength, byte[] bb, int position, int remaining, int[] fieldTypes,
             int[] fieldSizes, long[] fieldOffsets, int structSize,
-            String targetClassName, String[] fieldNamesArray);
+            String targetClassName, String[] fieldNamesArray, int arrayIndexScale);
 
+    public static native int aggregateFromIterator(byte[] buffer,
+            int bufferPosition, int nToBuffer,
+            scala.collection.Iterator<?> iter);
     public static native void writeToBBFromObjArray(long addressOfArr,
             int bufferLength, byte[] out, int position, int[] fieldSizes,
             long[] fieldOffsets, int structSize, int arrayIndexScale);

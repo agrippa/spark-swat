@@ -14,4 +14,4 @@ spark-submit --class SparkFuzzyCMeans \
         --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
         --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/fuzzy-cmeans/target/sparkfuzzycmeans-0.0.0.jar \
-        run 80 $1 hdfs://$(hostname):54310/converted $2
+        run 160 $1 hdfs://$(hostname):54310/converted $2

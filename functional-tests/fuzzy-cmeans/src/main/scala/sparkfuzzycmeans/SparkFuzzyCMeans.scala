@@ -88,8 +88,7 @@ object SparkFuzzyCMeans {
               }
               buffer.toList
             })
-        point_cluster_pairs_raw.cache.count
-        // point_cluster_pairs_raw.cache
+        point_cluster_pairs_raw.cache
 
         val point_cluster_pairs : RDD[(Int, Point)] =
             if (useSwat) CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw) else point_cluster_pairs_raw
@@ -109,9 +108,7 @@ object SparkFuzzyCMeans {
         while (iter < iters) {
             val broadcastedCenters = sc.broadcast(centers)
 
-            // val startTime = System.currentTimeMillis
             val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
-                  // (pair._1, new PointMembership(pair._2.x, pair._2.y, pair._2.z, 1.0f))
                   val center : Point = broadcastedCenters.value(pair._1)
                   val point : Point = pair._2
 
@@ -138,13 +135,6 @@ object SparkFuzzyCMeans {
                     (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
                   }
                 })
-            // val collected : Array[(Int, PointMembership)] = memberships.collect
-            // for (c <- collected) {
-            //     System.err.println(c._1 + " " + c._2.x + " " + c._2.y + " " +
-            //         c._2.z + " " + c._2.membership)
-            // }
-            // val c = memberships.count
-            // System.err.println("Iter " + iter + " time " + (System.currentTimeMillis - startTime) + " ms, count=" + c)
 
             val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
                   new PointMembership(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, p1.membership + p2.membership)
@@ -164,12 +154,12 @@ object SparkFuzzyCMeans {
 
             broadcastedCenters.unpersist(true)
 
-            println("Iteration " + (iter + 1))
-            for (i <- centers.indices) {
-                val p : Point = centers(i)
-                println("  Cluster " + i + ", (" + p.x + ", " + p.y +
-                        ", " + p.z + ")")
-            }
+            // println("Iteration " + (iter + 1))
+            // for (i <- centers.indices) {
+            //     val p : Point = centers(i)
+            //     println("  Cluster " + i + ", (" + p.x + ", " + p.y +
+            //             ", " + p.z + ")")
+            // }
             iter += 1
         }
 

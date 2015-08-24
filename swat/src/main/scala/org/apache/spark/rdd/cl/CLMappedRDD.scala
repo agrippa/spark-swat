@@ -21,7 +21,7 @@ import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
-class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int)
+class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     extends RDD[U](prev) {
   var entryPoint : Entrypoint = null
   var openCL : String = null
@@ -108,7 +108,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
             outputBuffer.get.releaseBuffers(bbCache)
           }
 
-          val deviceHint : Int = OpenCLBridge.getDeviceHintFor(cl_id, split.index, totalNLoaded, 0)
+          val deviceHint : Int = OpenCLBridge.getDeviceHintFor(firstParent[T].id, split.index, totalNLoaded, 0)
 
           val firstSample : T = nested.next
 
@@ -175,12 +175,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 //           profPrint("Initialization", initStart, threadId) // PROFILE
 
 //           val ioStart : Long = System.currentTimeMillis // PROFILE
-          var nLoaded = 1
+          // var nLoaded = 1
           acc.get.append(firstSample)
-          while (nLoaded < N && nested.hasNext) {
-            acc.get.append(nested.next)
-            nLoaded = nLoaded + 1
-          }
+          val nLoaded = 1 + acc.get.aggregateFrom(nested)
+          // while (nLoaded < N && nested.hasNext) {
+          //   acc.get.append(nested.next)
+          //   nLoaded = nLoaded + 1
+          // }
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
@@ -188,7 +189,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
 //           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
 //           val writeStart = System.currentTimeMillis // PROFILE
-          var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, cl_id,
+          var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx, if (firstParent[T].getStorageLevel.useMemory) firstParent[T].id else -1,
                   split.index, myOffset)
           val outArgNum : Int = argnum
           argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
@@ -261,7 +262,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U, cl_id : Int
   }
 
   override def map[V: ClassTag](f: U => V): RDD[V] = {
-    new CLMappedRDD(this, sparkContext.clean(f), CLWrapper.counter.getAndAdd(1))
+    new CLMappedRDD(this, sparkContext.clean(f))
   }
 }
 

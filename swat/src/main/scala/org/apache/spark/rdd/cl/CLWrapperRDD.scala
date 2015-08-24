@@ -10,8 +10,6 @@ import org.apache.spark.rdd._
 
 class CLWrapperRDD[T: ClassTag](prev: RDD[T])
     extends RDD[T](prev) {
-  val cl_id : Int = CLWrapper.counter.getAndAdd(1)
-
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
@@ -31,7 +29,7 @@ class CLWrapperRDD[T: ClassTag](prev: RDD[T])
   }
 
   override def map[U: ClassTag](f: T => U): RDD[U] = {
-    new CLMappedRDD(this, sparkContext.clean(f), cl_id)
+    new CLMappedRDD(this, sparkContext.clean(f))
   }
 }
 

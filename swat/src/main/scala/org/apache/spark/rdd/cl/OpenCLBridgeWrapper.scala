@@ -166,10 +166,10 @@ object OpenCLBridgeWrapper {
          * buffer will never be referenced anyway.
          */
         if (firstMemberSize > 0) {
-          writeTupleMemberToStream(tupleEle._1, entryPoint, bb1, firstMemberClassModel)
+          writeTupleMemberToStream(tupleEle._1, bb1, firstMemberClassModel)
         }
         if (secondMemberSize > 0) {
-          writeTupleMemberToStream(tupleEle._2, entryPoint, bb2, secondMemberClassModel)
+          writeTupleMemberToStream(tupleEle._2, bb2, secondMemberClassModel)
         }
       }
 
@@ -235,7 +235,7 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def writeTupleMemberToStream[T](tupleMember : T, entryPoint : Entrypoint,
+  def writeTupleMemberToStream[T](tupleMember : T,
           bb : ByteBuffer, memberClassModel : ClassModel) {
     tupleMember.getClass.getName match {
       case "java.lang.Integer" => {
@@ -511,8 +511,8 @@ object OpenCLBridgeWrapper {
    * Based on StackOverflow question "How can I get the memory location of a
    * object in java?"
    */
-  def addressOfContainedArray[T : ClassTag](arr : Array[T],
-          wrapper : Array[java.lang.Object], baseWrapperOffset : Long, baseOffset : Long) : Long = {
+  def addressOfContainedArray(wrapper : Array[java.lang.Object],
+          baseWrapperOffset : Long, baseOffset : Long) : Long = {
     // Get the address of arr as if it were a long field
     val arrAddress : Long = UnsafeWrapper.getLong(wrapper, baseWrapperOffset)
     arrAddress + baseOffset

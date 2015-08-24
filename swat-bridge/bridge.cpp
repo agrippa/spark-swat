@@ -924,7 +924,8 @@ SET_FROM_BB(int, Int, "I", "java/lang/Integer")
 SET_FROM_BB(float, Float, "F", "java/lang/Float")
 SET_FROM_BB(double, Double, "D", "java/lang/Double")
 
-static int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID field, unsigned char *bb_iter) {
+static inline int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID field,
+        unsigned char *bb_iter) {
     int size;
     switch (type) {
         case (0): // INT
@@ -949,14 +950,18 @@ static int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID field,
 
 JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold,
-         long l_addressOfArr, jint bufferLength,
-         jbyteArray bb, jint position, jint remaining, jintArray fieldTypes, jintArray fieldSizes,
-         jlongArray fieldOffsets, jint structSize, jstring targetClassNameStr, jobjectArray fieldNamesArray) {
+         long l_addressOfArr, jint bufferLength, jbyteArray bb, jint position,
+         jint remaining, jintArray fieldTypes, jintArray fieldSizes,
+         jlongArray fieldOffsets, jint structSize, jstring targetClassNameStr,
+         jobjectArray fieldNamesArray, jint arrayIndexScale) {
     ENTER_TRACE("setObjectArrFromBB");
+    ASSERT(arrayIndexScale == 4 || arrayIndexScale == 8);
     ASSERT(remaining % structSize == 0);
     unsigned nfields = jenv->GetArrayLength(fieldSizes);
     const int remainingEles = remaining / structSize;
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
+    // jenv->EnsureLocalCapacity(to_process + nfields);
+
     void **addressOfArr = (void **)l_addressOfArr;
 
     unsigned char *bb_elements = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
@@ -964,8 +969,6 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     unsigned char *bb_iter = bb_elements + position;
     int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
     CHECK_JNI(sizes)
-    long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
-    CHECK_JNI(offsets)
     int *types = (int *)jenv->GetPrimitiveArrayCritical(fieldTypes, NULL);
     CHECK_JNI(types)
 
@@ -1004,25 +1007,19 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         fields[i] = field;
 
         jenv->ReleaseStringUTFChars(fieldNameStr, fieldName);
-
-        jenv->DeleteLocalRef(fieldNameStr);
     }
 
     for (unsigned i = 0; i < to_process; i++) {
-        jobject obj1 = jenv->GetObjectArrayElement(targetToHold, i);
-        CHECK_JNI(obj1)
+        jobject obj = jenv->GetObjectArrayElement(targetToHold, i);
+        CHECK_JNI(obj);
 
-        for (unsigned j = 0; j < nfields; j++) {
-            int size = setFieldInObject(jenv, obj1, types[j], fields[j], bb_iter);
-            bb_iter += size;
+        for (unsigned j = 0; j < nfields / 2; j++) {
+            bb_iter += setFieldInObject(jenv, obj, types[j], fields[j], bb_iter);
         }
-
-        jenv->DeleteLocalRef(obj1);
     }
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldTypes, types, JNI_ABORT);
     EXIT_TRACE("setObjectArrFromBB");
     return to_process;
@@ -1061,6 +1058,21 @@ JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
     EXIT_TRACE("writeToBBFromObjArray");
+}
+
+JNI_JAVA(jint, OpenCLBridge, aggregateFromIterator)
+        (JNIEnv *jenv, jclass clazz, jbyteArray buffer, jint bufferPosition, jint nToBuffer, jobject iter) {
+    ENTER_TRACE("aggregateFromIterator");
+
+    jclass iteratorClass = jenv->FindClass("scala/collection/Iterator");
+    CHECK_JNI(iteratorClass);
+    jmethodID hasNextMethod = jenv->GetMethodID(iteratorClass, "hasNext", "()Lscala/Boolean;");
+    CHECK_JNI(hasNextMethod);
+    jmethodID nextMethod = jenv->GetMethodID(iteratorClass, "next", "()Ljava/lang/Object;");
+    CHECK_JNI(nextMethod);
+
+    EXIT_TRACE("aggregateFromIterator");
+    return 0;
 }
 
 #ifdef __cplusplus

@@ -22,14 +22,13 @@ object SparkConnectedComponents {
         if (cmd == "convert") {
             convert(args.slice(1, args.length), sc)
         } else if (cmd == "run") {
-            run_connected_components(args.slice(1, args.length), sc)
-        } else if (cmd == "run-cl") {
-            run_connected_components_cl(args.slice(1, args.length), sc)
+            val useSwat = args(1).toBoolean
+            run_connected_components_cl(args.slice(2, args.length), sc, useSwat)
         } else if (cmd == "check") {
-            val baseline : Array[Int] = run_connected_components(args.slice(1,
-                args.length), sc)
+            val baseline : Array[Int] = run_connected_components_cl(args.slice(1,
+                args.length), sc, false)
             val test : Array[Int] = run_connected_components_cl(args.slice(1,
-                args.length), sc)
+                args.length), sc, true)
             assert(baseline.length == test.length)
             for (i <- baseline.indices) {
               if (baseline(i) != test(i)) {
@@ -55,100 +54,29 @@ object SparkConnectedComponents {
         return new SparkContext(conf)
     }
 
-    def run_connected_components(args : Array[String], sc : SparkContext) : Array[Int] = {
-        if (args.length != 2) {
-            println("usage: SparkConnectedComponents run input-link-path input-info-path");
+    def run_connected_components_cl(args : Array[String], sc : SparkContext,
+            useSwat : Boolean) : Array[Int] = {
+        if (args.length != 3) {
+            println("usage: SparkConnectedComponents run-cl use-swat " +
+                    "input-link-path input-info-path use-cache");
             System.exit(1)
         }
 
         val inputLinksPath = args(0);
         val inputInfoPath = args(1)
+        val useCache = args(2).toBoolean
 
-        val infoIter : Iterator[String] = Source.fromFile(inputInfoPath).getLines
-        val nNodes : Int = infoIter.next.toInt
-        val nLinks : Int = infoIter.next.toInt
-
-        val edges : RDD[(Int, Int)] = sc.objectFile(inputLinksPath)
-
-        val membership : Array[Int] = new Array[Int](nNodes)
-        for (i <- membership.indices) {
-            membership(i) = i
-        }
-
-        var startTime = System.currentTimeMillis
-        var done = false
-        var iters = 0
-        do {
-          val iterStartTime = System.currentTimeMillis
-          val broadcastMembership = sc.broadcast(membership)
-
-          val updates : RDD[(Int, Int)] = edges.map(edge => {
-                val component_1 = broadcastMembership.value(edge._1)
-                val component_2 = broadcastMembership.value(edge._2)
-                if (component_1 == component_2) {
-                  // Both already the same component
-                  (-1, -1)
-                } else {
-                    if (component_1 < component_2) {
-                      (edge._2, component_1) 
-                    } else {
-                      (edge._1, component_2)
-                    }
-                }
-              })
-
-          val new_classifications : RDD[(Int, Int)] = updates.reduceByKey(
-              (cluster1, cluster2) => { if (cluster1 < cluster2) cluster1 else cluster2 })
-          val collected_new_classifications : Array[(Int, Int)] = new_classifications.collect
-
-          for (classification <- collected_new_classifications) {
-            if (classification._1 != -1) {
-              membership(classification._1) = classification._2
-            } else {
-              assert(classification._2 == -1)
-            }
-          }
-          iters += 1
-
-          done = (collected_new_classifications.length == 1)
-
-          broadcastMembership.unpersist(true)
-
-          val iterEndTime = System.currentTimeMillis
-          System.err.println("iter=" + iters + ", " +
-                  (iterEndTime - iterStartTime) + " ms, collected.length=" +
-                  collected_new_classifications.length)
-        } while (!done);
-
-        var endTime = System.currentTimeMillis
-        System.err.println("Overall time = " + (endTime - startTime) + " ms")
-
-        val allClusters : java.util.Set[java.lang.Integer] =
-            new java.util.HashSet[java.lang.Integer]()
-        for (cluster <- membership) {
-          allClusters.add(cluster)
-        }
-
-        System.out.println("# iters = " + iters)
-        System.out.println("# clusters = " + allClusters.size())
-        membership
-    }
-
-    def run_connected_components_cl(args : Array[String], sc : SparkContext) : Array[Int] = {
-        if (args.length != 2) {
-            println("usage: SparkConnectedComponents run-cl input-link-path input-info-path");
-            System.exit(1)
-        }
-
-        val inputLinksPath = args(0);
-        val inputInfoPath = args(1)
+        System.err.println("use SWAT? " + useSwat + " use cache? " + useCache)
 
         val infoIter : Iterator[String] = Source.fromFile(inputInfoPath).getLines
         val nNodes : Int = infoIter.next.toInt
         val nLinks : Int = infoIter.next.toInt
 
         val raw_edges : RDD[(Int, Int)] = sc.objectFile(inputLinksPath)
-        val edges : CLWrapperRDD[(Int, Int)] = CLWrapper.cl[(Int, Int)](raw_edges)
+        val edges = if (useSwat) CLWrapper.cl[(Int, Int)](raw_edges) else raw_edges
+        if (useCache) {
+            edges.cache
+        }
 
         val membership : Array[Int] = new Array[Int](nNodes)
         for (i <- membership.indices) {
@@ -163,6 +91,7 @@ object SparkConnectedComponents {
           val broadcastMembership = sc.broadcast(membership)
 
           val updates : RDD[(Int, Int)] = edges.map(edge => {
+                // (edge._1, edge._2)
                 val component_1 = broadcastMembership.value(edge._1)
                 val component_2 = broadcastMembership.value(edge._2)
                 if (component_1 == component_2) {
@@ -192,13 +121,15 @@ object SparkConnectedComponents {
           iters += 1
 
           done = (collected_new_classifications.length == 1)
+          // done = (iters == 3)
 
           broadcastMembership.unpersist(true)
-
           val iterEndTime = System.currentTimeMillis
+
           System.err.println("iter=" + iters + ", " +
                   (iterEndTime - iterStartTime) + " ms, collected.length=" +
                   collected_new_classifications.length)
+          // System.err.println("iter=" + iters + ", " + (iterEndTime - iterStartTime) + " ms")
         } while (!done);
 
         var endTime = System.currentTimeMillis
@@ -212,6 +143,7 @@ object SparkConnectedComponents {
 
         System.out.println("# iters = " + iters)
         System.out.println("# clusters = " + allClusters.size())
+        sc.stop
         membership
     }
 
