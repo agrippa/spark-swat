@@ -6,21 +6,26 @@ import scala.reflect.runtime.universe._
 
 import java.net._
 import java.util.LinkedList
+import java.util.Map
+import java.util.HashMap
 
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.broadcast.Broadcast
 
 import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.SparseVector
 
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.DenseVectorClassModel
+import com.amd.aparapi.internal.model.SparseVectorClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
+import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
 
@@ -42,6 +47,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     hardCodedClassModels.addClassModelFor(
             Class.forName("org.apache.spark.mllib.linalg.DenseVector"),
             denseVectorClassModel)
+  }
+
+  def createHardCodedSparseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
+    val sparseVectorClassModel : SparseVectorClassModel =
+        SparseVectorClassModel.create(SparseVectorInputBufferWrapperConfig.tiling)
+    hardCodedClassModels.addClassModelFor(
+            Class.forName("org.apache.spark.mllib.linalg.SparseVector"),
+            sparseVectorClassModel)
   }
 
   def createHardCodedTuple2ClassModel(obj : Tuple2[_, _],
@@ -131,6 +144,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                   hardCodedClassModels, params.get(0))
             } else if (firstSample.isInstanceOf[DenseVector]) {
               createHardCodedDenseVectorClassModel(hardCodedClassModels)
+            } else if (firstSample.isInstanceOf[SparseVector]) {
+              createHardCodedSparseVectorClassModel(hardCodedClassModels)
             }
 
             sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
@@ -151,8 +166,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               if (EntrypointCache.kernelCache.containsKey(f.getClass.getName)) {
                 openCL = EntrypointCache.kernelCache.get(f.getClass.getName)
               } else {
+                val config : Map[String, String] = new HashMap[String, String]()
+                config.put(BlockWriter.sparseVectorTilingConfig,
+                        Integer.toString(
+                            SparseVectorInputBufferWrapperConfig.tiling))
                 val writerAndKernel = KernelWriter.writeToString(
-                    entryPoint, params)
+                    entryPoint, params, config)
                 openCL = writerAndKernel.kernel
                 // System.err.println(openCL)
                 EntrypointCache.kernelCache.put(f.getClass.getName, openCL)
@@ -169,6 +188,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                           entryPoint).asInstanceOf[InputBufferWrapper[T]])
             } else if (firstSample.isInstanceOf[DenseVector]) {
               acc = Some(new DenseVectorInputBufferWrapper(10 * N, N,
+                          entryPoint).asInstanceOf[InputBufferWrapper[T]])
+            } else if (firstSample.isInstanceOf[SparseVector]) {
+              acc = Some(new SparseVectorInputBufferWrapper(10 * N, N,
                           entryPoint).asInstanceOf[InputBufferWrapper[T]])
             } else {
               acc = Some(new ObjectInputBufferWrapper(N,

@@ -76,7 +76,7 @@ object CodeGenUtil {
     } else if (className.equals("java.lang.Float")) {
       return "F"
     } else if (className.equals("java.lang.Double")) {
-      return "F"
+      return "D"
     } else {
       return "L" + className + ";"
     }

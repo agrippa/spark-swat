@@ -1,5 +1,7 @@
 package org.apache.spark.rdd.cl
 
+import java.util.Map
+import java.util.HashMap
 import java.util.LinkedList
 
 import com.amd.aparapi.internal.util.UnsafeWrapper
@@ -9,6 +11,7 @@ import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 
@@ -40,7 +43,12 @@ object SerializationPerfTests {
     val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
         lambda, params, hardCodedClassModels);
 
-    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
+    val config : Map[String, String] = new HashMap[String, String]()
+        config.put(BlockWriter.sparseVectorTilingConfig,
+                Integer.toString(
+                      SparseVectorInputBufferWrapperConfig.tiling))
+    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
+            entryPoint, params, config)
     val openCL : String = writerAndKernel.kernel
 
     val acc : InputBufferWrapper[Tuple2[java.lang.Integer, java.lang.Integer]] =

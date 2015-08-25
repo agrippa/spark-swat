@@ -1,5 +1,7 @@
 package org.apache.spark.rdd.cl
 
+import java.util.Map
+import java.util.HashMap
 import java.util.LinkedList
 import java.util.ArrayList
 import java.nio.file.{Paths, Files}
@@ -11,6 +13,7 @@ import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
+import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 
@@ -80,7 +83,12 @@ object CodeGenTests {
     }
 
     if (expectedException == null) {
-      val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
+      val config : Map[String, String] = new HashMap[String, String]()
+          config.put(BlockWriter.sparseVectorTilingConfig,
+                  Integer.toString(
+                      SparseVectorInputBufferWrapperConfig.tiling))
+
+      val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params, config)
       val openCL : String = writerAndKernel.kernel
 
       val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
