@@ -38,7 +38,7 @@ object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
     "\n" +
     "\n" +
     "static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {\n" +
-    "    return (this->values)[index];\n" +
+    "    return (this->values)[32 * index];\n" +
     "}\n" +
     "\n" +
     "static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_DenseVector* in){\n" +
