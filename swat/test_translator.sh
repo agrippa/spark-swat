@@ -9,4 +9,8 @@ for f in $(find $SCALA_HOME/lib -name "*.jar"); do
   JARS="$JARS:$f"
 done
 
+for f in $(find $SPARK_HOME/ -name "*.jar"); do
+  JARS="$JARS:$f"
+done
+
 scala -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $1
