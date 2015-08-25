@@ -40,6 +40,7 @@ object CodeGenTests {
   tests.add(DenseVectorInputTest)
   tests.add(SparseVectorInputTest)
   tests.add(SparseVectorAssignTest)
+  tests.add(ArrayAllocTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,

@@ -1,5 +1,4 @@
-package org.apache.spark.rdd.cl.tests
-
+package org.apache.spark.rdd.cl.tests 
 import java.util.LinkedList
 
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
