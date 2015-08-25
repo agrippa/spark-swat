@@ -43,6 +43,11 @@ public class OpenCLBridge {
             byte[] arg, int argLength, long broadcastId, int rddid,
             int partitionid, int offset, int component);
     public static native void setNullArrayArg(long ctx, int index);
+    
+    public static native void setArrayArg(long ctx, long dev_ctx,
+            int index, java.lang.Object arg, int argLength, int argEleLength,
+            long broadcastId, int rddid, int partitionid, int offset,
+            int component);
 
     public static native void fetchIntArrayArg(long ctx, long dev_ctx,
             int index, int[] arg, int argLength);

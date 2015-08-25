@@ -29,6 +29,8 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
 
 class ObjectMatcher(sample : Tuple2[_, _]) extends HardCodedClassModelMatcher {
+  def checkPreconditions(classModels : java.util.List[HardCodedClassModel]) {
+  }
 
   def matches(genericModel : HardCodedClassModel) : Boolean = {
     val model : Tuple2ClassModel = genericModel.asInstanceOf[Tuple2ClassModel]

@@ -11,8 +11,11 @@ import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 import org.apache.spark.broadcast.Broadcast
 
+import org.apache.spark.mllib.linalg.DenseVector
+
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.model.DenseVectorClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.Entrypoint
@@ -33,7 +36,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  def createHardCodedClassModel(obj : Tuple2[_, _],
+  def createHardCodedDenseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
+    val denseVectorClassModel : DenseVectorClassModel =
+        DenseVectorClassModel.create(DenseVectorInputBufferWrapperConfig.tiling)
+    hardCodedClassModels.addClassModelFor(
+            Class.forName("org.apache.spark.mllib.linalg.DenseVector"),
+            denseVectorClassModel)
+  }
+
+  def createHardCodedTuple2ClassModel(obj : Tuple2[_, _],
       hardCodedClassModels : HardCodedClassModels,
       param : ScalaArrayParameter) {
     val inputClassType1 = obj._1.getClass
@@ -116,12 +127,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 //             val genStart = System.currentTimeMillis // PROFILE
 
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
-              createHardCodedClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
+              createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
+            } else if (firstSample.isInstanceOf[DenseVector]) {
+              createHardCodedDenseVectorClassModel(hardCodedClassModels)
             }
+
             sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
             if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
-              createHardCodedClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
+              createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
             }
 
@@ -152,6 +166,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
               acc = Some(new Tuple2InputBufferWrapper(N,
                           firstSample.asInstanceOf[Tuple2[_, _]],
+                          entryPoint).asInstanceOf[InputBufferWrapper[T]])
+            } else if (firstSample.isInstanceOf[DenseVector]) {
+              acc = Some(new DenseVectorInputBufferWrapper(10 * N, N,
                           entryPoint).asInstanceOf[InputBufferWrapper[T]])
             } else {
               acc = Some(new ObjectInputBufferWrapper(N,
