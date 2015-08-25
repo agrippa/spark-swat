@@ -10,4 +10,5 @@ trait CodeGenTest[P, R] {
   def getFunction() : Function1[P, R]
   def init() : HardCodedClassModels
   def complete(params : LinkedList[ScalaArrayParameter])
+  def getExpectedException() : String
 }

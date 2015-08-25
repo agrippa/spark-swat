@@ -11,6 +11,8 @@ import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
 
 object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
+  def getExpectedException() : String = { return null }
+
   def getExpectedKernel() : String = {
     "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
     "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +

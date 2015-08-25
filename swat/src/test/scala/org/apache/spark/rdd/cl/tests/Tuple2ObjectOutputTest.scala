@@ -11,6 +11,8 @@ import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
 
 object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
+  def getExpectedException() : String = { return null }
+
   def getExpectedKernel() : String = {
     "#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable\n" +
     "#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable\n" +

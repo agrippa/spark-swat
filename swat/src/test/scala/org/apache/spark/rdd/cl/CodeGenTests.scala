@@ -35,9 +35,12 @@ object CodeGenTests {
   tests.add(Tuple2InputOutputTest)
   tests.add(KMeansTest)
   tests.add(DenseVectorInputTest)
+  tests.add(SparseVectorInputTest)
+  tests.add(SparseVectorAssignTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
-      expectedNumArguments : Int, testName : String, test : CodeGenTest[_, _]) {
+      expectedNumArguments : Int, testName : String, expectedException : String,
+      test : CodeGenTest[_, _]) {
     val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass,
         null, new ShouldNotCallMatcher())
     val method = classModel.getPrimitiveApplyMethod
@@ -51,29 +54,53 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
-        lambda, params, hardCodedClassModels);
-
-    val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
-    val openCL : String = writerAndKernel.kernel
-
-    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
-    val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
-        openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
-        entryPoint.requiresHeap);
-
-    if (!openCL.equals(expectedKernel)) {
-      System.err.println(testName + " FAILED")
-      System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
-      System.err.println("Use 'vimdiff correct generated' to see the difference")
-
-      Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
-      Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
-
-      System.exit(1)
-    } else {
-      System.err.println(testName + " PASSED")
+    var gotExpectedException = false
+    var entryPoint : Entrypoint = null;
+    try {
+      entryPoint = classModel.getEntrypoint("apply", descriptor,
+          lambda, params, hardCodedClassModels);
+    } catch {
+      case e: Exception => {
+        if (expectedException == null) {
+          throw e
+        } else if (!e.getMessage().equals(expectedException)) {
+          throw new RuntimeException("Expected exception \"" +
+                  expectedException + "\" but got \"" + e.getMessage() +
+                  "\"")
+        } else {
+          gotExpectedException = true
+        }
+      }
     }
+
+    if (expectedException != null && !gotExpectedException) {
+        System.err.println(testName + " FAILED")
+        System.err.println("Expected exception \"" + expectedException + "\"")
+        System.exit(1)
+    }
+
+    if (expectedException == null) {
+      val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params)
+      val openCL : String = writerAndKernel.kernel
+
+      val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
+      val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
+          openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
+          entryPoint.requiresHeap);
+
+      if (!openCL.equals(expectedKernel)) {
+        System.err.println(testName + " FAILED")
+        System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
+        System.err.println("Use 'vimdiff correct generated' to see the difference")
+
+        Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
+        Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
+
+        System.exit(1)
+      }
+    }
+
+    System.err.println(testName + " PASSED")
   }
 
   def main(args : Array[String]) {
@@ -83,7 +110,8 @@ object CodeGenTests {
       val test : CodeGenTest[_, _] = tests.get(i)
       if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
         verifyCodeGen(test.getFunction, test.getExpectedKernel,
-            test.getExpectedNumInputs, test.getClass.getSimpleName, test)
+            test.getExpectedNumInputs, test.getClass.getSimpleName,
+            test.getExpectedException, test)
       }
     }
   }

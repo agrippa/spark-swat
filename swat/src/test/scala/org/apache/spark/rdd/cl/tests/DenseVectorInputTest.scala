@@ -13,7 +13,11 @@ import org.apache.spark.rdd.cl.CodeGenUtil
 
 import org.apache.spark.mllib.linalg.DenseVector
 
+import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
+
 object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
+  def getExpectedException() : String = { return null }
+
   def getExpectedKernel() : String = {
     "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" +
     "\n" +
@@ -75,7 +79,8 @@ object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
 
   def init() : HardCodedClassModels = {
     val models = new HardCodedClassModels()
-    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create()
+    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create(
+            DenseVectorInputBufferWrapperConfig.tiling)
     models.addClassModelFor(classOf[DenseVector], denseVectorModel)
     models
   }

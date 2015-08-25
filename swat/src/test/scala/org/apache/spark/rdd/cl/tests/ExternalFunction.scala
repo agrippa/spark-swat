@@ -6,6 +6,8 @@ import org.apache.spark.rdd.cl.CodeGenTest
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
 object ExternalFunction extends CodeGenTest[Point, Point] {
+  def getExpectedException() : String = { return null }
+
   def getExpectedKernel() : String = {
 "#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable\n" +
 "#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable\n" +
