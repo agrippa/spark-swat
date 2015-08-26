@@ -3,8 +3,8 @@ GXX=icpc
 DEFINES=-DTRACE -DVERBOSE -DBRIDGE_DEBUG
 GXX_FLAGS=-O0 -g -Wall
 
-SRC=bridge.cpp ocl_util.cpp allocator.cpp common.cpp
-INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
+SRC=bridge.cpp common.cpp
+INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux -I${CLUTIL_HOME} -I${CLALLOC_HOME}
 TARGET=libbridge.so
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
@@ -17,13 +17,14 @@ endif
 all: ${TARGET} rerun query_tool
 
 ${TARGET}: ${SRC}
-	${GXX} ${GXX_FLAGS} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared
+	${GXX} ${GXX_FLAGS} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared \
+		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil
 
-rerun: rerun.cpp ocl_util.cpp common.cpp
-	${GXX} ${GXX_FLAGS} ${DEFINES} ${INCLUDES} rerun.cpp ocl_util.cpp common.cpp -o rerun
+rerun: rerun.cpp common.cpp
+	${GXX} ${GXX_FLAGS} ${DEFINES} ${INCLUDES} rerun.cpp common.cpp -o rerun -L${CLUTIL_HOME} -lclutil
 
 query_tool: query_tool.cpp
-	${GXX} ${GXX_FLAGS} query_tool.cpp ocl_util.cpp -o query_tool
+	${GXX} ${GXX_FLAGS} query_tool.cpp -o query_tool -L${CLUTIL_HOME} -lclutil
 
 clean:
 	rm -f ${TARGET} rerun

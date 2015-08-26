@@ -1,0 +1,9 @@
+GXX=icpc
+# DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
+DEFINES=
+GXX_FLAGS=-O3 -Wall
+INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
+
+libclalloc.so: allocator.cpp allocator.h
+	${GXX} ${GXX_FLAGS} ${DEFINES} allocator.cpp -o libclalloc.so ${INCLUDES} \
+		-fPIC --shared -I${CLUTIL_HOME} -L${CLUTIL_HOME} -lclutil
