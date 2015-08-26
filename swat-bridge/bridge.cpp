@@ -3,9 +3,9 @@
 #include <fcntl.h>
 #include <pthread.h>
 
+#include "kernel_arg.h"
 #include "bridge.h"
 #include "common.h"
-#include "kernel_arg.h"
 #include "ocl_util.h"
 
 static device_context *device_ctxs = NULL;
@@ -63,13 +63,12 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
         ASSERT(err == 0); \
         if (reallocated) { \
-            CHECK(clSetKernelArg(context->kernel, index, \
-                        sizeof(region->sub_mem), &region->sub_mem)); \
+            set_cached_kernel_arg(region, index, len, context, dev_ctx); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
-            cl_region *new_region = set_kernel_arg(arr, len, index, context, \
+            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock); \
@@ -96,12 +95,11 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         err = pthread_rwlock_unlock(&rdd_cache_lock); \
         ASSERT(err == 0); \
         if (reallocated) { \
-            CHECK(clSetKernelArg(context->kernel, index, \
-                        sizeof(region->sub_mem), &region->sub_mem)); \
+            set_cached_kernel_arg(region, index, len, context, dev_ctx); \
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
-            cl_region *new_region = set_kernel_arg(arr, len, index, context, \
+            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             err = pthread_rwlock_wrlock(&rdd_cache_lock); \
@@ -120,7 +118,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         ASSERT(rddid < 0 && broadcastId < 0); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
-        cl_region *new_region = set_kernel_arg(arr, len, index, context, \
+        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
                 dev_ctx, broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
     } \
@@ -175,7 +173,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
     jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
     void *arr_eles = jenv->GetPrimitiveArrayCritical((j##ltype##Array)arr, NULL); \
     CHECK_JNI(arr_eles) \
-    set_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
+    set_and_write_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
             (device_context *)l_dev_ctx, -1, -1); \
     jenv->ReleasePrimitiveArrayCritical((j##ltype##Array)arr, arr_eles, JNI_ABORT); \
     EXIT_TRACE("set"#utype"ArrayArgByName"); \
@@ -201,7 +199,7 @@ static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
     CHECK(clSetKernelArg(kernel, arg_index, arg_size, arg_value));
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[arg_index] = new kernel_arg(arg_value, arg_size,
-            false, false, 0);
+            false, false);
 #endif
 
 #ifdef VERBOSE
@@ -534,17 +532,34 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 
     int perr = pthread_mutex_lock(&dev_ctx->program_cache_lock);
     ASSERT(perr == 0);
-   
+
+#ifdef BRIDGE_DEBUG
+    char *store_source;
+    jsize source_len;
+#endif
+
     cl_int err;
     cl_program program;
     if (dev_ctx->program_cache->find(label_str) != dev_ctx->program_cache->end()) {
         program = dev_ctx->program_cache->at(label_str);
+
+#ifdef BRIDGE_DEBUG
+        const char *raw_source = jenv->GetStringUTFChars(source, NULL);
+        CHECK_JNI(raw_source)
+        source_len = jenv->GetStringLength(source);
+        store_source = (char *)malloc(source_len + 1);
+        CHECK_ALLOC(store_source)
+        memcpy(store_source, raw_source, source_len);
+        store_source[source_len] = '\0';
+        jenv->ReleaseStringUTFChars(source, raw_source);
+#endif
+
     } else {
         const char *raw_source = jenv->GetStringUTFChars(source, NULL);
         CHECK_JNI(raw_source)
-        jsize source_len = jenv->GetStringLength(source);
+        source_len = jenv->GetStringLength(source);
 #ifdef BRIDGE_DEBUG
-        char *store_source = (char *)malloc(source_len + 1);
+        store_source = (char *)malloc(source_len + 1);
         CHECK_ALLOC(store_source)
         memcpy(store_source, raw_source, source_len);
         store_source[source_len] = '\0';
@@ -610,7 +625,20 @@ static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
     return region;
 }
 
-static cl_region *set_kernel_arg(void *host, size_t len, int index,
+static void set_cached_kernel_arg(cl_region *region, int index, size_t len,
+        swat_context *context, device_context *dev_ctx) {
+    CHECK(clSetKernelArg(context->kernel, index, sizeof(region->sub_mem), &region->sub_mem));
+
+#ifdef BRIDGE_DEBUG
+    (*context->debug_arguments)[index] = new kernel_arg(region->sub_mem, len, dev_ctx);
+#endif
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
+            len);
+#endif
+}
+
+static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx, jlong broadcastId, jint rdd) {
     cl_region *region = get_mem_cached(context, dev_ctx, index, len, broadcastId, rdd);
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_TRUE, 0, len, host,
@@ -619,8 +647,7 @@ static cl_region *set_kernel_arg(void *host, size_t len, int index,
     CHECK(clSetKernelArg(context->kernel, index, sizeof(region->sub_mem), &region->sub_mem));
 
 #ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[index] = new kernel_arg(host, len, true, false,
-            0);
+    (*context->debug_arguments)[index] = new kernel_arg(host, len, true, false);
 #endif
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
@@ -658,6 +685,16 @@ FETCH_ARRAY_ARG_MACRO(double, Double, double)
 FETCH_ARRAY_ARG_MACRO(float, Float, float)
 FETCH_ARRAY_ARG_MACRO(byte, Byte, jbyte)
 
+JNI_JAVA(int, OpenCLBridge, getDevicePointerSizeInBytes)
+        (JNIEnv *jenv, jclass clazz, jlong l_dev_ctx) {
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+    cl_uint pointer_size_in_bits;
+    CHECK(clGetDeviceInfo(dev_ctx->dev, CL_DEVICE_ADDRESS_BITS,
+                sizeof(pointer_size_in_bits), &pointer_size_in_bits, NULL));
+    assert(pointer_size_in_bits % 8 == 0);
+    return pointer_size_in_bits / 8;
+}
+
 JNI_JAVA(void, OpenCLBridge, setArrayArg)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index,
          jobject argObj, jint argLength, jint argEleSize, jlong broadcastId, jint rddid,
@@ -683,13 +720,12 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
         ASSERT(err == 0);
         if (reallocated) {
-            CHECK(clSetKernelArg(context->kernel, index,
-                        sizeof(region->sub_mem), &region->sub_mem));
+            set_cached_kernel_arg(region, index, len, context, dev_ctx);
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true);
         } else {
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
             CHECK_JNI(arr)
-            cl_region *new_region = set_kernel_arg(arr, len, index, context,
+            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
                     dev_ctx, broadcastId, rddid);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
@@ -716,12 +752,11 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         err = pthread_rwlock_unlock(&rdd_cache_lock);
         ASSERT(err == 0);
         if (reallocated) {
-            CHECK(clSetKernelArg(context->kernel, index,
-                        sizeof(region->sub_mem), &region->sub_mem));
+            set_cached_kernel_arg(region, index, len, context, dev_ctx);
             (*context->arguments)[index] = pair<cl_region *, bool>(region, true);
         } else {
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
-            cl_region *new_region = set_kernel_arg(arr, len, index, context,
+            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
                     dev_ctx, broadcastId, rddid);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             err = pthread_rwlock_wrlock(&rdd_cache_lock);
@@ -740,7 +775,7 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         ASSERT(rddid < 0 && broadcastId < 0);
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
         CHECK_JNI(arr)
-        cl_region *new_region = set_kernel_arg(arr, len, index, context,
+        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
                 dev_ctx, broadcastId, rddid);
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
     }
@@ -780,7 +815,7 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[argnum] = new kernel_arg(NULL, size, true,
-            false, 0);
+            false);
 #endif
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to an unitialized value with size %ld\n",
@@ -802,7 +837,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[argnum] = new kernel_arg(&none, sizeof(none),
-            false, false, 0);
+            false, false);
 #endif
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a null value\n", argnum);
@@ -828,7 +863,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL, size,
-            true, false, 0);
+            true, false);
 #endif
 
     // free_index
@@ -840,7 +875,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(zero), true, true, zero);
+            sizeof(zero), true, true);
 #endif
 
     // heap_size
@@ -849,7 +884,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(&size,
-            sizeof(size), false, false, 0);
+            sizeof(size), false, false);
 #endif
 
     // processing_succeeded
@@ -872,7 +907,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(int) * max_n_buffered, true, true, zero);
+            sizeof(int) * max_n_buffered, true, true);
 #endif
 
     // any_failed
@@ -890,7 +925,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(unsigned), true, true, zero);
+            sizeof(unsigned), true, true);
 #endif
 #ifdef VERBOSE
     fprintf(stderr, "Creating heap at %d->%d (inclusive)\n", argnum,

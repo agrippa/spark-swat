@@ -59,11 +59,13 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
+    val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     var gotExpectedException = false
     var entryPoint : Entrypoint = null;
     try {
       entryPoint = classModel.getEntrypoint("apply", descriptor,
-          lambda, params, hardCodedClassModels);
+          lambda, params, hardCodedClassModels, config)
     } catch {
       case e: Exception => {
         if (expectedException == null) {
@@ -85,15 +87,10 @@ object CodeGenTests {
     }
 
     if (expectedException == null) {
-      val config : Map[String, String] = new HashMap[String, String]()
-          config.put(BlockWriter.sparseVectorTilingConfig,
-                  Integer.toString(
-                      SparseVectorInputBufferWrapperConfig.tiling))
-
-      val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(entryPoint, params, config)
+      val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
+              entryPoint, params)
       val openCL : String = writerAndKernel.kernel
 
-      val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
       val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
           openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
           entryPoint.requiresHeap);

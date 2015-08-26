@@ -133,13 +133,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             outputBuffer.get.releaseBuffers(bbCache)
           }
 
-          val deviceHint : Int = OpenCLBridge.getDeviceHintFor(firstParent[T].id, split.index, totalNLoaded, 0)
+          val deviceHint : Int = OpenCLBridge.getDeviceHintFor(
+                  firstParent[T].id, split.index, totalNLoaded, 0)
 
           val firstSample : T = nested.next
 
-          if (entryPoint == null) {
-//             val genStart = System.currentTimeMillis // PROFILE
+//           val initStart = System.currentTimeMillis // PROFILE
+          val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
+//           System.err.println("Selected device " + device_index) // PROFILE
+          val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
+          val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
 
+          if (entryPoint == null) {
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
@@ -153,6 +158,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
               createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
+            } else if (sampleOutput.isInstanceOf[DenseVector]) {
+              createHardCodedDenseVectorClassModel(hardCodedClassModels)
             }
 
             EntrypointCache.cache.synchronized {
@@ -160,21 +167,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                 entryPoint = EntrypointCache.cache.get(f.getClass.getName)
               } else {
                 entryPoint = classModel.getEntrypoint("apply", descriptor,
-                    f, params, hardCodedClassModels);
+                    f, params, hardCodedClassModels,
+                    CodeGenUtil.createCodeGenConfig(dev_ctx));
                 EntrypointCache.cache.put(f.getClass.getName, entryPoint)
               }
 
               if (EntrypointCache.kernelCache.containsKey(f.getClass.getName)) {
                 openCL = EntrypointCache.kernelCache.get(f.getClass.getName)
               } else {
-                val config : Map[String, String] = new HashMap[String, String]()
-                config.put(BlockWriter.sparseVectorTilingConfig,
-                        Integer.toString(
-                            SparseVectorInputBufferWrapperConfig.tiling))
                 val writerAndKernel = KernelWriter.writeToString(
-                    entryPoint, params, config)
+                    entryPoint, params)
                 openCL = writerAndKernel.kernel
-                // System.err.println(openCL)
+                System.err.println(openCL)
                 EntrypointCache.kernelCache.put(f.getClass.getName, openCL)
               }
             }
@@ -197,13 +201,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               acc = Some(new ObjectInputBufferWrapper(N,
                           firstSample.getClass.getName, entryPoint))
             }
-//             profPrint("CodeGeneration", genStart, threadId) // PROFILE
           }
 
-//           val initStart = System.currentTimeMillis // PROFILE
-          val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
-//           System.err.println("Selected device " + device_index) // PROFILE
-          val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
           if (!ctxCache.containsKey(dev_ctx)) {
             ctxCache.put(dev_ctx, OpenCLBridge.createSwatContext(
                         f.getClass.getName, openCL, dev_ctx, threadId,
@@ -234,7 +233,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                       firstParent[T].id else -1, split.index, myOffset)
           val outArgNum : Int = argnum
           argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
-              dev_ctx, argnum, N, classTag[U].runtimeClass,
+              dev_ctx, argnum, nLoaded, classTag[U].runtimeClass,
               entryPoint, sampleOutput.asInstanceOf[U])
 
           val iter = entryPoint.getReferencedClassModelFields.iterator
@@ -259,9 +258,22 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           if (sampleOutput.isInstanceOf[DenseVector]) {
             assert(entryPoint.requiresHeap)
 
-            outputBuffer = Some(new DenseVectorOutputBufferWrapper(outArgNum,
-                        heapArgStart, heapSize, ctx, dev_ctx, nLoaded,
-                        anyFailedArgNum, entryPoint, bbCache).asInstanceOf[OutputBufferWrapper[U]])
+            val acc : java.util.List[DenseVectorDeviceBuffersWrapper] =
+                new java.util.LinkedList[DenseVectorDeviceBuffersWrapper]()
+            var complete : Boolean = false
+            do {
+              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
+              val buffer : DenseVectorDeviceBuffersWrapper =
+                  new DenseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+                  heapArgStart + 3, outArgNum, heapArgStart, heapSize, ctx,
+                  dev_ctx, entryPoint, bbCache, devicePointerSize)
+              complete = buffer.readFromDevice
+              acc.add(buffer)
+              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
+            } while (!complete)
+
+            outputBuffer = Some(new DenseVectorOutputBufferWrapper(
+                        acc).asInstanceOf[OutputBufferWrapper[U]])
 
 //             profPrint("Run", runStart, threadId) // PROFILE
 //             val readStart = System.currentTimeMillis // PROFILE
@@ -286,9 +298,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                     OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx,
                     dev_ctx, outArgNum, nLoaded, entryPoint,
                     sampleOutput.asInstanceOf[U], bbCache))
-            OpenCLBridge.postKernelCleanup(ctx);
           }
 
+          OpenCLBridge.postKernelCleanup(ctx);
 //           profPrint("Read", readStart, threadId) // PROFILE
         }
 

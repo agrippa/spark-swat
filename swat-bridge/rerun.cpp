@@ -264,6 +264,11 @@ int main(int argc, char **argv) {
         safe_read(fd, &arg_index, sizeof(arg_index));
         kernel_arg *arg = new kernel_arg(fd);
 
+        fprintf(stderr, "Read arg %d of size %lu, val=%p, is_ref? %s, zero? "
+                "%s\n", arg_index, arg->get_size(), arg->get_val(),
+                arg->get_is_ref() ? "true" : "false",
+                arg->get_clear_to_zero() ? "true" : "false");
+
         debug_arguments[arg_index] = arg;
     }
 
@@ -279,6 +284,14 @@ int main(int argc, char **argv) {
     cl_platform_id cl_platform;
     cl_device_id cl_device;
     find_platform_and_device(device, &cl_platform, &cl_device);
+
+    size_t name_len;
+    CHECK(clGetDeviceInfo(cl_device, CL_DEVICE_NAME, 0, NULL, &name_len));
+    char *device_name = (char *)malloc(name_len + 1);
+    CHECK(clGetDeviceInfo(cl_device, CL_DEVICE_NAME, name_len, device_name,
+                NULL));
+    device_name[name_len] = '\0';
+    fprintf(stderr, "Using device %s\n", device_name);
 
     cl_int err;
     cl_context_properties ctx_props[] = { CL_CONTEXT_PLATFORM,
@@ -328,17 +341,14 @@ int main(int argc, char **argv) {
             arguments[arg_index] = mem;
 
             if (arg->get_val() == NULL) {
-                if (arg->get_is_memset()) {
-                    cl_event event;
-                    int memset_val = arg->get_memset_value();
-                    fprintf(stderr, "  Memsetting to %d\n", memset_val);
-                    CHECK(clEnqueueFillBuffer(cmd, mem, &memset_val,
-                                sizeof(memset_val), 0, arg->get_size(), 0, NULL,
-                                &event));
-                    CHECK(clWaitForEvents(1, &event));
+                if (arg->get_clear_to_zero()) {
+                    fprintf(stderr, "  Memsetting to zeros\n");
+                    void *zeros = malloc(arg->get_size());
+                    memset(zeros, 0x00, arg->get_size());
+                    CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, arg->get_size(), zeros, 0, NULL, NULL));
                 }
             } else {
-                assert(!arg->get_is_memset());
+                assert(!arg->get_clear_to_zero());
                 fprintf(stderr, "  Filling...\n");
                 CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0,
                             arg->get_size(), arg->get_val(), 0, NULL, NULL));
@@ -346,7 +356,7 @@ int main(int argc, char **argv) {
 
             CHECK(clSetKernelArg(kernel, arg_index, sizeof(mem), &mem));
         } else {
-            assert(!arg->get_is_memset());
+            assert(!arg->get_clear_to_zero());
             assert(arg->get_val() != NULL);
             fprintf(stderr, "Scalar argument for %d\n", arg_index);
             CHECK(clSetKernelArg(kernel, arg_index, arg->get_size(),
@@ -368,7 +378,7 @@ int main(int argc, char **argv) {
         kernel_arg *karg = debug_arguments[arg.index];
         size_t size = karg->get_size();
 
-        fprintf(stderr, "Outputting argument #%d\n  ", arg.index);
+        fprintf(stderr, "Outputting argument #%d\n", arg.index);
 
         if (karg->get_is_ref()) {
             assert(arguments.find(arg.index) != arguments.end());
@@ -381,7 +391,7 @@ int main(int argc, char **argv) {
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, ibuf, 0,
                                 NULL, NULL));
                     for (int j = 0; j < (size / sizeof(int)); j++) {
-                        fprintf(stderr, "%d ", ibuf[j]);
+                        fprintf(stderr, "  %d\n", ibuf[j]);
                     }
                     fprintf(stderr, "\n");
                     free(ibuf);

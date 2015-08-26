@@ -1,9 +1,9 @@
 GXX=icpc
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=
-GXX_FLAGS=-O3 -Wall
+DEFINES=-DTRACE -DVERBOSE -DBRIDGE_DEBUG
+GXX_FLAGS=-O0 -g -Wall
 
-SRC=bridge.cpp ocl_util.cpp allocator.cpp
+SRC=bridge.cpp ocl_util.cpp allocator.cpp common.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
 TARGET=libbridge.so
 
@@ -19,8 +19,8 @@ all: ${TARGET} rerun query_tool
 ${TARGET}: ${SRC}
 	${GXX} ${GXX_FLAGS} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared
 
-rerun: rerun.cpp ocl_util.cpp
-	${GXX} ${GXX_FLAGS} ${DEFINES} rerun.cpp ocl_util.cpp -o rerun
+rerun: rerun.cpp ocl_util.cpp common.cpp
+	${GXX} ${GXX_FLAGS} ${DEFINES} ${INCLUDES} rerun.cpp ocl_util.cpp common.cpp -o rerun
 
 query_tool: query_tool.cpp
 	${GXX} ${GXX_FLAGS} query_tool.cpp ocl_util.cpp -o query_tool

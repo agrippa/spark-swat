@@ -16,14 +16,19 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class DenseVectorOutputBufferWrapper(outArgNum : Int, heapArgStart : Int,
-        heapSize : Int, ctx : Long, dev_ctx : Long, nLoaded : Int, anyFailedArgNum : Int, entryPoint : Entrypoint, bbCache : ByteBufferCache)
-        extends OutputBufferWrapper[DenseVector] {
-  val processingSucceededArgnum = heapArgStart + 3
+class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
+        processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
+        heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
+        bbCache : ByteBufferCache, devicePointerSize : Int) {
+  val anyFailed : Array[Int] = new Array[Int](1)
+
   val processingSucceeded : Array[Int] = new Array[Int](nLoaded)
 
-  // 8 for the pointer in DenseVector + 4 for size
-  val denseVectorStructSize = 8 + 4
+  /*
+   * devicePointerSize is either 4 or 8 for the pointer in DenseVector + 4 for
+   * size field
+   */
+  val denseVectorStructSize = devicePointerSize + 4
   val outArgLength = nLoaded * denseVectorStructSize
   val outArg : Array[Byte] = new Array[Byte](outArgLength)
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
@@ -33,14 +38,9 @@ class DenseVectorOutputBufferWrapper(outArgNum : Int, heapArgStart : Int,
   val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
   heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-  val anyFailed : Array[Int] = new Array[Int](1)
+  var iter : Int = 0
 
-  var complete = false
-
-  var iter : Int = nLoaded
-
-  def runKernelOnce() {
-    OpenCLBridge.run(ctx, dev_ctx, nLoaded);
+  def readFromDevice() : Boolean = {
     OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
             anyFailed, entryPoint, bbCache)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
@@ -48,29 +48,40 @@ class DenseVectorOutputBufferWrapper(outArgNum : Int, heapArgStart : Int,
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
             heapSize)
+
+    moveToNextNonEmptySlot
+    assert(hasNext) // assume that each buffer has at least one item
+
+    anyFailed(0) == 0 // return true when the kernel completed successfully
   }
 
   def moveToNextNonEmptySlot() : Boolean = {
     while (iter < nLoaded && processingSucceeded(iter) == 0) {
       iter += 1
     }
+    hasNext
+  }
+
+  def getCurrSlot() : Int = {
+    iter
+  }
+
+  def hasNext() : Boolean = {
     iter != nLoaded
   }
 
-  override def next() : DenseVector = {
-    if (!moveToNextNonEmptySlot) {
-      // Reset and run again
-      runKernelOnce
-      complete = (anyFailed(0) == 0)
-      iter = 0
-      val success = moveToNextNonEmptySlot
-      assert(success)
-    }
-
+  def next() : DenseVector = {
     val slot = iter
     val slotOffset = slot * denseVectorStructSize
     outArgBuffer.position(slotOffset)
-    val heapOffset : Long = outArgBuffer.getLong
+    var heapOffset : Int = -1
+    if (devicePointerSize == 4) {
+      heapOffset = outArgBuffer.getInt
+    } else if (devicePointerSize == 8) {
+      heapOffset = outArgBuffer.getLong.toInt
+    } else {
+      throw new RuntimeException("Unsupported devicePointerSize=" + devicePointerSize)
+    }
     val size : Int = outArgBuffer.getInt
 
     val values : Array[Double] = new Array[Double](size)
@@ -83,12 +94,34 @@ class DenseVectorOutputBufferWrapper(outArgNum : Int, heapArgStart : Int,
 
     Vectors.dense(values).asInstanceOf[DenseVector]
   }
+}
+
+class DenseVectorOutputBufferWrapper(
+        buffers : java.util.List[DenseVectorDeviceBuffersWrapper])
+        extends OutputBufferWrapper[DenseVector] {
+  var completed = 0
+  var currSlot = 0
+
+  override def next() : DenseVector = {
+    val iter = buffers.iterator
+    var target : Option[DenseVectorDeviceBuffersWrapper] = None
+    while (target.isEmpty && iter.hasNext) {
+      val buffer = iter.next
+      if (buffer.getCurrSlot == currSlot) {
+        target = Some(buffer)
+      }
+    }
+    val vec = target.get.next
+    if (!target.get.moveToNextNonEmptySlot) {
+      completed += 1
+    }
+    currSlot += 1
+    vec
+  }
 
   override def hasNext() : Boolean = {
-    complete && iter == nLoaded
+    completed != buffers.size
   }
 
-  override def releaseBuffers(bbCache : ByteBufferCache) {
-    OpenCLBridge.postKernelCleanup(ctx);
-  }
+  override def releaseBuffers(bbCache : ByteBufferCache) { }
 }

@@ -27,6 +27,7 @@ public class OpenCLBridge {
     public static native int getDeviceHintFor(int rdd, int partition,
             int offset, int component);
     public static native int getDeviceToUse(int hint, int host_thread_index);
+    public static native int getDevicePointerSizeInBytes(long dev_ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);
 

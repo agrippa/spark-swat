@@ -5,6 +5,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
 import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
+import com.amd.aparapi.internal.model.Entrypoint
 
 object CodeGenUtil {
   def isPrimitive(typeString : String) : Boolean = {
@@ -80,5 +81,17 @@ object CodeGenUtil {
     } else {
       return "L" + className + ";"
     }
+  }
+
+  def createCodeGenConfig(dev_ctx : Long) : java.util.Map[String, String] = {
+    assert(dev_ctx != -1L)
+    val config : java.util.Map[String, String] = new java.util.HashMap[String, String]()
+
+    config.put(Entrypoint.sparseVectorTilingConfig, Integer.toString(
+                SparseVectorInputBufferWrapperConfig.tiling))
+    config.put(Entrypoint.clDevicePointerSize, Integer.toString(
+                OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)))
+
+    config
   }
 }
