@@ -61,8 +61,8 @@ object DenseVectorOutputTest extends CodeGenTest[Int, DenseVector] {
     "\n" +
     "   return(\n" +
     "   {\n" +
-    "        __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(int) + (sizeof(double) * (in)), &this->alloc_failed);\n" +
-    "      if (this->alloc_failed) { return (0x0); } *((__global int *)__alloc0) = (in); __alloc0 = (__global double *)(((__global int *)__alloc0) + 1); \n" +
+    "        __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (in)), &this->alloc_failed);\n" +
+    "      if (this->alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); \n" +
     " \n" +
     "       __global double* valuesArr = __alloc0;\n" +
     "      int i = 0;\n" +
@@ -72,7 +72,7 @@ object DenseVectorOutputTest extends CodeGenTest[Int, DenseVector] {
     "      }\n" +
     "      __global org_apache_spark_mllib_linalg_DenseVector * __alloc1 = (__global org_apache_spark_mllib_linalg_DenseVector *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), &this->alloc_failed);\n" +
     "      if (this->alloc_failed) { return (0x0); }\n" +
-    "      ({ __alloc1->values = valuesArr; __alloc1->size = *(((__global int *)__alloc1->values) - 1); __alloc1; });\n" +
+    "      ({ __alloc1->values = valuesArr; __alloc1->size = *(((__global long *)__alloc1->values) - 1); __alloc1; });\n" +
     "   });\n" +
     "}\n" +
     "__kernel void run(\n" +

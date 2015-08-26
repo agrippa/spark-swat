@@ -535,8 +535,8 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 
 #ifdef BRIDGE_DEBUG
     char *store_source;
-    jsize source_len;
 #endif
+    jsize source_len;
 
     cl_int err;
     cl_program program;
