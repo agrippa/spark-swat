@@ -181,41 +181,4 @@ public class OpenCLBridge {
         throw new RuntimeException("Unable to find default constructor for " +
                 clazz.getName());
     }
-
-    // public static <T> T constructObjectFromDefaultConstructor(Class<T> clazz)
-    //         throws InstantiationException, IllegalAccessException,
-    //                InvocationTargetException {
-    //     Constructor defaultConstructor = null;
-    //     if (constructorCache.containsKey(clazz)) {
-    //         defaultConstructor = constructorCache.get(clazz);
-    //     } else {
-    //         Constructor[] allConstructors = clazz.getDeclaredConstructors();
-    //         for (Constructor c : allConstructors) {
-    //             if (c.getParameterTypes().length == 0) {
-    //                 defaultConstructor = c;
-    //                 break;
-    //             }
-    //         }
-
-    //         if (defaultConstructor == null) {
-    //             throw new RuntimeException("Expected default constructor for " +
-    //                     "class " + clazz.getName());
-    //         }
-
-    //         defaultConstructor.setAccessible(true);
-    //         constructorCache.put(clazz, defaultConstructor);
-    //     }
-
-    //     T newObj;
-    //     try {
-    //         newObj = (T)defaultConstructor.newInstance();
-    //     } catch (InstantiationException e) {
-    //         throw new RuntimeException(e);
-    //     } catch (IllegalAccessException e) {
-    //         throw new RuntimeException(e);
-    //     } catch (InvocationTargetException e) {
-    //         throw new RuntimeException(e);
-    //     }
-    //     return newObj;
-    // }
 }

@@ -12,8 +12,19 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-trait OutputBufferWrapper[T] {
-  def next() : T
-  def hasNext() : Boolean
-  def releaseBuffers(bbCache : ByteBufferCache)
+class PrimitiveOutputBufferWrapper[T](val arr : Array[T])
+    extends OutputBufferWrapper[T] {
+  var iter : Int = 0
+
+  override def next() : T = {
+    val index = iter
+    iter += 1
+    arr(index)
+  }
+
+  override def hasNext() : Boolean = {
+    iter < arr.length
+  }
+
+  override def releaseBuffers(bbCache : ByteBufferCache) { }
 }

@@ -820,6 +820,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     jint local_argnum = argnum;
+
     // The heap
     cl_region *region = get_mem_cached(context, dev_ctx, local_argnum, size, -1, -1);
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
