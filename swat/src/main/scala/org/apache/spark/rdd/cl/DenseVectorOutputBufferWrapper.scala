@@ -49,13 +49,17 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
             heapSize)
 
-    moveToNextNonEmptySlot
+    if (processingSucceeded(iter) == 0) {
+      // If we aren't already on a non-empty, move
+      moveToNextNonEmptySlot
+    }
     assert(hasNext) // assume that each buffer has at least one item
 
     anyFailed(0) == 0 // return true when the kernel completed successfully
   }
 
   def moveToNextNonEmptySlot() : Boolean = {
+    iter += 1
     while (iter < nLoaded && processingSucceeded(iter) == 0) {
       iter += 1
     }
@@ -103,10 +107,12 @@ class DenseVectorOutputBufferWrapper(
   var currSlot = 0
 
   override def next() : DenseVector = {
+    System.err.println("Looking for slot " + currSlot)
     val iter = buffers.iterator
     var target : Option[DenseVectorDeviceBuffersWrapper] = None
     while (target.isEmpty && iter.hasNext) {
       val buffer = iter.next
+      System.err.println("  buffer curr slot " + buffer.getCurrSlot)
       if (buffer.getCurrSlot == currSlot) {
         target = Some(buffer)
       }
