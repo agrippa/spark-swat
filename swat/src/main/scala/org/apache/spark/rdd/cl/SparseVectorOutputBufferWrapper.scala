@@ -13,10 +13,10 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
+class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
         processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
         heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
         bbCache : ByteBufferCache, devicePointerSize : Int) {
@@ -25,11 +25,11 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   val processingSucceeded : Array[Int] = new Array[Int](nLoaded)
 
   /*
-   * devicePointerSize is either 4 or 8 for the pointer in DenseVector + 4 for
+   * devicePointerSize is either 4 or 8 for the pointers in SparseVector + 4 for
    * size field
    */
-  val denseVectorStructSize = devicePointerSize + 4
-  val outArgLength = nLoaded * denseVectorStructSize
+  val sparseVectorStructSize = (2 * devicePointerSize) + 4
+  val outArgLength = nLoaded * sparseVectorStructSize
   val outArg : Array[Byte] = new Array[Byte](outArgLength)
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
   outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -74,41 +74,54 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
     iter != nLoaded
   }
 
-  def next() : DenseVector = {
+  def next() : SparseVector = {
     val slot = iter
-    val slotOffset = slot * denseVectorStructSize
+    val slotOffset = slot * sparseVectorStructSize
     outArgBuffer.position(slotOffset)
-    var heapOffset : Int = -1
+    var indicesHeapOffset : Int = -1
+    var valuesHeapOffset : Int = -1
     if (devicePointerSize == 4) {
-      heapOffset = outArgBuffer.getInt
+      indicesHeapOffset = outArgBuffer.getInt
+      valuesHeapOffset = outArgBuffer.getInt
     } else if (devicePointerSize == 8) {
-      heapOffset = outArgBuffer.getLong.toInt
+      indicesHeapOffset = outArgBuffer.getLong.toInt
+      valuesHeapOffset = outArgBuffer.getLong.toInt
     } else {
       throw new RuntimeException("Unsupported devicePointerSize=" + devicePointerSize)
     }
     val size : Int = outArgBuffer.getInt
 
+    val indices : Array[Int] = new Array[Int](size)
     val values : Array[Double] = new Array[Double](size)
-    heapOutBuffer.position(heapOffset.toInt)
+
+    // Pull out indices
+    heapOutBuffer.position(indicesHeapOffset)
     var i = 0
+    while (i < size) {
+      indices(i) = heapOutBuffer.getInt
+      i += 1
+    }
+    // Pull out values
+    heapOutBuffer.position(valuesHeapOffset)
+    i = 0
     while (i < size) {
       values(i) = heapOutBuffer.getDouble
       i += 1
     }
 
-    Vectors.dense(values).asInstanceOf[DenseVector]
+    Vectors.sparse(size, indices, values).asInstanceOf[SparseVector]
   }
 }
 
-class DenseVectorOutputBufferWrapper(
-        buffers : java.util.List[DenseVectorDeviceBuffersWrapper])
-        extends OutputBufferWrapper[DenseVector] {
+class SparseVectorOutputBufferWrapper(
+        buffers : java.util.List[SparseVectorDeviceBuffersWrapper])
+        extends OutputBufferWrapper[SparseVector] {
   var completed = 0
   var currSlot = 0
 
-  override def next() : DenseVector = {
+  override def next() : SparseVector = {
     val iter = buffers.iterator
-    var target : Option[DenseVectorDeviceBuffersWrapper] = None
+    var target : Option[SparseVectorDeviceBuffersWrapper] = None
     while (target.isEmpty && iter.hasNext) {
       val buffer = iter.next
       if (buffer.getCurrSlot == currSlot) {

@@ -35,8 +35,8 @@ object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
     "}\n" +
     "\n" +
     "typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s{\n" +
-    "   __global double*  values;\n" +
     "   __global int*  indices;\n" +
+    "   __global double*  values;\n" +
     "   int  size;\n" +
     "   \n" +
     "} org_apache_spark_mllib_linalg_SparseVector;\n" +

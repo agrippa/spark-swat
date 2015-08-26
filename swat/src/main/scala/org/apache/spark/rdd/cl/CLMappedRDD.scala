@@ -160,6 +160,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                   hardCodedClassModels, params.get(1))
             } else if (sampleOutput.isInstanceOf[DenseVector]) {
               createHardCodedDenseVectorClassModel(hardCodedClassModels)
+            } else if (sampleOutput.isInstanceOf[SparseVector]) {
+              createHardCodedSparseVectorClassModel(hardCodedClassModels)
             }
 
             EntrypointCache.cache.synchronized {
@@ -273,6 +275,28 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             } while (!complete)
 
             outputBuffer = Some(new DenseVectorOutputBufferWrapper(
+                        acc).asInstanceOf[OutputBufferWrapper[U]])
+
+//             profPrint("Run", runStart, threadId) // PROFILE
+//             val readStart = System.currentTimeMillis // PROFILE
+          } else if (sampleOutput.isInstanceOf[SparseVector]) {
+            assert(entryPoint.requiresHeap)
+
+            val acc : java.util.List[SparseVectorDeviceBuffersWrapper] =
+                new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
+            var complete : Boolean = false
+            do {
+              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
+              val buffer : SparseVectorDeviceBuffersWrapper =
+                  new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+                  heapArgStart + 3, outArgNum, heapArgStart, heapSize, ctx,
+                  dev_ctx, entryPoint, bbCache, devicePointerSize)
+              complete = buffer.readFromDevice
+              acc.add(buffer)
+              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
+            } while (!complete)
+
+            outputBuffer = Some(new SparseVectorOutputBufferWrapper(
                         acc).asInstanceOf[OutputBufferWrapper[U]])
 
 //             profPrint("Run", runStart, threadId) // PROFILE

@@ -43,6 +43,8 @@ object CodeGenTests {
   tests.add(ArrayAllocTest)
   tests.add(DenseVectorOutputTest)
   tests.add(SparseVectorOutputTest)
+  tests.add(PrimitiveArrayBroadcastTest)
+  tests.add(DenseVectorBroadcastTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
