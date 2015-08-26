@@ -40,17 +40,21 @@ object Tuple2ObjectInputPassToFuncTest extends CodeGenTest[(Int, Point), Float] 
     "   return this->y;\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__externalPoint(This *this, __global org_apache_spark_rdd_cl_tests_Point* v){\n" +
+    "\n" +
     "   return((v->y + v->z));\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__external(This *this, float v){\n" +
+    "\n" +
     "   return((v + 3.0f));\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
     "   return this->x;\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "       __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;\n" +
     "      (org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__external(this, p->x) + org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__externalPoint(this, p));\n" +
     "   });\n" +

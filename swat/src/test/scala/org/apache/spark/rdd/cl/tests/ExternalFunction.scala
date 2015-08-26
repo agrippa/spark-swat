@@ -36,6 +36,7 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   unsigned int heap_size;\n" +
 "   } This;\n" +
 "static void org_apache_spark_rdd_cl_tests_Point__z_$eq(__global org_apache_spark_rdd_cl_tests_Point *this, float x$1){\n" +
+    "\n" +
 "   this->z=x$1;\n" +
 "   return;\n" +
 "}\n" +
@@ -43,6 +44,7 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   return this->z;\n" +
 "}\n" +
 "static void org_apache_spark_rdd_cl_tests_Point__y_$eq(__global org_apache_spark_rdd_cl_tests_Point *this, float x$1){\n" +
+    "\n" +
 "   this->y=x$1;\n" +
 "   return;\n" +
 "}\n" +
@@ -50,6 +52,7 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   return this->y;\n" +
 "}\n" +
 "static void org_apache_spark_rdd_cl_tests_Point__x_$eq(__global org_apache_spark_rdd_cl_tests_Point *this, float x$1){\n" +
+    "\n" +
 "   this->x=x$1;\n" +
 "   return;\n" +
 "}\n" +
@@ -57,12 +60,14 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   return this->x;\n" +
 "}\n" +
 "static void org_apache_spark_rdd_cl_tests_Point__update_values(__global org_apache_spark_rdd_cl_tests_Point *this, int inc){\n" +
+    "\n" +
 "   org_apache_spark_rdd_cl_tests_Point__x_$eq(this, (this->x + (float)inc));\n" +
 "   org_apache_spark_rdd_cl_tests_Point__y_$eq(this, (this->y + (float)inc));\n" +
 "   org_apache_spark_rdd_cl_tests_Point__z_$eq(this, (this->z + (float)inc));\n" +
 "   return;\n" +
 "}\n" +
 "static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){\n" +
+    "\n" +
 "   this->x=x;\n" +
 "   this->y=y;\n" +
 "   this->z=z;\n" +
@@ -70,8 +75,10 @@ object ExternalFunction extends CodeGenTest[Point, Point] {
 "   return (this);\n" +
 "}\n" +
 "static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_ExternalFunction$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_Point* in){\n" +
+    "\n" +
 "   return(\n" +
 "   {\n" +
+"   \n" +
 "      __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
 "      if (this->alloc_failed) { return (0x0); }\n" +
 "       __global org_apache_spark_rdd_cl_tests_Point *p = org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (in->x + (float)1), (in->y + (float)2), (in->z + (float)3));\n" +

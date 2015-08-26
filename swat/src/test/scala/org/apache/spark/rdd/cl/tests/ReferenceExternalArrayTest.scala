@@ -20,9 +20,11 @@ object ReferenceExternalArrayTest extends CodeGenTest[Int, Int] {
     "   int arr$1__javaArrayLength;\n" +
     "   } This;\n" +
     "static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest$$anon$1__apply$mcII$sp(This *this, int in){\n" +
+    "\n" +
     "   return((((in + this->arr$1[0]) + this->arr$1[1]) + this->arr$1[2]));\n" +
     "}\n" +
     "static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   return(org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest$$anon$1__apply$mcII$sp(this, in));\n" +
     "}\n" +
     "__kernel void run(\n" +

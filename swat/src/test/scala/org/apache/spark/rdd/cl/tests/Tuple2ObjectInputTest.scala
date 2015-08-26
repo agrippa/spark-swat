@@ -43,8 +43,10 @@ object Tuple2ObjectInputTest extends CodeGenTest[(Int, Point), Float] {
     "   return this->x;\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "       __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;\n" +
     "      ((p->x + p->y) + p->z);\n" +
     "   });\n" +

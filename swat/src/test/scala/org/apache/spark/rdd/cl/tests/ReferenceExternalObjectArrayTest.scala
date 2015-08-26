@@ -36,9 +36,11 @@ object ReferenceExternalObjectArrayTest extends CodeGenTest[Float, Float] {
     "   return this->x;\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply$mcFF$sp(This *this, float in){\n" +
+    "\n" +
     "   return((((in +  (this->arr$1[0]).x) +  (this->arr$1[1]).y) +  (this->arr$1[2]).z));\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply(This *this, float in){\n" +
+    "\n" +
     "   return(org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply$mcFF$sp(this, in));\n" +
     "}\n" +
     "__kernel void run(\n" +

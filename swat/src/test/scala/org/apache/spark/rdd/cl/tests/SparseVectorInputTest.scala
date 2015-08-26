@@ -75,12 +75,15 @@ object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
     "}\n" +
     "\n" +
     "static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_SparseVector* in){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "      int indexSum = 0;\n" +
     "      double valueSum = 0.0;\n" +
     "      int i = 0;\n" +
     "      for (; i<org_apache_spark_mllib_linalg_SparseVector__size(in); i = i + 1){\n" +
+    "      \n" +
     "         indexSum = indexSum + org_apache_spark_mllib_linalg_SparseVector__indices(in)[32 * (i)];\n" +
     "         valueSum = valueSum + org_apache_spark_mllib_linalg_SparseVector__values(in)[32 * (i)];\n" +
     "      }\n" +

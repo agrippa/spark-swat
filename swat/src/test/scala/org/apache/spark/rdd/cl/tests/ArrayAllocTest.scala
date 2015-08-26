@@ -29,18 +29,21 @@ object ArrayAllocTest extends CodeGenTest[Int, Int] {
     "   unsigned int heap_size;\n" +
     "   } This;\n" +
     "static int org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply$mcII$sp(This *this, int in){\n" +
-    "   return(\n" +
-    "   {      __global int * __alloc0 = (__global int *)alloc(this->heap, this->free_index, this->heap_size, sizeof(int) * (5), &this->alloc_failed);\n" +
-    "      if (this->alloc_failed) { return (0); }\n" +
     "\n" +
-    "       __global int* intArr = __alloc0;      __global double * __alloc1 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(double) * (2), &this->alloc_failed);\n" +
-    "      if (this->alloc_failed) { return (0); }\n" +
+    "   return(\n" +
+    "   {\n" +
+    "         __global int * __alloc0 = (__global int *)alloc(this->heap, this->free_index, this->heap_size, sizeof(int) + (sizeof(int) * (5)), &this->alloc_failed);\n" +
+    "      if (this->alloc_failed) { return (0); } *((__global int *)__alloc0) = (5); __alloc0 = (__global int *)(((__global int *)__alloc0) + 1); \n" +
+    "\n" +
+    "       __global int* intArr = __alloc0;      __global double * __alloc1 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(int) + (sizeof(double) * (2)), &this->alloc_failed);\n" +
+    "      if (this->alloc_failed) { return (0); } *((__global int *)__alloc1) = (2); __alloc1 = (__global double *)(((__global int *)__alloc1) + 1); \n" +
     "\n" +
     "       __global double* doubleArr = __alloc1;\n" +
     "      (in + 3);\n" +
     "   });\n" +
     "}\n" +
     "static int org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   return(org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply$mcII$sp(this, in));\n" +
     "}\n" +
     "__kernel void run(\n" +
@@ -64,7 +67,7 @@ object ArrayAllocTest extends CodeGenTest[Int, Int] {
     "      } else {\n" +
     "         processing_succeeded[i] = 1;\n" +
     "         \n" +
-    "      }\n" + 
+    "      }\n" +
     "   }\n" +
     "}\n"
   }

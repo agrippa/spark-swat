@@ -29,6 +29,7 @@ object Tuple2InputTest extends CodeGenTest[(Int, Int), Int] {
     "typedef struct This_s{\n" +
     "   } This;\n" +
     "static int org_apache_spark_rdd_cl_tests_Tuple2InputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_I* in){\n" +
+    "\n" +
     "   return((in->_1 + in->_2));\n" +
     "}\n" +
     "__kernel void run(\n" +

@@ -79,6 +79,7 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "   return this->x;\n" +
     "}\n" +
     "static __global org_apache_spark_rdd_cl_tests_PointWithClassifier * org_apache_spark_rdd_cl_tests_PointWithClassifier___init_(__global org_apache_spark_rdd_cl_tests_PointWithClassifier *this, float x, float y, float z){\n" +
+    "\n" +
     "   this->x=x;\n" +
     "   this->y=y;\n" +
     "   this->z=z;\n" +
@@ -86,8 +87,10 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "   return (this);\n" +
     "}\n" +
     "static float org_apache_spark_rdd_cl_tests_PointWithClassifier__dist(__global org_apache_spark_rdd_cl_tests_PointWithClassifier *this, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* center){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "      float diffx = center->x - this->x;\n" +
     "      float diffy = center->y - this->y;\n" +
     "      float diffz = center->z - this->z;\n" +
@@ -95,15 +98,20 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "   });\n" +
     "}\n" +
     "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *org_apache_spark_rdd_cl_tests_KMeansTest$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* in){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "      int closest_center = -1;\n" +
     "      float closest_center_dist = -1.0f;\n" +
     "      int i = 0;\n" +
     "      while (i<this->centers$1__javaArrayLength){\n" +
+    "      \n" +
     "         {\n" +
+    "         \n" +
     "            float d = org_apache_spark_rdd_cl_tests_PointWithClassifier__dist(in,  (this->centers$1[i])._2);\n" +
     "            if (i==0 || d<closest_center_dist){\n" +
+    "            \n" +
     "               closest_center = i;\n" +
     "               closest_center_dist = d;\n" +
     "            }\n" +

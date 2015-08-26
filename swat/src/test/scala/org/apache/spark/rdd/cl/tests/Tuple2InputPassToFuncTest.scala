@@ -29,9 +29,11 @@ object Tuple2InputPassToFuncTest extends CodeGenTest[(Int, Int), Int] {
     "typedef struct This_s{\n" +
     "   } This;\n" +
     "static int org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__external(This *this, int v){\n" +
+    "\n" +
     "   return((v + 3));\n" +
     "}\n" +
     "static int org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__apply(This *this, __global scala_Tuple2_I_I* in){\n" +
+    "\n" +
     "   return(org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest$$anon$1__external(this, in->_1));\n" +
     "}\n" +
     "__kernel void run(\n" +

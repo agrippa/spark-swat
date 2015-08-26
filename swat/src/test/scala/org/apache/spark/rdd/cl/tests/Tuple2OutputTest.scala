@@ -47,6 +47,7 @@ object Tuple2OutputTest extends CodeGenTest[Int, (Int, Int)] {
     "}\n" +
     "\n" +
     "static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   __global scala_Tuple2_I_I * __alloc0 = (__global scala_Tuple2_I_I *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_I), &this->alloc_failed);\n" +
     "   if (this->alloc_failed) { return (0x0); }\n" +
     "   return(scala_Tuple2_I_I___init_(__alloc0, (in + 1), (in + 2)));\n" +

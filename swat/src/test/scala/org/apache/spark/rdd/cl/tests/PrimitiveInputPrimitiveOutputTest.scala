@@ -18,9 +18,11 @@ object PrimitiveInputPrimitiveOutputTest extends CodeGenTest[Int, Int] {
     "typedef struct This_s{\n" +
     "   } This;\n" +
     "static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(This *this, int in){\n" +
+    "\n" +
     "   return((in + 3));\n" +
     "}\n" +
     "static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   return(org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(this, in));\n" +
     "}\n" +
     "__kernel void run(\n" +

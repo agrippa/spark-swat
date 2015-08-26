@@ -54,6 +54,7 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
     "}\n" +
     "\n" +
     "static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){\n" +
+    "\n" +
     "   this->x=x;\n" +
     "   this->y=y;\n" +
     "   this->z=z;\n" +
@@ -61,6 +62,7 @@ object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
     "   return (this);\n" +
     "}\n" +
     "static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
     "   if (this->alloc_failed) { return (0x0); }\n" +
     "   __global org_apache_spark_rdd_cl_tests_Point * __alloc1 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +

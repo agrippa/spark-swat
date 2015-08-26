@@ -46,11 +46,14 @@ object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
     "}\n" +
     "\n" +
     "static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_DenseVector* in){\n" +
+    "\n" +
     "   return(\n" +
     "   {\n" +
+    "   \n" +
     "      double sum = 0.0;\n" +
     "      int i = 0;\n" +
     "      for (; i<org_apache_spark_mllib_linalg_DenseVector__size(in); i = i + 1){\n" +
+    "      \n" +
     "         sum = sum + org_apache_spark_mllib_linalg_DenseVector__apply(in, i);\n" +
     "      }\n" +
     "      sum;\n" +

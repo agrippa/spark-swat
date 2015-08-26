@@ -19,9 +19,11 @@ object ReferenceExternalScalarTest extends CodeGenTest[Int, Int] {
 "   int v$1;\n" +
 "   } This;\n" +
 "static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest$$anon$1__apply$mcII$sp(This *this, int in){\n" +
+    "\n" +
 "   return((in + this->v$1));\n" +
 "}\n" +
 "static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
 "   return(org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest$$anon$1__apply$mcII$sp(this, in));\n" +
 "}\n" +
 "__kernel void run(\n" +

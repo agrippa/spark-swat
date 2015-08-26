@@ -36,6 +36,7 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "   unsigned int heap_size;\n" +
     "   } This;\n" +
     "static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){\n" +
+    "\n" +
     "   this->x=x;\n" +
     "   this->y=y;\n" +
     "   this->z=z;\n" +
@@ -43,6 +44,7 @@ object PrimitiveInputObjectOutputTest extends CodeGenTest[Int, Point] {
     "   return (this);\n" +
     "}\n" +
     "static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_PrimitiveInputObjectOutputTest$$anon$1__apply(This *this, int in){\n" +
+    "\n" +
     "   __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);\n" +
     "   if (this->alloc_failed) { return (0x0); }\n" +
     "   return(org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (float)(in + 1), (float)(in + 2), (float)(in + 3)));\n" +
