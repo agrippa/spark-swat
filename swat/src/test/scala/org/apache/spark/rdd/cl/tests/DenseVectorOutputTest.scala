@@ -61,9 +61,9 @@ object DenseVectorOutputTest extends CodeGenTest[Int, DenseVector] {
     "\n" +
     "   return(\n" +
     "   {\n" +
-    "        __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (in)), &this->alloc_failed);\n" +
+    "   \n" +
+    "      __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (in)), &this->alloc_failed);\n" +
     "      if (this->alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); \n" +
-    " \n" +
     "       __global double* valuesArr = __alloc0;\n" +
     "      int i = 0;\n" +
     "      for (; i<in; i = i + 1){\n" +

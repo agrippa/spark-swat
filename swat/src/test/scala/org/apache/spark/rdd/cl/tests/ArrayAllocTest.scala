@@ -32,12 +32,12 @@ object ArrayAllocTest extends CodeGenTest[Int, Int] {
     "\n" +
     "   return(\n" +
     "   {\n" +
-    "         __global int * __alloc0 = (__global int *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(int) * (5)), &this->alloc_failed);\n" +
+    "   \n" +
+    "      __global int * __alloc0 = (__global int *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(int) * (5)), &this->alloc_failed);\n" +
     "      if (this->alloc_failed) { return (0); } *((__global long *)__alloc0) = (5); __alloc0 = (__global int *)(((__global long *)__alloc0) + 1); \n" +
-    "\n" +
-    "       __global int* intArr = __alloc0;      __global double * __alloc1 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (2)), &this->alloc_failed);\n" +
+    "       __global int* intArr = __alloc0;\n" +
+    "      __global double * __alloc1 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (2)), &this->alloc_failed);\n" +
     "      if (this->alloc_failed) { return (0); } *((__global long *)__alloc1) = (2); __alloc1 = (__global double *)(((__global long *)__alloc1) + 1); \n" +
-    "\n" +
     "       __global double* doubleArr = __alloc1;\n" +
     "      (in + 3);\n" +
     "   });\n" +
