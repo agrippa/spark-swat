@@ -15,6 +15,8 @@ import reflect.runtime.{universe => ru}
 
 import org.apache.spark.broadcast.Broadcast;
 
+import org.apache.spark.mllib.linalg.DenseVector
+
 import com.amd.aparapi.internal.util.UnsafeWrapper
 import com.amd.aparapi.internal.model.HardCodedClassModel
 import com.amd.aparapi.internal.model.Tuple2ClassModel
@@ -175,17 +177,6 @@ object OpenCLBridgeWrapper {
         }
       }
 
-      // if (bb1.remaining != 0) {
-      //   throw new RuntimeException("Expected to completely use bb1, but has " +
-      //       bb1.remaining + " bytes left out of a total " +
-      //       firstMemberBufferLength)
-      // }
-      // if (bb2.remaining != 0) {
-      //   throw new RuntimeException("Expected to completely use bb2, but has " +
-      //       bb2.remaining + " bytes left out of a total " +
-      //       secondMemberBufferLength)
-      // }
-
       if (firstMemberSize > 0) {
         OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
             firstMemberBufferLength, broadcastId, rdd, partition, offset, 0)
@@ -210,25 +201,40 @@ object OpenCLBridgeWrapper {
       } else {
         return 2
       }
+    } else if (arg(0).isInstanceOf[DenseVector]) {
+      /*
+       * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
+       * __global double *broadcasted$1_values
+       * __global int *broadcasted$1_sizes
+       * __global int *broadcasted$1_offsets
+       * int nbroadcasted$1
+       */
+      var sumLengths = 0
+      for (i <- 0 until argLength) {
+        sumLengths += arg(i).asInstanceOf[DenseVector].size
+      }
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          typeName, new NameMatcher(typeName))
+      val structSize = c.getTotalStructSize
+      val buffer : DenseVectorInputBufferWrapper =
+            new DenseVectorInputBufferWrapper(sumLengths, argLength, entryPoint)
+      for (i <- 0 until argLength) {
+        buffer.append(arg(i).asInstanceOf[DenseVector])
+      }
+      val argsUsed = buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1)
+      OpenCLBridge.setIntArg(ctx, argnum + argsUsed, argLength)
+      return argsUsed + 1
     } else {
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           typeName, new NameMatcher(typeName))
       val structSize = c.getTotalStructSize
 
       val bb : ByteBuffer = bbCache.getBuffer(structSize * argLength)
-      // val bb : ByteBuffer = ByteBuffer.allocate(structSize * argLength)
-      // bb.order(ByteOrder.LITTLE_ENDIAN)
 
       for (eleIndex <- 0 until argLength) {
         val ele = arg(eleIndex)
         writeObjectToStream(ele.asInstanceOf[java.lang.Object], c, bb)
       }
-
-      // if (bb.remaining != 0) {
-      //   throw new RuntimeException("Expected to completely use bb, but has " +
-      //       bb.remaining + " bytes left out of a total " +
-      //       (structSize * argLength))
-      // }
 
       OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
           structSize * argLength, broadcastId, rdd, partition, offset, 0)

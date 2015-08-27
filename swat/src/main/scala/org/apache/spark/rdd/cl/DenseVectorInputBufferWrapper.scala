@@ -20,12 +20,12 @@ object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
 }
 
-class DenseVectorInputBufferWrapper(val nvalues : Int, val nele : Int,
+class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorCapacity : Int,
         entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.DenseVector", new UnparameterizedMatcher())
-  val structSize = classModel.getTotalStructSize
+  val denseVectorStructSize = classModel.getTotalStructSize
 
   var buffered : Int = 0
 
@@ -33,13 +33,13 @@ class DenseVectorInputBufferWrapper(val nvalues : Int, val nele : Int,
   var tiled : Int = 0
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
 
-  val valuesBB : ByteBuffer = ByteBuffer.allocate(nvalues * 8)
+  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
   valuesBB.order(ByteOrder.LITTLE_ENDIAN)
   val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
   var currentTileOffset : Int = 0
 
-  val sizes : Array[Int] = new Array[Int](nele)
-  val offsets : Array[Int] = new Array[Int](nele)
+  val sizes : Array[Int] = new Array[Int](vectorCapacity)
+  val offsets : Array[Int] = new Array[Int](vectorCapacity)
 
   def calcTileEleStartingOffset(ele : Int) : Int = {
     currentTileOffset + ele
@@ -52,7 +52,7 @@ class DenseVectorInputBufferWrapper(val nvalues : Int, val nele : Int,
 
   def outOfValueSpace() : Boolean = {
     for (i <- to_tile.indices) {
-      if (calcTileEleEndingOffset(i) >= nvalues) {
+      if (calcTileEleEndingOffset(i) >= vectorElementCapacity) {
         return true
       }
     }
@@ -68,7 +68,7 @@ class DenseVectorInputBufferWrapper(val nvalues : Int, val nele : Int,
     if (tiled == tiling && outOfValueSpace) {
       false
     }
-    buffered + tiled < nele
+    buffered + tiled < vectorCapacity
   }
 
   override def flush() {
@@ -121,7 +121,7 @@ class DenseVectorInputBufferWrapper(val nvalues : Int, val nele : Int,
     }
 
     // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, structSize * nele)
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, denseVectorStructSize * vectorCapacity)
     // values array, size of double = 8
     OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
             valuesBB.array, currentTileOffset, 8, -1, rddid,

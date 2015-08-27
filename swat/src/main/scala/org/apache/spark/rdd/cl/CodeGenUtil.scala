@@ -87,6 +87,8 @@ object CodeGenUtil {
     assert(dev_ctx != -1L)
     val config : java.util.Map[String, String] = new java.util.HashMap[String, String]()
 
+    config.put(Entrypoint.denseVectorTilingConfig, Integer.toString(
+                DenseVectorInputBufferWrapperConfig.tiling))
     config.put(Entrypoint.sparseVectorTilingConfig, Integer.toString(
                 SparseVectorInputBufferWrapperConfig.tiling))
     config.put(Entrypoint.clDevicePointerSize, Integer.toString(
