@@ -209,15 +209,29 @@ object OpenCLBridgeWrapper {
        * __global int *broadcasted$1_offsets
        * int nbroadcasted$1
        */
-      var sumLengths = 0
-      for (i <- 0 until argLength) {
-        sumLengths += arg(i).asInstanceOf[DenseVector].size
+      var maxOffset = 0
+      var offset = 0
+      var i = 0
+      while (i < argLength) {
+          var j = 0
+          // Simulate tiling
+          while (j < DenseVectorInputBufferWrapperConfig.tiling && i < argLength) {
+              val endingOffset = offset + j +
+                  (DenseVectorInputBufferWrapperConfig.tiling *
+                  (arg(i).asInstanceOf[DenseVector].size - 1))
+              if (endingOffset > maxOffset) {
+                  maxOffset = endingOffset
+              }
+              j += 1
+              i += 1
+          }
+          offset = maxOffset + 1
       }
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           typeName, new NameMatcher(typeName))
       val structSize = c.getTotalStructSize
       val buffer : DenseVectorInputBufferWrapper =
-            new DenseVectorInputBufferWrapper(sumLengths, argLength, entryPoint)
+            new DenseVectorInputBufferWrapper(maxOffset + 1, argLength, entryPoint)
       for (i <- 0 until argLength) {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }

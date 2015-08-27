@@ -73,7 +73,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def flush() {
       var maximumOffsetUsed = 0
-      for (i <- to_tile.indices) {
+      for (i <- 0 until tiled) {
         val curr : DenseVector = to_tile(i)
         val startingOffset = calcTileEleStartingOffset(i)
         val endingOffset = calcTileEleEndingOffset(i)
