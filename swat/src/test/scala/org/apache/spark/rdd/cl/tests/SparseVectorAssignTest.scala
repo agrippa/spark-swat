@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl.tests
 
 import java.util.LinkedList
 
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels

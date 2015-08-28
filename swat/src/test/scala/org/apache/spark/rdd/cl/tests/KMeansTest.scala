@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl.tests
 
 import scala.math._
 import java.util.LinkedList
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -37,7 +37,8 @@ object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassi
     "\n" +
     "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
     "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
-    "   uint offset = atomic_add(free_index, nbytes);\n" +
+    "   uint rounded = nbytes + (8 - (nbytes % 8));\n" +
+    "   uint offset = atomic_add(free_index, rounded);\n" +
     "   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }\n" +
     "   else return (__global void *)(cheap + offset);\n" +
     "}\n" +

@@ -9,7 +9,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.model.HardCodedClassModels
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.KernelWriter

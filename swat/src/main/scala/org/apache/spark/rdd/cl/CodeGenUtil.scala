@@ -2,9 +2,9 @@ package org.apache.spark.rdd.cl
 
 import java.util.LinkedList
 import com.amd.aparapi.internal.model.ClassModel
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaParameter
+import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 import com.amd.aparapi.internal.model.Entrypoint
 
 object CodeGenUtil {

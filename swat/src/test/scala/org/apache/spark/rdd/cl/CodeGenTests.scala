@@ -15,7 +15,7 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
 
 object CodeGenTests {
 
@@ -45,6 +45,7 @@ object CodeGenTests {
   tests.add(SparseVectorOutputTest)
   tests.add(PrimitiveArrayBroadcastTest)
   tests.add(DenseVectorBroadcastTest)
+  tests.add(SparseVectorBroadcastTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,

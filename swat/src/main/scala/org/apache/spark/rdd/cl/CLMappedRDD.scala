@@ -26,8 +26,8 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.KernelWriter.WriterAndKernel
 import com.amd.aparapi.internal.writer.BlockWriter
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaArrayParameter
-import com.amd.aparapi.internal.writer.BlockWriter.ScalaParameter.DIRECTION
+import com.amd.aparapi.internal.writer.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     extends RDD[U](prev) {
