@@ -19,12 +19,10 @@ object SparkSimple {
         if (cmd == "convert") {
             convert(args.slice(1, args.length))
         } else if (cmd == "run") {
-            run_simple(args.slice(1, args.length))
-        } else if (cmd == "run-cl") {
-            run_simple_cl(args.slice(1, args.length))
+            run_simple(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
-            val correct : Array[Double] = run_simple(args.slice(1, args.length))
-            val actual : Array[Double] = run_simple_cl(args.slice(1, args.length))
+            val correct : Array[Double] = run_simple(args.slice(1, args.length), false)
+            val actual : Array[Double] = run_simple_cl(args.slice(1, args.length), true)
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
                 val a = correct(i)
@@ -44,7 +42,7 @@ object SparkSimple {
         return new SparkContext(conf)
     }
 
-    def run_simple(args : Array[String]) : Array[Double] = {
+    def run_simple(args : Array[String], useSwat : Boolean) : Array[Double] = {
         if (args.length != 1) {
             println("usage: SparkSimple run input-path");
             return new Array[Double](0);
@@ -53,24 +51,9 @@ object SparkSimple {
 
         val m = 4
         val inputPath = args(0)
-        val inputs : RDD[Double] = sc.objectFile[Double](inputPath).cache
+        val inputs_raw : RDD[Double] = sc.objectFile[Double](inputPath).cache
+        val inputs = if (useSwat) CLWrapper.cl[Double](inputs_raw) else inputs_raw
         val outputs : Array[Double] = inputs.map(v => v * v * m).collect
-        sc.stop
-        outputs
-    }
-
-    def run_simple_cl(args : Array[String]) : Array[Double] = {
-        if (args.length != 1) {
-            println("usage: SparkSimple run-cl input-path");
-            return new Array[Double](0)
-        }
-        val sc = get_spark_context("Spark Simple");
-
-        val m = 4
-        val inputPath = args(0)
-        val inputs : RDD[Double] = sc.objectFile[Double](inputPath).cache
-        val inputs_cl : CLWrapperRDD[Double] = CLWrapper.cl[Double](inputs)
-        val outputs : Array[Double] = inputs_cl.map(v => v * v * m).collect
         sc.stop
         outputs
     }
