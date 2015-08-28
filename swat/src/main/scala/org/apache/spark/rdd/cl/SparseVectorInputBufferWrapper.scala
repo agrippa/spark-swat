@@ -78,7 +78,7 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
 
   override def flush() {
       var maximumOffsetUsed = 0
-      for (i <- to_tile.indices) {
+      for (i <- 0 until tiled) {
         val curr : SparseVector = to_tile(i)
 
         val startingOffset = calcTileEleStartingOffset(i)

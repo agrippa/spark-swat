@@ -16,6 +16,7 @@ import reflect.runtime.{universe => ru}
 import org.apache.spark.broadcast.Broadcast;
 
 import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.SparseVector
 
 import com.amd.aparapi.internal.util.UnsafeWrapper
 import com.amd.aparapi.internal.model.HardCodedClassModel
@@ -103,6 +104,88 @@ object OpenCLBridgeWrapper {
           typeName, isInput, entryPoint, broadcastId, rddid, partitionid, offset,
           bbCache)
     }
+  }
+
+  def handleSparseVectorArrayArg[T](argnum : Int, arg : Array[T],
+          argLength : Int, entryPoint : Entrypoint, typeName : String,
+          ctx : Long, dev_ctx : Long) : Int = {
+    /*
+     * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
+     * __global double *broadcasted$1_values
+     * __global int *broadcasted$1_sizes
+     * __global int *broadcasted$1_offsets
+     * int nbroadcasted$1
+     */
+    var maxOffset = 0
+    var offset = 0
+    var i = 0
+    while (i < argLength) {
+        var j = 0
+        // Simulate tiling
+        while (j < SparseVectorInputBufferWrapperConfig.tiling && i < argLength) {
+            val endingOffset = offset + j +
+                (SparseVectorInputBufferWrapperConfig.tiling *
+                (arg(i).asInstanceOf[SparseVector].size - 1))
+            if (endingOffset > maxOffset) {
+                maxOffset = endingOffset
+            }
+            j += 1
+            i += 1
+        }
+        offset = maxOffset + 1
+    }
+    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+        typeName, new NameMatcher(typeName))
+    val structSize = c.getTotalStructSize
+    val buffer : SparseVectorInputBufferWrapper =
+          new SparseVectorInputBufferWrapper(maxOffset + 1, argLength, entryPoint)
+    for (i <- 0 until argLength) {
+      buffer.append(arg(i).asInstanceOf[SparseVector])
+    }
+    val argsUsed = buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1)
+    OpenCLBridge.setIntArg(ctx, argnum + argsUsed, argLength)
+    return argsUsed + 1
+  }
+
+  def handleDenseVectorArrayArg[T](argnum : Int, arg : Array[T],
+          argLength : Int, entryPoint : Entrypoint, typeName : String,
+          ctx : Long, dev_ctx : Long) : Int = {
+    /*
+     * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
+     * __global double *broadcasted$1_values
+     * __global int *broadcasted$1_sizes
+     * __global int *broadcasted$1_offsets
+     * int nbroadcasted$1
+     */
+    var maxOffset = 0
+    var offset = 0
+    var i = 0
+    while (i < argLength) {
+        var j = 0
+        // Simulate tiling
+        while (j < DenseVectorInputBufferWrapperConfig.tiling && i < argLength) {
+            val endingOffset = offset + j +
+                (DenseVectorInputBufferWrapperConfig.tiling *
+                (arg(i).asInstanceOf[DenseVector].size - 1))
+            if (endingOffset > maxOffset) {
+                maxOffset = endingOffset
+            }
+            j += 1
+            i += 1
+        }
+        offset = maxOffset + 1
+    }
+    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+        typeName, new NameMatcher(typeName))
+    val structSize = c.getTotalStructSize
+    val buffer : DenseVectorInputBufferWrapper =
+          new DenseVectorInputBufferWrapper(maxOffset + 1, argLength, entryPoint)
+    for (i <- 0 until argLength) {
+      buffer.append(arg(i).asInstanceOf[DenseVector])
+    }
+    val argsUsed = buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1)
+    OpenCLBridge.setIntArg(ctx, argnum + argsUsed, argLength)
+    return argsUsed + 1
   }
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
@@ -202,42 +285,11 @@ object OpenCLBridgeWrapper {
         return 2
       }
     } else if (arg(0).isInstanceOf[DenseVector]) {
-      /*
-       * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
-       * __global double *broadcasted$1_values
-       * __global int *broadcasted$1_sizes
-       * __global int *broadcasted$1_offsets
-       * int nbroadcasted$1
-       */
-      var maxOffset = 0
-      var offset = 0
-      var i = 0
-      while (i < argLength) {
-          var j = 0
-          // Simulate tiling
-          while (j < DenseVectorInputBufferWrapperConfig.tiling && i < argLength) {
-              val endingOffset = offset + j +
-                  (DenseVectorInputBufferWrapperConfig.tiling *
-                  (arg(i).asInstanceOf[DenseVector].size - 1))
-              if (endingOffset > maxOffset) {
-                  maxOffset = endingOffset
-              }
-              j += 1
-              i += 1
-          }
-          offset = maxOffset + 1
-      }
-      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-          typeName, new NameMatcher(typeName))
-      val structSize = c.getTotalStructSize
-      val buffer : DenseVectorInputBufferWrapper =
-            new DenseVectorInputBufferWrapper(maxOffset + 1, argLength, entryPoint)
-      for (i <- 0 until argLength) {
-        buffer.append(arg(i).asInstanceOf[DenseVector])
-      }
-      val argsUsed = buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1)
-      OpenCLBridge.setIntArg(ctx, argnum + argsUsed, argLength)
-      return argsUsed + 1
+      return handleDenseVectorArrayArg[T](argnum, arg, argLength, entryPoint,
+              typeName, ctx, dev_ctx)
+    } else if (arg(0).isInstanceOf[SparseVector]) {
+      return handleSparseVectorArrayArg[T](argnum, arg, argLength, entryPoint,
+              typeName, ctx, dev_ctx)
     } else {
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           typeName, new NameMatcher(typeName))
