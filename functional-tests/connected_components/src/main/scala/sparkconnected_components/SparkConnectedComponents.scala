@@ -56,17 +56,14 @@ object SparkConnectedComponents {
 
     def run_connected_components_cl(args : Array[String], sc : SparkContext,
             useSwat : Boolean) : Array[Int] = {
-        if (args.length != 3) {
+        if (args.length != 2) {
             println("usage: SparkConnectedComponents run-cl use-swat " +
-                    "input-link-path input-info-path use-cache");
+                    "input-link-path input-info-path");
             System.exit(1)
         }
 
         val inputLinksPath = args(0);
         val inputInfoPath = args(1)
-        val useCache = args(2).toBoolean
-
-        System.err.println("use SWAT? " + useSwat + " use cache? " + useCache)
 
         val infoIter : Iterator[String] = Source.fromFile(inputInfoPath).getLines
         val nNodes : Int = infoIter.next.toInt
@@ -74,9 +71,7 @@ object SparkConnectedComponents {
 
         val raw_edges : RDD[(Int, Int)] = sc.objectFile(inputLinksPath)
         val edges = if (useSwat) CLWrapper.cl[(Int, Int)](raw_edges) else raw_edges
-        if (useCache) {
-            edges.cache
-        }
+        edges.cache
 
         val membership : Array[Int] = new Array[Int](nNodes)
         for (i <- membership.indices) {
