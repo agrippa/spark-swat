@@ -316,6 +316,31 @@ object SparkNN {
         return (weights, biases)
     }
 
+    def convert_file(input : String, output : String, sc : SparkContext) {
+      sc.textFile(input).map(line => {
+            val tokens : Array[String] = line.split(" ")
+            val arr : Array[Double] = new Array[Double](tokens.length)
+            for (t <- 0 until tokens.length) {
+              arr(t) = tokens(t).toDouble
+            }
+            Vectors.dense(arr).asInstanceOf[DenseVector]
+          }).saveAsObjectFile(output)
+    }
+
     def convert(args : Array[String]) {
+      if (args.length != 4) {
+          System.err.println("usage: SparkNN convert training-input " +
+                  "training-converted correct-input correct-converted")
+          System.exit(1)
+      }
+      val sc = get_spark_context("Spark NN Convert");
+
+      val trainingInput = args(0)
+      val trainingOutput = args(1)
+      val correctInput = args(2)
+      val correctOutput = args(3)
+
+      convert_file(trainingInput, trainingOutput, sc)
+      convert_file(correctInput, correctOutput, sc)
     }
 }
