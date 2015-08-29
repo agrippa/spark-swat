@@ -104,9 +104,27 @@ object SparkNN {
                     "training-data-path correct-data-path niters")
             return (new Array[DenseVector](0), new Array[DenseVector](0))
         }
+        /*
+         * infoFilename should have one line for each layer in the neural net,
+         * containing a single integer that is the number of neurons in that
+         * layer. This includes the input layer and output layer.
+         */
         val infoFilename = args(0)
+        /*
+         * Path to the input training data to use. This should be in object file
+         * format and consists of DenseVector inputs, one for each input data
+         * point. The dimensionality of these input vectors must equal the value
+         * on the first line of infoFilename.
+         */
         val trainingDataPath = args(1)
+        /*
+         * The expected output for each of the input points in trainingDataPath.
+         * Also in object file format and containing DenseVectors, the size of
+         * each of these vectors should equal the value on the last line of
+         * infoFilename.
+         */
         val correctDataPath = args(2)
+        // Number of iters to train the neural net over
         val iters = args(3).toInt
         val sc = get_spark_context("Spark NN");
 
