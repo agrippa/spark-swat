@@ -146,6 +146,7 @@ object SparkNN {
                 i += 1
               }
             })
+
         return (new Array[DenseVector](0), new Array[DenseVector](0))
     }
 
