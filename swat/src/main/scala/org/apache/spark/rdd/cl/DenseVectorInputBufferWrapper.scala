@@ -22,6 +22,10 @@ object DenseVectorInputBufferWrapperConfig {
 
 class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorCapacity : Int,
         entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
+
+  def this(vectorCapacity : Int, entryPoint : Entrypoint) =
+      this(vectorCapacity * 30, vectorCapacity, entryPoint)
+
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.DenseVector", new UnparameterizedMatcher())
@@ -72,31 +76,35 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def flush() {
-      var maximumOffsetUsed = 0
-      for (i <- 0 until tiled) {
-        val curr : DenseVector = to_tile(i)
-        val startingOffset = calcTileEleStartingOffset(i)
-        val endingOffset = calcTileEleEndingOffset(i)
+    var maximumOffsetUsed = 0
+    for (i <- 0 until tiled) {
+      val curr : DenseVector = to_tile(i)
+      val startingOffset = calcTileEleStartingOffset(i)
+      val endingOffset = calcTileEleEndingOffset(i)
 
-        var currOffset = startingOffset
-        for (j <- 0 until curr.size) {
-          doubleValuesBB.put(currOffset, curr(j))
-          currOffset += tiling
-        }
-
-        sizes(buffered + i) = curr.size
-        offsets(buffered + i) = startingOffset
-        if (endingOffset > maximumOffsetUsed) {
-          maximumOffsetUsed = endingOffset
-        }
+      var currOffset = startingOffset
+      for (j <- 0 until curr.size) {
+        doubleValuesBB.put(currOffset, curr(j))
+        currOffset += tiling
       }
 
-      buffered += tiled
-      tiled = 0
-      currentTileOffset = maximumOffsetUsed + 1
+      sizes(buffered + i) = curr.size
+      offsets(buffered + i) = startingOffset
+      if (endingOffset > maximumOffsetUsed) {
+        maximumOffsetUsed = endingOffset
+      }
+    }
+
+    buffered += tiled
+    tiled = 0
+    currentTileOffset = maximumOffsetUsed + 1
   }
 
-  override def append(obj : DenseVector) {
+  override def append(obj : Any) {
+    append(obj.asInstanceOf[DenseVector])
+  }
+
+  def append(obj : DenseVector) {
     if (tiled == tiling) {
         flush
     }
@@ -115,25 +123,29 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-          rddid : Int, partitionid : Int, offset : Int) : Int = {
+          broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
+          component : Int) : Int = {
     if (tiled > 0) {
       flush
     }
 
     // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, denseVectorStructSize * vectorCapacity)
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
+            denseVectorStructSize * vectorCapacity)
     // values array, size of double = 8
     OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
-            valuesBB.array, currentTileOffset, 8, -1, rddid,
-            partitionid, offset, 1)
+            valuesBB.array, currentTileOffset, 8, broadcastId, rddid,
+            partitionid, offset, component)
     // Sizes of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered, -1,
-            rddid, partitionid, offset, 2)
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered, broadcastId,
+            rddid, partitionid, offset, component + 1)
     // Offsets of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, offsets, buffered, -1,
-            rddid, partitionid, offset, 3)
-    buffered = 0
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, offsets, buffered, broadcastId,
+            rddid, partitionid, offset, component + 2)
+    // Number of vectors
+    OpenCLBridge.setIntArg(ctx, argnum + 4, buffered)
 
-    return 4
+    buffered = 0
+    return 5
   }
 }

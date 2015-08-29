@@ -614,10 +614,15 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 
 static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
         int index, size_t size, jlong broadcastId, jint rdd) {
+#ifdef VERBOSE
+    fprintf(stderr, "%d: Allocating region of size %lu bytes for index=%d\n",
+            context->host_thread_index, size, index);
+#endif
+
     cl_region *region = allocate_cl_region(size, dev_ctx->allocator);
 
 #ifdef VERBOSE
-    fprintf(stderr, "%d: Allocating %p, %lu bytes for index=%d\n",
+    fprintf(stderr, "%d: Got %p for %lu bytes for index=%d\n",
             context->host_thread_index, region, size, index);
 #endif
 
@@ -1053,18 +1058,24 @@ static inline int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID
         unsigned char *bb_iter) {
     int size;
     switch (type) {
-        case (0): // INT
-            jenv->SetIntField(obj, field, *((int *)bb_iter));
+        case (0): { // INT
+            const int val = *((int *)bb_iter);
+            jenv->SetIntField(obj, field, val);
             size = 4;
             break;
-        case (1): // FLOAT
-            jenv->SetFloatField(obj, field, *((float *)bb_iter));
+        }
+        case (1): { // FLOAT
+            const float val = *((float *)bb_iter);
+            jenv->SetFloatField(obj, field, val);
             size = 4;
             break;
-        case (2): // DOUBLE
-            jenv->SetDoubleField(obj, field, *((double *)bb_iter));
+        }
+        case (2): { // DOUBLE
+            const double val = *((double *)bb_iter);
+            jenv->SetDoubleField(obj, field, val);
             size = 8;
             break;
+        }
         default:
             fprintf(stderr, "%s:%d - Unknown type in types array for "
                     "object\n", __FILE__, __LINE__);
@@ -1138,7 +1149,7 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
         jobject obj = jenv->GetObjectArrayElement(targetToHold, i);
         CHECK_JNI(obj);
 
-        for (unsigned j = 0; j < nfields / 2; j++) {
+        for (unsigned j = 0; j < nfields; j++) {
             bb_iter += setFieldInObject(jenv, obj, types[j], fields[j], bb_iter);
         }
     }

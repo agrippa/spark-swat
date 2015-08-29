@@ -91,8 +91,7 @@ object Tuple2InputOutputTest extends CodeGenTest[(Int, Float), (Int, Point)] {
     "      if (processing_succeeded[i]) continue;\n" +
     "      \n" +
     "      this->alloc_failed = 0;\n" +
-    "      my_in0->_1 = in0_1[i];\n" +
-    "      my_in0->_2 = in0_2[i];\n" +
+    "      my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2[i]; \n" +
     "      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_Tuple2InputOutputTest$$anon$1__apply(this, my_in0);\n" +
     "      if (this->alloc_failed) {\n" +
     "         processing_succeeded[i] = 0;\n" +

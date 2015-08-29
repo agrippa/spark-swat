@@ -22,13 +22,14 @@ object SparkSimple {
             run_simple(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
             val correct : Array[Double] = run_simple(args.slice(1, args.length), false)
-            val actual : Array[Double] = run_simple_cl(args.slice(1, args.length), true)
+            val actual : Array[Double] = run_simple(args.slice(1, args.length), true)
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
                 val a = correct(i)
                 val b = actual(i)
                 assert(a == b)
             }
+            System.err.println("PASSED")
         }
     }
 
@@ -45,6 +46,7 @@ object SparkSimple {
     def run_simple(args : Array[String], useSwat : Boolean) : Array[Double] = {
         if (args.length != 1) {
             println("usage: SparkSimple run input-path");
+            println(" nargs=" + args.length)
             return new Array[Double](0);
         }
         val sc = get_spark_context("Spark Simple");

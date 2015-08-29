@@ -95,7 +95,7 @@ object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
     "   });\n" +
     "}\n" +
     "__kernel void run(\n" +
-    "      __global org_apache_spark_mllib_linalg_SparseVector* in0, __global int *in0_indices, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, \n" +
+    "      __global org_apache_spark_mllib_linalg_SparseVector* in0, __global int *in0_indices, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, \n" +
     "      __global int * out_1, __global double * out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
@@ -109,9 +109,7 @@ object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
     "      if (processing_succeeded[i]) continue;\n" +
     "      \n" +
     "      this->alloc_failed = 0;\n" +
-    "      my_in0->values = in0_values + in0_offsets[i];\n" +
-    "      my_in0->indices = in0_indices + in0_offsets[i];\n" +
-    "      my_in0->size = in0_sizes[i];\n" +
+    "      my_in0->values = in0_values + in0_offsets[i]; my_in0->indices = in0_indices + in0_offsets[i]; my_in0->size = in0_sizes[i];\n" +
     "      __global scala_Tuple2_I_D* result = org_apache_spark_rdd_cl_tests_SparseVectorInputTest$$anon$1__apply(this, in0 + i);\n" +
     "      if (this->alloc_failed) {\n" +
     "         processing_succeeded[i] = 0;\n" +

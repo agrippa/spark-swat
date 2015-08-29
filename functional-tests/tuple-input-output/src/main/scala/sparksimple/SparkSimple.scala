@@ -59,6 +59,8 @@ object SparkSimple {
 
                 if (error) System.exit(1)
             }
+
+            System.err.println("PASSED")
         }
     }
 

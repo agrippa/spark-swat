@@ -404,7 +404,7 @@ int main(int argc, char **argv) {
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, fbuf, 0,
                                 NULL, NULL));
                     for (int j = 0; j < (size / sizeof(float)); j++) {
-                        fprintf(stderr, "%f ", fbuf[j]);
+                        fprintf(stderr, "%f\n", fbuf[j]);
                     }
                     fprintf(stderr, "\n");
                     free(fbuf);

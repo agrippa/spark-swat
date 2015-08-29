@@ -27,7 +27,11 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
 
   override def flush() { }
 
-  override def append(obj : T) {
+  // override def append(obj : Any) {
+  //   append(obj.asInstanceOf[T])
+  // }
+
+  override def append(obj : Any) {
     assert(hasSpace())
     OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object], classModel, bb)
   }
@@ -42,9 +46,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      rddid : Int, partitionid : Int, offset : Int) : Int = {
+      broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
+      component : Int) : Int = {
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-        bb.position, -1, rddid, partitionid, offset, 0)
+        bb.position, broadcastId, rddid, partitionid, offset, component)
     bb.clear
     return 1
   }

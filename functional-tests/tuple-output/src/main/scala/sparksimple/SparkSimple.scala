@@ -36,6 +36,10 @@ object SparkSimple {
                 val b : (Float, Point) = actual(i)
                 var error : Boolean = false
 
+                // System.err.println(a._1 + " (" + a._2.x + " " + a._2.y +
+                //         " " + a._2.z + ") " + b._1 + " (" + b._2.x + " " +
+                //         b._2.y + " " + b._2.z + ")")
+
                 if (a._1 != b._1) {
                     System.err.println(i + " _1 expected " + a._1 +
                         " but got " + b._1)
@@ -57,8 +61,9 @@ object SparkSimple {
                     error = true
                 }
 
-                // if (error) System.exit(1)
+                if (error) System.exit(1)
             }
+            System.err.println("PASSED")
         }
     }
 

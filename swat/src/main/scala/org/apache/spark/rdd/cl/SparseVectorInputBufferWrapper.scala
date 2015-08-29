@@ -21,8 +21,13 @@ object SparseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
 }
 
-class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
-        entryPoint : Entrypoint) extends InputBufferWrapper[SparseVector] {
+class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
+        val vectorCapacity : Int, entryPoint : Entrypoint)
+        extends InputBufferWrapper[SparseVector] {
+
+  def this(vectorCapacity : Int, entryPoint : Entrypoint) =
+        this(vectorCapacity * 30, vectorCapacity, entryPoint)
+
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.SparseVector", new UnparameterizedMatcher())
@@ -34,17 +39,17 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
   var tiled : Int = 0
   val to_tile : Array[SparseVector] = new Array[SparseVector](tiling)
 
-  val valuesBB : ByteBuffer = ByteBuffer.allocate(nvalues * 8)
+  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
   valuesBB.order(ByteOrder.LITTLE_ENDIAN)
   val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
-  val indicesBB : ByteBuffer = ByteBuffer.allocate(nvalues * 4)
+  val indicesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 4)
   indicesBB.order(ByteOrder.LITTLE_ENDIAN)
   val intIndicesBB : IntBuffer = indicesBB.asIntBuffer
 
   var currentTileOffset : Int = 0
 
-  val sizes : Array[Int] = new Array[Int](nele)
-  val offsets : Array[Int] = new Array[Int](nele)
+  val sizes : Array[Int] = new Array[Int](vectorCapacity)
+  val offsets : Array[Int] = new Array[Int](vectorCapacity)
 
   def calcTileEleStartingOffset(ele : Int) : Int = {
     currentTileOffset + ele
@@ -57,7 +62,7 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
 
   def outOfValueSpace() : Boolean = {
     for (i <- to_tile.indices) {
-      if (calcTileEleEndingOffset(i) >= nvalues) {
+      if (calcTileEleEndingOffset(i) >= vectorElementCapacity) {
         return true
       }
     }
@@ -73,7 +78,7 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
     if (tiled == tiling && outOfValueSpace) {
       false
     }
-    buffered + tiled < nele
+    buffered + tiled < vectorCapacity
   }
 
   override def flush() {
@@ -103,7 +108,11 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
       currentTileOffset = maximumOffsetUsed + 1
   }
 
-  override def append(obj : SparseVector) {
+  override def append(obj : Any) {
+    append(obj.asInstanceOf[SparseVector])
+  }
+
+  def append(obj : SparseVector) {
     if (tiled == tiling) {
         flush
     }
@@ -122,29 +131,33 @@ class SparseVectorInputBufferWrapper (val nvalues : Int, val nele : Int,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-          rddid : Int, partitionid : Int, offset : Int) : Int = {
+          broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
+          component : Int) : Int = {
     if (tiled > 0) {
       flush
     }
 
     // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, structSize * nele)
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, structSize * vectorCapacity)
     // indices array, size of double = 4
     OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
-            indicesBB.array, currentTileOffset, 4, -1, rddid,
-            partitionid, offset, 1)
+            indicesBB.array, currentTileOffset, 4, broadcastId, rddid,
+            partitionid, offset, component)
     // values array, size of double = 8
     OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 2,
-            valuesBB.array, currentTileOffset, 8, -1, rddid,
-            partitionid, offset, 2)
+            valuesBB.array, currentTileOffset, 8, broadcastId, rddid,
+            partitionid, offset, component + 1)
     // Sizes of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, sizes, buffered, -1,
-            rddid, partitionid, offset, 3)
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, sizes, buffered, broadcastId,
+            rddid, partitionid, offset, component + 2)
     // Offsets of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 4, offsets, buffered, -1,
-            rddid, partitionid, offset, 4)
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 4, offsets, buffered, broadcastId,
+            rddid, partitionid, offset, component + 3)
+    // Number of sparse vectors being copied
+    OpenCLBridge.setIntArg(ctx, argnum + 5, buffered)
+
     buffered = 0
 
-    return 5
+    return 6
   }
 }

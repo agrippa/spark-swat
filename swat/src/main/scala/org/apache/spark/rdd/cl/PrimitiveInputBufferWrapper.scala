@@ -21,8 +21,12 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     filled < arr.length
   }
 
-  override def append(obj : T) {
-    arr(filled) = obj
+  // override def append(obj : Any) {
+  //   append(obj.asInstanceOf[T])
+  // }
+
+  override def append(obj : Any) {
+    arr(filled) = obj.asInstanceOf[T]
     filled += 1
   }
 
@@ -38,16 +42,16 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      rddid : Int, partitionid : Int, offset : Int) : Int = {
+      broadcastid : Int, rddid : Int, partitionid : Int, offset : Int, component : Int) : Int = {
     if (arr.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Double]], filled, -1, rddid, partitionid, offset, 0)
+          arr.asInstanceOf[Array[Double]], filled, broadcastid, rddid, partitionid, offset, component)
     } else if (arr.isInstanceOf[Array[Int]]) {
       OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Int]], filled, -1, rddid, partitionid, offset, 0)
+          arr.asInstanceOf[Array[Int]], filled, broadcastid, rddid, partitionid, offset, component)
     } else if (arr.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Float]], filled, -1, rddid, partitionid, offset, 0)
+          arr.asInstanceOf[Array[Float]], filled, broadcastid, rddid, partitionid, offset, component)
     } else {
       throw new RuntimeException("Unsupported")
     }

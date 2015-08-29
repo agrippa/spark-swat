@@ -7,12 +7,8 @@ import scala.math._
 import org.apache.spark.rdd._
 import java.net._
 
-class Point(val x: Float, val y: Float, val z: Float)
-    extends java.io.Serializable {
-  def this() {
-    this(0.0f, 0.0f, 0.0f)
-  }
-}
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.DenseVector
 
 object SparkSimple {
     def main(args : Array[String]) {
@@ -28,15 +24,20 @@ object SparkSimple {
         } else if (cmd == "run") {
             run_simple(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
-            val correct : Array[Point] = run_simple(args.slice(1, args.length), false)
-            val actual : Array[Point] = run_simple(args.slice(1, args.length), true)
+            val correct : Array[Double] = run_simple(args.slice(1, args.length), false)
+            val actual : Array[Double] = run_simple(args.slice(1, args.length), true)
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
-                val a = correct(i)
-                val b = actual(i)
-                assert(a.x == b.x)
-                assert(a.y == b.y)
-                assert(a.z == b.z)
+                val a : Double = correct(i)
+                val b : Double = actual(i)
+                var error : Boolean = false
+
+                if (a != b) {
+                    System.err.println(i + " expected " + a + " but got " + b)
+                    error = true
+                }
+
+                if (error) System.exit(1)
             }
             System.err.println("PASSED")
         }
@@ -52,27 +53,18 @@ object SparkSimple {
         return new SparkContext(conf)
     }
 
-    def run_simple(args : Array[String], useSwat : Boolean) : Array[Point] = {
+    def run_simple(args : Array[String], useSwat : Boolean) : Array[Double] = {
         if (args.length != 1) {
-            println("usage: SparkSimple run use-swat input-path");
-            return new Array[Point](0);
+            println("usage: SparkSimple run input-path");
+            return new Array[Double](0);
         }
         val sc = get_spark_context("Spark Simple");
 
-        val m : Float = 4.0f
-
-        val arr : Array[Point] = new Array[Point](3)
-        arr(0) = new Point(0, 1, 2)
-        arr(1) = new Point(3, 4, 5)
-        arr(2) = new Point(6, 7, 8)
-
         val inputPath = args(0)
-        val inputs_raw : RDD[Point] = sc.objectFile[Point](inputPath).cache
-        val inputs = if (useSwat) CLWrapper.cl[Point](inputs_raw) else inputs_raw
-        val outputs : RDD[Point] = inputs.map(v =>
-                new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z))
-        val outputs2 : Array[Point] = outputs.map(v =>
-                new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
+        val inputs_raw : RDD[(Int, DenseVector)] = sc.objectFile[(Int, DenseVector)](inputPath).cache
+        val inputs = if (useSwat) CLWrapper.cl[(Int, DenseVector)](inputs_raw) else inputs_raw
+        val outputs : RDD[Double] = inputs.map(v => v._1 + v._2(0) + v._2(1) + v._2(2))
+        val outputs2 : Array[Double] = outputs.collect
         sc.stop
         outputs2
     }
@@ -89,8 +81,13 @@ object SparkSimple {
         val input = sc.textFile(inputDir)
         val converted = input.map(line => {
             val tokens : Array[String] = line.split(" ")
-            new Point(tokens(0).toFloat, tokens(1).toFloat,
-                    tokens(2).toFloat) })
+            assert(tokens.size == 4)
+
+            val arr : Array[Double] = new Array[Double](3)
+            arr(0) = tokens(1).toDouble
+            arr(1) = tokens(2).toDouble
+            arr(2) = tokens(3).toDouble
+            ( tokens(0).toInt, Vectors.dense(arr) ) })
         converted.saveAsObjectFile(outputDir)
     }
 }

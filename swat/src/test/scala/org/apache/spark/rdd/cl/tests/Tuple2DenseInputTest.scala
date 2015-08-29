@@ -1,21 +1,18 @@
 package org.apache.spark.rdd.cl.tests
 
 import java.util.LinkedList
-
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import org.apache.spark.rdd.cl.CodeGenTest
+import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.DenseVectorClassModel
 
-import org.apache.spark.rdd.cl.CodeGenTest
-import org.apache.spark.rdd.cl.CodeGenUtil
-
 import org.apache.spark.mllib.linalg.DenseVector
-
 import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
 
-object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
+object Tuple2DenseInputTest extends CodeGenTest[(Int, DenseVector), Double] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = {
@@ -34,6 +31,12 @@ object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
     "   int  size;\n" +
     "   \n" +
     "} org_apache_spark_mllib_linalg_DenseVector;\n" +
+    "\n" +
+    "typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector_s{\n" +
+    "   __global org_apache_spark_mllib_linalg_DenseVector  * _2;\n" +
+    "   int  _1;\n" +
+    "   \n" +
+    "} scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector;\n" +
     "typedef struct This_s{\n" +
     "   } This;\n" +
     "\n" +
@@ -46,61 +49,55 @@ object DenseVectorInputTest extends CodeGenTest[DenseVector, Double] {
     "    return (this->values)[32 * index];\n" +
     "}\n" +
     "\n" +
-    "static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_DenseVector* in){\n" +
+    "static double org_apache_spark_rdd_cl_tests_Tuple2DenseInputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector* in){\n" +
     "\n" +
-    "   return(\n" +
-    "   {\n" +
-    "   \n" +
-    "      double sum = 0.0;\n" +
-    "      int i = 0;\n" +
-    "      for (; i<org_apache_spark_mllib_linalg_DenseVector__size(in); i = i + 1){\n" +
-    "      \n" +
-    "         sum = sum + org_apache_spark_mllib_linalg_DenseVector__apply(in, i);\n" +
-    "      }\n" +
-    "      sum;\n" +
-    "   });\n" +
+    "   return(org_apache_spark_mllib_linalg_DenseVector__apply(in->_2, ((in->_1 - org_apache_spark_mllib_linalg_DenseVector__size(in->_2)) - 4)));\n" +
     "}\n" +
     "__kernel void run(\n" +
-    "      __global org_apache_spark_mllib_linalg_DenseVector* in0, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, \n" +
+    "      __global int * in0_1, __global org_apache_spark_mllib_linalg_DenseVector* in0_2, __global double *in0_2_values, __global int *in0_2_sizes, __global int *in0_2_offsets, int nin0_2, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *in0, \n" +
     "      __global double* out, int N) {\n" +
     "   int i = get_global_id(0);\n" +
     "   int nthreads = get_global_size(0);\n" +
     "   This thisStruct;\n" +
     "   This* this=&thisStruct;\n" +
-    "   __global org_apache_spark_mllib_linalg_DenseVector *my_in0 = in0 + get_global_id(0);\n" +
+    "   __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *my_in0 = in0 + get_global_id(0);\n" +
     "   for (; i < N; i += nthreads) {\n" +
-    "      my_in0->values = in0_values + in0_offsets[i]; my_in0->size = in0_sizes[i];\n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(this, in0 + i);\n" +
+    "      my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2 + i; my_in0->_2->values = in0_2_values + in0_2_offsets[i]; my_in0->_2->size = in0_2_sizes[i];\n" +
+    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2DenseInputTest$$anon$1__apply(this, my_in0);\n" +
     "      \n" +
     "   }\n" +
     "}\n"
   }
 
-  def getExpectedNumInputs : Int = {
+  def getExpectedNumInputs() : Int = {
     1
   }
 
   def init() : HardCodedClassModels = {
     val models = new HardCodedClassModels()
+
+    val inputClassType1Name = CodeGenUtil.cleanClassName("I")
+    val inputClassType2Name = CodeGenUtil.cleanClassName("org.apache.spark.mllib.linalg.DenseVector")
+    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
+        inputClassType1Name, inputClassType2Name, false)
+    models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+
     val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create(
             DenseVectorInputBufferWrapperConfig.tiling)
     models.addClassModelFor(classOf[DenseVector], denseVectorModel)
+
     models
   }
 
   def complete(params : LinkedList[ScalaArrayParameter]) {
+    params.get(0).addTypeParameter("I", false)
+    params.get(0).addTypeParameter("Lorg.apache.spark.mllib.linalg.DenseVector;", true)
   }
 
-  def getFunction() : Function1[DenseVector, Double] = {
-    new Function[DenseVector, Double] {
-      override def apply(in : DenseVector) : Double = {
-        var sum = 0.0
-        var i = 0
-        while (i < in.size) {
-            sum += in(i)
-            i += 1
-        }
-        sum
+  def getFunction() : Function1[(Int, DenseVector), Double] = {
+    new Function[(Int, DenseVector), Double] {
+      override def apply(in : (Int, DenseVector)) : Double = {
+        in._2(in._1 - in._2.size - 4)
       }
     }
   }

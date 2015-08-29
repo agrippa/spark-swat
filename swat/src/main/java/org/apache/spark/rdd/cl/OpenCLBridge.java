@@ -126,7 +126,7 @@ public class OpenCLBridge {
               throw new RuntimeException(i);
             }
 
-            long broadcastId = -1;
+            int broadcastId = -1;
             if (isBroadcast) {
                 // try {
                 // System.err.println("SWAT Looking at broadcast " +
@@ -136,7 +136,7 @@ public class OpenCLBridge {
                 // } catch (UnknownHostException u) {
                 //     throw new RuntimeException(u);
                 // }
-                broadcastId = OpenCLBridgeWrapper.getBroadcastId(fieldInstance);
+                broadcastId = (int)OpenCLBridgeWrapper.getBroadcastId(fieldInstance);
                 fieldInstance = OpenCLBridgeWrapper.unwrapBroadcastedArray(
                     fieldInstance);
             }
@@ -155,8 +155,8 @@ public class OpenCLBridge {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
               argsUsed = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx,
-                      dev_ctx, index, fieldInstance, arrayElementTypeName, true,
-                      entryPoint, broadcastId, -1, -1, -1, bbCache);
+                      dev_ctx, index, fieldInstance, arrayElementTypeName,
+                      true, entryPoint, broadcastId, -1, -1, -1, bbCache);
             }
 
             if (lengthUsed) {

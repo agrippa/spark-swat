@@ -46,6 +46,7 @@ object CodeGenTests {
   tests.add(PrimitiveArrayBroadcastTest)
   tests.add(DenseVectorBroadcastTest)
   tests.add(SparseVectorBroadcastTest)
+  tests.add(Tuple2DenseInputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
@@ -99,13 +100,13 @@ object CodeGenTests {
           openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
           entryPoint.requiresHeap);
 
+      Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
+      Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
+
       if (!openCL.equals(expectedKernel)) {
         System.err.println(testName + " FAILED")
         System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
         System.err.println("Use 'vimdiff correct generated' to see the difference")
-
-        Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
-        Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
 
         System.exit(1)
       }

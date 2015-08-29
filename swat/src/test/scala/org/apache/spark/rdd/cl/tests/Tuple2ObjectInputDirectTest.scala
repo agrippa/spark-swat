@@ -56,8 +56,7 @@ object Tuple2ObjectInputDirectTest extends CodeGenTest[(Int, Point), Float] {
     "   This* this=&thisStruct;\n" +
     "   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *my_in0 = in0 + get_global_id(0);\n" +
     "   for (; i < N; i += nthreads) {\n" +
-    "      my_in0->_1 = in0_1[i];\n" +
-    "      my_in0->_2 = in0_2 + i;\n" +
+    "      my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2 + i; \n" +
     "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputDirectTest$$anon$1__apply(this, my_in0);\n" +
     "      \n" +
     "   }\n" +

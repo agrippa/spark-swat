@@ -59,7 +59,7 @@ object SerializationPerfTests {
     val startTime = System.currentTimeMillis
     for (i <- 0 until N) {
         if (!acc.hasSpace) {
-            acc.copyToDevice(0, ctx, dev_ctx, -1, -1, -1)
+            acc.copyToDevice(0, ctx, dev_ctx, -1, -1, -1, -1, -1)
         }
         acc.append((i, i))
     }
