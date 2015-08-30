@@ -1,6 +1,7 @@
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.cl._
 import Array._
 import scala.math._
@@ -53,37 +54,37 @@ object SparkNN {
       sigmoid(z) * (1.0 - sigmoid(z))
     }
 
-    def get_nabla_w(delta : RDD[DenseVector], activation : RDD[DenseVector]) :
-        RDD[DenseVector] = {
-      val delta_with_activation = delta.zip(activation)
-      delta_with_activation.map(d_with_a => {
-        val d : DenseVector = d_with_a._1
-        val a : DenseVector = d_with_a._2
+    def get_nabla_w(delta : RDD[Tuple2[Int, DenseVector]],
+            activation : RDD[Tuple2[Int, DenseVector]]) : RDD[Tuple2[Int, DenseVector]] = {
+      delta.join(activation).map(d_with_a => {
+        val id = d_with_a._1
+        val d : DenseVector = d_with_a._2._1
+        val a : DenseVector = d_with_a._2._2
         val layerSize = d.size
         val prevLayerSize = a.size
-        val new_w : Array[Double] = new Array[Double](prevLayerSize * layerSize)
+        val new_w : Array[Double] = new Array[Double](layerSize * prevLayerSize)
 
         var i = 0
-        while (i < prevLayerSize * layerSize) {
+        while (i < layerSize * prevLayerSize) {
           new_w(i) = 0.0
           i += 1
         }
 
         i = 0
-        while (i < prevLayerSize) {
+        while (i < layerSize) {
             var j = 0
-            while (j < layerSize) {
-                new_w(i * layerSize + j)  += (a(i) * d(j))
+            while (j < prevLayerSize) {
+                new_w(i * prevLayerSize + j)  += (d(i) * a(j))
                 j += 1
             }
             i += 1
         }
-        Vectors.dense(new_w).asInstanceOf[DenseVector]
+        (id, Vectors.dense(new_w).asInstanceOf[DenseVector])
       })
     }
 
-    def reduce_sum(rdd : RDD[DenseVector]) : DenseVector = {
-      rdd.reduce(
+    def reduce_sum(rdd : RDD[Tuple2[Int, DenseVector]]) : DenseVector = {
+      rdd.map(pair => pair._2).reduce(
         (a : DenseVector, b : DenseVector) => {
           val size = a.size
           val combined : Array[Double] = new Array[Double](size)
@@ -96,12 +97,65 @@ object SparkNN {
         })
     }
 
+    def feedForwardOneLayer(targetLayer : Int,
+            srcLayer : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
+            prevLayerSize : Int,
+            broadcastedWeights : Broadcast[Array[DenseVector]],
+            broadcastedBiases : Broadcast[Array[DenseVector]]) :
+            RDD[Tuple2[Int, DenseVector]] = {
+      srcLayer.map(pair => {
+          val id : Int = pair._1
+          val datapoint : DenseVector = pair._2
+
+          val new_arr : Array[Double] = new Array[Double](layerSize)
+          var i = 0
+          /*
+           * For each neuron in the current layer we are computing the
+           * activation for, and for each row in the weights matrix.
+           */
+          while (i < layerSize) {
+              var acc = 0.0
+              var j = 0
+              /*
+               * For each neuron in the previously calculated layer, for each
+               * column in the weights matrix.
+               */
+              while (j < prevLayerSize) {
+                  val weight = broadcastedWeights.value(targetLayer - 1)(i * prevLayerSize + j)
+                  acc += (weight * datapoint(j))
+                  j += 1
+              }
+
+              acc += broadcastedBiases.value(targetLayer - 1)(i) // bias
+              // z is the value of acc here
+              new_arr(i) = sigmoid(acc)
+              i += 1
+          }
+          (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
+      })
+    }
+
+    def printRDD(rdd : RDD[Tuple2[Int, DenseVector]], lbl : String) {
+      val collected = rdd.collect
+      System.err.println(lbl)
+      for (pair <- collected) {
+          System.err.println("  Input " + pair._1)
+          val vec = pair._2
+          System.err.print("    ")
+          for (i <- 0 until vec.size) {
+              System.err.print(vec(i) + " ")
+          }
+          System.err.println()
+      }
+    }
+
     // Return the weights and biases of each layer?
     def run_nn(args : Array[String], useSwat : Boolean) :
           Tuple2[Array[DenseVector], Array[DenseVector]] = {
-        if (args.length != 4) {
+        if (args.length != 7) {
             System.err.println("usage: SparkNN run info-file " +
-                    "training-data-path correct-data-path niters")
+                    "training-data-path training-correct-data-path " +
+                    "testing-data-path testing-correct-data-path niters learning-rate")
             return (new Array[DenseVector](0), new Array[DenseVector](0))
         }
         /*
@@ -124,20 +178,31 @@ object SparkNN {
          * infoFilename.
          */
         val correctDataPath = args(2)
+
+        // Same format as trainingDataPath
+        val testingDataPath = args(3)
+        // Sam format as correctDataPath
+        val testingCorrectDataPath = args(4)
+
         // Number of iters to train the neural net over
-        val iters = args(3).toInt
+        val iters = args(5).toInt
+        val learning_rate = args(6).toDouble
+
         val sc = get_spark_context("Spark NN");
 
-        var rand : java.util.Random = new java.util.Random(1)
+        var rand : java.util.Random = new java.util.Random(345)
 
         val infoLines = scala.io.Source.fromFile(infoFilename).getLines()
-        val layerDimensionalities : Array[Int] = new Array[Int](infoLines.length)
-        val nlayers = infoLines.length
-        var index = 0
+        val layerDimensionalitiesList : java.util.List[Integer] = new java.util.LinkedList[Integer]()
         for (line <- infoLines) {
-            layerDimensionalities(index) = line.toInt
-            index += 1
+          layerDimensionalitiesList.add(line.toInt)
         }
+        val nlayers = layerDimensionalitiesList.size
+        val layerDimensionalities : Array[Int] = new Array[Int](nlayers)
+        for (i <- 0 until layerDimensionalitiesList.size) {
+          layerDimensionalities(i) = layerDimensionalitiesList.get(i)
+        }
+
         /*
          * Represent a L - 1 x M x N matrix where:
          *   L = # of layers
@@ -147,12 +212,12 @@ object SparkNN {
          * have no weights.
          */
         val weights : Array[DenseVector] = new Array[DenseVector](nlayers - 1)
-        for (i <- 0 until weights.length) { // for each layer
+        for (i <- 0 until weights.length) { // for each non-input layer
             val layerMatrixSize = layerDimensionalities(i + 1) *
                 layerDimensionalities(i)
             val arr : Array[Double] = new Array[Double](layerMatrixSize)
             for (j <- 0 until layerMatrixSize) {
-                arr(j) = 5.0 * rand.nextDouble
+                arr(j) = rand.nextGaussian
             }
 
             weights(i) = Vectors.dense(arr).asInstanceOf[DenseVector]
@@ -166,7 +231,7 @@ object SparkNN {
         for (i <- 0 until biases.length) {
             val arr : Array[Double] = new Array[Double](layerDimensionalities(i + 1))
             for (j <- 0 until layerDimensionalities(i + 1)) {
-                arr(j) = 5.0 * rand.nextDouble
+                arr(j) = rand.nextGaussian
             }
             biases(i) = Vectors.dense(arr).asInstanceOf[DenseVector]
         }
@@ -175,12 +240,17 @@ object SparkNN {
          * Element i in raw_y corresponds to the expected output for element i
          * in raw_inputs.
          */
-        val raw_inputs = sc.objectFile[DenseVector](trainingDataPath)
-        val zs = new Array[RDD[DenseVector]](nlayers)
-        val activations = new Array[RDD[DenseVector]](nlayers)
-        activations(0) = if (useSwat) CLWrapper.cl[DenseVector](raw_inputs) else raw_inputs
-        val raw_y = sc.objectFile[DenseVector](correctDataPath)
-        var y = if (useSwat) CLWrapper.cl[DenseVector](raw_y) else raw_y
+        val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath)
+        // no z for the input layer as its outputs are constant
+        val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
+        val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
+        activations(0) = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else raw_inputs
+        val raw_y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
+        var y = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](raw_y) else raw_y
+        val n_training_datapoints = raw_inputs.count
+
+        val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
+        val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
 
         for (iter <- 0 until iters) {
           val broadcastedWeights = sc.broadcast(weights)
@@ -190,101 +260,130 @@ object SparkNN {
           for (l <- 1 until nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
-              val new_activations = activations(l - 1).map(datapoint => {
-                    val new_arr : Array[Double] = new Array[Double](layerSize)
-                    var i = 0
-                    while (i < layerSize) {
-                        var acc = 0.0
-                        var j = 0
-                        // weighted inputs
-                        while (j < prevLayerSize) {
-                            acc += (broadcastedWeights.value(l - 1)(i * prevLayerSize + j) * datapoint(j))
-                            j += 1
-                        }
+              val new_activations : RDD[Tuple2[Int, DenseVector]] =
+                feedForwardOneLayer(l, activations(l - 1), layerSize,
+                        prevLayerSize, broadcastedWeights, broadcastedBiases)
+              activations(l) = if (useSwat)
+                    CLWrapper.cl[Tuple2[Int, DenseVector]](new_activations) else
+                    new_activations
+              zs(l - 1) = activations(l).map(pair => {
+                  val id : Int = pair._1
+                  val datapoint : DenseVector = pair._2
 
-                        acc += broadcastedBiases.value(l - 1)(i) // bias
-                        // z is the value of acc here
-                        acc = sigmoid(acc)
-                        new_arr(i) = acc
-                        i += 1
-                    }
-                    Vectors.dense(new_arr).asInstanceOf[DenseVector]
-                  })
-              activations(l) = if (useSwat) CLWrapper.cl[DenseVector](new_activations) else new_activations
-              // zs(0) will always be empty
-              zs(l) = new_activations.map(datapoint => {
                   val new_arr : Array[Double] = new Array[Double](layerSize)
                   var i = 0
                   while (i < layerSize) {
                     new_arr(i) = inv_sigmoid(datapoint(i))
+                    i += 1
                   }
-                  Vectors.dense(new_arr).asInstanceOf[DenseVector]
+                  (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
               })
           }
-          // TODO Backward propagation to update weights and biases
-          val pairedXY : RDD[Tuple2[DenseVector, DenseVector]] = activations(nlayers - 1).zip(y)
+
+          // printRDD(activations(nlayers - 1), "Final layers")
 
           // L x M where M is the size of layer l
-          val nabla_b : Array[RDD[DenseVector]] = new Array[RDD[DenseVector]](nlayers)
+          val nabla_b : Array[RDD[Tuple2[Int, DenseVector]]] =
+              new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
           // L x M x N where M is the size of layer l and N is the size of layer l + 1
-          val nabla_w : Array[RDD[DenseVector]] = new Array[RDD[DenseVector]](nlayers)
+          val nabla_w : Array[RDD[Tuple2[Int, DenseVector]]] =
+              new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
 
-          var delta : RDD[DenseVector] = pairedXY.map(pair => {
-                val activation : DenseVector = pair._1
-                val y : DenseVector = pair._2
-                val size : Int = activation.size
+          var delta : RDD[Tuple2[Int, DenseVector]] = activations(nlayers - 1)
+            .join(y).map(joined => {
+              val id = joined._1
+              val activation : DenseVector = joined._2._1
+              val y : DenseVector = joined._2._2
+              val size : Int = activation.size
 
-                var arr : Array[Double] = new Array[Double](size)
-                var i : Int = 0
-                while (i < size) {
-                  arr(i) = activation(i) - y(i) // delta
+              var arr : Array[Double] = new Array[Double](size)
+              var i : Int = 0
+              while (i < size) {
+                arr(i) = activation(i) - y(i) // delta
+                i += 1
+              }
+              (id, Vectors.dense(arr).asInstanceOf[DenseVector])
+            })
+
+          // printRDD(delta, "Initial delta 1")
+          // printRDD(zs(nlayers - 2), "Last Zs")
+
+          delta = delta.join(zs(nlayers - 2)).map(joined => {
+              val id = joined._1
+              val inner_delta = joined._2._1
+              val z = joined._2._2
+              val size = inner_delta.size
+              val new_arr : Array[Double] = new Array[Double](size)
+              var i = 0
+              while (i < size) {
+                  new_arr(i) = inner_delta(i) * sigmoid_prime(z(i))
                   i += 1
-                }
-                Vectors.dense(arr).asInstanceOf[DenseVector]
-              })
+              }
+              (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
+          })
+
+          // printRDD(delta, "Initial delta 2")
+
+          /*
+           * Here, delta is a vector with the same length as the last neuron
+           * layer.
+           */
           nabla_b(nlayers - 1) = delta
           nabla_w(nlayers - 1) = get_nabla_w(delta, activations(nlayers - 2))
           for (l <- 2 until nlayers) {
-              val currLayer = nlayers - l + 1
+              /*
+               * delta is a vector with the same length as the number of neurons
+               * in layer currLayer + 1 (starting at output layer).
+               *
+               * zs(currLayer) is a vector with the same length as the number of
+               * neurons in layer currLayer.
+               *
+               * broadcastedWeights(currLayer + 1) has as many rows as the
+               * currLayer + 1 layer of neurons and as many columns as the
+               * currLayer of neurons. This means it has as many rows as delta
+               * has elements. Transposing the weights and multiplying by delta
+               * produces a new vector of the same length as currLayer.
+               */
+              val currLayer = nlayers - l // -l in the python code
+              val nextLayer = currLayer + 1
               val prevLayer = currLayer - 1
               val layerSize = layerDimensionalities(currLayer)
               val prevLayerSize = layerDimensionalities(prevLayer)
+              val nextLayerSize = layerDimensionalities(nextLayer)
 
               // TODO wrap?
-              val delta_and_z : RDD[Tuple2[DenseVector, DenseVector]]= delta.zip(zs(prevLayer))
-              delta = delta_and_z.map(d_and_z => {
-                    val d : DenseVector = d_and_z._1
-                    val z : DenseVector = d_and_z._2
-                    var prevArr : Array[Double] = new Array[Double](prevLayerSize)
+              delta = delta.join(zs(currLayer - 1)).map(joined => {
+                    val id = joined._1
+                    val d : DenseVector = joined._2._1
+                    val z : DenseVector = joined._2._2
+                    var prevArr : Array[Double] = new Array[Double](layerSize)
+
                     var i = 0
-                    while (i < prevLayerSize) {
-                      prevArr(i) = 0.0
+                    while (i < layerSize) {
+                      // For each element in delta and each column in weights
+                      var acc : Double = 0.0
+                      var j = 0
+                      while (j < nextLayerSize) {
+                        // transposed
+                        acc +=
+                            (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
+                        j += 1
+                      }
+                      prevArr(i) = acc
                       i += 1
                     }
 
                     i = 0
                     while (i < layerSize) {
-                      // For each element in delta and each column in weights
-                      var acc : Double = 0.0
-                      var j = 0
-                      while (j < prevLayerSize) {
-                        // transposed
-                        prevArr(j) +=
-                            (broadcastedWeights.value(currLayer)(j * prevLayerSize + i) * d(i))
-                      }
-                    }
-
-                    i = 0
-                    while (i < prevLayerSize) {
                       prevArr(i) = prevArr(i) * sigmoid_prime(z(i))
                       i += 1
                     }
 
-                    Vectors.dense(prevArr).asInstanceOf[DenseVector]
+                    (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
                   })
               nabla_b(nlayers - l) = delta
-              nabla_w(nlayers - l) = get_nabla_w(delta, activations(nlayers - l - 1))
-              delta = if (useSwat) CLWrapper.cl[DenseVector](delta) else delta
+              nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer))
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
           }
 
           /*
@@ -292,25 +391,63 @@ object SparkNN {
            * the elements in nabla_w[:nlayers - 1] to weights.
            */
           for (l <- 0 until nlayers - 1) {
-            val collected_delta_b : DenseVector = reduce_sum(nabla_b(l))
+            val collected_delta_b : DenseVector = reduce_sum(nabla_b(l + 1))
             assert(collected_delta_b.size == biases(l).size)
             val newBiases : Array[Double] = new Array[Double](biases(l).size)
             for (i <- 0 until collected_delta_b.size) {
-              newBiases(i) = biases(l)(i) + collected_delta_b(i)
+              newBiases(i) = biases(l)(i) -
+                  ((learning_rate / n_training_datapoints) *
+                  collected_delta_b(i))
             }
             biases(l) = Vectors.dense(newBiases).asInstanceOf[DenseVector]
 
-            val collected_delta_weights : DenseVector = reduce_sum(nabla_w(l))
+            val collected_delta_weights : DenseVector = reduce_sum(nabla_w(l + 1))
             assert(collected_delta_weights.size == weights(l).size)
             val newWeights : Array[Double] = new Array[Double](weights(l).size)
             for (i <- 0 until collected_delta_weights.size) {
-              newWeights(i) = weights(l)(i) + collected_delta_weights(i)
+              newWeights(i) = weights(l)(i) -
+                  ((learning_rate / n_training_datapoints) *
+                  collected_delta_weights(i))
             }
             weights(l) = Vectors.dense(newWeights).asInstanceOf[DenseVector]
           }
 
-          broadcastedWeights.unpersist
-          broadcastedBiases.unpersist
+          var testing_activations = testing_data
+
+          for (l <- 1 until nlayers) {
+            val prevLayerSize = layerDimensionalities(l - 1)
+            val layerSize = layerDimensionalities(l)
+            testing_activations = feedForwardOneLayer(l, testing_activations,
+                    layerSize, prevLayerSize, broadcastedWeights,
+                    broadcastedBiases)
+          }
+          val total = testing_y.count
+          val ncorrect = testing_activations.join(testing_y).map(joined => {
+              val id : Int = joined._1
+              val x : DenseVector = joined._2._1
+              val y : DenseVector = joined._2._2
+              assert(x.size == y.size)
+              var desired_neuron = -1
+              for (i <- 0 until y.size) {
+                if (y(i) != 0.0) {
+                    assert(desired_neuron == -1)
+                    desired_neuron = i
+                }
+              }
+              assert(desired_neuron != -1)
+
+              var max_neuron = -1
+              var max_neuron_val = -1.0
+              for (i <- 0 until x.size) {
+                if (max_neuron == -1 || x(i) > max_neuron_val) {
+                  max_neuron = i
+                  max_neuron_val = x(i)
+                }
+              }
+              max_neuron == desired_neuron
+          }).filter(correct => correct).count
+          System.err.println("Iteration " + iter + ", " + ncorrect + " / " +
+                  total + " correct")
         }
 
         return (weights, biases)
@@ -319,19 +456,22 @@ object SparkNN {
     def convert_file(input : String, output : String, sc : SparkContext) {
       sc.textFile(input).map(line => {
             val tokens : Array[String] = line.split(" ")
-            val arr : Array[Double] = new Array[Double](tokens.length)
-            for (t <- 0 until tokens.length) {
-              arr(t) = tokens(t).toDouble
+            val id = tokens(0).toInt
+            val arr : Array[Double] = new Array[Double](tokens.length - 1)
+            for (t <- 1 until tokens.length) {
+              arr(t - 1) = tokens(t).toDouble
             }
-            Vectors.dense(arr).asInstanceOf[DenseVector]
+            (id, Vectors.dense(arr).asInstanceOf[DenseVector])
           }).saveAsObjectFile(output)
     }
 
     def convert(args : Array[String]) {
-      if (args.length != 4) {
-          System.err.println("usage: SparkNN convert training-input " +
-                  "training-converted correct-input correct-converted")
-          System.exit(1)
+      if (args.length != 8) {
+        System.err.println("usage: SparkNN convert training-input " +
+                "training-converted training-correct-input " +
+                "training-correct-converted testing-input testing-converted " +
+                "testing-correct-input testing-correct-converted")
+        System.exit(1)
       }
       val sc = get_spark_context("Spark NN Convert");
 
@@ -342,5 +482,13 @@ object SparkNN {
 
       convert_file(trainingInput, trainingOutput, sc)
       convert_file(correctInput, correctOutput, sc)
+
+      val testingInput = args(4)
+      val testingOutput = args(5)
+      val testingCorrectInput = args(6)
+      val testingCorrectOutput = args(7)
+
+      convert_file(testingInput, testingOutput, sc)
+      convert_file(testingCorrectInput, testingCorrectOutput, sc)
     }
 }

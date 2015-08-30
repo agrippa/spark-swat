@@ -12,4 +12,7 @@ spark-submit --class SparkNN \
         ${SWAT_HOME}/functional-tests/nn/target/nn-0.0.0.jar \
         $1 $2 $SPARK_DATA/nn/info \
         hdfs://$(hostname):54310/training-converted \
-        hdfs://$(hostname):54310/correct-converted 1
+        hdfs://$(hostname):54310/training-correct-converted \
+        hdfs://$(hostname):54310/testing-converted \
+        hdfs://$(hostname):54310/testing-correct-converted \
+        15 3.0
