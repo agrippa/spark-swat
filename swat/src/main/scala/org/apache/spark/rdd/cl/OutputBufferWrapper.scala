@@ -16,4 +16,11 @@ trait OutputBufferWrapper[T] {
   def next() : T
   def hasNext() : Boolean
   def releaseBuffers(bbCache : ByteBufferCache)
+  // Returns true if all work on the device is complete
+  def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
+          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
+          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean
+  def finish(ctx : Long, dev_ctx : Long)
+  def countArgumentsUsed() : Int
 }

@@ -1029,7 +1029,6 @@ JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
     ASSERT(remaining % sizeof( type ) == 0); \
     const int remainingEles = remaining / sizeof( type ); \
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles); \
-    void **addressOfArr = (void **)l_addressOfArr; \
     \
     void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, NULL); \
     CHECK_JNI(bb_elements) \
@@ -1037,12 +1036,12 @@ JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
     \
     jclass targetClass = jenv->FindClass(targetClassName); \
     CHECK_JNI(targetClass) \
-    jfieldID valueField = jenv->GetFieldID(targetClass, "value", sig); \
-    CHECK_JNI(valueField) \
+    jmethodID constructor = jenv->GetMethodID(targetClass, "<init>", "("#sig")V"); \
+    CHECK_JNI(constructor); \
     for (unsigned i = 0; i < to_process; i++) { \
-        jobject obj = jenv->GetObjectArrayElement(targetToHold, i); \
-        CHECK_JNI(obj) \
-        jenv->Set##capitalized_type##Field(obj, valueField, *bb_iter); \
+        jobject newObj = jenv->NewObject(targetClass, constructor, *bb_iter); \
+        CHECK_JNI(newObj); \
+        jenv->SetObjectArrayElement(targetToHold, i, newObj); \
         bb_iter++; \
     } \
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT); \
@@ -1113,6 +1112,8 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     jclass targetClass = jenv->FindClass(targetClassName);
     CHECK_JNI(targetClass);
     jenv->ReleaseStringUTFChars(targetClassNameStr, targetClassName);
+    jmethodID constructor = jenv->GetMethodID(targetClass, "<init>", "()V");
+    CHECK_JNI(constructor);
 
     jfieldID *fields = (jfieldID *)malloc(nfields * sizeof(jfieldID));
     for (int i = 0; i < nfields; i++) {
@@ -1146,12 +1147,14 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     }
 
     for (unsigned i = 0; i < to_process; i++) {
-        jobject obj = jenv->GetObjectArrayElement(targetToHold, i);
-        CHECK_JNI(obj);
+        jobject newObj = jenv->NewObject(targetClass, constructor);
+        CHECK_JNI(newObj);
 
         for (unsigned j = 0; j < nfields; j++) {
-            bb_iter += setFieldInObject(jenv, obj, types[j], fields[j], bb_iter);
+            bb_iter += setFieldInObject(jenv, newObj, types[j], fields[j], bb_iter);
         }
+
+        jenv->SetObjectArrayElement(targetToHold, i, newObj);
     }
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);

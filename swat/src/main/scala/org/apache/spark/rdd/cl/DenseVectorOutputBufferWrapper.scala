@@ -100,9 +100,9 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   }
 }
 
-class DenseVectorOutputBufferWrapper(
-        buffers : java.util.List[DenseVectorDeviceBuffersWrapper])
-        extends OutputBufferWrapper[DenseVector] {
+class DenseVectorOutputBufferWrapper(val outArgNum : Int) extends OutputBufferWrapper[DenseVector] {
+  val buffers : java.util.List[DenseVectorDeviceBuffersWrapper] =
+      new java.util.LinkedList[DenseVectorDeviceBuffersWrapper]()
   var completed = 0
   var currSlot = 0
 
@@ -127,5 +127,22 @@ class DenseVectorOutputBufferWrapper(
     completed != buffers.size
   }
 
+  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
+          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
+          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
+    val buffer : DenseVectorDeviceBuffersWrapper =
+        new DenseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+                processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
+                ctx, dev_ctx, entryPoint, bbCache, devicePointerSize)
+    val complete : Boolean = buffer.readFromDevice
+    buffers.add(buffer)
+    complete
+  }
+
+  override def finish(ctx : Long, dev_ctx : Long) { }
+
   override def releaseBuffers(bbCache : ByteBufferCache) { }
+
+  override def countArgumentsUsed() : Int = { 1 }
 }

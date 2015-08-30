@@ -257,72 +257,26 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
 //           profPrint("Write", writeStart, threadId) // PROFILE
 //           val runStart = System.currentTimeMillis // PROFILE
-          if (sampleOutput.isInstanceOf[DenseVector]) {
-            assert(entryPoint.requiresHeap)
-
-            val acc : java.util.List[DenseVectorDeviceBuffersWrapper] =
-                new java.util.LinkedList[DenseVectorDeviceBuffersWrapper]()
-            var complete : Boolean = false
-            do {
-              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
-              val buffer : DenseVectorDeviceBuffersWrapper =
-                  new DenseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
-                  heapArgStart + 3, outArgNum, heapArgStart, heapSize, ctx,
-                  dev_ctx, entryPoint, bbCache, devicePointerSize)
-              complete = buffer.readFromDevice
-              acc.add(buffer)
-              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
-            } while (!complete)
-
-            outputBuffer = Some(new DenseVectorOutputBufferWrapper(
-                        acc).asInstanceOf[OutputBufferWrapper[U]])
-
-//             profPrint("Run", runStart, threadId) // PROFILE
-//             val readStart = System.currentTimeMillis // PROFILE
-          } else if (sampleOutput.isInstanceOf[SparseVector]) {
-            assert(entryPoint.requiresHeap)
-
-            val acc : java.util.List[SparseVectorDeviceBuffersWrapper] =
-                new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
-            var complete : Boolean = false
-            do {
-              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
-              val buffer : SparseVectorDeviceBuffersWrapper =
-                  new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
-                  heapArgStart + 3, outArgNum, heapArgStart, heapSize, ctx,
-                  dev_ctx, entryPoint, bbCache, devicePointerSize)
-              complete = buffer.readFromDevice
-              acc.add(buffer)
-              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
-            } while (!complete)
-
-            outputBuffer = Some(new SparseVectorOutputBufferWrapper(
-                        acc).asInstanceOf[OutputBufferWrapper[U]])
-
-//             profPrint("Run", runStart, threadId) // PROFILE
-//             val readStart = System.currentTimeMillis // PROFILE
-          } else {
+         
+          var complete : Boolean = true
+          outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
+                      sampleOutput.asInstanceOf[U], outArgNum, nLoaded, bbCache,
+                      entryPoint))
+          do {
+            OpenCLBridge.run(ctx, dev_ctx, nLoaded)
             if (entryPoint.requiresHeap) {
-              val anyFailed : Array[Int] = new Array[Int](1)
-              var retries : Int = 0
-              do {
-                OpenCLBridge.run(ctx, dev_ctx, nLoaded);
-                OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, argnum - 1,
-                    anyFailed, entryPoint, bbCache)
-                OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
-                retries += 1
-              } while (anyFailed(0) > 0)
-            } else {
-              OpenCLBridge.run(ctx, dev_ctx, nLoaded);
+              complete = outputBuffer.get.kernelAttemptCallback(
+                      nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
+                      heapArgStart, heapSize, ctx, dev_ctx, entryPoint, bbCache,
+                      devicePointerSize)
+              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
             }
-//             profPrint("Run", runStart, threadId) // PROFILE
-//             val readStart = System.currentTimeMillis // PROFILE
+          } while (!complete)
 
-            outputBuffer = Some(
-                    OpenCLBridgeWrapper.fetchArgFromUnitializedArray[U](ctx,
-                    dev_ctx, outArgNum, nLoaded, entryPoint,
-                    sampleOutput.asInstanceOf[U], bbCache))
-          }
+          outputBuffer.get.finish(ctx, dev_ctx)
+
+//           profPrint("Run", runStart, threadId) // PROFILE
+//           val readStart = System.currentTimeMillis // PROFILE
 
           OpenCLBridge.postKernelCleanup(ctx);
 //           profPrint("Read", readStart, threadId) // PROFILE

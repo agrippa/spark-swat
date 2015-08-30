@@ -113,9 +113,10 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   }
 }
 
-class SparseVectorOutputBufferWrapper(
-        buffers : java.util.List[SparseVectorDeviceBuffersWrapper])
-        extends OutputBufferWrapper[SparseVector] {
+class SparseVectorOutputBufferWrapper(val outArgNum : Int)
+    extends OutputBufferWrapper[SparseVector] {
+  val buffers : java.util.List[SparseVectorDeviceBuffersWrapper] =
+      new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
   var completed = 0
   var currSlot = 0
 
@@ -140,5 +141,22 @@ class SparseVectorOutputBufferWrapper(
     completed != buffers.size
   }
 
+  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
+          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
+          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
+    val buffer : SparseVectorDeviceBuffersWrapper =
+        new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+                processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
+                ctx, dev_ctx, entryPoint, bbCache, devicePointerSize)
+    val complete : Boolean = buffer.readFromDevice
+    buffers.add(buffer)
+    complete
+  }
+
+  override def finish(ctx : Long, dev_ctx : Long) { }
+
   override def releaseBuffers(bbCache : ByteBufferCache) { }
+
+  override def countArgumentsUsed() : Int = { 1 }
 }

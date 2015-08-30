@@ -98,6 +98,7 @@ __kernel void run(
       } else {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;
+         result->_2->values = ((__global char *)result->_2->values) - ((__global char *)this->heap);
          out_2[i] = *(result->_2);
       }
    }
