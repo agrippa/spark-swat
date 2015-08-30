@@ -43,11 +43,11 @@ object SparkNN {
     }
 
     def sigmoid(z : Double) : Double = {
-      1.0 / (1.0 + Math.exp(-z))
+      1.0 / (1.0 + scala.math.exp(-z))
     }
 
     def inv_sigmoid(a : Double) : Double = {
-      -1.0 * Math.log((1.0 / a) - 1.0)
+      -1.0 * scala.math.log((1.0 / a) - 1.0)
     }
 
     def sigmoid_prime(z : Double) : Double = {
