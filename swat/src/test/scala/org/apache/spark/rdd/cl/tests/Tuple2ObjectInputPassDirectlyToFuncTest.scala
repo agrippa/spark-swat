@@ -4,6 +4,7 @@ import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import org.apache.spark.rdd.cl.CodeGenTest
+import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
@@ -12,68 +13,9 @@ object Tuple2ObjectInputPassDirectlyToFuncTest extends CodeGenTest[(Int, Point),
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = {
-    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
-    "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
-    "   uint rounded = nbytes + (8 - (nbytes % 8));\n" +
-    "   uint offset = atomic_add(free_index, rounded);\n" +
-    "   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }\n" +
-    "   else return (__global void *)(cheap + offset);\n" +
-    "}\n" +
-    "\n" +
-    "typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{\n" +
-    "   float  x;\n" +
-    "   float  y;\n" +
-    "   float  z;\n" +
-    "   \n" +
-    "} org_apache_spark_rdd_cl_tests_Point;\n" +
-    "\n" +
-    "typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{\n" +
-    "   __global org_apache_spark_rdd_cl_tests_Point  * _2;\n" +
-    "   int  _1;\n" +
-    "   \n" +
-    "} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;\n" +
-    "typedef struct This_s{\n" +
-    "   } This;\n" +
-    "static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
-    "   return this->z;\n" +
-    "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Point__y(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
-    "   return this->y;\n" +
-    "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__externalPoint(This *this, __global org_apache_spark_rdd_cl_tests_Point* v){\n" +
-    "\n" +
-    "   return((v->y + v->z));\n" +
-    "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__external(This *this, float v){\n" +
-    "\n" +
-    "   return((v + 3.0f));\n" +
-    "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){\n" +
-    "   return this->x;\n" +
-    "}\n" +
-    "static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){\n" +
-    "\n" +
-    "   return(\n" +
-    "   {\n" +
-    "   \n" +
-    "       __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;\n" +
-    "      (org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__external(this, p->x) + org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__externalPoint(this, in->_2));\n" +
-    "   });\n" +
-    "}\n" +
-    "__kernel void run(\n" +
-    "      __global int * in0_1, __global org_apache_spark_rdd_cl_tests_Point* in0_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *in0, \n" +
-    "      __global float* out, int N) {\n" +
-    "   int i = get_global_id(0);\n" +
-    "   int nthreads = get_global_size(0);\n" +
-    "   This thisStruct;\n" +
-    "   This* this=&thisStruct;\n" +
-    "   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *my_in0 = in0 + get_global_id(0);\n" +
-    "   for (; i < N; i += nthreads) {\n" +
-    "      my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2 + i; \n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassDirectlyToFuncTest$$anon$1__apply(this, my_in0);\n" +
-    "      \n" +
-    "   }\n" +
-    "}\n"
+    val className : String = this.getClass.getSimpleName
+    scala.io.Source.fromFile(CodeGenTests.testsPath +
+            className.substring(0, className.length - 1) + ".kernel").mkString
   }
 
   def getExpectedNumInputs() : Int = {

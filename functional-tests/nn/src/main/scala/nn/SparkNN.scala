@@ -246,7 +246,7 @@ object SparkNN {
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
         activations(0) = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else raw_inputs
         val raw_y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
-        var y = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](raw_y) else raw_y
+        var y = raw_y
         val n_training_datapoints = raw_inputs.count
 
         val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
@@ -383,7 +383,6 @@ object SparkNN {
                   })
               nabla_b(nlayers - l) = delta
               nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer))
-              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
           }
 
           /*

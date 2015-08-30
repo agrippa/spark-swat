@@ -1,0 +1,70 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2OutputTest$_s{
+   
+} org_apache_spark_rdd_cl_tests_Tuple2OutputTest$;
+
+
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s{
+   int  _1;
+   int  _2;
+   
+} scala_Tuple2_I_I;
+
+typedef struct This_s{
+   __global void *heap;
+   __global uint *free_index;
+   int alloc_failed;
+   unsigned int heap_size;
+   } This;
+
+static __global scala_Tuple2_I_I *scala_Tuple2_I_I___init_(__global scala_Tuple2_I_I *this, int  one, int  two) {
+   this->_1 = one;
+   this->_2 = two;
+   return this;
+}
+
+static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(This *this, int in){
+
+   __global scala_Tuple2_I_I * __alloc0 = (__global scala_Tuple2_I_I *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_I), &this->alloc_failed);
+   if (this->alloc_failed) { return (0x0); }
+   return(scala_Tuple2_I_I___init_(__alloc0, (in + 1), (in + 2)));
+}
+__kernel void run(
+      __global int* in0, 
+      __global int * out_1, __global int * out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+   int i = get_global_id(0);
+   int nthreads = get_global_size(0);
+   This thisStruct;
+   This* this=&thisStruct;
+   this->heap = heap;
+   this->free_index = free_index;
+   this->heap_size = heap_size;
+   for (; i < N; i += nthreads) {
+      if (processing_succeeded[i]) continue;
+      
+      this->alloc_failed = 0;
+      __global scala_Tuple2_I_I* result = org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(this, in0[i]);
+      if (this->alloc_failed) {
+         processing_succeeded[i] = 0;
+         *any_failed = 1;
+      } else {
+         processing_succeeded[i] = 1;
+         out_1[i] = result->_1;
+         out_2[i] = result->_2;
+      }
+   }
+}

@@ -9,6 +9,7 @@ import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.SparseVectorClassModel
 
 import org.apache.spark.rdd.cl.CodeGenTest
+import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 
 import org.apache.spark.mllib.linalg.SparseVector

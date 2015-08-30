@@ -8,45 +8,16 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
 import org.apache.spark.rdd.cl.CodeGenTest
+import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 
 object Tuple2InputTest extends CodeGenTest[(Int, Int), Int] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = {
-    "static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {\n" +
-    "   __global unsigned char *cheap = (__global unsigned char *)heap;\n" +
-    "   uint rounded = nbytes + (8 - (nbytes % 8));\n" +
-    "   uint offset = atomic_add(free_index, rounded);\n" +
-    "   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }\n" +
-    "   else return (__global void *)(cheap + offset);\n" +
-    "}\n" +
-    "\n" +
-    "typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s{\n" +
-    "   int  _1;\n" +
-    "   int  _2;\n" +
-    "   \n" +
-    "} scala_Tuple2_I_I;\n" +
-    "typedef struct This_s{\n" +
-    "   } This;\n" +
-    "static int org_apache_spark_rdd_cl_tests_Tuple2InputTest$$anon$1__apply(This *this, __global scala_Tuple2_I_I* in){\n" +
-    "\n" +
-    "   return((in->_1 + in->_2));\n" +
-    "}\n" +
-    "__kernel void run(\n" +
-    "      __global int * in0_1, __global int * in0_2, __global scala_Tuple2_I_I *in0, \n" +
-    "      __global int* out, int N) {\n" +
-    "   int i = get_global_id(0);\n" +
-    "   int nthreads = get_global_size(0);\n" +
-    "   This thisStruct;\n" +
-    "   This* this=&thisStruct;\n" +
-    "   __global scala_Tuple2_I_I *my_in0 = in0 + get_global_id(0);\n" +
-    "   for (; i < N; i += nthreads) {\n" +
-    "      my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2[i]; \n" +
-    "      out[i] = org_apache_spark_rdd_cl_tests_Tuple2InputTest$$anon$1__apply(this, my_in0);\n" +
-    "      \n" +
-    "   }\n" +
-    "}\n"
+    val className : String = this.getClass.getSimpleName
+    scala.io.Source.fromFile(CodeGenTests.testsPath +
+            className.substring(0, className.length - 1) + ".kernel").mkString
   }
 
   def getExpectedNumInputs() : Int = {

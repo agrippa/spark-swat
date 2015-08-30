@@ -19,6 +19,9 @@ import com.amd.aparapi.internal.writer.ScalaArrayParameter
 
 object CodeGenTests {
 
+  val testsPath : String = sys.env("SWAT_HOME") +
+      "/swat/src/test/scala/org/apache/spark/rdd/cl/tests/"
+
   val tests : ArrayList[CodeGenTest[_, _]] = new ArrayList[CodeGenTest[_, _]]()
   tests.add(PrimitiveInputPrimitiveOutputTest)
   tests.add(PrimitiveInputObjectOutputTest)
@@ -26,7 +29,7 @@ object CodeGenTests {
   tests.add(ReferenceExternalArrayTest)
   tests.add(ReferenceExternalObjectArrayTest)
   tests.add(ReferenceExternalScalarTest)
-  tests.add(ExternalFunction)
+  tests.add(ExternalFunctionTest)
   tests.add(Tuple2InputTest)
   tests.add(Tuple2ObjectInputTest)
   tests.add(Tuple2ObjectInputDirectTest)
@@ -47,6 +50,7 @@ object CodeGenTests {
   tests.add(DenseVectorBroadcastTest)
   tests.add(SparseVectorBroadcastTest)
   tests.add(Tuple2DenseInputTest)
+  tests.add(ClassExternalFunctionTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
