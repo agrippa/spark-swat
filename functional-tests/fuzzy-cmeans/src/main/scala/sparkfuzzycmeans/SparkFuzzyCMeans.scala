@@ -106,6 +106,7 @@ object SparkFuzzyCMeans {
 
         var iter = 0
         while (iter < iters) {
+            val iterStartTime = System.currentTimeMillis
             val broadcastedCenters = sc.broadcast(centers)
 
             val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
@@ -154,7 +155,8 @@ object SparkFuzzyCMeans {
 
             broadcastedCenters.unpersist(true)
 
-            // println("Iteration " + (iter + 1))
+            val iterEndTime = System.currentTimeMillis
+            println("iteration " + (iter + 1) + " : " + (iterEndTime - iterStartTime) + " ms")
             // for (i <- centers.indices) {
             //     val p : Point = centers(i)
             //     println("  Cluster " + i + ", (" + p.x + ", " + p.y +

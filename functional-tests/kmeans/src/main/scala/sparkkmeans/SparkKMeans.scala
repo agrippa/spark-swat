@@ -75,6 +75,8 @@ object SparkKMeans {
         val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
+            val iterStartTime = System.currentTimeMillis
+
             val classified = points.map(point => {
                 var closest_center = -1
                 var closest_center_dist = -1.0f
@@ -102,12 +104,17 @@ object SparkKMeans {
                     p.z / counts(cluster_index))) } )
 
             centers = averages.collect
-            println("Iteration " + (iter + 1))
-            for (a <- centers) {
-                val p:Point = a._2;
-                println("  Cluster " + a._1 + ", (" + p.x + ", " + p.y +
-                        ", " + p.z + ")")
-            }
+
+            val iterEndTime = System.currentTimeMillis
+
+            System.err.println("iteration " + (iter + 1) + " : " +
+                    (iterEndTime - iterStartTime) + " ms")
+            // println("Iteration " + (iter + 1))
+            // for (a <- centers) {
+            //     val p:Point = a._2;
+            //     println("  Cluster " + a._1 + ", (" + p.x + ", " + p.y +
+            //             ", " + p.z + ")")
+            // }
             iter += 1
         }
         val endTime = System.currentTimeMillis

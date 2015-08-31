@@ -254,8 +254,12 @@ object SparkNN {
         val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
         val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
 
+        val startTime = System.currentTimeMillis
+
         var iter = 0
         while (iter < iters) {
+          val iterStartTime = System.currentTimeMillis
+
           val broadcastedWeights = sc.broadcast(weights)
           val broadcastedBiases = sc.broadcast(biases)
 
@@ -465,10 +469,16 @@ object SparkNN {
               }
               max_neuron == desired_neuron
           }).filter(correct => correct).count
-          System.err.println("Iteration " + iter + ", " + ncorrect + " / " +
-                  total + " correct")
+
+          val iterEndTime = System.currentTimeMillis
+
+          System.err.println("iteration " + iter + ", " + ncorrect + " / " +
+                  total + " correct : " + (iterEndTime - iterStartTime) + " ms")
           iter += 1
         }
+
+        val endTime = System.currentTimeMillis
+        System.err.println("Overall time = " + (endTime - startTime) + " ms")
 
         return (weights, biases)
     }

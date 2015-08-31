@@ -75,10 +75,9 @@ object SparkNBody {
         val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
+            val iterStartTime = System.currentTimeMillis
             val broadcastedPoints = sc.broadcast(points)
             val broadcastedVelocities = sc.broadcast(velocities)
-
-            System.err.println("iter=" + iter + " npoints=" + points.length)
 
             val accel = pairs.map(pair => {
                 val target : Int = pair._1
@@ -132,6 +131,8 @@ object SparkNBody {
 
             broadcastedPoints.unpersist(true)
             broadcastedVelocities.unpersist(true)
+            val iterEndTime = System.currentTimeMillis
+            System.err.println("iteration " + (iter + 1) + " : " + (iterEndTime - iterStartTime) + " ms")
 
             iter += 1
         }
