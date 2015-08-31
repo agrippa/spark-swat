@@ -2,7 +2,7 @@
 
 set -e
 
-for t in $(cat tests | head -n 13); do
+for t in $(cat tests); do
     echo $t
 
     cd $t
