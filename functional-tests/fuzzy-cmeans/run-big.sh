@@ -1,17 +1,30 @@
 #!/bin/bash
 
+set -e
+
+SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source $SCRIPT_DIR/../common.sh
+
 if [[ $# != 2 ]]; then
     echo usage: run.sh niters use-swat?
     exit 1
 fi
 
-# --conf "spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:-ResizePLAB -Xloggc:/tmp/SWAT.log -verbose:gc -verbose:jni -XX:+PrintGCDetails" \
-# --conf "spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:-ResizePLAB -XX:ConcGCThreads=8" \
-# --conf "spark.executor.extraJavaOptions=-Xloggc:/tmp/SWAT.log -verbose:gc -verbose:jni -XX:+PrintGCDetails" \
+DATA_DIR=$SPARK_DATA/fuzzycmeans
 
-spark-submit --class SparkFuzzyCMeans \
-        --jars ${SWAT_HOME}/swat/target/swat-1.0-SNAPSHOT.jar,${APARAPI_HOME}/com.amd.aparapi/dist/aparapi.jar,${ASM_HOME}/lib/asm-5.0.3.jar,${ASM_HOME}/lib/asm-util-5.0.3.jar \
-        --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
-        --master spark://localhost:7077 \
-        ${SWAT_HOME}/functional-tests/fuzzy-cmeans/target/sparkfuzzycmeans-0.0.0.jar \
-        run 160 $1 hdfs://$(hostname):54310/converted $2
+for TEST in $(ls $DATA_DIR); do
+    ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input
+    ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /converted
+
+    ${HADOOP_HOME}/bin/hdfs dfs -mkdir /input
+    ${HADOOP_HOME}/bin/hdfs dfs -put $DATA_DIR/$TEST/input.* /input/
+
+    spark-submit --class SparkFuzzyCMeans --master spark://localhost:7077 --jars ${JARS} \
+            ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar convert \
+            hdfs://$(hostname):54310/input hdfs://$(hostname):54310/converted
+
+    spark-submit --class SparkFuzzyCMeans --jars ${JARS} \
+            --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
+            --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \
+            run $DATA_DIR/$TEST/info $1 hdfs://$(hostname):54310/converted $2
+done

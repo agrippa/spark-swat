@@ -5,9 +5,12 @@ DATA_DIR=$SPARK_DATA/nbody
 
 rm -rf $DATA_DIR/*
 
-mkdir $DATA_DIR/points
-mkdir $DATA_DIR/pairs
+for POINTS_PER_FILE in 200 400 800; do
+    OUTPUT_DIR=$DATA_DIR/${POINTS_PER_FILE}points_per_file
+    mkdir -p $OUTPUT_DIR/points
+    mkdir -p $OUTPUT_DIR/pairs
 
-scala -classpath ./target/sparknbody-0.0.0.jar GenerateInput \
-          /scratch/jmg3/spark-inputs/nbody/points 100 200 \
-          /scratch/jmg3/spark-inputs/nbody/info /scratch/jmg3/spark-inputs/nbody/pairs 4000000
+    scala -classpath ./target/sparknbody-0.0.0.jar GenerateInput \
+              $OUTPUT_DIR/points 100 $POINTS_PER_FILE $OUTPUT_DIR/info \
+              $OUTPUT_DIR/pairs 4000000
+done

@@ -2,8 +2,9 @@ import java.io._
 
 object GenerateInput {
     def main(args : Array[String]) {
-        if (args.length != 4) {
-            println("usage: GenerateInput output-dir n-output-files n-points-per-file nclusters")
+        if (args.length != 5) {
+            println("usage: GenerateInput output-dir n-output-files " + 
+                    "n-points-per-file nclusters info-file")
             return;
         }
 
@@ -11,6 +12,7 @@ object GenerateInput {
         val nOutputFiles = args(1).toInt
         val pointsPerFile = args(2).toInt
         val nclusters = args(3).toInt
+        val infoFile = args(4)
 
         val r = new scala.util.Random(1)
         val range = 100.0
@@ -41,5 +43,9 @@ object GenerateInput {
             }
             writer.close
         }
+
+        val infoWriter = new PrintWriter(new File(infoFile))
+        infoWriter.write(nclusters + "\n")
+        infoWriter.close
     }
 }

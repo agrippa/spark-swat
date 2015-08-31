@@ -6,6 +6,7 @@ import Array._
 import scala.math._
 import org.apache.spark.rdd._
 import java.net._
+import scala.io.Source
 
 class Point(val x: Float, val y: Float, val z: Float)
     extends java.io.Serializable {
@@ -50,12 +51,15 @@ object SparkKMeans {
 
     def run_kmeans(args : Array[String]) {
         if (args.length != 4) {
-            println("usage: SparkKMeans run K iters input-path use-swat?");
+            println("usage: SparkKMeans run info-file iters input-path use-swat?");
             return;
         }
         val sc = get_spark_context("Spark KMeans");
 
-        val K = args(0).toInt;
+        val infoFile = args(0)
+        val infoIter : Iterator[String] = Source.fromFile(infoFile).getLines
+        val K : Int = infoIter.next.toInt
+
         val iters = args(1).toInt;
         val inputPath = args(2);
         val useSwat = args(3).toBoolean
