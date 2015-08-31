@@ -240,11 +240,13 @@ object SparkNN {
          * Element i in raw_y corresponds to the expected output for element i
          * in raw_inputs.
          */
-        val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath)
+        val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath).cache
         // no z for the input layer as its outputs are constant
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
-        activations(0) = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else raw_inputs
+        activations(0) = if (useSwat)
+            CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else
+            raw_inputs
         val raw_y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
         var y = raw_y
         val n_training_datapoints = raw_inputs.count
@@ -252,17 +254,19 @@ object SparkNN {
         val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
         val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
 
-        for (iter <- 0 until iters) {
+        var iter = 0
+        while (iter < iters) {
           val broadcastedWeights = sc.broadcast(weights)
           val broadcastedBiases = sc.broadcast(biases)
 
           // Feed forward, skip first input layer
-          for (l <- 1 until nlayers) {
+          var l = 1
+          while (l < nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
               val new_activations : RDD[Tuple2[Int, DenseVector]] =
                 feedForwardOneLayer(l, activations(l - 1), layerSize,
-                        prevLayerSize, broadcastedWeights, broadcastedBiases)
+                        prevLayerSize, broadcastedWeights, broadcastedBiases).cache
               activations(l) = if (useSwat)
                     CLWrapper.cl[Tuple2[Int, DenseVector]](new_activations) else
                     new_activations
@@ -278,6 +282,7 @@ object SparkNN {
                   }
                   (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
               })
+              l += 1
           }
 
           // printRDD(activations(nlayers - 1), "Final layers")
@@ -330,7 +335,8 @@ object SparkNN {
            */
           nabla_b(nlayers - 1) = delta
           nabla_w(nlayers - 1) = get_nabla_w(delta, activations(nlayers - 2))
-          for (l <- 2 until nlayers) {
+          l = 2
+          while (l < nlayers) {
               /*
                * delta is a vector with the same length as the number of neurons
                * in layer currLayer + 1 (starting at output layer).
@@ -351,38 +357,49 @@ object SparkNN {
               val prevLayerSize = layerDimensionalities(prevLayer)
               val nextLayerSize = layerDimensionalities(nextLayer)
 
+              delta = delta.cache
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta)
+                    else delta
+
               // TODO wrap?
-              delta = delta.join(zs(currLayer - 1)).map(joined => {
-                    val id = joined._1
-                    val d : DenseVector = joined._2._1
-                    val z : DenseVector = joined._2._2
-                    var prevArr : Array[Double] = new Array[Double](layerSize)
+              delta = delta.map(pair => {
+                val id = pair._1
+                val d : DenseVector = pair._2
+                val prevArr : Array[Double] = new Array[Double](layerSize)
 
-                    var i = 0
-                    while (i < layerSize) {
-                      // For each element in delta and each column in weights
-                      var acc : Double = 0.0
-                      var j = 0
-                      while (j < nextLayerSize) {
-                        // transposed
-                        acc +=
-                            (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
-                        j += 1
-                      }
-                      prevArr(i) = acc
-                      i += 1
-                    }
+                var i = 0
+                while (i < layerSize) {
+                  // For each element in delta and each column in weights
+                  var acc : Double = 0.0
+                  var j = 0
+                  while (j < nextLayerSize) {
+                    // transposed
+                    acc +=
+                        (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
+                    j += 1
+                  }
+                  prevArr(i) = acc
+                  i += 1
+                }
 
-                    i = 0
-                    while (i < layerSize) {
-                      prevArr(i) = prevArr(i) * sigmoid_prime(z(i))
-                      i += 1
-                    }
+                (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+              }).join(zs(currLayer - 1)).map(joined => {
+                val id = joined._1
+                val d : DenseVector = joined._2._1
+                val z : DenseVector = joined._2._2
+                var prevArr : Array[Double] = new Array[Double](layerSize)
 
-                    (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
-                  })
+                var i : Int = 0
+                while (i < layerSize) {
+                  prevArr(i) = d(i) * sigmoid_prime(z(i))
+                  i += 1
+                }
+
+                (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+              })
               nabla_b(nlayers - l) = delta
               nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer))
+              l += 1
           }
 
           /*
@@ -416,6 +433,9 @@ object SparkNN {
           for (l <- 1 until nlayers) {
             val prevLayerSize = layerDimensionalities(l - 1)
             val layerSize = layerDimensionalities(l)
+            testing_activations = if (useSwat)
+                CLWrapper.cl[Tuple2[Int, DenseVector]](testing_activations) else
+                testing_activations
             testing_activations = feedForwardOneLayer(l, testing_activations,
                     layerSize, prevLayerSize, broadcastedWeights,
                     broadcastedBiases)
@@ -447,6 +467,7 @@ object SparkNN {
           }).filter(correct => correct).count
           System.err.println("Iteration " + iter + ", " + ncorrect + " / " +
                   total + " correct")
+          iter += 1
         }
 
         return (weights, biases)
