@@ -124,7 +124,6 @@ object SparkConnectedComponents {
           System.err.println("iter=" + iters + ", " +
                   (iterEndTime - iterStartTime) + " ms, collected.length=" +
                   collected_new_classifications.length)
-          // System.err.println("iter=" + iters + ", " + (iterEndTime - iterStartTime) + " ms")
         } while (!done);
 
         var endTime = System.currentTimeMillis
