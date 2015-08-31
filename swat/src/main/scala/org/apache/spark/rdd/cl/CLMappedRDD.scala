@@ -231,8 +231,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
 //           val writeStart = System.currentTimeMillis // PROFILE
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
-                  if (firstParent[T].getStorageLevel.useMemory)
-                      firstParent[T].id else -1, -1, split.index, myOffset, 0)
+                  -1, if (firstParent[T].getStorageLevel.useMemory)
+                      firstParent[T].id else -1, split.index, myOffset, 0)
           val outArgNum : Int = argnum
           argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
               dev_ctx, argnum, nLoaded, classTag[U].runtimeClass,

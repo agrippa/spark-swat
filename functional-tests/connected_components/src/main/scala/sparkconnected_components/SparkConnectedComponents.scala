@@ -86,7 +86,6 @@ object SparkConnectedComponents {
           val broadcastMembership = sc.broadcast(membership)
 
           val updates : RDD[(Int, Int)] = edges.map(edge => {
-                // (edge._1, edge._2)
                 val component_1 = broadcastMembership.value(edge._1)
                 val component_2 = broadcastMembership.value(edge._2)
                 if (component_1 == component_2) {
@@ -116,9 +115,9 @@ object SparkConnectedComponents {
           iters += 1
 
           done = (collected_new_classifications.length == 1)
-          // done = (iters == 3)
+          // done = (iters == 1)
 
-          broadcastMembership.unpersist(true)
+          // broadcastMembership.unpersist(true)
           val iterEndTime = System.currentTimeMillis
 
           System.err.println("iter=" + iters + ", " +

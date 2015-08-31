@@ -148,10 +148,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
     var used = 0
 
     if (firstMemberSize > 0) {
-        used = used + buffer1.copyToDevice(startArgnum + used, ctx, dev_ctx,
-                broadcastId, rddid, partitionid, offset, startingComponent + used)
+        used = used + buffer1.copyToDevice(startArgnum, ctx, dev_ctx,
+                broadcastId, rddid, partitionid, offset, startingComponent)
     } else {
-        OpenCLBridge.setNullArrayArg(ctx, startArgnum + used)
+        OpenCLBridge.setNullArrayArg(ctx, startArgnum)
         used = used + 1
     }
 
