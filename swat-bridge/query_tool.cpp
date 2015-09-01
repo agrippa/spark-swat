@@ -28,7 +28,7 @@ void list_devices() {
                 num_devices);
         CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
                     num_devices, devices, NULL));
-        for (int d = 0; d < num_devices; d++) {
+        for (unsigned d = 0; d < num_devices; d++) {
             cl_device_id dev = devices[d];
             cl_device_type type;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_TYPE, sizeof(type), &type,

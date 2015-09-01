@@ -118,8 +118,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         ASSERT(rddid < 0 && broadcastId < 0); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
-        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
-                dev_ctx, broadcastId, rddid); \
+        set_and_write_kernel_arg(arr, len, index, context, dev_ctx, \
+                broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
     } \
     EXIT_TRACE("set"#utype"ArrayArg"); \
@@ -570,7 +570,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         store_source[source_len] = '\0';
 #endif
 
-        size_t source_size[] = { source_len };
+        size_t source_size[] = { (size_t)source_len };
         program = clCreateProgramWithSource(dev_ctx->ctx, 1, (const char **)&raw_source,
                 source_size, &err);
         CHECK(err);
@@ -785,8 +785,8 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         ASSERT(rddid < 0 && broadcastId < 0);
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
         CHECK_JNI(arr)
-        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
-                dev_ctx, broadcastId, rddid);
+        set_and_write_kernel_arg(arr, len, index, context, dev_ctx, broadcastId,
+                rddid);
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
     }
     EXIT_TRACE("setArrayArg");
@@ -1102,8 +1102,6 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
     // jenv->EnsureLocalCapacity(to_process + nfields);
 
-    void **addressOfArr = (void **)l_addressOfArr;
-
     unsigned char *bb_elements = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
     CHECK_JNI(bb_elements);
     unsigned char *bb_iter = bb_elements + position;
@@ -1121,7 +1119,7 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
     CHECK_JNI(constructor);
 
     jfieldID *fields = (jfieldID *)malloc(nfields * sizeof(jfieldID));
-    for (int i = 0; i < nfields; i++) {
+    for (unsigned i = 0; i < nfields; i++) {
         jstring fieldNameStr = (jstring)jenv->GetObjectArrayElement(fieldNamesArray, i);
         CHECK_JNI(fieldNameStr);
 
@@ -1187,7 +1185,7 @@ JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
 
     unsigned char *bb_iter = bb_contents + position;
 
-    for (unsigned i = 0; i < bufferLength; i++) {
+    for (int i = 0; i < bufferLength; i++) {
         unsigned char * ele = NULL;
         memcpy(&ele, addressOfArr + (i * arrayIndexScale), arrayIndexScale);
 
