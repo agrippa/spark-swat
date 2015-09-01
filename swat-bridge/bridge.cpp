@@ -357,8 +357,13 @@ static void populateDeviceContexts() {
                 cl_context ctx = clCreateContext(ctx_props, 1, &curr_dev, NULL, NULL, &err);
                 CHECK(err);
 
+                cl_command_queue_properties props = 0;
+#ifndef __APPLE__
+                props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+#endif
+
                 cl_command_queue cmd = clCreateCommandQueue(ctx, curr_dev,
-                        CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err);
+                        props, &err);
                 CHECK(err);
 
                 tmp_device_ctxs[global_device_id].platform = platforms[platform_index];

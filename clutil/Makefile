@@ -6,7 +6,7 @@ DEFINES=
 GXX_FLAGS=-O3 -Wall
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux
 
-IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l)
+IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
 ifeq ($(IS_CLANG),1)
 	GXX_FLAGS += -framework OpenCL
 else
