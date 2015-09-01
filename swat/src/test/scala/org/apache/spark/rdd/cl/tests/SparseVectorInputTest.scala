@@ -18,11 +18,7 @@ import org.apache.spark.rdd.cl.SparseVectorInputBufferWrapperConfig
 object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
   def getExpectedException() : String = { return null }
 
-  def getExpectedKernel() : String = {
-    val className : String = this.getClass.getSimpleName
-    scala.io.Source.fromFile(CodeGenTests.testsPath +
-            className.substring(0, className.length - 1) + ".kernel").mkString
-  }
+  def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
 
   def getExpectedNumInputs : Int = {
     1

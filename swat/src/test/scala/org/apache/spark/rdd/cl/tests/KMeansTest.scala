@@ -27,11 +27,7 @@ class PointWithClassifier(val x: Float, val y: Float, val z: Float)
 object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassifier)] {
   def getExpectedException() : String = { return null }
 
-  def getExpectedKernel() : String = {
-    val className : String = this.getClass.getSimpleName
-    scala.io.Source.fromFile(CodeGenTests.testsPath +
-            className.substring(0, className.length - 1) + ".kernel").mkString
-  }
+  def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
 
   def getExpectedNumInputs() : Int = {
     1

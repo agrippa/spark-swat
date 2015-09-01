@@ -5,4 +5,4 @@ if [[ $# != 1 ]]; then
     exit 1
 fi
 
-cp generated src/test/scala/org/apache/spark/rdd/cl/tests/$1.kernel
+cp generated src/test/scala/org/apache/spark/rdd/cl/tests/$(hostname)/$1.kernel

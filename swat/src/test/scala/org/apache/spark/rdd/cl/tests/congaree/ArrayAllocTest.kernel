@@ -1,0 +1,69 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ArrayAllocTest$_s{
+   
+} org_apache_spark_rdd_cl_tests_ArrayAllocTest$;
+
+typedef struct This_s{
+   __global void *heap;
+   __global uint *free_index;
+   int alloc_failed;
+   unsigned int heap_size;
+   } This;
+static int org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply$mcII$sp(This *this, int in){
+
+   return(
+   {
+   
+      __global int * __alloc0 = (__global int *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(int) * (5)), &this->alloc_failed);
+      if (this->alloc_failed) { return (0); } *((__global long *)__alloc0) = (5); __alloc0 = (__global int *)(((__global long *)__alloc0) + 1); 
+       __global int* intArr = __alloc0;
+      __global double * __alloc1 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (2)), &this->alloc_failed);
+      if (this->alloc_failed) { return (0); } *((__global long *)__alloc1) = (2); __alloc1 = (__global double *)(((__global long *)__alloc1) + 1); 
+       __global double* doubleArr = __alloc1;
+      (in + 3);
+   });
+}
+static int org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply(This *this, int in){
+
+   return(org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply$mcII$sp(this, in));
+}
+__kernel void run(
+      __global int* in0, 
+      __global int* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+   int i = get_global_id(0);
+   int nthreads = get_global_size(0);
+   This thisStruct;
+   This* this=&thisStruct;
+   this->heap = heap;
+   this->free_index = free_index;
+   this->heap_size = heap_size;
+   for (; i < N; i += nthreads) {
+      if (processing_succeeded[i]) continue;
+      
+      this->alloc_failed = 0;
+      out[i] = org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply(this, in0[i]);
+      if (this->alloc_failed) {
+         processing_succeeded[i] = 0;
+         *any_failed = 1;
+      } else {
+         processing_succeeded[i] = 1;
+         
+      }
+   }
+}

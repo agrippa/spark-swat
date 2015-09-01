@@ -22,9 +22,7 @@ object SparseVectorAssignTest extends CodeGenTest[SparseVector, (Int, Double)] {
         "not supported"
   }
 
-  def getExpectedKernel() : String = {
-      ""
-  }
+  def getExpectedKernel() : String = { "" }
 
   def getExpectedNumInputs : Int = {
     1
