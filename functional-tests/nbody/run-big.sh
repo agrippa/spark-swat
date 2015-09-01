@@ -13,6 +13,8 @@ fi
 DATA_DIR=$SPARK_DATA/nbody
 
 for TEST in $(ls $DATA_DIR); do
+    echo $TEST
+
     ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input
     ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input-pairs
     ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /converted

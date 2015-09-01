@@ -13,17 +13,18 @@ fi
 DATA_DIR=$SPARK_DATA/fuzzycmeans
 
 for TEST in $(ls $DATA_DIR); do
+    echo $TEST
     ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input
     ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /converted
 
     ${HADOOP_HOME}/bin/hdfs dfs -mkdir /input
-    ${HADOOP_HOME}/bin/hdfs dfs -put $DATA_DIR/$TEST/input.* /input/
+    ${HADOOP_HOME}/bin/hdfs dfs -put $DATA_DIR/$TEST/points/input.* /input/
 
-    spark-submit --class SparkFuzzyCMeans --master spark://localhost:7077 --jars ${JARS} \
+    spark-submit --class SparkFuzzyCMeans --master spark://localhost:7077 --jars ${SWAT_JARS} \
             ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar convert \
             hdfs://$(hostname):54310/input hdfs://$(hostname):54310/converted
 
-    spark-submit --class SparkFuzzyCMeans --jars ${JARS} \
+    spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} \
             --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
             --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \
             run $DATA_DIR/$TEST/info $1 hdfs://$(hostname):54310/converted $2
