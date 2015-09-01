@@ -1,7 +1,12 @@
 #ifndef DEVICE_CONTEXT_H
 #define DEVICE_CONTEXT_H
 
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
+
 #include <pthread.h>
 #include <map>
 #include <string>

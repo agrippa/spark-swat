@@ -2,7 +2,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <map>
+
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 #include "ocl_util.h"
 

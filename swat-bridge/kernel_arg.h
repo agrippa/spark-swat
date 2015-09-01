@@ -2,7 +2,12 @@
 #define KERNEL_ARG_H
 
 #include <string.h>
+
+#ifdef __APPLE__
+#include <cl.h>
+#else
 #include <CL/cl.h>
+#endif
 
 #include "common.h"
 #include "device_context.h"
