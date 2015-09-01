@@ -39,4 +39,12 @@ object CLWrapper {
   def cl[T: ClassTag](rdd : RDD[T]) : CLWrapperRDD[T] = {
     new CLWrapperRDD[T](rdd)
   }
+
+  def map(N : Int, f : Function1[Int, Unit]) {
+      var i = 0
+      while (i < N) {
+          f(i)
+          i += 1
+      }
+  }
 }
