@@ -67,12 +67,6 @@ static int org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1__apply$
       *(this->stage_ptr) = 1; 
       *(this->stage_size_ptr) = niters;
       barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-      org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 stage1;
-      stage1 = *(this->stage1);
-      for (int i = get_local_id(0); i < *(this->stage_size_ptr); i += get_local_size(0)) {
-         org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1__apply$mcVI$sp(&stage1, i);
-         
-      }
       barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
       int out = niters / 4;
       out;
@@ -91,7 +85,7 @@ static void worker_thread_kernel(This *this) {
             break;
          case (1):
             stage1 = *(this->stage1);
-            for (int i = get_local_id(0); i < *(this->stage_size_ptr); i += get_local_size(0)) {
+            for (int i = get_local_id(0) - 1; i < *(this->stage_size_ptr); i += (get_local_size(0) - 1)) {
             org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1__apply$mcVI$sp(&stage1, i);
             }
             barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
