@@ -24,8 +24,11 @@ object InternalParallelismTest extends CodeGenTest[Int, Int] {
     new Function[Int, Int] {
       override def apply(in : Int) : Int = {
         val niters = in * 2
+        val arr : Array[Double] = new Array[Double](5)
+
         CLWrapper.map(niters, (iter) => {
             val tmp = iter * 4
+            arr(tmp) = tmp
         })
 
         val out = niters / 4
