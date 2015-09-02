@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
 static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
    __global unsigned char *cheap = (__global unsigned char *)heap;
    uint rounded = nbytes + (8 - (nbytes % 8));
@@ -27,11 +29,9 @@ static int org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__appl
 __kernel void run(
       __global int* in0, 
       __global int* out, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__apply(this, in0[i]);
       
    }

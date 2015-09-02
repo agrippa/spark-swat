@@ -73,14 +73,12 @@ static __global org_apache_spark_mllib_linalg_SparseVector *org_apache_spark_rdd
 __kernel void run(
       __global int* in0, 
       __global org_apache_spark_mllib_linalg_SparseVector* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
    this->free_index = free_index;
    this->heap_size = heap_size;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (processing_succeeded[i]) continue;
       
       this->alloc_failed = 0;

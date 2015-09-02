@@ -5,6 +5,8 @@
 static int atomicAdd(__global int *_arr, int _index, int _delta){
    return atomic_add(&_arr[_index], _delta);
 }
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
 static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
    __global unsigned char *cheap = (__global unsigned char *)heap;
    uint rounded = nbytes + (8 - (nbytes % 8));
@@ -36,7 +38,7 @@ static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_te
    this->x=x;
    this->y=y;
    this->z=z;
-   (this);
+   ;
    return (this);
 }
 static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){
@@ -57,14 +59,12 @@ static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tes
 __kernel void run(
       __global org_apache_spark_rdd_cl_tests_Point* in0, 
       __global org_apache_spark_rdd_cl_tests_Point* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
    this->free_index = free_index;
    this->heap_size = heap_size;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (processing_succeeded[i]) continue;
       
       this->alloc_failed = 0;

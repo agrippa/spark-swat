@@ -16,7 +16,13 @@ trait CodeGenTest[P, R] {
 
   def getExpectedKernelHelper(cls : Class[_]) : String = {
     val className : String = cls.getSimpleName
-    val hostName : String = java.net.InetAddress.getLocalHost.getHostName
+    var hostName : String = java.net.InetAddress.getLocalHost.getHostName
+    val tokens : Array[String] = hostName.split('.')
+    if (tokens.length > 3) {
+      hostName = tokens(tokens.length - 3) + "." + tokens(tokens.length - 2) + "." +
+          tokens(tokens.length - 1)
+    }
+
     try {
       scala.io.Source.fromFile(CodeGenTests.testsPath + "/" + hostName + "/" + 
               className.substring(0, className.length - 1) + ".kernel").mkString
