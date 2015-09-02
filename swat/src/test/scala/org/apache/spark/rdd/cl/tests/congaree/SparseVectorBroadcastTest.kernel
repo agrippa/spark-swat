@@ -59,8 +59,6 @@ static double org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$$anon$1__a
 __kernel void run(
       __global int* in0, 
       __global double* out, __global org_apache_spark_mllib_linalg_SparseVector* broadcast$1, __global int *broadcast$1_indices, __global double *broadcast$1_values, __global int *broadcast$1_sizes, __global int *broadcast$1_offsets, int nbroadcast$1, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1;
@@ -70,7 +68,7 @@ __kernel void run(
       (this->broadcast$1)[j].size = broadcast$1_sizes[j];
    }
 ;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$$anon$1__apply(this, in0[i]);
       
    }

@@ -25,11 +25,9 @@ static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon
 __kernel void run(
       __global int* in0, 
       __global int* out, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(this, in0[i]);
       
    }

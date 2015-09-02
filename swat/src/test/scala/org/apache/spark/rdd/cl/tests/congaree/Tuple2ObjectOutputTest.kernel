@@ -52,7 +52,7 @@ static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_te
    this->x=x;
    this->y=y;
    this->z=z;
-   (this);
+   ;
    return (this);
 }
 static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(This *this, int in){
@@ -66,14 +66,12 @@ static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_s
 __kernel void run(
       __global int* in0, 
       __global int * out_1, __global org_apache_spark_rdd_cl_tests_Point* out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
-   int i = get_global_id(0);
-   int nthreads = get_global_size(0);
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
    this->free_index = free_index;
    this->heap_size = heap_size;
-   for (; i < N; i += nthreads) {
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (processing_succeeded[i]) continue;
       
       this->alloc_failed = 0;
