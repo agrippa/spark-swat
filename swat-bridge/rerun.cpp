@@ -148,6 +148,13 @@ void find_platform_and_device(unsigned target_device, cl_platform_id *platform,
     exit(1);
 }
 
+bool want_to_clear(int index, int *clears, int nclears) {
+    for (int i = 0; i < nclears; i++) {
+        if (clears[i] == index) return true;
+    }
+    return false;
+}
+
 int main(int argc, char **argv) {
 #ifndef BRIDGE_DEBUG
     fprintf(stderr, "Error, %s was not compiled with -DBRIDGE_DEBUG\n",
@@ -164,10 +171,18 @@ int main(int argc, char **argv) {
     bool print_kernel = false;
     bool verbose = false;
 
+    int *clears = NULL;
+    int nclears = 0;
+
     int c;
     opterr = 0;
-    while ((c = getopt(argc, argv, "i:d:hlpk:o:v")) != -1) {
+    while ((c = getopt(argc, argv, "i:d:hlpk:o:vc:")) != -1) {
         switch (c) {
+            case 'c':
+                clears = (int *)realloc(clears, (nclears + 1) * sizeof(int));
+                clears[nclears] = atoi(optarg);
+                nclears++;
+                break;
             case 'v':
                 verbose = true;
                 break;
@@ -341,7 +356,7 @@ int main(int argc, char **argv) {
             arguments[arg_index] = mem;
 
             if (arg->get_val() == NULL) {
-                if (arg->get_clear_to_zero()) {
+                if (arg->get_clear_to_zero() || want_to_clear(arg_index, clears, nclears)) {
                     fprintf(stderr, "  Memsetting to zeros\n");
                     void *zeros = malloc(arg->get_size());
                     memset(zeros, 0x00, arg->get_size());
@@ -417,7 +432,7 @@ int main(int argc, char **argv) {
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, dbuf, 0,
                                 NULL, NULL));
                     for (int j = 0; j < (size / sizeof(double)); j++) {
-                        fprintf(stderr, "%f ", dbuf[j]);
+                        fprintf(stderr, "%f\n", dbuf[j]);
                     }
                     fprintf(stderr, "\n");
                     free(dbuf);

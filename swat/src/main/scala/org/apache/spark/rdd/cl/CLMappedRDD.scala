@@ -282,6 +282,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 //           profPrint("Read", readStart, threadId) // PROFILE
         }
 
+        System.err.println("WRITING")
         outputBuffer.get.next
       }
 
