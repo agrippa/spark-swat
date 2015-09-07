@@ -330,16 +330,16 @@ static void populateDeviceContexts() {
 
         cl_platform_id *platforms =
             (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
-        CHECK_ALLOC(platforms)
-            CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+        CHECK_ALLOC(platforms);
+        CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
 
         unsigned global_device_id = 0;
         for (unsigned platform_index = 0; platform_index < num_platforms; platform_index++) {
             cl_uint num_devices = get_num_devices(platforms[platform_index]);
             cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
-            CHECK_ALLOC(devices)
-                CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                            num_devices, devices, NULL));
+            CHECK_ALLOC(devices);
+            CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
+                        num_devices, devices, NULL));
 
             for (unsigned i = 0; i < num_devices; i++) {
                 cl_device_id curr_dev = devices[i];
@@ -407,11 +407,13 @@ static void populateDeviceContexts() {
             free(devices);
         }
 
+        free(platforms);
+
         rdd_cache = new map<rdd_partition_offset, map<int, cl_region *> *>();
 
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
-        CHECK_ALLOC(virtual_devices)
-            int curr_virtual_device = 0;
+        CHECK_ALLOC(virtual_devices);
+        int curr_virtual_device = 0;
         for (unsigned i = 0; i < total_num_devices; i++) {
             cl_device_id curr_dev = tmp_device_ctxs[i].dev;
 
@@ -1003,11 +1005,17 @@ static void save_to_dump_file(swat_context *context) {
 #endif
 
 JNI_JAVA(void, OpenCLBridge, run)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range) {
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range,
+         jboolean isWorkSharing) {
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    size_t global_range = range;
+    size_t global_range;
+    if (isWorkSharing) {
+        global_range = range * 50;
+    } else {
+        global_range = range;
+    }
     cl_event event;
 
 #ifdef BRIDGE_DEBUG
@@ -1159,6 +1167,7 @@ JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
 
         jenv->SetObjectArrayElement(targetToHold, i, newObj);
     }
+    free(fields);
 
     jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);

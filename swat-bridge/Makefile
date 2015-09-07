@@ -1,7 +1,7 @@
 include ${SWAT_HOME}/build.conf
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=-DBRIDGE_DEBUG
+DEFINES=
 GXX_FLAGS=-O3 -Wall
 
 SRC=bridge.cpp common.cpp

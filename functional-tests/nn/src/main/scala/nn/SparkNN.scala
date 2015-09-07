@@ -23,11 +23,11 @@ object SparkNN {
         if (cmd == "convert") {
             convert(args.slice(1, args.length))
         } else if (cmd == "run") {
-            run_nn(args.slice(2, args.length), args(1).toBoolean)
+            run_nn(args.slice(3, args.length), args(1).toBoolean, args(2).toBoolean)
         } else if (cmd == "check") {
             // TODO
-            val correct = run_nn(args.slice(1, args.length), false)
-            val actual = run_nn(args.slice(1, args.length), true)
+            val correct = run_nn(args.slice(1, args.length), false, false)
+            val actual = run_nn(args.slice(1, args.length), true, false)
             System.err.println("PASSED")
         }
     }
@@ -97,6 +97,61 @@ object SparkNN {
         })
     }
 
+    def feedBackward(delta : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
+        nextLayerSize : Int, nextLayer : Int,
+        broadcastedWeights : Broadcast[Array[DenseVector]],
+        enableInternalParallelism : Boolean) :
+        RDD[Tuple2[Int, DenseVector]] = {
+      if (enableInternalParallelism && layerSize > 256) {
+        System.err.println("Using internal parallelism, layerSize=" + layerSize)
+        delta.map(pair => {
+          val id = pair._1
+          val d : DenseVector = pair._2
+          val prevArr : Array[Double] = new Array[Double](layerSize)
+
+          CLWrapper.map(layerSize, (i) => {
+            // For each element in delta and each column in weights
+            var acc : Double = 0.0
+            var j = 0
+            while (j < nextLayerSize) {
+              // transposed
+              acc +=
+                  (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
+              j += 1
+            }
+            prevArr(i) = acc
+          })
+
+          (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+        })
+
+      } else {
+        System.err.println("Using element per thread, layerSize=" + layerSize)
+        delta.map(pair => {
+          val id = pair._1
+          val d : DenseVector = pair._2
+          val prevArr : Array[Double] = new Array[Double](layerSize)
+
+          var i = 0
+          while (i < layerSize) {
+            // For each element in delta and each column in weights
+            var acc : Double = 0.0
+            var j = 0
+            while (j < nextLayerSize) {
+              // transposed
+              acc +=
+                  (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
+              j += 1
+            }
+            prevArr(i) = acc
+            i += 1
+          }
+
+          (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+        })
+      }
+    }
+
     def feedForwardOneLayer(targetLayer : Int,
             srcLayer : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
             prevLayerSize : Int,
@@ -150,7 +205,8 @@ object SparkNN {
     }
 
     // Return the weights and biases of each layer?
-    def run_nn(args : Array[String], useSwat : Boolean) :
+    def run_nn(args : Array[String], useSwat : Boolean,
+          enableInternalParallelism : Boolean) :
           Tuple2[Array[DenseVector], Array[DenseVector]] = {
         if (args.length != 7) {
             System.err.println("usage: SparkNN run info-file " +
@@ -247,8 +303,7 @@ object SparkNN {
         activations(0) = if (useSwat)
             CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else
             raw_inputs
-        val raw_y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
-        var y = raw_y
+        val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
         val n_training_datapoints = raw_inputs.count
 
         val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
@@ -365,29 +420,10 @@ object SparkNN {
               delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta)
                     else delta
 
-              // TODO wrap?
-              delta = delta.map(pair => {
-                val id = pair._1
-                val d : DenseVector = pair._2
-                val prevArr : Array[Double] = new Array[Double](layerSize)
-
-                var i = 0
-                while (i < layerSize) {
-                  // For each element in delta and each column in weights
-                  var acc : Double = 0.0
-                  var j = 0
-                  while (j < nextLayerSize) {
-                    // transposed
-                    acc +=
-                        (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
-                    j += 1
-                  }
-                  prevArr(i) = acc
-                  i += 1
-                }
-
-                (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
-              }).join(zs(currLayer - 1)).map(joined => {
+              delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
+                  broadcastedWeights, enableInternalParallelism)
+              .join(zs(currLayer - 1))
+              .map(joined => {
                 val id = joined._1
                 val d : DenseVector = joined._2._1
                 val z : DenseVector = joined._2._2
@@ -432,48 +468,50 @@ object SparkNN {
             weights(l) = Vectors.dense(newWeights).asInstanceOf[DenseVector]
           }
 
-          var testing_activations = testing_data
+          // var testing_activations = testing_data
 
-          for (l <- 1 until nlayers) {
-            val prevLayerSize = layerDimensionalities(l - 1)
-            val layerSize = layerDimensionalities(l)
-            testing_activations = if (useSwat)
-                CLWrapper.cl[Tuple2[Int, DenseVector]](testing_activations) else
-                testing_activations
-            testing_activations = feedForwardOneLayer(l, testing_activations,
-                    layerSize, prevLayerSize, broadcastedWeights,
-                    broadcastedBiases)
-          }
-          val total = testing_y.count
-          val ncorrect = testing_activations.join(testing_y).map(joined => {
-              val id : Int = joined._1
-              val x : DenseVector = joined._2._1
-              val y : DenseVector = joined._2._2
-              assert(x.size == y.size)
-              var desired_neuron = -1
-              for (i <- 0 until y.size) {
-                if (y(i) != 0.0) {
-                    assert(desired_neuron == -1)
-                    desired_neuron = i
-                }
-              }
-              assert(desired_neuron != -1)
+          // for (l <- 1 until nlayers) {
+          //   val prevLayerSize = layerDimensionalities(l - 1)
+          //   val layerSize = layerDimensionalities(l)
+          //   testing_activations = if (useSwat)
+          //       CLWrapper.cl[Tuple2[Int, DenseVector]](testing_activations) else
+          //       testing_activations
+          //   testing_activations = feedForwardOneLayer(l, testing_activations,
+          //           layerSize, prevLayerSize, broadcastedWeights,
+          //           broadcastedBiases)
+          // }
+          // val total = testing_y.count
+          // val ncorrect = testing_activations.join(testing_y).map(joined => {
+          //     val id : Int = joined._1
+          //     val x : DenseVector = joined._2._1
+          //     val y : DenseVector = joined._2._2
+          //     assert(x.size == y.size)
+          //     var desired_neuron = -1
+          //     for (i <- 0 until y.size) {
+          //       if (y(i) != 0.0) {
+          //           assert(desired_neuron == -1)
+          //           desired_neuron = i
+          //       }
+          //     }
+          //     assert(desired_neuron != -1)
 
-              var max_neuron = -1
-              var max_neuron_val = -1.0
-              for (i <- 0 until x.size) {
-                if (max_neuron == -1 || x(i) > max_neuron_val) {
-                  max_neuron = i
-                  max_neuron_val = x(i)
-                }
-              }
-              max_neuron == desired_neuron
-          }).filter(correct => correct).count
+          //     var max_neuron = -1
+          //     var max_neuron_val = -1.0
+          //     for (i <- 0 until x.size) {
+          //       if (max_neuron == -1 || x(i) > max_neuron_val) {
+          //         max_neuron = i
+          //         max_neuron_val = x(i)
+          //       }
+          //     }
+          //     max_neuron == desired_neuron
+          // }).filter(correct => correct).count
 
           val iterEndTime = System.currentTimeMillis
 
-          System.err.println("iteration " + iter + ", " + ncorrect + " / " +
-                  total + " correct : " + (iterEndTime - iterStartTime) + " ms")
+          // System.err.println("iteration " + iter + ", " + ncorrect + " / " +
+          //         total + " correct : " + (iterEndTime - iterStartTime) + " ms")
+          System.err.println("iteration " + iter + ", " +
+                  (iterEndTime - iterStartTime) + " ms")
           iter += 1
         }
 

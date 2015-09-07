@@ -59,7 +59,8 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArg(long ctx, long dev_ctx,
             int index, byte[] arg, int argLength);
 
-    public static native void run(long ctx, long dev_ctx, int range);
+    public static native void run(long ctx, long dev_ctx, int range,
+            boolean isWorkSharing);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);

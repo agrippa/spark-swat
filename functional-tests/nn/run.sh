@@ -1,7 +1,8 @@
 #!/bin/bash
 
-if [[ $# != 2 ]]; then
-    echo 'usage: run.sh run|check use-swat?'
+if [[ $# != 1 && $# != 3 ]]; then
+    echo 'usage: run.sh check'
+    echo '       run.sh run use-swat? enable-internal-parallelism?'
     exit 1
 fi
 
@@ -10,9 +11,9 @@ spark-submit --class SparkNN \
         --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
         --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/nn/target/nn-0.0.0.jar \
-        $1 $2 $SPARK_DATA/nn/info \
+        $1 $2 $3 $SPARK_DATA/nn/info \
         hdfs://$(hostname):54310/training-converted \
         hdfs://$(hostname):54310/training-correct-converted \
         hdfs://$(hostname):54310/testing-converted \
         hdfs://$(hostname):54310/testing-correct-converted \
-        10 3.0
+        3 3.0
