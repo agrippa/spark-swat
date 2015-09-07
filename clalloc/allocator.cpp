@@ -773,13 +773,17 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     cl_region *copy = swap_out_for_copy(target_region);
     copy->refs = 1;
     if (copy->sub_mem == NULL) {
-        cl_int err;
+#ifdef OPENCL_ALLOCATOR
+        int err;
         cl_buffer_region sub_region;
         sub_region.origin = copy->offset;
         sub_region.size = copy->size;
         copy->sub_mem = clCreateSubBuffer(alloc->mem, 0,
                 CL_BUFFER_CREATE_TYPE_REGION, &sub_region, &err);
         CHECK(err);
+#else
+        copy->sub_mem = alloc->mem + copy->offset;
+#endif
         copy->keeping = false;
     }
     copy->birth = copy->grandparent->curr_time;
@@ -800,9 +804,17 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
     return copy;
 }
 
+#ifdef OPENCL_ALLOCATOR
 cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
-        cl_command_queue cmd) {
+        cl_command_queue cmd)
+#else
+cl_allocator *init_allocator(int device_index)
+#endif
+{
     ENTER_TRACE("init_allocator");
+
+    unsigned int address_align;
+#ifdef OPENCL_ALLOCATOR
     cl_ulong global_mem_size, max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_GLOBAL_MEM_SIZE,
                 sizeof(global_mem_size), &global_mem_size, NULL));
@@ -810,9 +822,18 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
                 sizeof(max_alloc_size), &max_alloc_size, NULL));
 
     int nallocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
-    cl_uint address_align;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MEM_BASE_ADDR_ALIGN,
                 sizeof(address_align), &address_align, NULL));
+#else
+    int nallocs = 1;
+    address_align = 8;
+    size_t max_alloc_size, global_mem_size;
+    CHECK(cudaSetDevice(device_index));
+    struct cudaDeviceProp props;
+    CHECK(cudaGetDeviceProperties(&props, device_index));
+    max_alloc_size = global_mem_size = props.totalGlobalMem;
+#endif
+
 
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
     CHECK_ALLOC(allocator)
@@ -823,16 +844,23 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
     allocator->device_index = device_index;
 
     for (int i = 0; i < nallocs; i++) {
-        cl_ulong alloc_size = max_alloc_size;
-        cl_ulong leftover = global_mem_size - (i * max_alloc_size);
+        size_t alloc_size = max_alloc_size;
+        size_t leftover = global_mem_size - (i * max_alloc_size);
         if (leftover < alloc_size) {
             alloc_size = leftover;
         }
 
-        cl_int err;
+#ifdef OPENCL_ALLOCATOR
+        int err;
         cl_mem mem;
+#else
+        cudaError_t err;
+        char *mem;
+#endif
         while (true) {
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, NULL, &err);
+#ifdef OPENCL_ALLOCATOR
+            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, NULL,
+                    &err);
             CHECK(err);
             err = clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, sizeof(err), &err, 0, NULL, NULL);
             if (err == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
@@ -843,6 +871,15 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
                 CHECK(err);
                 break;
             }
+#else
+            err = cudaMalloc((void **)&mem, alloc_size);
+            if (err == cudaErrorMemoryAllocation) {
+                ASSERT(i == nallocs - 1);
+                alloc_size -= (20 * 1024 * 1024);
+            } else if (err != cudaSuccess) {
+                CHECK(err);
+            }
+#endif
         }
 
         (allocator->allocs)[i].mem = mem;

@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
+#include <stdio.h>
 
+#ifdef OPENCL_ALLOCATOR
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -12,6 +14,34 @@
 #endif
 
 #include "ocl_util.h"
+#else
+
+#include <cuda_runtime.h>
+
+#define CHECK(call) { \
+    cudaError_t __err = (call); \
+    if (__err != cudaSuccess) { \
+        fprintf(stderr, "CUDA Error at %s:%d - %s\n", \
+                __FILE__, __LINE__, cudaGetErrorString(__err)); \
+        exit(1); \
+    } \
+}
+
+#define CHECK_ALLOC(ptr) { \
+    if ((ptr) == NULL) { \
+        fprintf(stderr, "Allocation failed at %s:%d\n", __FILE__, __LINE__); \
+        exit(1); \
+    } \
+}
+
+#endif
+
+#define ASSERT(conditional) { \
+    if (!(conditional)) { \
+        fprintf(stderr, "Assertion failure at %s:%d\n", __FILE__, __LINE__); \
+        exit(1); \
+    } \
+}
 
 // #define MIN_ALLOC_SIZE  (1 << 10)
 #define MIN_ALLOC_SIZE  1
@@ -53,7 +83,11 @@ struct _cl_allocator;
 typedef struct _cl_allocator cl_allocator;
 
 typedef struct _cl_region {
+#ifdef OPENCL_ALLOCATOR
     cl_mem sub_mem;
+#else
+    char *sub_mem;
+#endif
     size_t offset, size;
     cl_bucket *parent;
     cl_alloc *grandparent;
@@ -75,7 +109,11 @@ typedef struct _cl_bucket {
 } cl_bucket;
 
 typedef struct _cl_alloc {
+#ifdef OPENCL_ALLOCATOR
     cl_mem mem;
+#else
+    char *mem;
+#endif
     size_t size;
     cl_bucket buckets[NBUCKETS];
     cl_bucket large_bucket;
@@ -97,13 +135,17 @@ typedef struct _cl_alloc {
 typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
-    cl_uint address_align;
+    unsigned int address_align;
     int device_index;
 } cl_allocator;
 
 extern bool re_allocate_cl_region(cl_region *target_region, int target_device);
+#ifdef OPENCL_ALLOCATOR
 extern cl_allocator *init_allocator(cl_device_id dev, int device_index,
         cl_context ctx, cl_command_queue cmd);
+#else
+extern cl_allocator *init_allocator(int device_index);
+#endif
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
 extern void print_allocator(cl_allocator *allocator, int lbl);
