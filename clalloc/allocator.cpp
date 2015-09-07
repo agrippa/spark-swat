@@ -828,6 +828,7 @@ cl_allocator *init_allocator(int device_index)
     int nallocs = 1;
     address_align = 8;
     size_t max_alloc_size, global_mem_size;
+    CHECK(cudaSetDevice(device_index));
     struct cudaDeviceProp props;
     CHECK(cudaGetDeviceProperties(&props, device_index));
     max_alloc_size = global_mem_size = props.totalGlobalMem;
