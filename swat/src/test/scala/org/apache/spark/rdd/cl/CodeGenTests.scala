@@ -53,10 +53,11 @@ object CodeGenTests {
   tests.add(ClassExternalFunctionTest)
   tests.add(Tuple2DenseOutputTest)
   tests.add(InternalParallelismTest)
+  tests.add(DisableInternalParallelismTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
-      test : CodeGenTest[_, _]) {
+      test : CodeGenTest[_, _], devId : Int) {
     val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass,
         null, new ShouldNotCallMatcher())
     val method = classModel.getPrimitiveApplyMethod
@@ -70,13 +71,13 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId)
     val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     var gotExpectedException = false
     var entryPoint : Entrypoint = null;
     try {
       entryPoint = classModel.getEntrypoint("apply", descriptor,
-          lambda, params, hardCodedClassModels, config)
+          lambda, params, hardCodedClassModels, config, test.shouldEnableNested)
     } catch {
       case e: Exception => {
         if (expectedException == null) {
@@ -122,14 +123,34 @@ object CodeGenTests {
   }
 
   def main(args : Array[String]) {
-    val testName : String = if (args.length == 1) args(0) else null
+    var testName : String = null
+    var devId : Int = 0
+
+    var i = 0
+    while (i < args.length) {
+      if (args(i) == "-d") {
+        devId = args(i + 1).toInt
+        i += 1
+      } else if (args(i) == "-t") {
+        testName = args(i + 1)
+        i += 1
+      } else if (args(i) == "-h") {
+        System.err.println("usage: scala CodeGenTests [-d devid] [-t testname]")
+        System.exit(1)
+      } else {
+        System.err.println("Unknown command line argument \"" + args(i) + "\"")
+        System.exit(1)
+      }
+      i += 1
+    }
+
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     for (i <- 0 until tests.size) {
       val test : CodeGenTest[_, _] = tests.get(i)
       if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
         verifyCodeGen(test.getFunction, test.getExpectedKernel,
             test.getExpectedNumInputs, test.getClass.getSimpleName,
-            test.getExpectedException, test)
+            test.getExpectedException, test, devId)
       }
     }
   }

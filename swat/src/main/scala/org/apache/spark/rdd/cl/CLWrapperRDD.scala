@@ -40,6 +40,10 @@ object CLWrapper {
     new CLWrapperRDD[T](rdd)
   }
 
+  /*
+   * During code generation, this method definition is replaced by a parallel
+   * loop across multiple threads in a GPU thread block.
+   */
   def map(N : Int, f : Function1[Int, Unit]) {
       var i = 0
       while (i < N) {

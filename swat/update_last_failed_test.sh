@@ -2,7 +2,7 @@
 
 set -e
 
-FAILED_TEST=$(./test_translator.sh 2>&1 | grep FAILED | awk '{ print $1 }')
+FAILED_TEST=$(./test_translator.sh $* 2>&1 | grep FAILED | awk '{ print $1 }')
 if [[ -z "$FAILED_TEST" ]]; then
     echo No failing tests
     exit 1

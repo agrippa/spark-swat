@@ -23,4 +23,4 @@ if [[ "x$SCALANLP_HOME" != "x" ]]; then
     done
 fi
 
-SWAT_GPU_WEIGHT=1 SWAT_CPU_WEIGHT=0 scala -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $1
+SWAT_GPU_WEIGHT=1 SWAT_CPU_WEIGHT=0 scala -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $*

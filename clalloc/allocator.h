@@ -1,6 +1,13 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
+#ifndef OPENCL_ALLOCATOR
+#ifndef CUDA_ALLOCATOR
+// Default to OpenCL if neither is defined
+#define OPENCL_ALLOCATOR
+#endif
+#endif
+
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>

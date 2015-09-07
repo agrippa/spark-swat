@@ -29,8 +29,10 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
-    extends RDD[U](prev) {
+class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
+    enableNested : Boolean) extends RDD[U](prev) {
+  def this(prev: RDD[T], f: T => U) = this(prev, f, true)
+
   val heapSize = 100 * 1024 * 1024
   var entryPoint : Entrypoint = null
   var openCL : String = null
@@ -159,24 +161,26 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               createHardCodedSparseVectorClassModel(hardCodedClassModels)
             }
 
+            val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
+                    f.getClass.getName, enableNested)
             EntrypointCache.cache.synchronized {
-              if (EntrypointCache.cache.containsKey(f.getClass.getName)) {
-                entryPoint = EntrypointCache.cache.get(f.getClass.getName)
+              if (EntrypointCache.cache.containsKey(entrypointKey)) {
+                entryPoint = EntrypointCache.cache.get(entrypointKey)
               } else {
                 entryPoint = classModel.getEntrypoint("apply", descriptor,
                     f, params, hardCodedClassModels,
-                    CodeGenUtil.createCodeGenConfig(dev_ctx));
-                EntrypointCache.cache.put(f.getClass.getName, entryPoint)
+                    CodeGenUtil.createCodeGenConfig(dev_ctx), enableNested)
+                EntrypointCache.cache.put(entrypointKey, entryPoint)
               }
 
-              if (EntrypointCache.kernelCache.containsKey(f.getClass.getName)) {
-                openCL = EntrypointCache.kernelCache.get(f.getClass.getName)
+              if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
+                openCL = EntrypointCache.kernelCache.get(entrypointKey)
               } else {
                 val writerAndKernel = KernelWriter.writeToString(
                     entryPoint, params)
                 openCL = writerAndKernel.kernel
                 // System.err.println(openCL)
-                EntrypointCache.kernelCache.put(f.getClass.getName, openCL)
+                EntrypointCache.kernelCache.put(entrypointKey, openCL)
               }
             }
 
@@ -296,14 +300,34 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     iter
   }
 
-  override def map[V: ClassTag](f: U => V): RDD[V] = {
-    new CLMappedRDD(this, sparkContext.clean(f))
-  }
+  // override def map[V: ClassTag](f: U => V): RDD[V] = {
+  //   new CLMappedRDD(this, sparkContext.clean(f))
+  // }
 }
 
 object EntrypointCache {
-  val cache : java.util.Map[java.lang.String, Entrypoint] =
-      new java.util.HashMap[java.lang.String, Entrypoint]()
-  val kernelCache : java.util.Map[java.lang.String, java.lang.String] =
-      new java.util.HashMap[java.lang.String, java.lang.String]()
+  val cache : java.util.Map[EntrypointCacheKey, Entrypoint] =
+      new java.util.HashMap[EntrypointCacheKey, Entrypoint]()
+  val kernelCache : java.util.Map[EntrypointCacheKey, java.lang.String] =
+      new java.util.HashMap[EntrypointCacheKey, java.lang.String]()
+}
+
+class EntrypointCacheKey(className : java.lang.String, enableNested : Boolean)
+    extends java.lang.Comparable[EntrypointCacheKey] {
+  def getClassName() : java.lang.String = { className }
+  def getEnableNested() : Boolean = { enableNested }
+
+  def compareTo(other : EntrypointCacheKey) : Int = {
+    if (!className.equals(other.getClassName)) {
+      return className.compareTo(other.getClassName)
+    } else {
+      if (enableNested == other.getEnableNested) {
+        return 0
+      } else if (!enableNested && other.getEnableNested) {
+        return -1
+      } else {
+        return 1
+      }
+    }
+  }
 }

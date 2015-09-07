@@ -14,6 +14,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
+struct This_s;
 
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
    __global double*  values;

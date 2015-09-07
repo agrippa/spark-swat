@@ -300,9 +300,10 @@ object SparkNN {
         // no z for the input layer as its outputs are constant
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
-        activations(0) = if (useSwat)
-            CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else
-            raw_inputs
+        // activations(0) = if (useSwat)
+        //     CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else
+        //     raw_inputs
+        activations(0) = raw_inputs
         val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
         val n_training_datapoints = raw_inputs.count
 
@@ -326,9 +327,10 @@ object SparkNN {
               val new_activations : RDD[Tuple2[Int, DenseVector]] =
                 feedForwardOneLayer(l, activations(l - 1), layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
-              activations(l) = if (useSwat)
-                    CLWrapper.cl[Tuple2[Int, DenseVector]](new_activations) else
-                    new_activations
+              // activations(l) = if (useSwat)
+              //       CLWrapper.cl[Tuple2[Int, DenseVector]](new_activations) else
+              //       new_activations
+              activations(l) = new_activations
               zs(l - 1) = activations(l).map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2

@@ -31,4 +31,8 @@ trait CodeGenTest[P, R] {
       case e : Exception => throw new RuntimeException(e)
     }
   }
+
+  def shouldEnableNested() : Boolean = {
+    true
+  }
 }
