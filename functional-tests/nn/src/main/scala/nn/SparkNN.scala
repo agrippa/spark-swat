@@ -102,54 +102,26 @@ object SparkNN {
         broadcastedWeights : Broadcast[Array[DenseVector]],
         enableInternalParallelism : Boolean) :
         RDD[Tuple2[Int, DenseVector]] = {
-      if (enableInternalParallelism && layerSize > 256) {
-        System.err.println("Using internal parallelism, layerSize=" + layerSize)
-        delta.map(pair => {
-          val id = pair._1
-          val d : DenseVector = pair._2
-          val prevArr : Array[Double] = new Array[Double](layerSize)
+      delta.map(pair => {
+        val id = pair._1
+        val d : DenseVector = pair._2
+        val prevArr : Array[Double] = new Array[Double](layerSize)
 
-          CLWrapper.map(layerSize, (i) => {
-            // For each element in delta and each column in weights
-            var acc : Double = 0.0
-            var j = 0
-            while (j < nextLayerSize) {
-              // transposed
-              acc +=
-                  (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
-              j += 1
-            }
-            prevArr(i) = acc
-          })
-
-          (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
-        })
-
-      } else {
-        System.err.println("Using element per thread, layerSize=" + layerSize)
-        delta.map(pair => {
-          val id = pair._1
-          val d : DenseVector = pair._2
-          val prevArr : Array[Double] = new Array[Double](layerSize)
-
-          var i = 0
-          while (i < layerSize) {
-            // For each element in delta and each column in weights
-            var acc : Double = 0.0
-            var j = 0
-            while (j < nextLayerSize) {
-              // transposed
-              acc +=
-                  (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
-              j += 1
-            }
-            prevArr(i) = acc
-            i += 1
+        CLWrapper.map(layerSize, (i) => {
+          // For each element in delta and each column in weights
+          var acc : Double = 0.0
+          var j = 0
+          while (j < nextLayerSize) {
+            // transposed
+            acc +=
+                (broadcastedWeights.value(nextLayer - 1)(i * nextLayerSize + j) * d(j))
+            j += 1
           }
-
-          (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+          prevArr(i) = acc
         })
-      }
+
+        (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
+      })
     }
 
     def feedForwardOneLayer(targetLayer : Int,
@@ -419,8 +391,8 @@ object SparkNN {
               val nextLayerSize = layerDimensionalities(nextLayer)
 
               delta = delta.cache
-              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta)
-                    else delta
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta,
+                      enableInternalParallelism && layerSize > 256) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
                   broadcastedWeights, enableInternalParallelism)

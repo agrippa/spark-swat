@@ -165,8 +165,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
                     f.getClass.getName, enableNested)
             EntrypointCache.cache.synchronized {
               if (EntrypointCache.cache.containsKey(entrypointKey)) {
+                System.err.println("using cached entrypoint")
                 entryPoint = EntrypointCache.cache.get(entrypointKey)
               } else {
+                System.err.println("computing entrypoint")
                 entryPoint = classModel.getEntrypoint("apply", descriptor,
                     f, params, hardCodedClassModels,
                     CodeGenUtil.createCodeGenConfig(dev_ctx), enableNested)
@@ -174,12 +176,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
               }
 
               if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
+                System.err.println("using cached kernel")
                 openCL = EntrypointCache.kernelCache.get(entrypointKey)
               } else {
+                System.err.println("computing kernel")
                 val writerAndKernel = KernelWriter.writeToString(
                     entryPoint, params)
                 openCL = writerAndKernel.kernel
-                // System.err.println(openCL)
+                System.err.println(openCL)
                 EntrypointCache.kernelCache.put(entrypointKey, openCL)
               }
             }
@@ -258,7 +262,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
                       entryPoint))
           do {
             OpenCLBridge.run(ctx, dev_ctx, nLoaded,
-                    entryPoint.checkIsWorkSharingKernel)
+                    enableNested && entryPoint.checkIsWorkSharingKernel)
             if (entryPoint.requiresHeap) {
               complete = outputBuffer.get.kernelAttemptCallback(
                       nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
