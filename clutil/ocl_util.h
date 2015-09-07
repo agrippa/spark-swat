@@ -10,13 +10,6 @@
 #include <CL/cl.h>
 #endif
 
-#define ASSERT(conditional) { \
-    if (!(conditional)) { \
-        fprintf(stderr, "Assertion failure at %s:%d\n", __FILE__, __LINE__); \
-        exit(1); \
-    } \
-}
-
 #define CHECK_JNI(something) { \
     if ((something) == NULL) { \
         fprintf(stderr, "Some JNI operation failed at %s:%d\n", __FILE__, __LINE__); \
