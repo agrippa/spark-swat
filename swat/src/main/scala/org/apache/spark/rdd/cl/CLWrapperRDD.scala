@@ -31,7 +31,13 @@ class CLWrapperRDD[T: ClassTag](prev: RDD[T], enableNested : Boolean)
   }
 
   override def map[U: ClassTag](f: T => U): RDD[U] = {
-    new CLMappedRDD(this, sparkContext.clean(f), enableNested)
+    new CLMappedRDD(this, sparkContext.clean(f))
+  }
+
+  def ws_map[T2: ClassTag, U: ClassTag](init: T => T2, kernel: T2 => Unit,
+      finish: T2 => U) : RDD[U] = {
+    new CLWSMappedRDD(this, sparkContext.clean(init),
+        sparkContext.clean(kernel), sparkContext.clean(finish))
   }
 }
 

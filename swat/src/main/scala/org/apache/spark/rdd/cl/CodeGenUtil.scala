@@ -1,6 +1,10 @@
 package org.apache.spark.rdd.cl
 
 import java.util.LinkedList
+import com.amd.aparapi.internal.model.HardCodedClassModels
+import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.model.DenseVectorClassModel
+import com.amd.aparapi.internal.model.SparseVectorClassModel
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter
@@ -96,5 +100,42 @@ object CodeGenUtil {
                 OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)))
 
     config
+  }
+
+  def createHardCodedDenseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
+    val denseVectorClassModel : DenseVectorClassModel =
+        DenseVectorClassModel.create(DenseVectorInputBufferWrapperConfig.tiling)
+    hardCodedClassModels.addClassModelFor(
+            Class.forName("org.apache.spark.mllib.linalg.DenseVector"),
+            denseVectorClassModel)
+  }
+  
+  def createHardCodedSparseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
+    val sparseVectorClassModel : SparseVectorClassModel =
+        SparseVectorClassModel.create(SparseVectorInputBufferWrapperConfig.tiling)
+    hardCodedClassModels.addClassModelFor(
+            Class.forName("org.apache.spark.mllib.linalg.SparseVector"),
+            sparseVectorClassModel)
+  }
+  
+  def createHardCodedTuple2ClassModel(obj : Tuple2[_, _],
+      hardCodedClassModels : HardCodedClassModels,
+      param : ScalaArrayParameter) {
+    val inputClassType1 = obj._1.getClass
+    val inputClassType2 = obj._2.getClass
+  
+    val inputClassType1Name = CodeGenUtil.cleanClassName(
+        inputClassType1.getName)
+    val inputClassType2Name = CodeGenUtil.cleanClassName(
+        inputClassType2.getName)
+  
+    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
+        inputClassType1Name, inputClassType2Name, param.getDir != DIRECTION.IN)
+    hardCodedClassModels.addClassModelFor(Class.forName("scala.Tuple2"), tuple2ClassModel)
+  
+    param.addTypeParameter(inputClassType1Name,
+        !CodeGenUtil.isPrimitive(inputClassType1Name))
+    param.addTypeParameter(inputClassType2Name,
+        !CodeGenUtil.isPrimitive(inputClassType2Name))
   }
 }

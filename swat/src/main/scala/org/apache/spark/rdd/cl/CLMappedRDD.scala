@@ -29,64 +29,23 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
-    enableNested : Boolean) extends RDD[U](prev) {
-  def this(prev: RDD[T], f: T => U) = this(prev, f, true)
-
+class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
+    extends RDD[U](prev) {
   val heapSize = 100 * 1024 * 1024
   var entryPoint : Entrypoint = null
   var openCL : String = null
-  // var ctx : Long = -1L
   val ctxCache : java.util.Map[Long, Long] = new java.util.HashMap[Long, Long]()
-  // var dev_ctx : Long = -1L
 
   override val partitioner = None
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
-
-  def createHardCodedDenseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
-    val denseVectorClassModel : DenseVectorClassModel =
-        DenseVectorClassModel.create(DenseVectorInputBufferWrapperConfig.tiling)
-    hardCodedClassModels.addClassModelFor(
-            Class.forName("org.apache.spark.mllib.linalg.DenseVector"),
-            denseVectorClassModel)
-  }
-
-  def createHardCodedSparseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
-    val sparseVectorClassModel : SparseVectorClassModel =
-        SparseVectorClassModel.create(SparseVectorInputBufferWrapperConfig.tiling)
-    hardCodedClassModels.addClassModelFor(
-            Class.forName("org.apache.spark.mllib.linalg.SparseVector"),
-            sparseVectorClassModel)
-  }
-
-  def createHardCodedTuple2ClassModel(obj : Tuple2[_, _],
-      hardCodedClassModels : HardCodedClassModels,
-      param : ScalaArrayParameter) {
-    val inputClassType1 = obj._1.getClass
-    val inputClassType2 = obj._2.getClass
-
-    val inputClassType1Name = CodeGenUtil.cleanClassName(
-        inputClassType1.getName)
-    val inputClassType2Name = CodeGenUtil.cleanClassName(
-        inputClassType2.getName)
-
-    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        inputClassType1Name, inputClassType2Name, param.getDir != DIRECTION.IN)
-    hardCodedClassModels.addClassModelFor(Class.forName("scala.Tuple2"), tuple2ClassModel)
-
-    param.addTypeParameter(inputClassType1Name,
-        !CodeGenUtil.isPrimitive(inputClassType1Name))
-    param.addTypeParameter(inputClassType2Name,
-        !CodeGenUtil.isPrimitive(inputClassType2Name))
-  }
 
   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
           (System.currentTimeMillis - startTime) + " ms") // PROFILE
   } // PROFILE
 
-  override def compute(split: Partition, context: TaskContext) = {
+  override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
     // val N = sparkContext.getConf.get("swat.chunking").toInt
     val N = 65536 * 8
     var acc : Option[InputBufferWrapper[T]] = None
@@ -143,26 +102,26 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
 
           if (entryPoint == null) {
             if (firstSample.isInstanceOf[Tuple2[_, _]]) {
-              createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
+              CodeGenUtil.createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(0))
             } else if (firstSample.isInstanceOf[DenseVector]) {
-              createHardCodedDenseVectorClassModel(hardCodedClassModels)
+              CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
             } else if (firstSample.isInstanceOf[SparseVector]) {
-              createHardCodedSparseVectorClassModel(hardCodedClassModels)
+              CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
             }
 
             sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
             if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
-              createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
+              CodeGenUtil.createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
                   hardCodedClassModels, params.get(1))
             } else if (sampleOutput.isInstanceOf[DenseVector]) {
-              createHardCodedDenseVectorClassModel(hardCodedClassModels)
+              CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
             } else if (sampleOutput.isInstanceOf[SparseVector]) {
-              createHardCodedSparseVectorClassModel(hardCodedClassModels)
+              CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
             }
 
             val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
-                    f.getClass.getName, enableNested)
+                    f.getClass.getName)
             EntrypointCache.cache.synchronized {
               if (EntrypointCache.cache.containsKey(entrypointKey)) {
                 System.err.println("using cached entrypoint")
@@ -171,7 +130,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
                 System.err.println("computing entrypoint")
                 entryPoint = classModel.getEntrypoint("apply", descriptor,
                     f, params, hardCodedClassModels,
-                    CodeGenUtil.createCodeGenConfig(dev_ctx), enableNested)
+                    CodeGenUtil.createCodeGenConfig(dev_ctx))
                 EntrypointCache.cache.put(entrypointKey, entryPoint)
               }
 
@@ -261,8 +220,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
                       sampleOutput.asInstanceOf[U], outArgNum, nLoaded, bbCache,
                       entryPoint))
           do {
-            OpenCLBridge.run(ctx, dev_ctx, nLoaded,
-                    enableNested && entryPoint.checkIsWorkSharingKernel)
+            OpenCLBridge.run(ctx, dev_ctx, nLoaded, false)
             if (entryPoint.requiresHeap) {
               complete = outputBuffer.get.kernelAttemptCallback(
                       nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
@@ -307,31 +265,4 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U,
   // override def map[V: ClassTag](f: U => V): RDD[V] = {
   //   new CLMappedRDD(this, sparkContext.clean(f))
   // }
-}
-
-object EntrypointCache {
-  val cache : java.util.Map[EntrypointCacheKey, Entrypoint] =
-      new java.util.HashMap[EntrypointCacheKey, Entrypoint]()
-  val kernelCache : java.util.Map[EntrypointCacheKey, java.lang.String] =
-      new java.util.HashMap[EntrypointCacheKey, java.lang.String]()
-}
-
-class EntrypointCacheKey(className : java.lang.String, enableNested : Boolean)
-    extends java.lang.Comparable[EntrypointCacheKey] {
-  def getClassName() : java.lang.String = { className }
-  def getEnableNested() : Boolean = { enableNested }
-
-  def compareTo(other : EntrypointCacheKey) : Int = {
-    if (!className.equals(other.getClassName)) {
-      return className.compareTo(other.getClassName)
-    } else {
-      if (enableNested == other.getEnableNested) {
-        return 0
-      } else if (!enableNested && other.getEnableNested) {
-        return -1
-      } else {
-        return 1
-      }
-    }
-  }
 }
