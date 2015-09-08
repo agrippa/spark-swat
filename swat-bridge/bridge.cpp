@@ -1036,7 +1036,8 @@ JNI_JAVA(void, OpenCLBridge, run)
 
 #define SET_FROM_BB(type, capitalized_type, sig, targetClassName) \
 JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
-        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, long l_addressOfArr, jint bufferLength, jbyteArray bb, \
+        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, \
+        long l_addressOfArr, jint bufferLength, jbyteArray bb, \
          jint position, jint remaining, jlong fieldOffset) { \
     ENTER_TRACE("set"#capitalized_type"ArrFromBB"); \
     ASSERT(remaining % sizeof( type ) == 0); \

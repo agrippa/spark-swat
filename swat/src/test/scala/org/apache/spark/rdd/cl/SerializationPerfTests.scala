@@ -43,7 +43,7 @@ object SerializationPerfTests {
     val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(0)
     val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     val entryPoint : Entrypoint = classModel.getEntrypoint("apply", descriptor,
-        lambda, params, hardCodedClassModels, config, true)
+        lambda, params, hardCodedClassModels, config)
 
     val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
             entryPoint, params)

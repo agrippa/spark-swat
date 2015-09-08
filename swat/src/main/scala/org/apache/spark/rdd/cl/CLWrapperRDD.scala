@@ -33,12 +33,6 @@ class CLWrapperRDD[T: ClassTag](prev: RDD[T], enableNested : Boolean)
   override def map[U: ClassTag](f: T => U): RDD[U] = {
     new CLMappedRDD(this, sparkContext.clean(f))
   }
-
-  def ws_map[T2: ClassTag, U: ClassTag](init: T => T2, kernel: T2 => Unit,
-      finish: T2 => U) : RDD[U] = {
-    new CLWSMappedRDD(this, sparkContext.clean(init),
-        sparkContext.clean(kernel), sparkContext.clean(finish))
-  }
 }
 
 object CLWrapper {
@@ -50,17 +44,5 @@ object CLWrapper {
 
   def cl[T: ClassTag](rdd : RDD[T], enableNested : Boolean) : CLWrapperRDD[T] = {
     new CLWrapperRDD[T](rdd, enableNested)
-  }
-
-  /*
-   * During code generation, this method definition is replaced by a parallel
-   * loop across multiple threads in a GPU thread block.
-   */
-  def map(N : Int, f : Function1[Int, Unit]) {
-      var i = 0
-      while (i < N) {
-          f(i)
-          i += 1
-      }
   }
 }

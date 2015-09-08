@@ -40,31 +40,24 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-          (System.currentTimeMillis - startTime) + " ms") // PROFILE
-  } // PROFILE
+//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+//           (System.currentTimeMillis - startTime) + " ms") // PROFILE
+//   } // PROFILE
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
-    // val N = sparkContext.getConf.get("swat.chunking").toInt
     val N = 65536 * 8
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
     val bbCache : ByteBufferCache = new ByteBufferCache(2)
 
-    val threadNamePrefix = "Executor task launch worker-"
-    val threadName = Thread.currentThread.getName
-    if (!threadName.startsWith(threadNamePrefix)) {
-        throw new RuntimeException("Unexpected thread name \"" + threadName + "\"")
-    }
-    val threadId : Int = Integer.parseInt(threadName.substring(threadNamePrefix.length))
+    val threadId : Int = RuntimeUtil.getThreadID()
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     System.setProperty("com.amd.aparapi.enable.ATHROW", "true");
 
     val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
         new ShouldNotCallMatcher())
-    val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
@@ -94,77 +87,21 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           val firstSample : T = nested.next
 
-          val initStart = System.currentTimeMillis // PROFILE
+//           val initStart = System.currentTimeMillis // PROFILE
           val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
-          System.err.println("Selected device " + device_index) // PROFILE
+//           System.err.println("Selected device " + device_index) // PROFILE
           val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
           val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
 
           if (entryPoint == null) {
-            if (firstSample.isInstanceOf[Tuple2[_, _]]) {
-              CodeGenUtil.createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
-                  hardCodedClassModels, params.get(0))
-            } else if (firstSample.isInstanceOf[DenseVector]) {
-              CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
-            } else if (firstSample.isInstanceOf[SparseVector]) {
-              CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
-            }
-
             sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
-            if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
-              CodeGenUtil.createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
-                  hardCodedClassModels, params.get(1))
-            } else if (sampleOutput.isInstanceOf[DenseVector]) {
-              CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
-            } else if (sampleOutput.isInstanceOf[SparseVector]) {
-              CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
-            }
+            val entrypointAndKernel : Tuple2[Entrypoint, String] =
+                RuntimeUtil.getEntrypointAndKernel[T, U](firstSample, sampleOutput,
+                params, f, classModel, descriptor, dev_ctx)
+            entryPoint = entrypointAndKernel._1
+            openCL = entrypointAndKernel._2
 
-            val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
-                    f.getClass.getName)
-            EntrypointCache.cache.synchronized {
-              if (EntrypointCache.cache.containsKey(entrypointKey)) {
-                System.err.println("using cached entrypoint")
-                entryPoint = EntrypointCache.cache.get(entrypointKey)
-              } else {
-                System.err.println("computing entrypoint")
-                entryPoint = classModel.getEntrypoint("apply", descriptor,
-                    f, params, hardCodedClassModels,
-                    CodeGenUtil.createCodeGenConfig(dev_ctx))
-                EntrypointCache.cache.put(entrypointKey, entryPoint)
-              }
-
-              if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
-                System.err.println("using cached kernel")
-                openCL = EntrypointCache.kernelCache.get(entrypointKey)
-              } else {
-                System.err.println("computing kernel")
-                val writerAndKernel = KernelWriter.writeToString(
-                    entryPoint, params)
-                openCL = writerAndKernel.kernel
-                System.err.println(openCL)
-                EntrypointCache.kernelCache.put(entrypointKey, openCL)
-              }
-            }
-
-            if (firstSample.isInstanceOf[Double] ||
-                firstSample.isInstanceOf[Int] ||
-                firstSample.isInstanceOf[Float]) {
-              acc = Some(new PrimitiveInputBufferWrapper(N))
-            } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
-              acc = Some(new Tuple2InputBufferWrapper(N,
-                          firstSample.asInstanceOf[Tuple2[_, _]],
-                          entryPoint).asInstanceOf[InputBufferWrapper[T]])
-            } else if (firstSample.isInstanceOf[DenseVector]) {
-              acc = Some(new DenseVectorInputBufferWrapper(N,
-                          entryPoint).asInstanceOf[InputBufferWrapper[T]])
-            } else if (firstSample.isInstanceOf[SparseVector]) {
-              acc = Some(new SparseVectorInputBufferWrapper(N,
-                          entryPoint).asInstanceOf[InputBufferWrapper[T]])
-            } else {
-              acc = Some(new ObjectInputBufferWrapper(N,
-                          firstSample.getClass.getName, entryPoint))
-            }
+            acc = Some(RuntimeUtil.getInputBufferFor(firstSample, N, entryPoint))
           }
 
           if (!ctxCache.containsKey(dev_ctx)) {
@@ -175,18 +112,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
           val ctx : Long = ctxCache.get(dev_ctx)
                 
-          profPrint("Initialization", initStart, threadId) // PROFILE
+//           profPrint("Initialization", initStart, threadId) // PROFILE
 
-          val ioStart : Long = System.currentTimeMillis // PROFILE
+//           val ioStart : Long = System.currentTimeMillis // PROFILE
           acc.get.append(firstSample)
           val nLoaded = 1 + acc.get.aggregateFrom(nested)
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
-          profPrint("Input-I/O", ioStart, threadId) // PROFILE
-          System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+//           profPrint("Input-I/O", ioStart, threadId) // PROFILE
+//           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
-          val writeStart = System.currentTimeMillis // PROFILE
+//           val writeStart = System.currentTimeMillis // PROFILE
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
                   -1, if (firstParent[T].getStorageLevel.useMemory)
                       firstParent[T].id else -1, split.index, myOffset, 0)
@@ -212,8 +149,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
           val anyFailedArgNum = argnum - 1
 
-          profPrint("Write", writeStart, threadId) // PROFILE
-          val runStart = System.currentTimeMillis // PROFILE
+//           profPrint("Write", writeStart, threadId) // PROFILE
+//           val runStart = System.currentTimeMillis // PROFILE
          
           var complete : Boolean = true
           outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
@@ -232,11 +169,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           outputBuffer.get.finish(ctx, dev_ctx)
 
-          profPrint("Run", runStart, threadId) // PROFILE
-          val readStart = System.currentTimeMillis // PROFILE
+//           profPrint("Run", runStart, threadId) // PROFILE
+//           val readStart = System.currentTimeMillis // PROFILE
 
           OpenCLBridge.postKernelCleanup(ctx);
-          profPrint("Read", readStart, threadId) // PROFILE
+//           profPrint("Read", readStart, threadId) // PROFILE
         }
 
         outputBuffer.get.next
@@ -251,9 +188,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               OpenCLBridge.cleanupSwatContext(curr.getValue)
           }
           ctxCache.clear
-          System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
-              " elements") // PROFILE
-          profPrint("Total", overallStart, threadId) // PROFILE
+//           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
+//               " elements") // PROFILE
+//           profPrint("Total", overallStart, threadId) // PROFILE
         }
         nonEmpty
       }
