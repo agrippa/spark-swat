@@ -23,11 +23,11 @@ object SparkNN {
         if (cmd == "convert") {
             convert(args.slice(1, args.length))
         } else if (cmd == "run") {
-            run_nn(args.slice(3, args.length), args(1).toBoolean, args(2).toBoolean)
+            run_nn(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
             // TODO
-            val correct = run_nn(args.slice(1, args.length), false, false)
-            val actual = run_nn(args.slice(1, args.length), true, false)
+            val correct = run_nn(args.slice(1, args.length), false)
+            val actual = run_nn(args.slice(1, args.length), true)
             System.err.println("PASSED")
         }
     }
@@ -99,15 +99,15 @@ object SparkNN {
 
     def feedBackward(delta : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
         nextLayerSize : Int, nextLayer : Int,
-        broadcastedWeights : Broadcast[Array[DenseVector]],
-        enableInternalParallelism : Boolean) :
+        broadcastedWeights : Broadcast[Array[DenseVector]]) :
         RDD[Tuple2[Int, DenseVector]] = {
       delta.map(pair => {
         val id = pair._1
         val d : DenseVector = pair._2
         val prevArr : Array[Double] = new Array[Double](layerSize)
 
-        CLWrapper.map(layerSize, (i) => {
+        var i = 0
+        while (i < layerSize) {
           // For each element in delta and each column in weights
           var acc : Double = 0.0
           var j = 0
@@ -118,7 +118,8 @@ object SparkNN {
             j += 1
           }
           prevArr(i) = acc
-        })
+          i += 1
+        }
 
         (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
       })
@@ -177,8 +178,7 @@ object SparkNN {
     }
 
     // Return the weights and biases of each layer?
-    def run_nn(args : Array[String], useSwat : Boolean,
-          enableInternalParallelism : Boolean) :
+    def run_nn(args : Array[String], useSwat : Boolean) :
           Tuple2[Array[DenseVector], Array[DenseVector]] = {
         if (args.length != 7) {
             System.err.println("usage: SparkNN run info-file " +
@@ -272,9 +272,6 @@ object SparkNN {
         // no z for the input layer as its outputs are constant
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
-        // activations(0) = if (useSwat)
-        //     CLWrapper.cl[Tuple2[Int, DenseVector]](raw_inputs) else
-        //     raw_inputs
         activations(0) = raw_inputs
         val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
         val n_training_datapoints = raw_inputs.count
@@ -296,13 +293,12 @@ object SparkNN {
           while (l < nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
-              val new_activations : RDD[Tuple2[Int, DenseVector]] =
-                feedForwardOneLayer(l, activations(l - 1), layerSize,
+              val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
+                  CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
+                  else activations(l - 1)
+              activations(l) =
+                feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
-              // activations(l) = if (useSwat)
-              //       CLWrapper.cl[Tuple2[Int, DenseVector]](new_activations) else
-              //       new_activations
-              activations(l) = new_activations
               zs(l - 1) = activations(l).map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2
@@ -391,11 +387,10 @@ object SparkNN {
               val nextLayerSize = layerDimensionalities(nextLayer)
 
               delta = delta.cache
-              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta,
-                      enableInternalParallelism && layerSize > 256) else delta
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
-                  broadcastedWeights, enableInternalParallelism)
+                  broadcastedWeights)
               .join(zs(currLayer - 1))
               .map(joined => {
                 val id = joined._1

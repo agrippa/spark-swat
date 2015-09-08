@@ -40,10 +40,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-//           (System.currentTimeMillis - startTime) + " ms") // PROFILE
-//   } // PROFILE
+  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+          (System.currentTimeMillis - startTime) + " ms") // PROFILE
+  } // PROFILE
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
     val N = 65536 * 8
@@ -87,9 +87,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           val firstSample : T = nested.next
 
-//           val initStart = System.currentTimeMillis // PROFILE
+          val initStart = System.currentTimeMillis // PROFILE
           val device_index = OpenCLBridge.getDeviceToUse(deviceHint, threadId)
-//           System.err.println("Selected device " + device_index) // PROFILE
+          System.err.println("Selected device " + device_index) // PROFILE
           val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
           val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
 
@@ -112,18 +112,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           }
           val ctx : Long = ctxCache.get(dev_ctx)
                 
-//           profPrint("Initialization", initStart, threadId) // PROFILE
+          profPrint("Initialization", initStart, threadId) // PROFILE
 
-//           val ioStart : Long = System.currentTimeMillis // PROFILE
+          val ioStart : Long = System.currentTimeMillis // PROFILE
           acc.get.append(firstSample)
           val nLoaded = 1 + acc.get.aggregateFrom(nested)
           val myOffset : Int = totalNLoaded
           totalNLoaded += nLoaded
 
-//           profPrint("Input-I/O", ioStart, threadId) // PROFILE
-//           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+          profPrint("Input-I/O", ioStart, threadId) // PROFILE
+          System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
-//           val writeStart = System.currentTimeMillis // PROFILE
+          val writeStart = System.currentTimeMillis // PROFILE
           var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
                   -1, if (firstParent[T].getStorageLevel.useMemory)
                       firstParent[T].id else -1, split.index, myOffset, 0)
@@ -149,8 +149,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
           val anyFailedArgNum = argnum - 1
 
-//           profPrint("Write", writeStart, threadId) // PROFILE
-//           val runStart = System.currentTimeMillis // PROFILE
+          profPrint("Write", writeStart, threadId) // PROFILE
+          val runStart = System.currentTimeMillis // PROFILE
          
           var complete : Boolean = true
           outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
@@ -169,11 +169,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
           outputBuffer.get.finish(ctx, dev_ctx)
 
-//           profPrint("Run", runStart, threadId) // PROFILE
-//           val readStart = System.currentTimeMillis // PROFILE
+          profPrint("Run", runStart, threadId) // PROFILE
+          val readStart = System.currentTimeMillis // PROFILE
 
           OpenCLBridge.postKernelCleanup(ctx);
-//           profPrint("Read", readStart, threadId) // PROFILE
+          profPrint("Read", readStart, threadId) // PROFILE
         }
 
         outputBuffer.get.next
@@ -188,9 +188,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
               OpenCLBridge.cleanupSwatContext(curr.getValue)
           }
           ctxCache.clear
-//           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
-//               " elements") // PROFILE
-//           profPrint("Total", overallStart, threadId) // PROFILE
+          System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
+              " elements") // PROFILE
+          profPrint("Total", overallStart, threadId) // PROFILE
         }
         nonEmpty
       }
