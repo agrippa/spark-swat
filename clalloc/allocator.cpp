@@ -376,6 +376,15 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         to_free->keeping = try_to_keep;
         if (!try_to_keep) to_free->birth = 0;
 
+#ifdef VERBOSE
+        fprintf(stderr, "Freeing region=%p size=%lu parent free "
+                "bytes=%lu->%lu\n", to_free, to_free->size,
+                to_free->grandparent->free_bytes,
+                to_free->grandparent->free_bytes + to_free->size);
+#endif
+
+        to_free->grandparent->free_bytes += to_free->size;
+
         if (!try_to_keep && (next && next->refs == 0 && !next->keeping) &&
                 (prev && prev->refs == 0 && !prev->keeping)) {
             /*
@@ -507,6 +516,13 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
         print_allocator(target_region->grandparent->allocator, -1);
 #endif
 
+#ifdef VERBOSE
+        fprintf(stderr, "Re-allocating region=%p size=%lu parent free "
+                "bytes=%lu->%lu\n", target_region, target_region->size,
+                target_region->grandparent->free_bytes,
+                target_region->grandparent->free_bytes - target_region->size);
+#endif
+        target_region->grandparent->free_bytes -= target_region->size;
     } else {
         target_region->refs += 1;
     }
@@ -790,6 +806,13 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
         copy->keeping = false;
     }
     copy->birth = copy->grandparent->curr_time;
+#ifdef VERBOSE
+    fprintf(stderr, "Allocating region=%p size=%lu parent free "
+            "bytes=%lu->%lu\n", copy, copy->size,
+            copy->grandparent->free_bytes,
+            copy->grandparent->free_bytes - copy->size);
+#endif
+    copy->grandparent->free_bytes -= copy->size;
 
     EXIT_TRACE("allocate_cl_region");
 
@@ -887,6 +910,7 @@ cl_allocator *init_allocator(int device_index)
 
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
+        (allocator->allocs)[i].free_bytes = alloc_size;
         (allocator->allocs)[i].allocator = allocator;
 
         int perr = pthread_mutex_init(&(allocator->allocs)[i].lock, NULL);

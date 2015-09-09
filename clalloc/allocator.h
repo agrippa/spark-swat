@@ -122,6 +122,7 @@ typedef struct _cl_alloc {
     char *mem;
 #endif
     size_t size;
+    size_t free_bytes; // purely for diagnostics and error-checking
     cl_bucket buckets[NBUCKETS];
     cl_bucket large_bucket;
     cl_bucket keep_buckets[NBUCKETS];
@@ -146,13 +147,14 @@ typedef struct _cl_allocator {
     int device_index;
 } cl_allocator;
 
-extern bool re_allocate_cl_region(cl_region *target_region, int target_device);
 #ifdef OPENCL_ALLOCATOR
 extern cl_allocator *init_allocator(cl_device_id dev, int device_index,
         cl_context ctx, cl_command_queue cmd);
 #else
 extern cl_allocator *init_allocator(int device_index);
 #endif
+
+extern bool re_allocate_cl_region(cl_region *target_region, int target_device);
 extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
 extern void print_allocator(cl_allocator *allocator, int lbl);
