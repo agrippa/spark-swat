@@ -662,7 +662,10 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
             unlock_alloc(alloc);
         }
 
-        ASSERT(best_candidate);
+        if (best_candidate == NULL) {
+            fprintf(stderr, "FAILED allocating region of size %lu\n", size);
+            exit(1);
+        }
 #ifdef VERBOSE
         fprintf(stderr, "best_candidate=(%p offset=%lu size=%lu refs=%d), "
                 "successors=%d\n", best_candidate, best_candidate->offset,

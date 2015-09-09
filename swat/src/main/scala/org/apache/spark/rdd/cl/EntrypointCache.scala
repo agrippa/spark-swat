@@ -16,4 +16,16 @@ class EntrypointCacheKey(className : java.lang.String)
   def compareTo(other : EntrypointCacheKey) : Int = {
     return className.compareTo(other.getClassName)
   }
+
+  override def equals(otherObj : Any) : Boolean = {
+    if (otherObj.isInstanceOf[EntrypointCacheKey]) {
+      compareTo(otherObj.asInstanceOf[EntrypointCacheKey]) == 0
+    } else {
+      false
+    }
+  }
+
+  override def hashCode() : Int = {
+    className.hashCode
+  }
 }

@@ -299,7 +299,9 @@ object SparkNN {
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
-              zs(l - 1) = activations(l).map(pair => {
+              val otherActivationsRdd = if (useSwat && layerSize > 500)
+                  CLWrapper.cl(activations(l)) else activations(l)
+              zs(l - 1) = otherActivationsRdd.map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2
 

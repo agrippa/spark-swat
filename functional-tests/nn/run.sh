@@ -16,4 +16,4 @@ spark-submit --class SparkNN \
         hdfs://$(hostname):54310/training-correct-converted \
         hdfs://$(hostname):54310/testing-converted \
         hdfs://$(hostname):54310/testing-correct-converted \
-        3 3.0
+        1 3.0
