@@ -15,11 +15,20 @@ import java.nio.ByteBuffer
 
 class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     val entryPoint : Entrypoint) extends InputBufferWrapper[T] {
+  val clazz : java.lang.Class[_] = Class.forName(typeName)
+  val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
       typeName, new NameMatcher(typeName))
+  val structMemberTypes : Option[Array[Int]] = if (classModel == null) None else
+      Some(classModel.getStructMemberTypes)
+  val structMemberOffsets : Option[Array[Long]] = if (classModel == null) None else
+      Some(classModel.getStructMemberOffsets)
   val structSize = classModel.getTotalStructSize
   val bb : ByteBuffer = ByteBuffer.allocate(classModel.getTotalStructSize * nele)
   bb.order(ByteOrder.LITTLE_ENDIAN)
+
+  var iter : Int = 0
+  var objCount : Int = 0
 
   override def hasSpace() : Boolean = {
     bb.position < bb.capacity
@@ -34,6 +43,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   override def append(obj : Any) {
     assert(hasSpace())
     OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object], classModel, bb)
+    objCount += 1
   }
 
   override def aggregateFrom(iter : Iterator[T]) : Int = {
@@ -41,6 +51,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     while (hasSpace && iter.hasNext) {
       OpenCLBridgeWrapper.writeObjectToStream(
               iter.next.asInstanceOf[java.lang.Object], classModel, bb)
+      objCount += 1
     }
     (bb.position - startPosition) / structSize
   }
@@ -52,5 +63,18 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
         bb.position, broadcastId, rddid, partitionid, offset, component)
     bb.clear
     return 1
+  }
+
+  override def hasNext() : Boolean = {
+    iter < objCount
+  }
+
+  override def next() : T = {
+    val new_obj : T = constructor.newInstance().asInstanceOf[T]
+    bb.position(iter * structSize)
+    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb,
+            structMemberTypes.get, structMemberOffsets.get)
+    iter += 1
+    new_obj
   }
 }

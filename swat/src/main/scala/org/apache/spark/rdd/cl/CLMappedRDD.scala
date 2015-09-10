@@ -124,56 +124,64 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
           val writeStart = System.currentTimeMillis // PROFILE
-          var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
-                  -1, if (firstParent[T].getStorageLevel.useMemory)
-                      firstParent[T].id else -1, split.index, myOffset, 0)
-          val outArgNum : Int = argnum
-          argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
-              dev_ctx, argnum, nLoaded, classTag[U].runtimeClass,
-              entryPoint, sampleOutput.asInstanceOf[U])
 
-          val iter = entryPoint.getReferencedClassModelFields.iterator
-          while (iter.hasNext) {
-            val field = iter.next
-            val isBroadcast = entryPoint.isBroadcastField(field)
-            argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
-                field.getName, field.getDescriptor, entryPoint, isBroadcast, bbCache)
-          }
+          try {
+            var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
+                    -1, if (firstParent[T].getStorageLevel.useMemory)
+                        firstParent[T].id else -1, split.index, myOffset, 0)
 
-          val heapArgStart : Int = argnum
-          if (entryPoint.requiresHeap) {
-            argnum += OpenCLBridge.createHeap(ctx, dev_ctx, argnum, heapSize,
-                    nLoaded)
-          }   
+            val outArgNum : Int = argnum
+            argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
+                dev_ctx, argnum, nLoaded, classTag[U].runtimeClass,
+                entryPoint, sampleOutput.asInstanceOf[U])
 
-          OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
-          val anyFailedArgNum = argnum - 1
-
-          profPrint("Write", writeStart, threadId) // PROFILE
-          val runStart = System.currentTimeMillis // PROFILE
-         
-          var complete : Boolean = true
-          outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
-                      sampleOutput.asInstanceOf[U], outArgNum, nLoaded, bbCache,
-                      entryPoint))
-          do {
-            OpenCLBridge.run(ctx, dev_ctx, nLoaded, false)
-            if (entryPoint.requiresHeap) {
-              complete = outputBuffer.get.kernelAttemptCallback(
-                      nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
-                      heapArgStart, heapSize, ctx, dev_ctx, entryPoint, bbCache,
-                      devicePointerSize)
-              OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
+            val iter = entryPoint.getReferencedClassModelFields.iterator
+            while (iter.hasNext) {
+              val field = iter.next
+              val isBroadcast = entryPoint.isBroadcastField(field)
+              argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
+                  field.getName, field.getDescriptor, entryPoint, isBroadcast, bbCache)
             }
-          } while (!complete)
 
-          outputBuffer.get.finish(ctx, dev_ctx)
+            val heapArgStart : Int = argnum
+            if (entryPoint.requiresHeap) {
+              argnum += OpenCLBridge.createHeap(ctx, dev_ctx, argnum, heapSize,
+                      nLoaded)
+            }   
 
-          profPrint("Run", runStart, threadId) // PROFILE
-          val readStart = System.currentTimeMillis // PROFILE
+            OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
+            val anyFailedArgNum = argnum - 1
 
-          OpenCLBridge.postKernelCleanup(ctx);
-          profPrint("Read", readStart, threadId) // PROFILE
+            profPrint("Write", writeStart, threadId) // PROFILE
+            val runStart = System.currentTimeMillis // PROFILE
+           
+            var complete : Boolean = true
+            outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
+                        sampleOutput.asInstanceOf[U], outArgNum, nLoaded, bbCache,
+                        entryPoint))
+            do {
+              OpenCLBridge.run(ctx, dev_ctx, nLoaded, false)
+              if (entryPoint.requiresHeap) {
+                complete = outputBuffer.get.kernelAttemptCallback(
+                        nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
+                        heapArgStart, heapSize, ctx, dev_ctx, entryPoint, bbCache,
+                        devicePointerSize)
+                OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
+              }
+            } while (!complete)
+
+            outputBuffer.get.finish(ctx, dev_ctx)
+
+            profPrint("Run", runStart, threadId) // PROFILE
+            val readStart = System.currentTimeMillis // PROFILE
+
+            OpenCLBridge.postKernelCleanup(ctx);
+            profPrint("Read", readStart, threadId) // PROFILE
+          } catch {
+            case oom : OpenCLOutOfMemoryException => {
+              outputBuffer = Some(new LambdaOutputBuffer[T, U](f, acc.get))
+            }
+          }
         }
 
         outputBuffer.get.next

@@ -16,6 +16,7 @@ import java.nio.ByteBuffer
 class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferWrapper[T]{
   val arr : Array[T] = new Array[T](N)
   var filled : Int = 0
+  var iter : Int = 0
 
   override def hasSpace() : Boolean = {
     filled < arr.length
@@ -58,5 +59,15 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
 
     filled = 0
     return 1
+  }
+
+  override def hasNext() : Boolean = {
+    iter < filled
+  }
+
+  override def next() : T = {
+    val n : T = arr(iter)
+    iter += 1
+    n
   }
 }

@@ -51,6 +51,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
                 sample._2.getClass.getName,
                 new NameMatcher(sample._2.getClass.getName))
 
+  var iter : Int = 0
   var buffered :  Int = 0
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
@@ -171,5 +172,15 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
     } else {
       return used
     }
+  }
+
+  override def hasNext() : Boolean = {
+    iter < buffered
+  }
+
+  override def next() : Tuple2[K, V] = {
+    val t : Tuple2[K, V] = (buffer1.next, buffer2.next)
+    iter += 1
+    t
   }
 }

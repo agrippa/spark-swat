@@ -5,8 +5,9 @@ if [[ $# != 1 ]]; then
     exit 1
 fi
 
-HOSTNAME=$(hostname -d)
-if [[ -z $HOSTNAME ]]; then
+HOSTNAME=$(hostname -d 2> /dev/null)
+ERR=$?
+if [[ $ERR == 0 || -z $HOSTNAME ]]; then
     HOSTNAME=$(hostname)
 fi
 

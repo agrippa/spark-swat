@@ -535,7 +535,8 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     return true;
 }
 
-cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
+cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
+        void (*callback)(void *), void *user_data) {
     ENTER_TRACE("allocate_cl_region");
     ASSERT(allocator);
     ASSERT(size > 0);
@@ -679,8 +680,8 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator) {
         }
 
         if (best_candidate == NULL) {
-            fprintf(stderr, "FAILED allocating region of size %lu\n", size);
-            exit(1);
+            if (callback) (*callback)(user_data);
+            return NULL;
         }
 #ifdef VERBOSE
         fprintf(stderr, "best_candidate=(%p offset=%lu size=%lu refs=%d), "

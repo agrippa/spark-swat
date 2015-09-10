@@ -415,32 +415,6 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def setArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
-      arg : Array[T], argLength : Int, isInput : Boolean,
-      entryPoint : Entrypoint, rddid : Int, partitionid : Int, offset : Int,
-      bbCache : ByteBufferCache) : Int = {
-
-    if (arg.isInstanceOf[Array[Double]]) {
-      OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-          arg.asInstanceOf[Array[Double]], argLength, -1, rddid, partitionid, offset, 0)
-      return 1
-    } else if (arg.isInstanceOf[Array[Int]]) {
-      OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
-          arg.asInstanceOf[Array[Int]], argLength, -1, rddid, partitionid, offset, 0)
-      return 1
-    } else if (arg.isInstanceOf[Array[Float]]) {
-      OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-          arg.asInstanceOf[Array[Float]], argLength, -1, rddid, partitionid, offset, 0)
-      return 1
-    } else {
-      // Assume is some serializable object array
-      val argClass : java.lang.Class[_] = arg(0).getClass
-      return setObjectTypedArrayArgHelper(ctx, dev_ctx, argnum, arg, argLength,
-          argClass.getName, isInput, entryPoint, -1, rddid, partitionid, offset,
-          bbCache)
-    }
-  }
-
   def fetchArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
       arg : Array[T], entryPoint : Entrypoint, bbCache : ByteBufferCache) {
     if (arg.isInstanceOf[Array[Double]]) {
@@ -464,13 +438,13 @@ object OpenCLBridgeWrapper {
       argnum : Int, N : Int, clazz : java.lang.Class[_],
       entryPoint : Entrypoint, sampleOutput : U) : Int = {
     if (clazz.equals(classOf[Double])) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 8 * N)
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 8 * N)) return -1
       return 1
     } else if (clazz.equals(classOf[Int])) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N)
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N)) return -1
       return 1
     } else if (clazz.equals(classOf[Float])) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N)
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N)) return -1
       return 1
     } else if (clazz.equals(classOf[Tuple2[_, _]])) {
       val sampleTuple : Tuple2[_, _] = sampleOutput.asInstanceOf[Tuple2[_, _]]
@@ -491,8 +465,10 @@ object OpenCLBridgeWrapper {
       val arrsize0 = if (name0.equals("_1")) (size0 * N) else (size1 * N)
       val arrsize1 = if (name0.equals("_1")) (size1 * N) else (size0 * N)
 
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, arrsize0)
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 1, arrsize1)
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, arrsize0) ||
+          !OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 1, arrsize1)) {
+        return -1
+      }
 
       return 2
     } else {
@@ -500,7 +476,9 @@ object OpenCLBridgeWrapper {
           clazz.getName, new NameMatcher(clazz.getName))
       val structSize : Int = c.getTotalStructSize
       val nbytes : Int = structSize * N
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, nbytes)
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, nbytes)) {
+        return -1
+      }
       return 1
     }
   }
@@ -529,38 +507,6 @@ object OpenCLBridgeWrapper {
                 entryPoint).asInstanceOf[OutputBufferWrapper[T]]
     }
   }
-
-  /*
-  def fetchArgFromUnitializedArray[T : ClassTag](ctx : scala.Long,
-      dev_ctx : scala.Long, outArgNum : Int, N : Int,
-      entryPoint : Entrypoint, sampleOutput : T, bbCache : ByteBufferCache) :
-      OutputBufferWrapper[T] = {
-    val clazz : java.lang.Class[_] = classTag[T].runtimeClass
-
-    if (clazz.equals(classOf[Double])) {
-      val casted : Array[Double] = new Array[Double](N)
-      OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, outArgNum, casted, casted.length)
-      new PrimitiveOutputBufferWrapper[Double](casted).asInstanceOf[OutputBufferWrapper[T]]
-    } else if (clazz.equals(classOf[Int])) {
-      val casted : Array[Int] = new Array[Int](N)
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, outArgNum, casted, casted.length)
-      new PrimitiveOutputBufferWrapper[Int](casted).asInstanceOf[OutputBufferWrapper[T]]
-    } else if (clazz.equals(classOf[Float])) {
-      val casted : Array[Float] = new Array[Float](N)
-      OpenCLBridge.fetchFloatArrayArg(ctx, dev_ctx, outArgNum, casted, casted.length)
-      new PrimitiveOutputBufferWrapper[Float](casted).asInstanceOf[OutputBufferWrapper[T]]
-    } else if (clazz.equals(classOf[Tuple2[_, _]])) {
-      val sampleTuple : Tuple2[_, _] = sampleOutput.asInstanceOf[Tuple2[_, _]]
-      fetchTuple2TypedArrayArg(ctx, dev_ctx, outArgNum,
-          N, clazz.getName,
-          sampleTuple._1.getClass.getName, sampleTuple._2.getClass.getName,
-          entryPoint, bbCache).asInstanceOf[OutputBufferWrapper[T]]
-    } else {
-      fetchObjectTypedArrayArgIntoOutputBuffer(ctx, dev_ctx, outArgNum, N,
-            clazz.getName, clazz, entryPoint, bbCache).asInstanceOf[OutputBufferWrapper[T]]
-    }
-  }
-  */
 
   def getBroadcastId(obj : java.lang.Object) : Long = {
     return obj.asInstanceOf[Broadcast[_]].id

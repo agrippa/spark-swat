@@ -155,7 +155,8 @@ extern cl_allocator *init_allocator(int device_index);
 #endif
 
 extern bool re_allocate_cl_region(cl_region *target_region, int target_device);
-extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator);
+extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
+        void (*callback)(void *), void *user_data);
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
 extern void print_allocator(cl_allocator *allocator, int lbl);
 extern void bump_time(cl_allocator *allocator);

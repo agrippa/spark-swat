@@ -8,6 +8,8 @@
 #include "common.h"
 #include "ocl_util.h"
 
+static void postKernelCleanupHelperWrapper(void *ctx);
+
 static device_context *device_ctxs = NULL;
 static int n_device_ctxs = 0;
 /*
@@ -40,7 +42,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
 }
 
 #define SET_ARRAY_ARG_MACRO(ltype, utype, ctype) \
-JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
+JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index, \
          j##ltype##Array arg, jint argLength, jlong broadcastId, jint rddid, \
          jint partitionid, jint offsetid, jint componentid) { \
@@ -71,6 +73,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
+            if (new_region == NULL) return false; \
+            \
             err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock); \
             ASSERT(err == 0); \
             (*dev_ctx->broadcast_cache)[broadcastId] = new_region; \
@@ -102,6 +106,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
                     dev_ctx, broadcastId, rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
+            if (new_region == NULL) return false; \
+            \
             err = pthread_rwlock_wrlock(&rdd_cache_lock); \
             ASSERT(err == 0); \
             if (rdd_cache->find(uuid) == rdd_cache->end()) { \
@@ -118,11 +124,14 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArg) \
         ASSERT(rddid < 0 && broadcastId < 0); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
-        set_and_write_kernel_arg(arr, len, index, context, dev_ctx, \
+        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, dev_ctx, \
                 broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
+        if (new_region == NULL) return false; \
+        \
     } \
     EXIT_TRACE("set"#utype"ArrayArg"); \
+    return true; \
 }
 
 #define FETCH_ARRAY_ARG_MACRO(ltype, utype, ctype) \
@@ -155,30 +164,6 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     clSetKernelArgWrapper(context, context->kernel, index, sizeof(val), &val); \
     EXIT_TRACE("set"#utype"ArgByName"); \
 }
-
-#define SET_ARRAY_ARG_BY_NAME_MACRO(ltype, utype, desc) \
-JNI_JAVA(void, OpenCLBridge, set##utype##ArrayArgByName) \
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index, jobject obj, \
-         jstring name) { \
-    ENTER_TRACE("set"#utype"ArrayArgByName"); \
-    jclass enclosing_class = jenv->GetObjectClass(obj); \
-    CHECK_JNI(enclosing_class) \
-    const char *raw_name = jenv->GetStringUTFChars(name, NULL); \
-    CHECK_JNI(raw_name) \
-    jfieldID field = jenv->GetFieldID(enclosing_class, raw_name, desc); \
-    CHECK_JNI(field) \
-    jenv->ReleaseStringUTFChars(name, raw_name); \
-    jarray arr = (jarray)jenv->GetObjectField(obj, field); \
-    CHECK_JNI(arr) \
-    jsize arr_length = jenv->GetArrayLength(arr) * sizeof(ltype); \
-    void *arr_eles = jenv->GetPrimitiveArrayCritical((j##ltype##Array)arr, NULL); \
-    CHECK_JNI(arr_eles) \
-    set_and_write_kernel_arg(arr_eles, arr_length, index, (swat_context *)lctx, \
-            (device_context *)l_dev_ctx, -1, -1); \
-    jenv->ReleasePrimitiveArrayCritical((j##ltype##Array)arr, arr_eles, JNI_ABORT); \
-    EXIT_TRACE("set"#utype"ArrayArgByName"); \
-}
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -626,7 +611,9 @@ static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
             context->host_thread_index, size, index);
 #endif
 
-    cl_region *region = allocate_cl_region(size, dev_ctx->allocator);
+    cl_region *region = allocate_cl_region(size, dev_ctx->allocator,
+            postKernelCleanupHelperWrapper, context);
+    if (region == NULL) return NULL;
 
 #ifdef VERBOSE
     fprintf(stderr, "%d: Got %p for %lu bytes for index=%d\n",
@@ -653,6 +640,8 @@ static void set_cached_kernel_arg(cl_region *region, int index, size_t len,
 static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx, jlong broadcastId, jint rdd) {
     cl_region *region = get_mem_cached(context, dev_ctx, index, len, broadcastId, rdd);
+    if (region == NULL) return NULL;
+
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
 
@@ -683,10 +672,6 @@ SET_PRIMITIVE_ARG_BY_NAME_MACRO(int, Int, "I")
 SET_PRIMITIVE_ARG_BY_NAME_MACRO(double, Double, "D")
 SET_PRIMITIVE_ARG_BY_NAME_MACRO(float, Float, "F")
 
-SET_ARRAY_ARG_BY_NAME_MACRO(int, Int, "[I")
-SET_ARRAY_ARG_BY_NAME_MACRO(double, Double, "[D")
-SET_ARRAY_ARG_BY_NAME_MACRO(float, Float, "[F")
-
 SET_ARRAY_ARG_MACRO(int, Int, int)
 SET_ARRAY_ARG_MACRO(double, Double, double)
 SET_ARRAY_ARG_MACRO(float, Float, float)
@@ -707,7 +692,7 @@ JNI_JAVA(int, OpenCLBridge, getDevicePointerSizeInBytes)
     return pointer_size_in_bits / 8;
 }
 
-JNI_JAVA(void, OpenCLBridge, setArrayArg)
+JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index,
          jobject argObj, jint argLength, jint argEleSize, jlong broadcastId, jint rddid,
          jint partitionid, jint offsetid, jint componentid) {
@@ -737,9 +722,11 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         } else {
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
             CHECK_JNI(arr)
-            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
-                    dev_ctx, broadcastId, rddid);
+            cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
+                    context, dev_ctx, broadcastId, rddid);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
+            if (new_region == NULL) return false;
+
             err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
             ASSERT(err == 0);
             (*dev_ctx->broadcast_cache)[broadcastId] = new_region;
@@ -771,6 +758,8 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
                     dev_ctx, broadcastId, rddid);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
+            if (new_region == NULL) return false;
+
             err = pthread_rwlock_wrlock(&rdd_cache_lock);
             ASSERT(err == 0);
             if (rdd_cache->find(uuid) == rdd_cache->end()) {
@@ -787,16 +776,16 @@ JNI_JAVA(void, OpenCLBridge, setArrayArg)
         ASSERT(rddid < 0 && broadcastId < 0);
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy);
         CHECK_JNI(arr)
-        set_and_write_kernel_arg(arr, len, index, context, dev_ctx, broadcastId,
-                rddid);
+        cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
+                context, dev_ctx, broadcastId, rddid);
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
+        if (new_region == NULL) return false;
     }
     EXIT_TRACE("setArrayArg");
+    return true;
 }
 
-JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
-        (JNIEnv *jenv, jclass clazz, jlong lctx) {
-    swat_context *ctx = (swat_context *)lctx;
+static void postKernelCleanupHelper(swat_context *ctx) {
     cl_allocator *allocator = NULL;
     for (map<int, pair<cl_region *, bool> >::iterator i = ctx->arguments->begin(),
             e = ctx->arguments->end(); i != e; i++) {
@@ -816,13 +805,25 @@ JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
     }
 }
 
-JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
+static void postKernelCleanupHelperWrapper(void *ctx) {
+    postKernelCleanupHelper((swat_context *)ctx);
+}
+
+JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
+        (JNIEnv *jenv, jclass clazz, jlong lctx) {
+    swat_context *ctx = (swat_context *)lctx;
+    postKernelCleanupHelper(ctx);
+}
+
+JNI_JAVA(jboolean, OpenCLBridge, setArgUnitialized)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum,
          jlong size) {
     ENTER_TRACE("setArgUnitialized");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_region *region = get_mem_cached(context, dev_ctx, argnum, size, -1, -1);
+    if (region == NULL) return false;
+
     CHECK(clSetKernelArg(context->kernel, argnum, sizeof(region->sub_mem), &region->sub_mem));
 
 #ifdef BRIDGE_DEBUG
@@ -835,6 +836,7 @@ JNI_JAVA(void, OpenCLBridge, setArgUnitialized)
 #endif
 
     EXIT_TRACE("setArgUnitialized");
+    return true;
 }
 
 JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
@@ -858,7 +860,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 }
 
 
-JNI_JAVA(int, OpenCLBridge, createHeap)
+JNI_JAVA(int, OpenCLBridge, createHeapImpl)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum, jint size,
          jint max_n_buffered) {
     ENTER_TRACE("createHeap");
@@ -870,6 +872,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
     // The heap
     cl_region *region = get_mem_cached(context, dev_ctx, local_argnum, size, -1, -1);
+    if (region == NULL) return -1;
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
     local_argnum++;
 
@@ -880,6 +883,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
     // free_index
     region = get_mem_cached(context, dev_ctx, local_argnum, sizeof(zero), -1, -1);
+    if (region == NULL) return -1;
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_TRUE, 0, sizeof(zero),
                 &zero, 0, NULL, NULL));
     CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
@@ -901,6 +905,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
     // processing_succeeded
     region = get_mem_cached(context, dev_ctx, local_argnum, sizeof(int) * max_n_buffered, -1, -1);
+    if (region == NULL) return -1;
 #ifdef VERBOSE
     fprintf(stderr, "%d: Creating %p, %lu bytes for processing_succeeded\n",
             context->host_thread_index, region->sub_mem,
@@ -924,6 +929,7 @@ JNI_JAVA(int, OpenCLBridge, createHeap)
 
     // any_failed
     region = get_mem_cached(context, dev_ctx, local_argnum, sizeof(unsigned), -1, -1);
+    if (region == NULL) return -1;
 #ifdef VERBOSE
     fprintf(stderr, "%d: Creating %p, %lu bytes for any_failed\n",
             context->host_thread_index, region->sub_mem, sizeof(unsigned));
@@ -1032,199 +1038,6 @@ JNI_JAVA(void, OpenCLBridge, run)
                 &global_range, NULL, 0, NULL, &event));
     CHECK(clWaitForEvents(1, &event));
     EXIT_TRACE("run");
-}
-
-#define SET_FROM_BB(type, capitalized_type, sig, targetClassName) \
-JNI_JAVA(int, OpenCLBridge, set##capitalized_type##ArrFromBB) \
-        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold, \
-        long l_addressOfArr, jint bufferLength, jbyteArray bb, \
-         jint position, jint remaining, jlong fieldOffset) { \
-    ENTER_TRACE("set"#capitalized_type"ArrFromBB"); \
-    ASSERT(remaining % sizeof( type ) == 0); \
-    const int remainingEles = remaining / sizeof( type ); \
-    const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles); \
-    \
-    void *bb_elements = jenv->GetPrimitiveArrayCritical(bb, NULL); \
-    CHECK_JNI(bb_elements) \
-    type *bb_iter = ( type *)(((unsigned char *)bb_elements) + position); \
-    \
-    jclass targetClass = jenv->FindClass(targetClassName); \
-    CHECK_JNI(targetClass) \
-    jmethodID constructor = jenv->GetMethodID(targetClass, "<init>", "("#sig")V"); \
-    CHECK_JNI(constructor); \
-    for (unsigned i = 0; i < to_process; i++) { \
-        jobject newObj = jenv->NewObject(targetClass, constructor, *bb_iter); \
-        CHECK_JNI(newObj); \
-        jenv->SetObjectArrayElement(targetToHold, i, newObj); \
-        bb_iter++; \
-    } \
-    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT); \
-    EXIT_TRACE("set"#capitalized_type"ArrFromBB"); \
-    return to_process; \
-}
-
-SET_FROM_BB(int, Int, "I", "java/lang/Integer")
-SET_FROM_BB(float, Float, "F", "java/lang/Float")
-SET_FROM_BB(double, Double, "D", "java/lang/Double")
-
-static inline int setFieldInObject(JNIEnv *jenv, jobject obj, int type, jfieldID field,
-        unsigned char *bb_iter) {
-    int size;
-    switch (type) {
-        case (0): { // INT
-            const int val = *((int *)bb_iter);
-            jenv->SetIntField(obj, field, val);
-            size = 4;
-            break;
-        }
-        case (1): { // FLOAT
-            const float val = *((float *)bb_iter);
-            jenv->SetFloatField(obj, field, val);
-            size = 4;
-            break;
-        }
-        case (2): { // DOUBLE
-            const double val = *((double *)bb_iter);
-            jenv->SetDoubleField(obj, field, val);
-            size = 8;
-            break;
-        }
-        default:
-            fprintf(stderr, "%s:%d - Unknown type in types array for "
-                    "object\n", __FILE__, __LINE__);
-            exit(1);
-    }
-    return size;
-}
-
-JNI_JAVA(int, OpenCLBridge, setObjectArrFromBB)
-        (JNIEnv *jenv, jclass clazz, jobjectArray targetToHold,
-         long l_addressOfArr, jint bufferLength, jbyteArray bb, jint position,
-         jint remaining, jintArray fieldTypes, jintArray fieldSizes,
-         jlongArray fieldOffsets, jint structSize, jstring targetClassNameStr,
-         jobjectArray fieldNamesArray, jint arrayIndexScale) {
-    ENTER_TRACE("setObjectArrFromBB");
-    ASSERT(arrayIndexScale == 4 || arrayIndexScale == 8);
-    ASSERT(remaining % structSize == 0);
-    unsigned nfields = jenv->GetArrayLength(fieldSizes);
-    const int remainingEles = remaining / structSize;
-    const unsigned to_process = (remainingEles > bufferLength ? bufferLength : remainingEles);
-    // jenv->EnsureLocalCapacity(to_process + nfields);
-
-    unsigned char *bb_elements = (unsigned char *)jenv->GetPrimitiveArrayCritical(bb, NULL);
-    CHECK_JNI(bb_elements);
-    unsigned char *bb_iter = bb_elements + position;
-    int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
-    CHECK_JNI(sizes)
-    int *types = (int *)jenv->GetPrimitiveArrayCritical(fieldTypes, NULL);
-    CHECK_JNI(types)
-
-    const char *targetClassName = jenv->GetStringUTFChars(targetClassNameStr, NULL);
-    CHECK_JNI(targetClassName);
-    jclass targetClass = jenv->FindClass(targetClassName);
-    CHECK_JNI(targetClass);
-    jenv->ReleaseStringUTFChars(targetClassNameStr, targetClassName);
-    jmethodID constructor = jenv->GetMethodID(targetClass, "<init>", "()V");
-    CHECK_JNI(constructor);
-
-    jfieldID *fields = (jfieldID *)malloc(nfields * sizeof(jfieldID));
-    for (unsigned i = 0; i < nfields; i++) {
-        jstring fieldNameStr = (jstring)jenv->GetObjectArrayElement(fieldNamesArray, i);
-        CHECK_JNI(fieldNameStr);
-
-        const char *fieldName = jenv->GetStringUTFChars(fieldNameStr, NULL);
-        CHECK_JNI(fieldName);
-
-        const char *sig;
-        switch (types[i]) {
-            case (0): // INT
-                sig = "I";
-                break;
-            case (1): // FLOAT
-                sig = "F";
-                break;
-            case (2): // DOUBLE
-                sig = "D";
-                break;
-            default:
-                fprintf(stderr, "%s:%d - Unknown type in types array for "
-                        "object\n", __FILE__, __LINE__);
-                exit(1);
-        }
-        jfieldID field = jenv->GetFieldID(targetClass, fieldName, sig);
-        CHECK_JNI(field);
-        fields[i] = field;
-
-        jenv->ReleaseStringUTFChars(fieldNameStr, fieldName);
-    }
-
-    for (unsigned i = 0; i < to_process; i++) {
-        jobject newObj = jenv->NewObject(targetClass, constructor);
-        CHECK_JNI(newObj);
-
-        for (unsigned j = 0; j < nfields; j++) {
-            bb_iter += setFieldInObject(jenv, newObj, types[j], fields[j], bb_iter);
-        }
-
-        jenv->SetObjectArrayElement(targetToHold, i, newObj);
-    }
-    free(fields);
-
-    jenv->ReleasePrimitiveArrayCritical(bb, bb_elements, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(fieldTypes, types, JNI_ABORT);
-    EXIT_TRACE("setObjectArrFromBB");
-    return to_process;
-}
-
-JNI_JAVA(void, OpenCLBridge, writeToBBFromObjArray)
-        (JNIEnv *jenv, jclass clazz, long l_addressOfArr, jint bufferLength,
-         jbyteArray out, jint position, jintArray fieldSizes,
-         jlongArray fieldOffsets, jint structSize, jint arrayIndexScale) {
-    ENTER_TRACE("writeToBBFromObjArray");
-    ASSERT(arrayIndexScale == 4 || arrayIndexScale == 8);
-    unsigned char *addressOfArr = (unsigned char *)l_addressOfArr;
-    const unsigned nfields = jenv->GetArrayLength(fieldSizes);
-
-    unsigned char *bb_contents = (unsigned char *)jenv->GetPrimitiveArrayCritical(out, NULL);
-    CHECK_JNI(bb_contents)
-    int *sizes = (int *)jenv->GetPrimitiveArrayCritical(fieldSizes, NULL);
-    CHECK_JNI(sizes)
-    long *offsets = (long *)jenv->GetPrimitiveArrayCritical(fieldOffsets, NULL);
-    CHECK_JNI(offsets)
-
-    unsigned char *bb_iter = bb_contents + position;
-
-    for (int i = 0; i < bufferLength; i++) {
-        unsigned char * ele = NULL;
-        memcpy(&ele, addressOfArr + (i * arrayIndexScale), arrayIndexScale);
-
-        for (unsigned j = 0; j < nfields; j++) {
-            const int size = sizes[j];
-            memcpy(bb_iter, ele + offsets[j], size);
-            bb_iter += size;
-        }
-    }
-
-    jenv->ReleasePrimitiveArrayCritical(out, bb_contents, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(fieldSizes, sizes, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(fieldOffsets, offsets, JNI_ABORT);
-    EXIT_TRACE("writeToBBFromObjArray");
-}
-
-JNI_JAVA(jint, OpenCLBridge, aggregateFromIterator)
-        (JNIEnv *jenv, jclass clazz, jbyteArray buffer, jint bufferPosition, jint nToBuffer, jobject iter) {
-    ENTER_TRACE("aggregateFromIterator");
-
-    jclass iteratorClass = jenv->FindClass("scala/collection/Iterator");
-    CHECK_JNI(iteratorClass);
-    jmethodID hasNextMethod = jenv->GetMethodID(iteratorClass, "hasNext", "()Lscala/Boolean;");
-    CHECK_JNI(hasNextMethod);
-    jmethodID nextMethod = jenv->GetMethodID(iteratorClass, "next", "()Ljava/lang/Object;");
-    CHECK_JNI(nextMethod);
-
-    EXIT_TRACE("aggregateFromIterator");
-    return 0;
 }
 
 #ifdef __cplusplus

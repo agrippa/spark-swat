@@ -15,6 +15,7 @@ import com.amd.aparapi.internal.model.ClassModel.FieldNameInfo
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.Vectors
 
 object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
@@ -32,6 +33,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   val denseVectorStructSize = classModel.getTotalStructSize
 
   var buffered : Int = 0
+  var iter : Int = 0
 
   val tiling : Int = DenseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
@@ -147,5 +149,25 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
     buffered = 0
     return 5
+  }
+
+  override def hasNext() : Boolean = {
+    iter < buffered
+  }
+
+  override def next() : DenseVector = {
+    if (tiled > 0) {
+      flush
+    }
+    val vectorSize : Int = sizes(iter)
+    val vectorOffset : Int = offsets(iter)
+    val vectorArr : Array[Double] = new Array[Double](vectorSize)
+    var i = 0
+    while (i < vectorSize) {
+      vectorArr(i) = doubleValuesBB.get(vectorOffset + i * tiling)
+      i += 1
+    }
+    iter += 1
+    Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }
 }

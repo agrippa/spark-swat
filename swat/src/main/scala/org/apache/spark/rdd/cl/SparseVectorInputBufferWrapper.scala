@@ -16,6 +16,7 @@ import com.amd.aparapi.internal.model.ClassModel.FieldNameInfo
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.mllib.linalg.Vectors
 
 object SparseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
@@ -34,6 +35,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   val structSize = classModel.getTotalStructSize
 
   var buffered : Int = 0
+  var iter : Int = 0
 
   val tiling : Int = SparseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
@@ -160,4 +162,27 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
 
     return 6
   }
+
+  override def hasNext() : Boolean = {
+    iter < buffered
+  }
+
+  override def next() : SparseVector = {
+    if (tiled > 0) {
+      flush
+    }
+    val vectorSize : Int = sizes(iter)
+    val vectorOffset : Int = offsets(iter)
+    val vectorValues : Array[Double] = new Array[Double](vectorSize)
+    val vectorIndices : Array[Int] = new Array[Int](vectorSize)
+    var i = 0
+    while (i < vectorSize) {
+      vectorValues(i) = valuesBB.get(vectorOffset + i * tiling)
+      vectorIndices(i) = indicesBB.get(vectorOffset + i * tiling)
+      i += 1
+    }
+    iter += 1
+    Vectors.sparse(vectorSize, vectorIndices, vectorValues).asInstanceOf[SparseVector]
+  }
+
 }
