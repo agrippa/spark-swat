@@ -1,0 +1,57 @@
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.cl._
+import Array._
+import scala.math._
+import org.apache.spark.rdd._
+import java.net._
+import scala.io.Source
+
+object HyperlinkGraphNormalizer {
+    def main(args : Array[String]) {
+        if (args.length != 2) {
+            println("usage: HyperlinkGraph input-dir output-dir")
+            return;
+        }
+
+        val inputDir = args(0)
+        val outputDir = args(1)
+        val sc = get_spark_context("Hyperlink Graph Normalizer");
+
+        val input : RDD[String] = sc.textFile(inputDir)
+        val converted : RDD[Tuple2[Int, Int]] = input.map(line => {
+            val tokens : Array[String] = line.split("\t")
+            (tokens(0).toInt, tokens(1).toInt)
+        })
+        val unique : RDD[Int] = converted.flatMap(p => List(p._1, p._2)).distinct()
+        val pairedWithId : RDD[Tuple2[Int, Long]] = unique.zipWithIndex()
+        val nNodes : Long = pairedWithId.count()
+        System.out.println("nNodes = " + nNodes)
+
+        val idArray : Array[Tuple2[Int, Long]] = pairedWithId.collect
+        val idMap : java.util.Map[Int, Int] = new java.util.HashMap[Int, Int]()
+        for (pair <- idArray) {
+          idMap.put(pair._1, pair._2.toInt)
+        }
+
+        val idMapBroadcasted = sc.broadcast(idMap)
+
+        val normalized : RDD[Tuple2[Int, Int]] = converted.map(pair => {
+            (idMapBroadcasted.value.get(pair._1), idMapBroadcasted.value.get(pair._2))
+        })
+        normalized.saveAsObjectFile(outputDir)
+        sc.stop
+    }
+
+    def get_spark_context(appName : String) : SparkContext = {
+        val conf = new SparkConf()
+        conf.setAppName(appName)
+
+        val localhost = InetAddress.getLocalHost
+        // val localIpAddress = localhost.getHostAddress
+        conf.setMaster("spark://" + localhost.getHostName + ":7077") // 7077 is the default port
+
+        return new SparkContext(conf)
+    }
+}

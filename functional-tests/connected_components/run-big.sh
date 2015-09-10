@@ -34,13 +34,11 @@ fi
 #             --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
 #             --master spark://localhost:7077 \
 #             $SCRIPT_DIR/target/sparkconnectedcomponents-0.0.0.jar \
-#             $1 $2 hdfs://$(hostname):54310/converted-links \
-#             $DATA_DIR/$TEST/info
+#             $1 $2 hdfs://$(hostname):54310/converted-links
 # done
 
 spark-submit --class SparkConnectedComponents --jars ${SWAT_JARS} \
         --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
         --master spark://localhost:7077 \
         $SCRIPT_DIR/target/sparkconnectedcomponents-0.0.0.jar \
-        $1 $2 hdfs://$(hostname):54310/converted-links \
-        $DATA_DIR/$TEST/info
+        $1 $2 hdfs://$(hostname):54310/converted-links
