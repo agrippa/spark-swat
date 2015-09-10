@@ -992,7 +992,8 @@ void print_allocator(cl_allocator *allocator, int lbl) {
         free_bytes += print_bucket(-1, &alloc->large_bucket);
         fprintf(stderr, "          keep_large_bucket =\n");
         free_bytes += print_bucket(-1, &alloc->keep_large_bucket);
-        fprintf(stderr, "          free_bytes = %lu\n", free_bytes);
+        fprintf(stderr, "          free_bytes = %lu (expected=%lu)\n",
+                free_bytes, alloc->free_bytes);
         fprintf(stderr, "      }\n");
     }
     fprintf(stderr, "  }\n");

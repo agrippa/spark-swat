@@ -8,8 +8,6 @@
 #include "common.h"
 #include "ocl_util.h"
 
-static void postKernelCleanupHelperWrapper(void *ctx);
-
 static device_context *device_ctxs = NULL;
 static int n_device_ctxs = 0;
 /*
@@ -604,6 +602,30 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     return (jlong)context;
 }
 
+static void postKernelCleanupHelper(swat_context *ctx) {
+    cl_allocator *allocator = NULL;
+    for (map<int, pair<cl_region *, bool> >::iterator i = ctx->arguments->begin(),
+            e = ctx->arguments->end(); i != e; i++) {
+        cl_region *region = i->second.first;
+        if (region) {
+            if (allocator) {
+                ASSERT(allocator == region->grandparent->allocator);
+            } else {
+                allocator = region->grandparent->allocator;
+            }
+            free_cl_region(region, i->second.second);
+        }
+    }
+
+    if (allocator) {
+        bump_time(allocator);
+    }
+}
+
+static void postKernelCleanupHelperWrapper(void *ctx) {
+    postKernelCleanupHelper((swat_context *)ctx);
+}
+
 static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
         int index, size_t size, jlong broadcastId, jint rdd) {
 #ifdef VERBOSE
@@ -783,30 +805,6 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
     }
     EXIT_TRACE("setArrayArg");
     return true;
-}
-
-static void postKernelCleanupHelper(swat_context *ctx) {
-    cl_allocator *allocator = NULL;
-    for (map<int, pair<cl_region *, bool> >::iterator i = ctx->arguments->begin(),
-            e = ctx->arguments->end(); i != e; i++) {
-        cl_region *region = i->second.first;
-        if (region) {
-            if (allocator) {
-                ASSERT(allocator == region->grandparent->allocator);
-            } else {
-                allocator = region->grandparent->allocator;
-            }
-            free_cl_region(region, i->second.second);
-        }
-    }
-
-    if (allocator) {
-        bump_time(allocator);
-    }
-}
-
-static void postKernelCleanupHelperWrapper(void *ctx) {
-    postKernelCleanupHelper((swat_context *)ctx);
 }
 
 JNI_JAVA(void, OpenCLBridge, postKernelCleanup)

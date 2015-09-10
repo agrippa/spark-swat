@@ -179,6 +179,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             profPrint("Read", readStart, threadId) // PROFILE
           } catch {
             case oom : OpenCLOutOfMemoryException => {
+              System.err.println("SWAT PROF " + threadId + " OOM, using LambdaOutputBuffer") // PROFILE
               outputBuffer = Some(new LambdaOutputBuffer[T, U](f, acc.get))
             }
           }
