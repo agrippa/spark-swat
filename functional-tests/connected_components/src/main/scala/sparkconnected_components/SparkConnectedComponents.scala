@@ -152,11 +152,10 @@ object SparkConnectedComponents {
 
         val linksInput = sc.textFile(inputLinksDir)
         val converted = linksInput.map(line => {
-            val tokens = line.split(" ")
+            val tokens = line.split("\t")
             val a = tokens(0).toInt
             val b = tokens(1).toInt
             (a, b) })
         converted.saveAsObjectFile(outputLinksDir)
     }
-
 }

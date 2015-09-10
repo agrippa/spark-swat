@@ -1,49 +1,12 @@
 Connected Components
 ====================
 
-WebGraph dataset:
+Hyperlink Graph dataset:
 http://webdatacommons.org/hyperlinkgraph/
 wget -i http://webdatacommons.org/hyperlinkgraph/2012-08/data/arc.list.txt
 
-:::::::::::Spark:::::::::::
-10000000nodes-30000000links
-Overall time = 143517 ms
-10000000nodes-50000000links
-Overall time = 140855 ms
-10000000nodes-70000000links
-Overall time = 139518 ms
-3000000nodes-30000000links
-Overall time = 135400 ms
-3000000nodes-50000000links
-Overall time = 148880 ms
-3000000nodes-70000000links
-Overall time = 142455 ms
-5000000nodes-30000000links
-Overall time = 143751 ms
-5000000nodes-50000000links
-Overall time = 144094 ms
-5000000nodes-70000000links
-Overall time = 140340 ms
-
-:::::::::::SWAT::::::::::::
-10000000nodes-30000000links
-Overall time = 145812 ms
-10000000nodes-50000000links
-Overall time = 143957 ms
-10000000nodes-70000000links
-Overall time = 143281 ms
-3000000nodes-30000000links
-Overall time = 140406 ms
-3000000nodes-50000000links
-Overall time = 145956 ms
-3000000nodes-70000000links
-Overall time = 145110 ms
-5000000nodes-30000000links
-Overall time = 140151 ms
-5000000nodes-50000000links
-Overall time = 150314 ms
-5000000nodes-70000000links
-Overall time = 144027 ms
+Converting the hyperlink graph dataset takes about 30 minutes (including putting
+raw data into HDFS)
 
 Fuzzy CMeans
 ============
@@ -65,6 +28,6 @@ ImageNet: http://image-net.org/challenges/LSVRC/2014/download-images-5jj5.php
 PageRank
 ========
 
-WebGraph dataset:
+Hyperlink Graph dataset:
 http://webdatacommons.org/hyperlinkgraph/
 wget -i http://webdatacommons.org/hyperlinkgraph/2012-08/data/arc.list.txt
