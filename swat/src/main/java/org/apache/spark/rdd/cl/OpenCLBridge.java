@@ -198,7 +198,7 @@ public class OpenCLBridge {
             }
 
             if (lengthUsed) {
-                setIntArg(ctx, index + argsUsed,
+                setIntArg(ctx, index + argsUsed - 1,
                     OpenCLBridgeWrapper.getArrayLength(fieldInstance));
             }
         } else {

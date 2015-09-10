@@ -100,6 +100,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                 params, f, classModel, descriptor, dev_ctx)
             entryPoint = entrypointAndKernel._1
             openCL = entrypointAndKernel._2
+            // System.err.println(openCL)
 
             acc = Some(RuntimeUtil.getInputBufferFor(firstSample, N, entryPoint))
           }

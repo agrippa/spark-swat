@@ -2,8 +2,17 @@
 
 set -e
 
+TESTNAME=
+
+if [[ $# == 1 ]]; then
+    TESTNAME=$1
+fi
+
 for t in $(cat tests); do
     echo $t
+    if [[ ! -z $TESTNAME && $TESTNAME != $t ]]; then
+        continue
+    fi
 
     cd $t
     mvn clean &> ../clean.log

@@ -179,16 +179,17 @@ void exit_trace(const char *lbl) {
 
 static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
         cl_uint arg_index, size_t arg_size, void *arg_value) {
+#ifdef VERBOSE
+    fprintf(stderr, "setting arg %u to value %d with size %lu\n", arg_index,
+            *((int *)arg_value), arg_size);
+#endif
+
     CHECK(clSetKernelArg(kernel, arg_index, arg_size, arg_value));
 #ifdef BRIDGE_DEBUG
     (*context->debug_arguments)[arg_index] = new kernel_arg(arg_value, arg_size,
             false, false);
 #endif
 
-#ifdef VERBOSE
-    fprintf(stderr, "setting arg %u to value %d with size %lu\n", arg_index,
-            *((int *)arg_value), arg_size);
-#endif
 }
 
 static int checkExtension(char *exts, size_t ext_len, const char *ext) {
