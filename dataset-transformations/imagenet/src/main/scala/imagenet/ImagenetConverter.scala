@@ -23,17 +23,33 @@ object ImagenetConverter {
         val sc = get_spark_context("Imagenet Converter");
 
         val input : RDD[String] = sc.textFile(inputDir)
-        val converted : RDD[DenseVector] = input.map(line => {
-            val tokens : Array[String] = line.split(",")
-            var nAttributes = tokens.length - 1
-            val arr : Array[Double] = new Array[Double](nAttributes)
+        val converted : RDD[DenseVector] = input.map(str => {
+            val tokens : Array[String] = str.split(" ")
+            val arr : Array[Double] = new Array[Double](tokens.length)
             var i : Int = 0
-            while (i < nAttributes) {
-                arr(i) = tokens(i + 1).toDouble
+            while (i < tokens.length) {
+                arr(i) = tokens(i).toDouble
                 i += 1
             }
             Vectors.dense(arr).asInstanceOf[DenseVector]
         })
+
+        // System.err.println("Zipping")
+        // val zipped : RDD[Tuple2[String, Long]] = input.zipWithIndex()
+        // System.err.println("Converting")
+        // val converted : RDD[Tuple2[Int, DenseVector]] = zipped.map(pair => {
+        //     val id : Int = pair._2.toInt
+        //     System.err.println("Working on " + id)
+        //     val str : String = pair._1
+        //     val tokens : Array[String] = str.split(" ")
+        //     val arr : Array[Double] = new Array[Double](tokens.length)
+        //     var i : Int = 0
+        //     while (i < tokens.length) {
+        //         arr(i) = tokens(i).toDouble
+        //         i += 1
+        //     }
+        //     (id, Vectors.dense(arr).asInstanceOf[DenseVector])
+        // })
         converted.saveAsObjectFile(outputDir)
         sc.stop
     }

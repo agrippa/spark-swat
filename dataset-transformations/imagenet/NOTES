@@ -1,1 +1,11 @@
 The original imagenet data is a directory of JPEG files.
+
+The convert_jpeg_to_txt.sh script uses the ConvertJPEGsToText to convert each
+JPEG file containing N pixels to a text file containing a single space-separated
+line where each element on the line is either the R, G, or B component of a
+pixel in the original image. This output is placed in 1.txt.
+
+The convert_txt_to_densevector.sh script uses the ImagenetConverter class to
+convert each of those single-line text files to a Tuple2[Int, DenseVector] where
+the integer is a unique ID for the dense vector parsed from the text file. This
+output is placed in 2.converted.
