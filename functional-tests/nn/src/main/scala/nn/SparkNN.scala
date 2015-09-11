@@ -180,10 +180,10 @@ object SparkNN {
     // Return the weights and biases of each layer?
     def run_nn(args : Array[String], useSwat : Boolean) :
           Tuple2[Array[DenseVector], Array[DenseVector]] = {
-        if (args.length != 7) {
+        if (args.length != 5) {
             System.err.println("usage: SparkNN run info-file " +
                     "training-data-path training-correct-data-path " +
-                    "testing-data-path testing-correct-data-path niters learning-rate")
+                    "niters learning-rate")
             return (new Array[DenseVector](0), new Array[DenseVector](0))
         }
         /*
@@ -207,14 +207,14 @@ object SparkNN {
          */
         val correctDataPath = args(2)
 
-        // Same format as trainingDataPath
-        val testingDataPath = args(3)
-        // Sam format as correctDataPath
-        val testingCorrectDataPath = args(4)
+        // // Same format as trainingDataPath
+        // val testingDataPath = args(3)
+        // // Sam format as correctDataPath
+        // val testingCorrectDataPath = args(4)
 
         // Number of iters to train the neural net over
-        val iters = args(5).toInt
-        val learning_rate = args(6).toDouble
+        val iters = args(3).toInt
+        val learning_rate = args(4).toDouble
 
         val sc = get_spark_context("Spark NN");
 
@@ -276,8 +276,8 @@ object SparkNN {
         val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
         val n_training_datapoints = raw_inputs.count
 
-        val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
-        val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
+        // val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
+        // val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
 
         val startTime = System.currentTimeMillis
 

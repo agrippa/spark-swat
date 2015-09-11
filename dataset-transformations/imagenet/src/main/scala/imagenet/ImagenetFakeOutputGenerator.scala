@@ -11,30 +11,33 @@ import scala.io.Source
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.DenseVector
 
-object ImagenetConverter {
+object ImagenetFakeOutputGenerator {
     def main(args : Array[String]) {
-        if (args.length != 2) {
-            println("usage: ImagenetConverter input-dir output-dir")
+        if (args.length != 3) {
+            println("usage: ImagenetFakeOutputGenerator <training-data> " +
+                    "<output-dir> <output-dim>")
             return;
         }
 
-        val inputDir = args(0)
+        val trainingDir = args(0)
         val outputDir = args(1)
-        val sc = get_spark_context("Imagenet Converter");
+        val outputDim : Int = args(2).toInt
 
-        val input : RDD[String] = sc.textFile(inputDir)
-        val converted : RDD[DenseVector] = input.map(str => {
-            val tokens : Array[String] = str.split(" ")
-            val arr : Array[Double] = new Array[Double](tokens.length)
-            var i : Int = 0
-            while (i < tokens.length) {
-                arr(i) = tokens(i).toDouble
+        val sc = get_spark_context("Imagenet Output Generator");
+
+        val input : RDD[Tuple2[Int, DenseVector]] = sc.objectFile(trainingDir)
+        val correct : RDD[Tuple2[Int, DenseVector]] = input.map(pair => {
+            val rand = new java.util.Random(System.currentTimeMillis)
+            val arr : Array[Double] = new Array[Double](outputDim)
+            var i = 0
+            while (i < outputDim) {
+                arr(i) = rand.nextDouble
                 i += 1
             }
-            Vectors.dense(arr).asInstanceOf[DenseVector]
+            (pair._1, Vectors.dense(arr).asInstanceOf[DenseVector])
         })
 
-        converted.saveAsObjectFile(outputDir)
+        correct.saveAsObjectFile(outputDir)
         sc.stop
     }
 
@@ -43,7 +46,6 @@ object ImagenetConverter {
         conf.setAppName(appName)
 
         val localhost = InetAddress.getLocalHost
-        // val localIpAddress = localhost.getHostAddress
         conf.setMaster("spark://" + localhost.getHostName + ":7077") // 7077 is the default port
 
         return new SparkContext(conf)
