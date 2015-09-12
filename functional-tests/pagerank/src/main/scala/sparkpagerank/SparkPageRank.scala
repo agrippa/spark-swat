@@ -7,16 +7,10 @@ import scala.math._
 import org.apache.spark.rdd._
 import java.net._
 
-class Document(val id: Int, val rank: Float, val linkCount: Int)
+class Document(val id: Int, val rank: Double, val linkCount: Int)
     extends java.io.Serializable {
   def this() {
-    this(0, 0.0f, 0)
-  }
-}
-
-class Link(val src: Int, val dst: Int) extends java.io.Serializable {
-  def this() {
-    this(0, 0)
+    this(0, 0.0, 0)
   }
 }
 
@@ -59,12 +53,16 @@ object SparkPageRank {
         val inputDocsPath = args(2)
         val useSwat = args(3).toBoolean
 
-        val raw_links : RDD[Link] = sc.objectFile(inputLinksPath)
-        val links = if (useSwat) CLWrapper.cl[Link](raw_links) else raw_links
+        /*
+         * The convention used here is that link._1 is the destination node of a
+         * link, link._2 is the source node of a link
+         */
+        val raw_links : RDD[Tuple2[Int, Int]] = sc.objectFile(inputLinksPath)
+        val links = if (useSwat) CLWrapper.cl[Tuple2[Int, Int]](raw_links) else raw_links
 
-        val raw_docs : RDD[(Float, Int)] = sc.objectFile(inputDocsPath)
-        val collected_docs : Array[(Float, Int)] = raw_docs.collect
-        val doc_ranks : Array[Float] = new Array[Float](collected_docs.length)
+        val raw_docs : RDD[(Double, Int)] = sc.objectFile(inputDocsPath)
+        val collected_docs : Array[(Double, Int)] = raw_docs.collect
+        val doc_ranks : Array[Double] = new Array[Double](collected_docs.length)
         val doc_link_counts : Array[Int] = new Array[Int](collected_docs.length)
         for (i <- collected_docs.indices) {
             doc_ranks(i) = collected_docs(i)._1
@@ -76,16 +74,22 @@ object SparkPageRank {
         val startTime = System.currentTimeMillis
         var iter = 0
         while (iter < iters) {
+            val iterStart = System.currentTimeMillis
+
             val broadcastDocRanks = sc.broadcast(doc_ranks)
 
-            val linkWeights : RDD[(Int, Float)] = links.map(link => {
-                    (link.dst, broadcastDocRanks.value(link.src) /
-                        broadcastDocLinkCounts.value(link.src))
+            val linkWeights : RDD[(Int, Double)] = links.map(link => {
+                    (link._1, broadcastDocRanks.value(link._2) /
+                        broadcastDocLinkCounts.value(link._2))
                 })
-            val newRanksRDD : RDD[(Int, Float)] = linkWeights.reduceByKey(
+            val newRanksRDD : RDD[(Int, Double)] = linkWeights.reduceByKey(
                 (weight1, weight2) => { weight1 + weight2 })
-            val newRanks : Array[(Int, Float)] = newRanksRDD.collect
-            assert(newRanks.length == doc_ranks.length)
+            val newRanks : Array[(Int, Double)] = newRanksRDD.collect
+            /*
+             * newRanks.length may not equal doc_ranks.length if a given
+             * document has no documents targeting it. In that case, its rank is
+             * static and it will not be included in the updated ranks.
+             */
 
             for (update <- newRanks) {
                 doc_ranks(update._1) = update._2
@@ -93,6 +97,11 @@ object SparkPageRank {
 
             iter += 1
             broadcastDocRanks.unpersist
+
+            val iterEnd = System.currentTimeMillis
+            System.err.println("iter " + iter + ", iter time=" +
+                    (iterEnd - iterStart) + ", program time so far=" +
+                    (iterEnd - startTime))
         }
         val endTime = System.currentTimeMillis
         System.err.println("Overall time = " + (endTime - startTime))
@@ -114,13 +123,13 @@ object SparkPageRank {
             val tokens = line.split(" ")
             val src = tokens(0).toInt
             val dst = tokens(1).toInt
-            new Link(src, dst) })
+            (src, dst) })
         converted.saveAsObjectFile(outputLinksDir)
 
         val docsInput = sc.textFile(args(2))
         val convertedDocs = docsInput.map(line => {
             val tokens = line.split(" ")
-            val rank = tokens(0).toFloat
+            val rank = tokens(0).toDouble
             val nlinks = tokens(1).toInt
             (rank, nlinks) })
         convertedDocs.saveAsObjectFile(args(3))

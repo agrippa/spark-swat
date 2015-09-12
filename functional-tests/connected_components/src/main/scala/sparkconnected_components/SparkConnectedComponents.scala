@@ -56,9 +56,9 @@ object SparkConnectedComponents {
 
     def run_connected_components_cl(args : Array[String], sc : SparkContext,
             useSwat : Boolean) : Array[Int] = {
-        if (args.length != 1) {
+        if (args.length < 1) {
             println("usage: SparkConnectedComponents run-cl use-swat " +
-                    "input-link-path");
+                    "input-link-path [n-nodes] [limit-iters]");
             System.exit(1)
         }
 
@@ -68,7 +68,18 @@ object SparkConnectedComponents {
         val edges = if (useSwat) CLWrapper.cl[(Int, Int)](raw_edges) else raw_edges
         edges.cache
 
-        val nNodes : Long = edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
+        var nNodes : Long = -1
+        if (args.length > 1) {
+            nNodes = args(1).toLong
+        } else {
+            val countStart = System.currentTimeMillis
+            nNodes = edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
+            val countElapsed = System.currentTimeMillis - countStart
+            System.err.println("nNodes=" + nNodes + ", " + countElapsed +
+                    " ms to count")
+        }
+
+        val limitIters : Int = if (args.length > 2) args(2).toInt else -1
 
         val membership : Array[Int] = new Array[Int](nNodes.toInt)
         for (i <- membership.indices) {
@@ -111,15 +122,16 @@ object SparkConnectedComponents {
 
           iters += 1
 
-          done = (collected_new_classifications.length == 1)
-          // done = (iters == 1)
+          done = ((limitIters != -1 && iters >= limitIters) ||
+                  collected_new_classifications.length == 1)
 
           // broadcastMembership.unpersist(true)
           val iterEndTime = System.currentTimeMillis
 
           System.err.println("iter=" + iters + ", " +
-                  (iterEndTime - iterStartTime) + " ms, collected.length=" +
-                  collected_new_classifications.length)
+                  (iterEndTime - iterStartTime) + " ms for this iter, collected.length=" +
+                  collected_new_classifications.length + ", " +
+                  (System.currentTimeMillis - startTime) + " ms elapsed overall")
         } while (!done);
 
         var endTime = System.currentTimeMillis

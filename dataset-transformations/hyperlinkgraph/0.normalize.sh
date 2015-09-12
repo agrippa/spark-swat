@@ -2,11 +2,11 @@
 
 set -e
 
-# ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input-links
-# ${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /normalized-links
-# 
-# ${HADOOP_HOME}/bin/hdfs dfs -mkdir /input-links
-# ${HADOOP_HOME}/bin/hdfs dfs -put $SPARK_DATASETS/hyperlinkgraph/0.original/part* /input-links/
+${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /input-links
+${HADOOP_HOME}/bin/hdfs dfs -rm -f -r /normalized-links
+
+${HADOOP_HOME}/bin/hdfs dfs -mkdir /input-links
+${HADOOP_HOME}/bin/hdfs dfs -put $SPARK_DATASETS/hyperlinkgraph/0.original/part* /input-links/
 
 spark-submit --class HyperlinkGraphNormalizer \
         --jars ${SWAT_HOME}/swat/target/swat-1.0-SNAPSHOT.jar,${APARAPI_HOME}/com.amd.aparapi/dist/aparapi.jar,${ASM_HOME}/lib/asm-5.0.3.jar,${ASM_HOME}/lib/asm-util-5.0.3.jar \
