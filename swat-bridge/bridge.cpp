@@ -251,51 +251,6 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
     return result;
 }
 
-/*
- * Expected format:
- *
- *     export SWAT_DEVICE_CONFIG="0,0,1,2"
- *
- * The scheduler should assign devices to threads round-robin across
- * SWAT_DEVICE_CONFIG. For the above example, you would have the following
- * mapping from thread to device for 8 host threads:
- *
- *   0 -> 0
- *   1 -> 0
- *   2 -> 1
- *   3 -> 2
- *   4 -> 0
- *   5 -> 0
- *   6 -> 1
- *   7 -> 2
- *
- */
-static void parseDeviceConfig(int *gpu_weight_out, int *cpu_weight_out) {
-    char *gpu_weight_str = getenv("SWAT_GPU_WEIGHT");
-    if (gpu_weight_str == NULL) {
-        fprintf(stderr, "Error: SWAT_GPU_WEIGHT must be set in spark-env.sh\n");
-        exit(1);
-    }
-    char *cpu_weight_str = getenv("SWAT_CPU_WEIGHT");
-    if (cpu_weight_str == NULL) {
-        fprintf(stderr, "Error: SWAT_CPU_WEIGHT must be set in spark-env.sh\n");
-        exit(1);
-    }
-
-    int gpu_weight = atoi(gpu_weight_str);
-    int cpu_weight = atoi(cpu_weight_str);
-
-    if (cpu_weight > 0) {
-        fprintf(stderr, "ERROR: There seems to be a bug in the Intel OpenCL "
-                "compiler that causes a SEGFAULT from clBuildProgram, so don't "
-                "set CPU weight.\n");
-        exit(1);
-    }
-
-    *gpu_weight_out = gpu_weight;
-    *cpu_weight_out = cpu_weight;
-}
-
 static void populateDeviceContexts() {
     // Try to avoid having to do any locking
     if (device_ctxs != NULL) {
@@ -315,9 +270,6 @@ static void populateDeviceContexts() {
     ASSERT(perr == 0);
 
     if (device_ctxs == NULL) {
-        int cpu_weight, gpu_weight;
-        parseDeviceConfig(&gpu_weight, &cpu_weight);
-
         cl_uint total_num_devices = get_total_num_devices();
         device_context *tmp_device_ctxs = (device_context *)malloc(
                 total_num_devices * sizeof(device_context));
@@ -391,10 +343,10 @@ static void populateDeviceContexts() {
 
                 switch (get_device_type(curr_dev)) {
                     case (CL_DEVICE_TYPE_CPU):
-                        n_virtual_devices += cpu_weight;
+                        n_virtual_devices += 0;
                         break;
                     case (CL_DEVICE_TYPE_GPU):
-                        n_virtual_devices += gpu_weight;
+                        n_virtual_devices += 1;
                         break;
                     default:
                         fprintf(stderr, "Unsupported device type %d\n",
@@ -418,10 +370,10 @@ static void populateDeviceContexts() {
             int weight;
             switch (get_device_type(curr_dev)) {
                 case (CL_DEVICE_TYPE_CPU):
-                    weight = cpu_weight;
+                    weight = 0;
                     break;
                 case (CL_DEVICE_TYPE_GPU):
-                    weight = gpu_weight;
+                    weight = 1;
                     break;
                 default:
                     fprintf(stderr, "Unsupported device type %d\n",

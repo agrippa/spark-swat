@@ -63,6 +63,7 @@ object SparkSimple {
         val inputPath = args(0)
         val inputs_raw : RDD[Tuple2[Int, DenseVector]] = sc.objectFile[Tuple2[Int, DenseVector]](inputPath).cache
         val inputs = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](inputs_raw) else inputs_raw
+        inputs.cache
 
         val arr : Array[DenseVector] = new Array[DenseVector](5)
         for (i <- arr.indices) {
@@ -84,6 +85,7 @@ object SparkSimple {
             broadcasted.value(v._1 % 5)(v._1 % 5) + v._2(0) + v._2(1) +
                 v._2(2) + v._2(3) + v._2(4)
           })
+          outputs.count
           iter += 1
         }
         val outputs2 : Array[Double] = outputs.collect

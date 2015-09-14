@@ -4,7 +4,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class ByteBufferCache(val capacity : Int) {
-  val buffers : Array[Option[ByteBuffer]] = new Array[Option[ByteBuffer]](capacity)
+  val buffers : Array[Option[ByteBuffer]] =
+      new Array[Option[ByteBuffer]](capacity)
 
   for (i <- 0 until capacity) {
     buffers(i) = Some(ByteBuffer.allocate(1024 * 1024))

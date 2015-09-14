@@ -40,9 +40,13 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
 
   val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
+  val startInit = System.currentTimeMillis
   valuesBB.order(ByteOrder.LITTLE_ENDIAN)
   val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
   var currentTileOffset : Int = 0
+
+  System.err.println("Dense Vector Input Buffer " + (vectorElementCapacity * 8) + " initialization took " +
+          (System.currentTimeMillis - startInit) + " ms")
 
   val sizes : Array[Int] = new Array[Int](vectorCapacity)
   val offsets : Array[Int] = new Array[Int](vectorCapacity)
