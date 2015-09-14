@@ -43,12 +43,22 @@
 
 #endif
 
-#define ASSERT(conditional) { \
+#define ASSERT_MSG(conditional, msg) { \
     if (!(conditional)) { \
-        fprintf(stderr, "Assertion failure at %s:%d\n", __FILE__, __LINE__); \
+        fprintf(stderr, "Assertion failure at %s:%d - %s\n", __FILE__, \
+                __LINE__, msg); \
         exit(1); \
     } \
 }
+
+#define ASSERT(conditional) { \
+    if (!(conditional)) { \
+        fprintf(stderr, "Assertion failure at %s:%d\n", __FILE__, \
+                __LINE__); \
+        exit(1); \
+    } \
+}
+
 
 // #define MIN_ALLOC_SIZE  (1 << 10)
 #define MIN_ALLOC_SIZE  1

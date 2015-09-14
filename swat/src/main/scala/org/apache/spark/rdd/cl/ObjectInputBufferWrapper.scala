@@ -30,25 +30,16 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   var iter : Int = 0
   var objCount : Int = 0
 
-  override def hasSpace() : Boolean = {
-    bb.position < bb.capacity
-  }
-
   override def flush() { }
 
-  // override def append(obj : Any) {
-  //   append(obj.asInstanceOf[T])
-  // }
-
   override def append(obj : Any) {
-    assert(hasSpace())
     OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object], classModel, bb)
     objCount += 1
   }
 
   override def aggregateFrom(iter : Iterator[T]) : Int = {
     val startPosition = bb.position
-    while (hasSpace && iter.hasNext) {
+    while (bb.position < bb.capacity && iter.hasNext) {
       OpenCLBridgeWrapper.writeObjectToStream(
               iter.next.asInstanceOf[java.lang.Object], classModel, bb)
       objCount += 1
@@ -57,10 +48,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
-      component : Int) : Int = {
+      cacheID : CLCacheID) : Int = {
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-        bb.position, broadcastId, rddid, partitionid, offset, component)
+        bb.position, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+        cacheID.offset, cacheID.component)
     bb.clear
     return 1
   }
@@ -76,5 +67,9 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
             structMemberTypes.get, structMemberOffsets.get)
     iter += 1
     new_obj
+  }
+
+  override def haveUnprocessedInputs : Boolean = {
+    false
   }
 }

@@ -13,7 +13,5 @@ while :; do
     echo
     ssh $1 nvidia-smi
     echo
-#     PID=$(ssh $1 "ps aux | grep java | grep Worker | grep -v grep | awk '{ print \$2 }' ")
-#     ssh $1 "ps -p $PID -o %cpu,%mem | tail -n 1"
     sleep $2
 done

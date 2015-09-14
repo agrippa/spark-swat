@@ -100,20 +100,18 @@ object OpenCLBridgeWrapper {
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : T, typeName : String, isInput : Boolean,
-      entryPoint : Entrypoint, broadcastId : Int, rddid : Int,
-      partitionid : Int, offset : Int, bbCache : ByteBufferCache) : Int = {
+      entryPoint : Entrypoint, cacheID : CLCacheID, bbCache : ByteBufferCache) :
+      Int = {
     arg match {
       case arr : Array[_] => {
         setObjectTypedArrayArgHelper(ctx, dev_ctx, argnum,
                 arg.asInstanceOf[Array[_]], arg.asInstanceOf[Array[_]].length,
-                typeName, isInput, entryPoint, broadcastId, rddid, partitionid,
-                offset, bbCache)
+                typeName, isInput, entryPoint, cacheID, bbCache)
       }
       case ref : scala.runtime.ObjectRef[_] => {
         setObjectTypedArrayArg(ctx, dev_ctx, argnum,
                 arg.asInstanceOf[scala.runtime.ObjectRef[_]].elem,
-                typeName, isInput, entryPoint, broadcastId, rddid, partitionid,
-                offset, bbCache)
+                typeName, isInput, entryPoint, cacheID, bbCache)
       }
       case _ => {
         throw new RuntimeException("Unexpected type " + arg.getClass.getName)
@@ -156,7 +154,7 @@ object OpenCLBridgeWrapper {
 
   def handleSparseVectorArrayArg(argnum : Int, arg : Array[SparseVector],
           argLength : Int, entryPoint : Entrypoint, typeName : String,
-          ctx : Long, dev_ctx : Long) : Int = {
+          ctx : Long, dev_ctx : Long, cacheID : CLCacheID) : Int = {
     /*
      * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
      * __global double *broadcasted$1_values
@@ -164,22 +162,29 @@ object OpenCLBridgeWrapper {
      * __global int *broadcasted$1_offsets
      * int nbroadcasted$1
      */
-    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-        typeName, new NameMatcher(typeName))
-    val structSize = c.getTotalStructSize
-    val requiredElementCapacity = getMaxSparseElementIndexFor((i) => arg(i).size, argLength) + 1
-    val buffer : SparseVectorInputBufferWrapper =
-          new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength,
-                  entryPoint)
-    for (i <- 0 until argLength) {
-      buffer.append(arg(i))
+    val cacheSuccess = RuntimeUtil.tryCacheSparseVector(ctx, dev_ctx, argnum,
+            cacheID, argLength, entryPoint)
+
+    if (cacheSuccess != -1) {
+      return cacheSuccess
+    } else {
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          typeName, new NameMatcher(typeName))
+      val structSize = c.getTotalStructSize
+      val requiredElementCapacity = getMaxSparseElementIndexFor((i) => arg(i).size, argLength) + 1
+      val buffer : SparseVectorInputBufferWrapper =
+            new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength,
+                    entryPoint)
+      for (i <- 0 until argLength) {
+        buffer.append(arg(i))
+      }
+      return buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
     }
-    return buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1, -1, 0)
   }
 
   def handleDenseVectorArrayArg(argnum : Int, arg : Array[DenseVector],
           argLength : Int, entryPoint : Entrypoint, typeName : String,
-          ctx : Long, dev_ctx : Long) : Int = {
+          ctx : Long, dev_ctx : Long, cacheID : CLCacheID) : Int = {
     /*
      * __global org_apache_spark_mllib_linalg_DenseVector* broadcasted$1
      * __global double *broadcasted$1_values
@@ -187,16 +192,20 @@ object OpenCLBridgeWrapper {
      * __global int *broadcasted$1_offsets
      * int nbroadcasted$1
      */
-    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-        typeName, new NameMatcher(typeName))
-    val structSize = c.getTotalStructSize
-    val requiredElementCapacity = getMaxDenseElementIndexFor((i) => arg(i).size, argLength) + 1
-    val buffer : DenseVectorInputBufferWrapper =
-          new DenseVectorInputBufferWrapper(requiredElementCapacity, argLength, entryPoint)
-    for (i <- 0 until argLength) {
-      buffer.append(arg(i).asInstanceOf[DenseVector])
+    val cacheSuccess = RuntimeUtil.tryCacheDenseVector(ctx, dev_ctx, argnum,
+            cacheID, argLength, entryPoint)
+
+    if (cacheSuccess != -1) {
+      return cacheSuccess
+    } else {
+      val requiredElementCapacity = getMaxDenseElementIndexFor((i) => arg(i).size, argLength) + 1
+      val buffer : DenseVectorInputBufferWrapper =
+            new DenseVectorInputBufferWrapper(requiredElementCapacity, argLength, entryPoint)
+      for (i <- 0 until argLength) {
+        buffer.append(arg(i).asInstanceOf[DenseVector])
+      }
+      return buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
     }
-    return buffer.copyToDevice(argnum, ctx, dev_ctx, -1, -1, -1, -1, 0)
   }
 
   def getInputBufferFor[T](argLength : Int, entryPoint : Entrypoint,
@@ -241,48 +250,60 @@ object OpenCLBridgeWrapper {
 
   def setObjectTypedArrayArgHelper[T](ctx : scala.Long, dev_ctx : scala.Long,
       startArgnum : Int, arg : Array[T], argLength : Int, typeName : String,
-      isInput : Boolean, entryPoint : Entrypoint, broadcastId : Int, rdd : Int,
-      partition : Int, offset : Int, bbCache : ByteBufferCache) : Int = {
+      isInput : Boolean, entryPoint : Entrypoint, cacheID : CLCacheID,
+      bbCache : ByteBufferCache) : Int = {
 
     arg match {
       case denseVectorArray : Array[DenseVector] => {
         return handleDenseVectorArrayArg(startArgnum, denseVectorArray,
-                argLength, entryPoint, typeName, ctx, dev_ctx)
+                argLength, entryPoint, typeName, ctx, dev_ctx, cacheID)
       }
       case sparseVectorArray : Array[SparseVector] => {
         return handleSparseVectorArrayArg(startArgnum, sparseVectorArray, argLength,
-                entryPoint, typeName, ctx, dev_ctx)
+                entryPoint, typeName, ctx, dev_ctx, cacheID)
       }
       case _ => {
         if (arg(0).isInstanceOf[Tuple2[_, _]]) {
           val arrOfTuples : Array[Tuple2[_, _]] = arg.asInstanceOf[Array[Tuple2[_, _]]]
           val sample = arrOfTuples(0)
-          val inputBuffer = new Tuple2InputBufferWrapper(argLength, sample,
-                  entryPoint,
-                  Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
-                  Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput)
 
-          for (eleIndex <- 0 until argLength) {
-            inputBuffer.append(arrOfTuples(eleIndex))
+          val cacheSuccess : Int = RuntimeUtil.tryCacheTuple(ctx, dev_ctx,
+              startArgnum, cacheID, argLength, sample, entryPoint)
+          if (cacheSuccess != -1) {
+            return cacheSuccess
+          } else {
+            val inputBuffer = new Tuple2InputBufferWrapper(
+                    argLength, sample, entryPoint,
+                    Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
+                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput)
+
+            for (eleIndex <- 0 until argLength) {
+              inputBuffer.append(arrOfTuples(eleIndex))
+            }
+
+            return inputBuffer.copyToDevice(startArgnum, ctx, dev_ctx, cacheID)
           }
-
-          return inputBuffer.copyToDevice(startArgnum, ctx, dev_ctx,
-                  broadcastId, rdd, partition, offset, 0)
         } else {
-          val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-              typeName, new NameMatcher(typeName))
-          val structSize = c.getTotalStructSize
+          val cacheSuccess : Int = RuntimeUtil.tryCacheObject(ctx, dev_ctx, startArgnum, cacheID)
+          if (cacheSuccess != -1) {
+            return cacheSuccess
+          } else {
+            val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+                typeName, new NameMatcher(typeName))
+            val structSize = c.getTotalStructSize
 
-          val bb : ByteBuffer = bbCache.getBuffer(structSize * argLength)
+            val bb : ByteBuffer = bbCache.getBuffer(structSize * argLength)
 
-          for (eleIndex <- 0 until argLength) {
-            writeObjectToStream[T](arg(eleIndex), c, bb)
+            for (eleIndex <- 0 until argLength) {
+              writeObjectToStream[T](arg(eleIndex), c, bb)
+            }
+
+            OpenCLBridge.setByteArrayArg(ctx, dev_ctx, startArgnum, bb.array,
+                structSize * argLength, cacheID.broadcast, cacheID.rdd,
+                cacheID.partition, cacheID.offset, cacheID.component)
+            bbCache.releaseBuffer(bb)
+            return 1
           }
-
-          OpenCLBridge.setByteArrayArg(ctx, dev_ctx, startArgnum, bb.array,
-              structSize * argLength, broadcastId, rdd, partition, offset, 0)
-          bbCache.releaseBuffer(bb)
-          return 1
         }
       }
     }
@@ -489,9 +510,9 @@ object OpenCLBridgeWrapper {
     val className : String = sampleOutput.getClass.getName
 
     if (className.equals("org.apache.spark.mllib.linalg.DenseVector")) {
-        new DenseVectorOutputBufferWrapper(outArgNum).asInstanceOf[OutputBufferWrapper[T]]
+        new DenseVectorOutputBufferWrapper(nLoaded, outArgNum).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("org.apache.spark.mllib.linalg.SparseVector")) {
-        new SparseVectorOutputBufferWrapper(outArgNum).asInstanceOf[OutputBufferWrapper[T]]
+        new SparseVectorOutputBufferWrapper(nLoaded, outArgNum).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Double")) {
         new PrimitiveOutputBufferWrapper[Double](outArgNum, nLoaded).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Integer")) {

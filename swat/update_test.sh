@@ -7,8 +7,7 @@ fi
 
 HOSTNAME=$(hostname -d 2> /dev/null)
 ERR=$?
-if [[ $ERR == 0 || -z $HOSTNAME ]]; then
+if [[ $ERR != 0 || -z $HOSTNAME ]]; then
     HOSTNAME=$(hostname)
 fi
-
 cp generated src/test/scala/org/apache/spark/rdd/cl/tests/$HOSTNAME/$1.kernel

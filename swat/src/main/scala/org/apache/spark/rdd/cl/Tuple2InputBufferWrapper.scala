@@ -13,7 +13,10 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import java.nio.ByteBuffer
 
-class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
+
+
+class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
+        val nele : Int,
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
@@ -93,10 +96,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
     }
   }
 
-  override def hasSpace() : Boolean = {
-    buffered < nele
-  }
-
   override def flush() {
   }
 
@@ -117,7 +116,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
   override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) : Int = {
     val startBuffered = buffered;
     if (firstMemberSize > 0 && secondMemberSize > 0) {
-      while (hasSpace && iter.hasNext) {
+      while (buffered < nele && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffer2.append(obj._2)
@@ -125,14 +124,14 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
       }
 
     } else if (firstMemberSize > 0) {
-      while (hasSpace && iter.hasNext) {
+      while (buffered < nele && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffered += 1
       }
 
     } else if (secondMemberSize > 0) {
-      while (hasSpace && iter.hasNext) {
+      while (buffered < nele && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer2.append(obj._2)
         buffered += 1
@@ -143,13 +142,12 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
   }
 
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
-          broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
-          startingComponent : Int) : Int = {
+          cacheId : CLCacheID) : Int = {
     var used = 0
 
     if (firstMemberSize > 0) {
-        used = used + buffer1.copyToDevice(startArgnum, ctx, dev_ctx,
-                broadcastId, rddid, partitionid, offset, startingComponent)
+        used = used + buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId)
+        cacheId.incrComponent(used)
     } else {
         OpenCLBridge.setNullArrayArg(ctx, startArgnum)
         used = used + 1
@@ -157,7 +155,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
 
     if (secondMemberSize > 0) {
         used = used + buffer2.copyToDevice(startArgnum + used, ctx, dev_ctx,
-                broadcastId, rddid, partitionid, offset, startingComponent + used)
+                cacheId)
     } else {
         OpenCLBridge.setNullArrayArg(ctx, startArgnum + used)
         used = used + 1
@@ -182,5 +180,9 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
     val t : Tuple2[K, V] = (buffer1.next, buffer2.next)
     iter += 1
     t
+  }
+
+  override def haveUnprocessedInputs : Boolean = {
+    buffer1.haveUnprocessedInputs || buffer2.haveUnprocessedInputs
   }
 }

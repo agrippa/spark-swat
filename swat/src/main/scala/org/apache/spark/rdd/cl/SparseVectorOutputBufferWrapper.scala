@@ -38,8 +38,6 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
   heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-  var iter : Int = 0
-
   def readFromDevice() : Boolean = {
     OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
             anyFailed, entryPoint, bbCache)
@@ -49,33 +47,14 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
             heapSize)
 
-    if (processingSucceeded(iter) == 0) {
-      // If we aren't already on a non-empty, move
-      moveToNextNonEmptySlot
-    }
-    assert(hasNext) // assume that each buffer has at least one item
-
     anyFailed(0) == 0 // return true when the kernel completed successfully
   }
 
-  def moveToNextNonEmptySlot() : Boolean = {
-    iter += 1
-    while (iter < nLoaded && processingSucceeded(iter) == 0) {
-      iter += 1
-    }
-    hasNext
+  def hasSlot(slot : Int) : Boolean = {
+    processingSucceeded(slot) != 0
   }
 
-  def getCurrSlot() : Int = {
-    iter
-  }
-
-  def hasNext() : Boolean = {
-    iter != nLoaded
-  }
-
-  def next() : SparseVector = {
-    val slot = iter
+  def get(slot : Int) : SparseVector = {
     val slotOffset = slot * sparseVectorStructSize
     outArgBuffer.position(slotOffset)
     var indicesHeapOffset : Int = -1
@@ -113,11 +92,10 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   }
 }
 
-class SparseVectorOutputBufferWrapper(val outArgNum : Int)
+class SparseVectorOutputBufferWrapper(val nLoaded : Int, val outArgNum : Int)
     extends OutputBufferWrapper[SparseVector] {
   val buffers : java.util.List[SparseVectorDeviceBuffersWrapper] =
       new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
-  var completed = 0
   var currSlot = 0
 
   override def next() : SparseVector = {
@@ -125,20 +103,17 @@ class SparseVectorOutputBufferWrapper(val outArgNum : Int)
     var target : Option[SparseVectorDeviceBuffersWrapper] = None
     while (target.isEmpty && iter.hasNext) {
       val buffer = iter.next
-      if (buffer.getCurrSlot == currSlot) {
+      if (buffer.hasSlot(currSlot)) {
         target = Some(buffer)
       }
     }
-    val vec = target.get.next
-    if (!target.get.moveToNextNonEmptySlot) {
-      completed += 1
-    }
+    val vec = target.get.get(currSlot)
     currSlot += 1
     vec
   }
 
   override def hasNext() : Boolean = {
-    completed != buffers.size
+    currSlot < nLoaded
   }
 
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,

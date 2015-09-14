@@ -25,7 +25,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
         entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
 
   def this(vectorCapacity : Int, entryPoint : Entrypoint) =
-      this(vectorCapacity * 30, vectorCapacity, entryPoint)
+      this(vectorCapacity * 70, vectorCapacity, entryPoint)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -47,34 +47,33 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   val sizes : Array[Int] = new Array[Int](vectorCapacity)
   val offsets : Array[Int] = new Array[Int](vectorCapacity)
 
+  var overrun : Option[DenseVector] = None
+
   def calcTileEleStartingOffset(ele : Int) : Int = {
     currentTileOffset + ele
   }
 
   // inclusive
+  def calcTileEleEndingOffsetHelper(ele : Int, eleSize : Int) : Int = {
+    calcTileEleStartingOffset(ele) + (tiling * (eleSize - 1))
+  }
   def calcTileEleEndingOffset(ele : Int) : Int = {
-    calcTileEleStartingOffset(ele) + (tiling * (to_tile(ele).size - 1))
+    calcTileEleEndingOffsetHelper(ele, to_tile(ele).size)
   }
 
-  def outOfValueSpace() : Boolean = {
-    for (i <- to_tile.indices) {
-      if (calcTileEleEndingOffset(i) >= vectorElementCapacity) {
-        return true
-      }
+  /*
+   * Given the next vector we want to add to the input buffer, will we run out
+   * of space?
+   */
+  def willRunOutOfSpace(next : DenseVector) : Boolean = {
+    assert(tiled < tiling)
+    if (buffered + tiled == vectorCapacity) {
+      return true
+    } else if (calcTileEleEndingOffsetHelper(tiled, next.size) >= vectorElementCapacity) {
+      return true
+    } else {
+      return false
     }
-    return false
-  }
-
-  override def hasSpace() : Boolean = {
-    /*
-     * The next call to append will force the serialization of the current
-     * tile because the current tile is now full. We want to be sure that
-     * doesn't overflow the values BB.
-     */
-    if (tiled == tiling && outOfValueSpace) {
-      false
-    }
-    buffered + tiled < vectorCapacity
   }
 
   override def flush() {
@@ -111,22 +110,28 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
         flush
     }
 
-    to_tile(tiled) = obj
-    tiled += 1
+    if (willRunOutOfSpace(obj)) {
+      // Assert not just one vector consuming all buffer space
+      assert(buffered + tiled > 0)
+      overrun = Some(obj)
+    } else {
+      to_tile(tiled) = obj
+      tiled += 1
+    }
   }
 
   override def aggregateFrom(iter : Iterator[DenseVector]) : Int = {
+    assert(overrun.isEmpty)
     val startBuffered = buffered + tiled
-    while (hasSpace && iter.hasNext) {
-      val obj : DenseVector = iter.next
-      append(obj)
+    while (iter.hasNext && overrun.isEmpty) {
+      val next : DenseVector = iter.next
+      append(next)
     }
     buffered + tiled - startBuffered
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-          broadcastId : Int, rddid : Int, partitionid : Int, offset : Int,
-          component : Int) : Int = {
+      cacheID : CLCacheID) : Int = {
     if (tiled > 0) {
       flush
     }
@@ -136,18 +141,27 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
             denseVectorStructSize * vectorCapacity)
     // values array, size of double = 8
     OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
-            valuesBB.array, currentTileOffset, 8, broadcastId, rddid,
-            partitionid, offset, component)
+            valuesBB.array, currentTileOffset, 8, cacheID.broadcast,
+            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     // Sizes of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered, broadcastId,
-            rddid, partitionid, offset, component + 1)
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered,
+            cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
+            cacheID.component + 1)
     // Offsets of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, offsets, buffered, broadcastId,
-            rddid, partitionid, offset, component + 2)
+    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, offsets, buffered,
+            cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
+            cacheID.component + 2)
     // Number of vectors
     OpenCLBridge.setIntArg(ctx, argnum + 4, buffered)
 
     buffered = 0
+    currentTileOffset = 0
+
+    if (!overrun.isEmpty) {
+      append(overrun.get)
+      overrun = None
+    }
+
     return 5
   }
 
@@ -156,7 +170,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def next() : DenseVector = {
-    if (tiled > 0) {
+    if (tiled > 0) { // Flush once, on first call to next
       flush
     }
     val vectorSize : Int = sizes(iter)
@@ -169,5 +183,11 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     }
     iter += 1
     Vectors.dense(vectorArr).asInstanceOf[DenseVector]
+  }
+
+  override def haveUnprocessedInputs : Boolean = {
+    // True if overrun was non-empty after copying to device
+    assert(overrun.isEmpty)
+    buffered + tiled > 0
   }
 }

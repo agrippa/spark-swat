@@ -74,6 +74,12 @@ public class OpenCLBridge {
     public static native void resetHeap(long ctx, long dev_ctx,
             int starting_argnum);
 
+    public static native boolean tryCache(long ctx, long dev_ctx, int index,
+            long broadcastId, int rddid, int partitionid, int offsetid,
+            int componentid, int ncomponents);
+    public static native void manuallyRelease(long ctx, long dev_ctx,
+            int startingIndexInclusive, int endingIndexExclusive);
+
     public static int createHeap(long ctx, long dev_ctx, int index,
             int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
       final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,
@@ -174,26 +180,25 @@ public class OpenCLBridge {
                     fieldInstance);
             }
 
-
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
                 setIntArrayArg(ctx, dev_ctx, index, (int[])fieldInstance,
-                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
+                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("F")) {
                 setFloatArrayArg(ctx, dev_ctx, index, (float[])fieldInstance,
-                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
+                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
-                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, -1);
+                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
               final int argsUsedForData = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx,
                       dev_ctx, index, fieldInstance, arrayElementTypeName,
-                      true, entryPoint, broadcastId, -1, -1, -1, bbCache);
+                      true, entryPoint, new CLCacheID(broadcastId, 0), bbCache);
               argsUsed = (lengthUsed ? argsUsedForData + 1 : argsUsedForData);
             }
 

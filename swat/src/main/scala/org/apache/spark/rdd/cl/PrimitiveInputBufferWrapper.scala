@@ -18,10 +18,6 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   var filled : Int = 0
   var iter : Int = 0
 
-  override def hasSpace() : Boolean = {
-    filled < arr.length
-  }
-
   override def append(obj : Any) {
     arr(filled) = obj.asInstanceOf[T]
     filled += 1
@@ -29,7 +25,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
 
   override def aggregateFrom(iter : Iterator[T]) : Int = {
     val startFilled = filled;
-    while (hasSpace && iter.hasNext) {
+    while (filled < arr.length && iter.hasNext) {
         arr(filled) = iter.next
         filled += 1
     }
@@ -39,20 +35,19 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      broadcastid : Int, rddid : Int, partitionid : Int, offset : Int,
-      component : Int) : Int = {
+      cacheID : CLCacheID) : Int = {
     if (arr.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Double]], filled, broadcastid, rddid,
-          partitionid, offset, component)
+          arr.asInstanceOf[Array[Double]], filled, cacheID.broadcast,
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else if (arr.isInstanceOf[Array[Int]]) {
       OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
-              arr.asInstanceOf[Array[Int]], filled, broadcastid, rddid,
-              partitionid, offset, component)
+              arr.asInstanceOf[Array[Int]], filled, cacheID.broadcast,
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else if (arr.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Float]], filled, broadcastid, rddid,
-          partitionid, offset, component)
+          arr.asInstanceOf[Array[Float]], filled, cacheID.broadcast,
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else {
       throw new RuntimeException("Unsupported")
     }
@@ -69,5 +64,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     val n : T = arr(iter)
     iter += 1
     n
+  }
+
+  override def haveUnprocessedInputs : Boolean = {
+    false
   }
 }

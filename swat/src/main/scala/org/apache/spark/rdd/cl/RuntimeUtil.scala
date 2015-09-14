@@ -15,6 +15,7 @@ import com.amd.aparapi.internal.writer.KernelWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
+import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 
 object RuntimeUtil {
@@ -51,10 +52,8 @@ object RuntimeUtil {
             lambda.getClass.getName)
     EntrypointCache.cache.synchronized {
       if (EntrypointCache.cache.containsKey(entrypointKey)) {
-        System.err.println("using cached entrypoint")
         entryPoint = EntrypointCache.cache.get(entrypointKey)
       } else {
-        System.err.println("computing entrypoint")
         entryPoint = classModel.getEntrypoint("apply", methodDescriptor,
             lambda, params, hardCodedClassModels,
             CodeGenUtil.createCodeGenConfig(dev_ctx))
@@ -62,10 +61,8 @@ object RuntimeUtil {
       }
 
       if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
-        System.err.println("using cached kernel")
         openCL = EntrypointCache.kernelCache.get(entrypointKey)
       } else {
-        System.err.println("computing kernel")
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
@@ -104,6 +101,127 @@ object RuntimeUtil {
     } else {
       new ObjectInputBufferWrapper(N,
               firstSample.getClass.getName, entryPoint)
+    }
+  }
+
+  def tryCacheDenseVector(ctx : Long, dev_ctx : Long, argnum : Int,
+      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
+
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3)) {
+      // Array of structs for each item
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          KernelWriter.DENSEVECTOR_CLASSNAME,
+          new NameMatcher(KernelWriter.DENSEVECTOR_CLASSNAME))
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
+              c.getTotalStructSize * nVectors)
+      // Number of vectors
+      OpenCLBridge.setIntArg(ctx, argnum + 4, nVectors)
+      return 5
+    } else {
+      return -1
+    }
+  }
+
+  def tryCacheSparseVector(ctx : Long, dev_ctx : Long, argnum : Int,
+      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 4)) {
+      // Array of structs for each item
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          KernelWriter.SPARSEVECTOR_CLASSNAME,
+          new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
+              c.getTotalStructSize * nVectors)
+      // Number of vectors
+      OpenCLBridge.setIntArg(ctx, argnum + 5, nVectors)
+      return 6
+    } else {
+      return -1
+    }
+  }
+
+  def tryCacheObject(ctx : Long, dev_ctx : Long, argnum : Int,
+      cacheID : CLCacheID) : Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
+        1)) {
+      return 1
+    } else {
+      return -1
+    }
+  }
+
+  def tryCacheTuple(ctx : Long, dev_ctx : Long, startArgnum : Int,
+          cacheID : CLCacheID, nLoaded : Int, sample : Tuple2[_, _],
+          entryPoint : Entrypoint) : Int = {
+    val firstMemberClassName : String = sample._1.getClass.getName
+    val secondMemberClassName : String = sample._2.getClass.getName
+    var used = 0
+
+    val firstMemberSize = entryPoint.getSizeOf(firstMemberClassName)
+    val secondMemberSize = entryPoint.getSizeOf(secondMemberClassName)
+
+    if (firstMemberSize > 0) {
+        val cacheSuccess = tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
+                startArgnum, cacheID, nLoaded, entryPoint)
+        if (cacheSuccess == -1) {
+          return -1
+        }
+        used = used + cacheSuccess
+        cacheID.incrComponent(used)
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, startArgnum)
+        used = used + 1
+    }
+
+    if (secondMemberSize > 0) {
+        val cacheSuccess = tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
+                startArgnum + used, cacheID, nLoaded, entryPoint)
+        if (cacheSuccess == -1) {
+          OpenCLBridge.manuallyRelease(ctx, dev_ctx, startArgnum, used)
+          return -1
+        }
+        used = used + cacheSuccess
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, startArgnum + used)
+        used = used + 1
+    }
+
+    val tuple2ClassModel : ClassModel =
+      entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
+          new ObjectMatcher(sample))
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + used,
+            tuple2ClassModel.getTotalStructSize * nLoaded)
+    return used + 1
+  }
+
+  def tryCacheHelper(desc : String, ctx : Long, dev_ctx : Long, argnum : Int,
+      cacheID : CLCacheID, nLoaded : Int, entryPoint : Entrypoint) : Int = {
+    desc match {
+      case "I" | "F" | "D" => {
+        if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
+                    cacheID.rdd, cacheID.partition, cacheID.offset,
+                    cacheID.component, 1)) {
+          return 1
+        } else {
+          return -1
+        }
+      }
+      case KernelWriter.DENSEVECTOR_CLASSNAME => {
+        return tryCacheDenseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
+                entryPoint)
+      }
+      case KernelWriter.SPARSEVECTOR_CLASSNAME => {
+        return tryCacheSparseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
+                entryPoint)
+      }
+      case "scala.Tuple2" => {
+        throw new UnsupportedOperationException()
+      }
+      case _ => {
+        return tryCacheObject(ctx, dev_ctx, argnum, cacheID)
+      }
     }
   }
 }

@@ -8,19 +8,8 @@ import org.apache.spark.rdd._
 import java.net._
 import scala.io.Source
 
-class Point(val x: Float, val y: Float, val z: Float)
-    extends java.io.Serializable {
-  def this() {
-    this(0.0f, 0.0f, 0.0f)
-  }
-
-  def dist(center : Point) : (Float) = {
-    val diffx : Float = center.x - x
-    val diffy : Float = center.y - y
-    val diffz : Float = center.z - z
-    sqrt(diffx * diffx + diffy * diffy + diffz * diffz).asInstanceOf[Float]
-  }
-}
+import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.Vectors
 
 object SparkKMeans {
     def main(args : Array[String]) {
@@ -49,31 +38,40 @@ object SparkKMeans {
         return new SparkContext(conf)
     }
 
+    def dist(a : DenseVector, b : DenseVector) : Double = {
+        val len : Int = a.size
+        var i = 0
+        var d : Double = 0.0
+        while (i < len) {
+            val diff = b(i) - a(i)
+            d += (diff * diff)
+            i += 1
+        }
+        scala.math.sqrt(d)
+    }
+
     def run_kmeans(args : Array[String]) {
         if (args.length != 4) {
-            println("usage: SparkKMeans run info-file iters input-path use-swat?");
+            println("usage: SparkKMeans run K iters input-path use-swat?");
             return;
         }
         val sc = get_spark_context("Spark KMeans");
 
-        val infoFile = args(0)
-        val infoIter : Iterator[String] = Source.fromFile(infoFile).getLines
-        val K : Int = infoIter.next.toInt
-
+        val K : Int = args(0).toInt
         val iters = args(1).toInt;
         val inputPath = args(2);
         val useSwat = args(3).toBoolean
 
-        val raw_points : RDD[Point] = sc.objectFile(inputPath)
-        val points = if (useSwat) CLWrapper.cl[Point](raw_points) else raw_points
+        val raw_points : RDD[DenseVector] = sc.objectFile(inputPath)
+        val points = if (useSwat) CLWrapper.cl[DenseVector](raw_points) else raw_points
         points.cache
-        val samples : Array[Point] = points.takeSample(false, K, 1);
+        val samples : Array[DenseVector] = points.takeSample(false, K, 1);
 
-        var centers = new Array[(Int, Point)](K)
+        var centers = new Array[DenseVector](K)
         for (i <- samples.indices) {
             val s = samples(i)
 
-            centers(i) = (i, new Point(s.x, s.y, s.z))
+            centers(i) = s
         }
 
         val startTime = System.currentTimeMillis
@@ -81,13 +79,15 @@ object SparkKMeans {
         while (iter < iters) {
             val iterStartTime = System.currentTimeMillis
 
+            val broadcastedCenters = sc.broadcast(centers)
+
             val classified = points.map(point => {
                 var closest_center = -1
-                var closest_center_dist = -1.0f
+                var closest_center_dist = -1.0
 
                 var i = 0
-                while (i < centers.length) {
-                    val d = point.dist(centers(i)._2)
+                while (i < K) {
+                    val d = dist(point, broadcastedCenters.value(i))
                     if (i == 0 || d < closest_center_dist) {
                         closest_center = i
                         closest_center_dist = d
@@ -95,30 +95,54 @@ object SparkKMeans {
 
                     i += 1
                 }
-                (centers(closest_center)._1, new Point(point.x, point.y, point.z))
-            })
-            val counts = classified.countByKey()
-            val sums = classified.reduceByKey((a, b) => new Point(a.x + b.x,
-                    a.y + b.y, a.z + b.z))
-            val averages = sums.map(kv => {
-                val cluster_index:Int = kv._1;
-                val p:Point = kv._2;
-                (cluster_index, new Point(p.x / counts(cluster_index),
-                    p.y / counts(cluster_index),
-                    p.z / counts(cluster_index))) } )
 
-            centers = averages.collect
+                val closestLen : Int = broadcastedCenters.value(closest_center).size
+                val copyOfClosest : Array[Double] = new Array[Double](closestLen)
+                i = 0
+                while (i < closestLen) {
+                    copyOfClosest(i) = broadcastedCenters.value(closest_center)(i)
+                    i += 1
+                }
+
+                (closest_center,
+                 Vectors.dense(copyOfClosest).asInstanceOf[DenseVector])
+            })
+
+            val counts = classified.countByKey()
+            val sums : RDD[Tuple2[Int, DenseVector]] = classified.reduceByKey((a, b) => {
+                val summed : Array[Double] = new Array[Double](a.size)
+                var i = 0
+                while (i < a.size) {
+                    summed(i) = a(i) + b(i)
+                    i += 1
+                }
+                Vectors.dense(summed).asInstanceOf[DenseVector]
+            })
+
+            val averages : RDD[Tuple2[Int, DenseVector]] = sums.map(kv => {
+                val cluster_index : Int = kv._1
+                val p : DenseVector = kv._2
+
+                val averaged : Array[Double] = new Array[Double](p.size)
+                var i = 0
+                while (i < p.size) {
+                    averaged(i) = p(i) / counts(cluster_index)
+                    i += 1
+                }
+                (cluster_index, Vectors.dense(averaged).asInstanceOf[DenseVector])
+            } )
+
+            val newCenters : Array[Tuple2[Int, DenseVector]] = averages.collect
+            broadcastedCenters.unpersist
+
+            for (iter <- newCenters) {
+                centers(iter._1) = iter._2
+            }
 
             val iterEndTime = System.currentTimeMillis
 
             System.err.println("iteration " + (iter + 1) + " : " +
                     (iterEndTime - iterStartTime) + " ms")
-            // println("Iteration " + (iter + 1))
-            // for (a <- centers) {
-            //     val p:Point = a._2;
-            //     println("  Cluster " + a._1 + ", (" + p.x + ", " + p.y +
-            //             ", " + p.z + ")")
-            // }
             iter += 1
         }
         val endTime = System.currentTimeMillis
@@ -137,10 +161,11 @@ object SparkKMeans {
         val input = sc.textFile(inputDir)
         val converted = input.map(line => {
             val tokens = line.split(" ")
-            val x = tokens(0).toFloat
-            val y = tokens(1).toFloat
-            val z = tokens(2).toFloat
-            new Point(x, y, z) })
+            val arr : Array[Double] = new Array[Double](3)
+            arr(0) = tokens(0).toDouble
+            arr(1) = tokens(1).toDouble
+            arr(2) = tokens(2).toDouble
+            Vectors.dense(arr).asInstanceOf[DenseVector] })
         converted.saveAsObjectFile(outputDir)
     }
 

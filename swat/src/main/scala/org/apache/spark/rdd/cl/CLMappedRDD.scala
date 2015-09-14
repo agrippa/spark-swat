@@ -127,9 +127,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 //           val writeStart = System.currentTimeMillis // PROFILE
 
           try {
+            // Only try to cache on GPU if the programmer has cached it in memory
+            val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
+                new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
+                else NoCache
             var argnum : Int = acc.get.copyToDevice(0, ctx, dev_ctx,
-                    -1, if (firstParent[T].getStorageLevel.useMemory)
-                        firstParent[T].id else -1, split.index, myOffset, 0)
+                    inputCacheId)
 
             val outArgNum : Int = argnum
             argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
@@ -190,7 +193,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
       }
 
       def hasNext : Boolean = {
-        val nonEmpty = (nested.hasNext || (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
+        /*
+         * There remains work to do if:
+         *   1. The parent partition iterator still has elements to process.
+         *   2. The input accumulator has buffered data that has not been
+         *      processed on the device yet (may only be true for dense vector,
+         *      sparse vector input buffers which may fetch an item from the
+         *      input stream but not have enough space to serialize it yet).
+         *   3. The output buffer has elements left to return.
+         */
+        val nonEmpty = (nested.hasNext ||
+                (!acc.isEmpty && acc.get.haveUnprocessedInputs) ||
+                (!outputBuffer.isEmpty && outputBuffer.get.hasNext))
         if (!nonEmpty && !ctxCache.isEmpty) {
           val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] = ctxCache.entrySet.iterator
           while (iter.hasNext) {

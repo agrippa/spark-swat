@@ -52,6 +52,8 @@ object CodeGenTests {
   tests.add(Tuple2DenseInputTest)
   tests.add(ClassExternalFunctionTest)
   tests.add(Tuple2DenseOutputTest)
+  tests.add(Tuple2BroadcastTest)
+  tests.add(Tuple2ObjectBroadcastTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
