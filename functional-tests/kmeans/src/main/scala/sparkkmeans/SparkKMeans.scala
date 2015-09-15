@@ -82,7 +82,7 @@ object SparkKMeans {
 
             val broadcastedCenters = sc.broadcast(centers)
 
-            val classified = points.map(point => {
+            val classified : RDD[Tuple2[Int, DenseVector]] = points.map(point => {
                 var closest_center = -1
                 var closest_center_dist = -1.0
 
@@ -112,6 +112,10 @@ object SparkKMeans {
             val iterEndTime = System.currentTimeMillis
 
             val counts = classified.countByKey()
+            for (c <- counts) {
+              System.err.println("Cluster " + c._1 + " has " + c._2 + " members")
+            }
+
             val sums : RDD[Tuple2[Int, DenseVector]] = classified.reduceByKey((a, b) => {
                 val summed : Array[Double] = new Array[Double](a.size)
                 var i = 0
