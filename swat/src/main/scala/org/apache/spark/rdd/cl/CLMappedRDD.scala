@@ -41,7 +41,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
-    val N = 65536 * 8
+    // val N = 65536 * 8
+    val N = 10000
     var acc : Option[InputBufferWrapper[T]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
     val bbCache : ByteBufferCache = new ByteBufferCache(2)
@@ -162,6 +163,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
             outputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
                         sampleOutput.asInstanceOf[U], outArgNum, nLoaded, bbCache,
                         entryPoint))
+            var ntries : Int = 0 // PROFILE
             do {
               OpenCLBridge.run(ctx, dev_ctx, nLoaded, false)
               if (entryPoint.requiresHeap) {
@@ -171,11 +173,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                         devicePointerSize)
                 OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
               }
+              ntries += 1 // PROFILE
             } while (!complete)
 
             outputBuffer.get.finish(ctx, dev_ctx)
 
             RuntimeUtil.profPrint("Run", runStart, threadId) // PROFILE
+            System.err.println("Thread " + threadId + " performed " + ntries + " kernel retries") // PROFILE
             val readStart = System.currentTimeMillis // PROFILE
 
             OpenCLBridge.postKernelCleanup(ctx);

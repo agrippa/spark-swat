@@ -16,6 +16,7 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.InterruptibleIterator
 
 object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
@@ -39,14 +40,15 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   var tiled : Int = 0
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
 
-  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
   val startInit = System.currentTimeMillis
-  valuesBB.order(ByteOrder.LITTLE_ENDIAN)
-  val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
-  var currentTileOffset : Int = 0
+  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
 
   System.err.println("Dense Vector Input Buffer " + (vectorElementCapacity * 8) + " initialization took " +
           (System.currentTimeMillis - startInit) + " ms")
+
+  valuesBB.order(ByteOrder.LITTLE_ENDIAN)
+  val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
+  var currentTileOffset : Int = 0
 
   val sizes : Array[Int] = new Array[Int](vectorCapacity)
   val offsets : Array[Int] = new Array[Int](vectorCapacity)

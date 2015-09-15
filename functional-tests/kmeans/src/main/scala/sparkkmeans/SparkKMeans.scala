@@ -63,6 +63,7 @@ object SparkKMeans {
         val useSwat = args(3).toBoolean
 
         val raw_points : RDD[DenseVector] = sc.objectFile(inputPath)
+        raw_points.cache
         val points = if (useSwat) CLWrapper.cl[DenseVector](raw_points) else raw_points
         points.cache
         val samples : Array[DenseVector] = points.takeSample(false, K, 1);
@@ -107,6 +108,8 @@ object SparkKMeans {
                 (closest_center,
                  Vectors.dense(copyOfClosest).asInstanceOf[DenseVector])
             })
+            val dummy = classified.count
+            val iterEndTime = System.currentTimeMillis
 
             val counts = classified.countByKey()
             val sums : RDD[Tuple2[Int, DenseVector]] = classified.reduceByKey((a, b) => {
@@ -139,7 +142,7 @@ object SparkKMeans {
                 centers(iter._1) = iter._2
             }
 
-            val iterEndTime = System.currentTimeMillis
+            // val iterEndTime = System.currentTimeMillis
 
             System.err.println("iteration " + (iter + 1) + " : " +
                     (iterEndTime - iterStartTime) + " ms")
