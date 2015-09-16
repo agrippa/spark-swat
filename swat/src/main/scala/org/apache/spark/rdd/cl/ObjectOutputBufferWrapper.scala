@@ -13,9 +13,8 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-class ObjectOutputBufferWrapper[T : ClassTag](val className : String, val outArgNum : Int,
-        val nLoaded : Int, bbCache : ByteBufferCache, entryPoint : Entrypoint)
-        extends OutputBufferWrapper[T] {
+class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
+    val N : Int, entryPoint : Entrypoint) extends OutputBufferWrapper[T] {
   var iter : Int = 0
   val anyFailed : Array[Int] = new Array[Int](1)
   val clazz : java.lang.Class[_] = Class.forName(className)
@@ -27,7 +26,8 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String, val outArg
   val structMemberOffsets : Option[Array[Long]] = if (classModel == null) None else
       Some(classModel.getStructMemberOffsets)
   val structSize : Int = classModel.getTotalStructSize
-  val bb : ByteBuffer = bbCache.getBuffer(structSize * nLoaded)
+  val bb : ByteBuffer = ByteBuffer.allocate(structSize * N)
+  var nLoaded : Int = -1
 
   override def next() : T = {
     val new_obj : T = constructor.newInstance().asInstanceOf[T]
@@ -41,23 +41,24 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String, val outArg
     iter < nLoaded
   }
 
-  override def releaseBuffers(bbCache : ByteBufferCache) {
-    bbCache.releaseBuffer(bb)
-  }
-
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
-      OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
-              anyFailed, entryPoint, bbCache)
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
       anyFailed(0) == 0
   }
 
-  override def finish(ctx : Long, dev_ctx : Long) {
+  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
+      setNLoaded : Int) {
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, bb.array,
             structSize * nLoaded)
+    nLoaded = setNLoaded
   }
 
   override def countArgumentsUsed() : Int = { 1 }
+
+  override def reset() {
+    iter = 0
+    nLoaded = -1
+  }
 }

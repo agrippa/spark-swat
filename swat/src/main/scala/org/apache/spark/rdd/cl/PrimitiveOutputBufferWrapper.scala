@@ -13,9 +13,10 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-class PrimitiveOutputBufferWrapper[T : ClassTag](val outArgNum : Int,
-    val nLoaded : Int) extends OutputBufferWrapper[T] {
-  val arr : Array[T] = new Array[T](nLoaded)
+class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
+    extends OutputBufferWrapper[T] {
+  var nLoaded : Int = -1
+  val arr : Array[T] = new Array[T](N)
   val anyFailed : Array[Int] = new Array[Int](1)
   var iter : Int = 0
   val clazz : java.lang.Class[_] = classTag[T].runtimeClass
@@ -27,21 +28,18 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val outArgNum : Int,
   }
 
   override def hasNext() : Boolean = {
-    iter < arr.length
+    iter < nLoaded
   }
-
-  override def releaseBuffers(bbCache : ByteBufferCache) { }
 
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
-      OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
-              anyFailed, entryPoint, bbCache)
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
       anyFailed(0) == 0
   }
 
-  override def finish(ctx : Long, dev_ctx : Long) {
+  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
+      setNLoaded : Int) {
     if (clazz.equals(classOf[Double])) {
       OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, outArgNum,
               arr.asInstanceOf[Array[Double]], nLoaded)
@@ -54,7 +52,13 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val outArgNum : Int,
     } else {
       throw new RuntimeException("Unsupported output primitive type " + clazz.getName)
     }
+    nLoaded = setNLoaded
   }
 
-  def countArgumentsUsed() : Int = { 1 }
+  override def countArgumentsUsed() : Int = { 1 }
+
+  override def reset() {
+    iter = 0
+    nLoaded = -1
+  }
 }

@@ -16,20 +16,20 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
+class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
         processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-        heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-        bbCache : ByteBufferCache, devicePointerSize : Int) {
-  val anyFailed : Array[Int] = new Array[Int](1)
+        heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
+  assert(devicePointerSize == 4 || devicePointerSize == 8)
 
-  val processingSucceeded : Array[Int] = new Array[Int](nLoaded)
+  val anyFailed : Array[Int] = new Array[Int](1)
+  val processingSucceeded : Array[Int] = new Array[Int](N)
 
   /*
    * devicePointerSize is either 4 or 8 for the pointers in SparseVector + 4 for
    * size field
    */
   val sparseVectorStructSize = (2 * devicePointerSize) + 4
-  val outArgLength = nLoaded * sparseVectorStructSize
+  val outArgLength = N * sparseVectorStructSize
   val outArg : Array[Byte] = new Array[Byte](outArgLength)
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
   outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -39,10 +39,9 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
   def readFromDevice() : Boolean = {
-    OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
-            anyFailed, entryPoint, bbCache)
+    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
-            processingSucceeded, nLoaded)
+            processingSucceeded, N)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
             heapSize)
@@ -57,17 +56,11 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   def get(slot : Int) : SparseVector = {
     val slotOffset = slot * sparseVectorStructSize
     outArgBuffer.position(slotOffset)
-    var indicesHeapOffset : Int = -1
-    var valuesHeapOffset : Int = -1
-    if (devicePointerSize == 4) {
-      indicesHeapOffset = outArgBuffer.getInt
-      valuesHeapOffset = outArgBuffer.getInt
-    } else if (devicePointerSize == 8) {
-      indicesHeapOffset = outArgBuffer.getLong.toInt
-      valuesHeapOffset = outArgBuffer.getLong.toInt
-    } else {
-      throw new RuntimeException("Unsupported devicePointerSize=" + devicePointerSize)
-    }
+
+    val indicesHeapOffset : Int = if (devicePointerSize == 4)
+      outArgBuffer.getInt else outArgBuffer.getLong.toInt
+    val valuesHeapOffset : Int = if (devicePointerSize == 4)
+      outArgBuffer.getInt else outArgBuffer.getLong.toInt
     val size : Int = outArgBuffer.getInt
 
     val indices : Array[Int] = new Array[Int](size)
@@ -92,11 +85,13 @@ class SparseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   }
 }
 
-class SparseVectorOutputBufferWrapper(val nLoaded : Int, val outArgNum : Int)
+class SparseVectorOutputBufferWrapper(val N : Int)
     extends OutputBufferWrapper[SparseVector] {
+  var nFilledBuffers : Int = 0
   val buffers : java.util.List[SparseVectorDeviceBuffersWrapper] =
       new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
-  var currSlot = 0
+  var currSlot : Int = 0
+  var nLoaded : Int = 0
 
   override def next() : SparseVector = {
     val iter = buffers.iterator
@@ -118,20 +113,28 @@ class SparseVectorOutputBufferWrapper(val nLoaded : Int, val outArgNum : Int)
 
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
-    val buffer : SparseVectorDeviceBuffersWrapper =
-        new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+    var buffer : SparseVectorDeviceBuffersWrapper = null
+    if (buffers.size > nFilledBuffers) {
+      buffer = buffers.get(nFilledBuffers)
+    } else {
+      buffer = new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
                 processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
-                ctx, dev_ctx, entryPoint, bbCache, devicePointerSize)
-    val complete : Boolean = buffer.readFromDevice
-    buffers.add(buffer)
-    complete
+                ctx, dev_ctx, devicePointerSize)
+    }
+    nFilledBuffers += 1
+    buffer.readFromDevice
   }
 
-  override def finish(ctx : Long, dev_ctx : Long) { }
-
-  override def releaseBuffers(bbCache : ByteBufferCache) { }
+  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
+    nLoaded = setNLoaded
+  }
 
   override def countArgumentsUsed() : Int = { 1 }
+
+  override def reset() {
+    nFilledBuffers = 0
+    currSlot = 0
+    nLoaded = -1
+  }
 }

@@ -16,20 +16,20 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
-        processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-        heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-        bbCache : ByteBufferCache, devicePointerSize : Int) {
-  val anyFailed : Array[Int] = new Array[Int](1)
+class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
+    processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
+    heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
+  assert(devicePointerSize == 4 || devicePointerSize == 8)
 
-  val processingSucceeded : Array[Int] = new Array[Int](nLoaded)
+  val anyFailed : Array[Int] = new Array[Int](1)
+  val processingSucceeded : Array[Int] = new Array[Int](N)
 
   /*
    * devicePointerSize is either 4 or 8 for the pointer in DenseVector + 4 for
    * size field
    */
   val denseVectorStructSize = devicePointerSize + 4
-  val outArgLength = nLoaded * denseVectorStructSize
+  val outArgLength = N * denseVectorStructSize
   val outArg : Array[Byte] = new Array[Byte](outArgLength)
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
   outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -39,10 +39,9 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
   def readFromDevice() : Boolean = {
-    OpenCLBridgeWrapper.fetchArrayArg(ctx, dev_ctx, anyFailedArgNum,
-            anyFailed, entryPoint, bbCache)
+    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
-            processingSucceeded, nLoaded)
+            processingSucceeded, N)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
             heapSize)
@@ -57,14 +56,8 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   def get(slot : Int) : DenseVector = {
     val slotOffset = slot * denseVectorStructSize
     outArgBuffer.position(slotOffset)
-    var heapOffset : Int = -1
-    if (devicePointerSize == 4) {
-      heapOffset = outArgBuffer.getInt
-    } else if (devicePointerSize == 8) {
-      heapOffset = outArgBuffer.getLong.toInt
-    } else {
-      throw new RuntimeException("Unsupported devicePointerSize=" + devicePointerSize)
-    }
+    val heapOffset : Int = if (devicePointerSize == 4)
+      outArgBuffer.getInt else outArgBuffer.getLong.toInt
     val size : Int = outArgBuffer.getInt
 
     val values : Array[Double] = new Array[Double](size)
@@ -79,11 +72,13 @@ class DenseVectorDeviceBuffersWrapper(nLoaded : Int, anyFailedArgNum : Int,
   }
 }
 
-class DenseVectorOutputBufferWrapper(val nLoaded : Int, val outArgNum : Int)
+class DenseVectorOutputBufferWrapper(val N : Int)
     extends OutputBufferWrapper[DenseVector] {
+  var nFilledBuffers : Int = 0
   val buffers : java.util.List[DenseVectorDeviceBuffersWrapper] =
       new java.util.LinkedList[DenseVectorDeviceBuffersWrapper]()
-  var currSlot = 0
+  var currSlot : Int = 0
+  var nLoaded : Int = -1
 
   override def next() : DenseVector = {
     val iter = buffers.iterator
@@ -105,20 +100,29 @@ class DenseVectorOutputBufferWrapper(val nLoaded : Int, val outArgNum : Int)
 
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
-    val buffer : DenseVectorDeviceBuffersWrapper =
-        new DenseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
-                processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
-                ctx, dev_ctx, entryPoint, bbCache, devicePointerSize)
-    val complete : Boolean = buffer.readFromDevice
-    buffers.add(buffer)
-    complete
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+    var buffer : DenseVectorDeviceBuffersWrapper = null
+    if (buffers.size > nFilledBuffers) {
+      buffer = buffers.get(nFilledBuffers)
+    } else {
+      buffer = new DenseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+                             processingSucceededArgnum, outArgNum, heapArgStart,
+                             heapSize, ctx, dev_ctx, devicePointerSize)
+      buffers.add(buffer)
+    }
+    nFilledBuffers += 1
+    buffer.readFromDevice
   }
 
-  override def finish(ctx : Long, dev_ctx : Long) { }
-
-  override def releaseBuffers(bbCache : ByteBufferCache) { }
+  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
+    nLoaded = setNLoaded
+  }
 
   override def countArgumentsUsed() : Int = { 1 }
+
+  override def reset() {
+    nFilledBuffers = 0
+    currSlot = 0
+    nLoaded = -1
+  }
 }

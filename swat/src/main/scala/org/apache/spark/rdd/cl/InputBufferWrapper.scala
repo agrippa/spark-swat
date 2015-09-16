@@ -25,4 +25,5 @@ trait InputBufferWrapper[T] {
   def haveUnprocessedInputs : Boolean
 
   def releaseNativeArrays
+  def nBuffered() : Int
 }

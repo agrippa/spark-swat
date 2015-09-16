@@ -32,6 +32,10 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     filled - startFilled
   }
 
+  override def nBuffered() : Int = {
+    filled
+  }
+
   override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,

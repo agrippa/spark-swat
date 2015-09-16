@@ -1255,6 +1255,7 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
          jlong bufferCapacity, jobjectArray vectors, jint nToSerialize,
          jint tiling) {
     ENTER_TRACE("serializeStridedDenseVectorsToNativeBuffer");
+
     jclass denseVectorClass = jenv->FindClass(
             "org/apache/spark/mllib/linalg/DenseVector");
     CHECK_JNI(denseVectorClass);

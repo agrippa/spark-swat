@@ -47,6 +47,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     (bb.position - startPosition) / structSize
   }
 
+  override def nBuffered() : Int = {
+    objCount
+  }
+
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       cacheID : CLCacheID) : Int = {
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,

@@ -52,7 +52,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   override def flush() {
     val nTiled : Int = OpenCLBridge.serializeStridedDenseVectorsToNativeBuffer(
         valuesBuffer, valuesBufferPosition, valuesBufferCapacity, to_tile,
-        tiled, tiling)
+        if (buffered + tiled > vectorCapacity) (vectorCapacity - buffered) else tiled, tiling)
     if (nTiled > 0) {
       var newValuesBufferPosition : Int = valuesBufferPosition + 0 +
           (tiling * (to_tile(0).size - 1))
@@ -70,7 +70,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
         offsets(buffered + i) = valuesBufferPosition + i
       }
 
-      valuesBufferPosition = newValuesBufferPosition
+      valuesBufferPosition = newValuesBufferPosition + 1
     }
 
     val nFailed = tiled - nTiled
@@ -78,6 +78,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
       for (i <- nTiled until tiled) {
         overrun(i - nTiled) = to_tile(i)
       }
+      System.err.println("nFailed=" + nFailed)
     }
 
     buffered += nTiled
@@ -89,22 +90,25 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   def append(obj : DenseVector) {
+    to_tile(tiled) = obj
+    tiled += 1
+
     if (tiled == tiling) {
         flush
     }
-
-    to_tile(tiled) = obj
-    tiled += 1
   }
 
   override def aggregateFrom(iter : Iterator[DenseVector]) : Int = {
-    assert(overrun.isEmpty)
-    val startBuffered = buffered + tiled
+    assert(overrun(0) == null)
     while (iter.hasNext && overrun(0) == null) {
       val next : DenseVector = iter.next
       append(next)
     }
-    buffered + tiled - startBuffered
+    buffered + tiled
+  }
+
+  override def nBuffered() : Int = {
+    buffered
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,

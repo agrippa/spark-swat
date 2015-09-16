@@ -141,6 +141,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     buffered - startBuffered
   }
 
+  override def nBuffered() : Int = {
+    buffered
+  }
+
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
           cacheId : CLCacheID) : Int = {
     var used = 0

@@ -138,6 +138,10 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     buffered + tiled - startBuffered
   }
 
+  override def nBuffered() : Int = {
+    buffered
+  }
+
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           cacheID : CLCacheID) : Int = {
     if (tiled > 0) {

@@ -29,16 +29,19 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
   // Returns true if all work on the device is complete
   def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint,
-          bbCache : ByteBufferCache, devicePointerSize : Int) : Boolean = {
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def finish(ctx : Long, dev_ctx : Long) {
+  def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, nLoaded : Int) {
     throw new java.lang.UnsupportedOperationException()
   }
 
   def countArgumentsUsed() : Int = {
+    throw new java.lang.UnsupportedOperationException()
+  }
+
+  def reset() {
     throw new java.lang.UnsupportedOperationException()
   }
 }

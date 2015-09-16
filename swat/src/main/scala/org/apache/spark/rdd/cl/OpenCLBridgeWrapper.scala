@@ -329,57 +329,6 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  /*
-  def fetchTuple2TypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, arrLength : Int, typeName : String,
-      _1typeName : String, _2typeName : String, entryPoint : Entrypoint,
-      bbCache : ByteBufferCache) : Tuple2OutputBufferWrapper[_, _] = {
-    val startTime = System.currentTimeMillis
-    val c : ClassModel = entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
-        new DescMatcher(Array(convertClassNameToDesc(_1typeName),
-        convertClassNameToDesc(_2typeName))))
-    val structSize : Int = c.getTotalStructSize
-
-    val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
-    assert(structMembers.size == 2)
-
-    val member0 : FieldNameInfo =
-        if (structMembers.get(0).name.equals("_1")) structMembers.get(0) else
-            structMembers.get(1)
-    val member1 : FieldNameInfo =
-        if (structMembers.get(0).name.equals("_1")) structMembers.get(1) else
-            structMembers.get(0)
-    val bb1 : ByteBuffer = bbCache.getBuffer(entryPoint.getSizeOf(
-          member0.desc) * arrLength)
-    val bb2 : ByteBuffer = bbCache.getBuffer(entryPoint.getSizeOf(
-          member1.desc) * arrLength)
-
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb1.array,
-            entryPoint.getSizeOf(member0.desc) * arrLength)
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum + 1, bb2.array,
-            entryPoint.getSizeOf(member1.desc) * arrLength)
-
-    new Tuple2OutputBufferWrapper(bb1, bb2, arrLength, member0.desc, member1.desc, entryPoint)
-  }
-  */
-
-  /*
-  def fetchObjectTypedArrayArgIntoOutputBuffer(ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, arrLength : Int, typeName : String,
-      clazz : java.lang.Class[_], entryPoint : Entrypoint,
-      bbCache : ByteBufferCache) : OutputBufferWrapper[_] = {
-    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-        typeName, new NameMatcher(typeName))
-    val structSize : Int = c.getTotalStructSize
-
-    val bb : ByteBuffer = bbCache.getBuffer(structSize * arrLength)
-
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
-
-    new ObjectOutputBufferWrapper(bb, arrLength, c, clazz)
-  }
-  */
-
   def fetchObjectTypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : Array[_], typeName : String, entryPoint : Entrypoint,
       bbCache : ByteBufferCache) {
@@ -436,6 +385,7 @@ object OpenCLBridgeWrapper {
     }
   }
 
+  /*
   def fetchArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
       arg : Array[T], entryPoint : Entrypoint, bbCache : ByteBufferCache) {
     if (arg.isInstanceOf[Array[Double]]) {
@@ -454,6 +404,7 @@ object OpenCLBridgeWrapper {
           entryPoint, bbCache)
     }
   }
+  */
 
   def setUnitializedArrayArg[U](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, N : Int, clazz : java.lang.Class[_],
@@ -504,27 +455,26 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def getOutputBufferFor[T : ClassTag](sampleOutput : T, outArgNum : Int, nLoaded : Int,
-      bbCache : ByteBufferCache, entryPoint : Entrypoint) :
-      OutputBufferWrapper[T] = {
+  def getOutputBufferFor[T : ClassTag](sampleOutput : T, N : Int,
+      entryPoint : Entrypoint) : OutputBufferWrapper[T] = {
     val className : String = sampleOutput.getClass.getName
 
     if (className.equals("org.apache.spark.mllib.linalg.DenseVector")) {
-        new DenseVectorOutputBufferWrapper(nLoaded, outArgNum).asInstanceOf[OutputBufferWrapper[T]]
+        new DenseVectorOutputBufferWrapper(N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("org.apache.spark.mllib.linalg.SparseVector")) {
-        new SparseVectorOutputBufferWrapper(nLoaded, outArgNum).asInstanceOf[OutputBufferWrapper[T]]
+        new SparseVectorOutputBufferWrapper(N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Double")) {
-        new PrimitiveOutputBufferWrapper[Double](outArgNum, nLoaded).asInstanceOf[OutputBufferWrapper[T]]
+        new PrimitiveOutputBufferWrapper[Double](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Integer")) {
-        new PrimitiveOutputBufferWrapper[Int](outArgNum, nLoaded).asInstanceOf[OutputBufferWrapper[T]]
+        new PrimitiveOutputBufferWrapper[Int](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Float")) {
-        new PrimitiveOutputBufferWrapper[Float](outArgNum, nLoaded).asInstanceOf[OutputBufferWrapper[T]]
+        new PrimitiveOutputBufferWrapper[Float](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.startsWith("scala.Tuple2")) {
         new Tuple2OutputBufferWrapper(
-                sampleOutput.asInstanceOf[Tuple2[_, _]], outArgNum, nLoaded,
-                bbCache, entryPoint).asInstanceOf[OutputBufferWrapper[T]]
+                sampleOutput.asInstanceOf[Tuple2[_, _]], N,
+                entryPoint).asInstanceOf[OutputBufferWrapper[T]]
     } else {
-        new ObjectOutputBufferWrapper[T](className, outArgNum, nLoaded, bbCache,
+        new ObjectOutputBufferWrapper[T](className, N,
                 entryPoint).asInstanceOf[OutputBufferWrapper[T]]
     }
   }
