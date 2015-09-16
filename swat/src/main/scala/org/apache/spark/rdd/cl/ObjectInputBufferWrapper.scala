@@ -72,4 +72,6 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   override def haveUnprocessedInputs : Boolean = {
     false
   }
+
+  override def releaseNativeArrays { }
 }

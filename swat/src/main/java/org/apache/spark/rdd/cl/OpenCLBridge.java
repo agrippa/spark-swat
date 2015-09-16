@@ -80,6 +80,18 @@ public class OpenCLBridge {
     public static native void manuallyRelease(long ctx, long dev_ctx,
             int startingIndexInclusive, int endingIndexExclusive);
 
+    public static native long nativeMalloc(long nbytes);
+    public static native void nativeFree(long buffer);
+    public static native int serializeStridedDenseVectorsToNativeBuffer(
+            long buffer, int position, long capacity,
+            org.apache.spark.mllib.linalg.DenseVector[] vectors,
+            int nToSerialize, int tiling);
+    public static native boolean setNativeArrayArg(long ctx, long dev_ctx,
+        int index, long buffer, int len, long broadcast, int rdd,
+        int partition, int offset, int component);
+    public static native void fillFromNativeArray(double[] vectorArr,
+        int vectorSize, int vectorOffset, int tiling, long buffer);
+
     public static int createHeap(long ctx, long dev_ctx, int index,
             int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
       final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,

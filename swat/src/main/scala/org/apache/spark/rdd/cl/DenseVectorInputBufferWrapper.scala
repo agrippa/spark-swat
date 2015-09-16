@@ -40,71 +40,48 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   var tiled : Int = 0
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
 
-  val startInit = System.currentTimeMillis
-  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
-
-  System.err.println("Dense Vector Input Buffer " + (vectorElementCapacity * 8) + " initialization took " +
-          (System.currentTimeMillis - startInit) + " ms")
-
-  valuesBB.order(ByteOrder.LITTLE_ENDIAN)
-  val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
-  var currentTileOffset : Int = 0
+  val valuesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 8)
+  var valuesBufferPosition : Int = 0
+  val valuesBufferCapacity : Long = vectorElementCapacity * 8
 
   val sizes : Array[Int] = new Array[Int](vectorCapacity)
   val offsets : Array[Int] = new Array[Int](vectorCapacity)
 
-  var overrun : Option[DenseVector] = None
-
-  def calcTileEleStartingOffset(ele : Int) : Int = {
-    currentTileOffset + ele
-  }
-
-  // inclusive
-  def calcTileEleEndingOffsetHelper(ele : Int, eleSize : Int) : Int = {
-    calcTileEleStartingOffset(ele) + (tiling * (eleSize - 1))
-  }
-  def calcTileEleEndingOffset(ele : Int) : Int = {
-    calcTileEleEndingOffsetHelper(ele, to_tile(ele).size)
-  }
-
-  /*
-   * Given the next vector we want to add to the input buffer, will we run out
-   * of space?
-   */
-  def willRunOutOfSpace(next : DenseVector) : Boolean = {
-    assert(tiled < tiling)
-    if (buffered + tiled == vectorCapacity) {
-      return true
-    } else if (calcTileEleEndingOffsetHelper(tiled, next.size) >= vectorElementCapacity) {
-      return true
-    } else {
-      return false
-    }
-  }
+  val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
 
   override def flush() {
-    var maximumOffsetUsed = 0
-    for (i <- 0 until tiled) {
-      val curr : DenseVector = to_tile(i)
-      val startingOffset = calcTileEleStartingOffset(i)
-      val endingOffset = calcTileEleEndingOffset(i)
+    val nTiled : Int = OpenCLBridge.serializeStridedDenseVectorsToNativeBuffer(
+        valuesBuffer, valuesBufferPosition, valuesBufferCapacity, to_tile,
+        tiled, tiling)
+    if (nTiled > 0) {
+      var newValuesBufferPosition : Int = valuesBufferPosition + 0 +
+          (tiling * (to_tile(0).size - 1))
+      sizes(buffered) = to_tile(0).size
+      offsets(buffered) = valuesBufferPosition
 
-      var currOffset = startingOffset
-      for (j <- 0 until curr.size) {
-        doubleValuesBB.put(currOffset, curr(j))
-        currOffset += tiling
+      for (i <- 1 until nTiled) {
+        val curr : DenseVector = to_tile(i)
+        var pos : Int = valuesBufferPosition + i + (tiling * (curr.size - 1))
+        if (pos > newValuesBufferPosition) {
+          newValuesBufferPosition = pos
+        }
+
+        sizes(buffered + i) = curr.size
+        offsets(buffered + i) = valuesBufferPosition + i
       }
 
-      sizes(buffered + i) = curr.size
-      offsets(buffered + i) = startingOffset
-      if (endingOffset > maximumOffsetUsed) {
-        maximumOffsetUsed = endingOffset
+      valuesBufferPosition = newValuesBufferPosition
+    }
+
+    val nFailed = tiled - nTiled
+    if (nFailed > 0) {
+      for (i <- nTiled until tiled) {
+        overrun(i - nTiled) = to_tile(i)
       }
     }
 
-    buffered += tiled
+    buffered += nTiled
     tiled = 0
-    currentTileOffset = maximumOffsetUsed + 1
   }
 
   override def append(obj : Any) {
@@ -116,20 +93,14 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
         flush
     }
 
-    if (willRunOutOfSpace(obj)) {
-      // Assert not just one vector consuming all buffer space
-      assert(buffered + tiled > 0)
-      overrun = Some(obj)
-    } else {
-      to_tile(tiled) = obj
-      tiled += 1
-    }
+    to_tile(tiled) = obj
+    tiled += 1
   }
 
   override def aggregateFrom(iter : Iterator[DenseVector]) : Int = {
     assert(overrun.isEmpty)
     val startBuffered = buffered + tiled
-    while (iter.hasNext && overrun.isEmpty) {
+    while (iter.hasNext && overrun(0) == null) {
       val next : DenseVector = iter.next
       append(next)
     }
@@ -146,9 +117,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
             denseVectorStructSize * vectorCapacity)
     // values array, size of double = 8
-    OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
-            valuesBB.array, currentTileOffset, 8, cacheID.broadcast,
-            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1, valuesBuffer,
+        valuesBufferPosition, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+        cacheID.offset, cacheID.component)
     // Sizes of each vector
     OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
@@ -161,11 +132,16 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     OpenCLBridge.setIntArg(ctx, argnum + 4, buffered)
 
     buffered = 0
-    currentTileOffset = 0
+    valuesBufferPosition = 0
 
-    if (!overrun.isEmpty) {
-      append(overrun.get)
-      overrun = None
+    if (overrun(0) != null) {
+      var i = 0
+      while (overrun(i) != null) {
+        // TODO what if we run out of space while handling the overrun...
+        append(overrun(i))
+        overrun(i) = null
+        i += 1
+      }
     }
 
     return 5
@@ -182,18 +158,18 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     val vectorSize : Int = sizes(iter)
     val vectorOffset : Int = offsets(iter)
     val vectorArr : Array[Double] = new Array[Double](vectorSize)
-    var i = 0
-    while (i < vectorSize) {
-      vectorArr(i) = doubleValuesBB.get(vectorOffset + i * tiling)
-      i += 1
-    }
-    iter += 1
+    OpenCLBridge.fillFromNativeArray(vectorArr, vectorSize, vectorOffset,
+        tiling, valuesBuffer)
     Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }
 
   override def haveUnprocessedInputs : Boolean = {
     // True if overrun was non-empty after copying to device
-    assert(overrun.isEmpty)
+    assert(overrun(0) == null)
     buffered + tiled > 0
+  }
+
+  override def releaseNativeArrays {
+    OpenCLBridge.nativeFree(valuesBuffer)
   }
 }

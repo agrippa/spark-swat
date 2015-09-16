@@ -69,4 +69,6 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def haveUnprocessedInputs : Boolean = {
     false
   }
+
+  override def releaseNativeArrays { }
 }

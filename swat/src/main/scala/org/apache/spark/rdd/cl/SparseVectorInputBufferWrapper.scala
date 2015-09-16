@@ -201,4 +201,6 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     assert(overrun.isEmpty)
     buffered + tiled > 0
   }
+
+  override def releaseNativeArrays { }
 }

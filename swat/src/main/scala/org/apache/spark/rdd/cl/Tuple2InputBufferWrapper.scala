@@ -185,4 +185,9 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   override def haveUnprocessedInputs : Boolean = {
     buffer1.haveUnprocessedInputs || buffer2.haveUnprocessedInputs
   }
+
+  override def releaseNativeArrays {
+    buffer1.releaseNativeArrays
+    buffer2.releaseNativeArrays
+  }
 }

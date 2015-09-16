@@ -209,12 +209,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                 (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
                 (!acc.isEmpty && acc.get.haveUnprocessedInputs))
         if (!nonEmpty && !ctxCache.isEmpty) {
-          val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] = ctxCache.entrySet.iterator
+          val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] =
+            ctxCache.entrySet.iterator
           while (iter.hasNext) {
               val curr : java.util.Map.Entry[Long, Long] = iter.next
               OpenCLBridge.cleanupSwatContext(curr.getValue)
           }
           ctxCache.clear
+          acc.get.releaseNativeArrays
           System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
               " elements") // PROFILE
           RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
