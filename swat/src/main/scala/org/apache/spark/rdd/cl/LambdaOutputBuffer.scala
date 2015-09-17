@@ -19,7 +19,11 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
   }
 
   def hasNext() : Boolean = {
-    acc.hasNext
+    val result = acc.hasNext
+    if (!result) {
+      acc.reset
+    }
+    result
   }
 
   def releaseBuffers(bbCache : ByteBufferCache) {

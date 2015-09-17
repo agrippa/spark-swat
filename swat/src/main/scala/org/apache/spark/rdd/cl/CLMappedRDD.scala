@@ -33,7 +33,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     extends RDD[U](prev) {
   val heapSize = 100 * 1024 * 1024
   var entryPoint : Entrypoint = null
-  var sampleOutput : java.lang.Object = None
   var openCL : String = null
   val ctxCache : java.util.Map[Long, Long] = new java.util.HashMap[Long, Long]()
 
@@ -64,7 +63,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
         CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
-
     val iter = new Iterator[U] {
       val nested = firstParent[T].iterator(split, context)
 
@@ -82,6 +80,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
      var firstSample : Option[T] = Some(nested.next)
+     var sampleOutput : java.lang.Object = None
 
      if (entryPoint == null) {
        val initStart = System.currentTimeMillis // PROFILE
@@ -110,45 +109,49 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
 
      def next() : U = {
-       if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
-         assert(nested.hasNext)
+       // if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
+       //   assert(nested.hasNext)
 
-         val ioStart : Long = System.currentTimeMillis // PROFILE
-         if (!firstSample.isEmpty) {
-           inputBuffer.get.append(firstSample.get)
-           firstSample = None
-         }
-         inputBuffer.get.aggregateFrom(nested)
-         val nLoaded = inputBuffer.get.nBuffered
-         val myOffset : Int = totalNLoaded
-         totalNLoaded += nLoaded
+       //   val ioStart : Long = System.currentTimeMillis // PROFILE
+       //   if (!firstSample.isEmpty) {
+       //     inputBuffer.get.append(firstSample.get)
+       //     firstSample = None
+       //   }
+       //   inputBuffer.get.aggregateFrom(nested)
+       //   val nLoaded = inputBuffer.get.nBuffered
+       //   val myOffset : Int = totalNLoaded
+       //   totalNLoaded += nLoaded
 
-         RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-         System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+       //   // inputBuffer.get.reset // after copying to device
 
-         outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer.get))
-       }
+       //   RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
+       //   System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
-       outputBuffer.get.next
-
-       // if (firstSample.isEmpty) {
-       //   f(nested.next)
-       // } else {
-       //   val save : T = firstSample.get
-       //   firstSample = None
-       //   f(save)
+       //   outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer.get))
        // }
+
+       // outputBuffer.get.next
+
+       if (firstSample.isEmpty) {
+         f(nested.next)
+       } else {
+         val save : T = firstSample.get
+         firstSample = None
+         f(save)
+       }
      }
 
      def hasNext() : Boolean = {
-       val nonEmpty = (nested.hasNext ||
-               (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
-               (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
-       if (!nonEmpty && !ctxCache.isEmpty) {
-         inputBuffer.get.releaseNativeArrays
-       }
-       nonEmpty
-       // nested.hasNext
+       // val nonEmpty = (nested.hasNext ||
+       //         (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
+       //         (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
+       // if (!nonEmpty) {
+       //   System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
+       //       " elements") // PROFILE
+       //   RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
+       // }
+       // nonEmpty
+       nested.hasNext
      }
 
      //  def next() : U = {

@@ -113,8 +113,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     buffered += 1
   }
 
-  override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) : Int = {
-    val startBuffered = buffered;
+  override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) {
     if (firstMemberSize > 0 && secondMemberSize > 0) {
       while (buffered < nele && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
@@ -137,8 +136,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         buffered += 1
       }
     }
-
-    buffered - startBuffered
   }
 
   override def nBuffered() : Int = {
@@ -193,5 +190,12 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   override def releaseNativeArrays {
     buffer1.releaseNativeArrays
     buffer2.releaseNativeArrays
+  }
+
+  override def reset() {
+    buffer1.reset
+    buffer2.reset
+    iter = 0
+    buffered = 0
   }
 }

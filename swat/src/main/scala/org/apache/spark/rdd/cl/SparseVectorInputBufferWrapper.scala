@@ -128,14 +128,12 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     }
   }
 
-  override def aggregateFrom(iter : Iterator[SparseVector]) : Int = {
+  override def aggregateFrom(iter : Iterator[SparseVector]) {
     assert(overrun.isEmpty)
-    val startBuffered = buffered + tiled
     while (iter.hasNext && overrun.isEmpty) {
       val next : SparseVector = iter.next
       append(next)
     }
-    buffered + tiled - startBuffered
   }
 
   override def nBuffered() : Int = {
@@ -207,4 +205,16 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def releaseNativeArrays { }
+
+  override def reset() {
+    buffered = 0
+    iter = 0
+    tiled = 0
+    valuesBB.clear
+    doubleValuesBB.clear
+    indicesBB.clear
+    intIndicesBB.clear
+    currentTileOffset = 0
+    overrun = None
+  }
 }

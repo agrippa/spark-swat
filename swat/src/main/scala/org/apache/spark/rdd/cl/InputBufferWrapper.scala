@@ -2,7 +2,7 @@ package org.apache.spark.rdd.cl
 
 trait InputBufferWrapper[T] {
   def append(obj : Any)
-  def aggregateFrom(iter : Iterator[T]) : Int
+  def aggregateFrom(iter : Iterator[T])
 
   def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       cacheId : CLCacheID) : Int
@@ -26,4 +26,5 @@ trait InputBufferWrapper[T] {
 
   def releaseNativeArrays
   def nBuffered() : Int
+  def reset()
 }

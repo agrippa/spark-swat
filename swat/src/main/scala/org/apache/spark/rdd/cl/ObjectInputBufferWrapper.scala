@@ -37,14 +37,12 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     objCount += 1
   }
 
-  override def aggregateFrom(iter : Iterator[T]) : Int = {
-    val startPosition = bb.position
+  override def aggregateFrom(iter : Iterator[T]) {
     while (bb.position < bb.capacity && iter.hasNext) {
       OpenCLBridgeWrapper.writeObjectToStream(
               iter.next.asInstanceOf[java.lang.Object], classModel, bb)
       objCount += 1
     }
-    (bb.position - startPosition) / structSize
   }
 
   override def nBuffered() : Int = {
@@ -78,4 +76,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def releaseNativeArrays { }
+
+  override def reset() {
+    objCount = 0
+    iter = 0
+    bb.clear
+  }
 }

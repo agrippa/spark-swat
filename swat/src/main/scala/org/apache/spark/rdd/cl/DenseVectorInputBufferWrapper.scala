@@ -78,7 +78,6 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
       for (i <- nTiled until tiled) {
         overrun(i - nTiled) = to_tile(i)
       }
-      System.err.println("nFailed=" + nFailed)
     }
 
     buffered += nTiled
@@ -98,16 +97,18 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     }
   }
 
-  override def aggregateFrom(iter : Iterator[DenseVector]) : Int = {
+  override def aggregateFrom(iterator : Iterator[DenseVector]) {
     assert(overrun(0) == null)
-    while (iter.hasNext && overrun(0) == null) {
-      val next : DenseVector = iter.next
+    while (iterator.hasNext && overrun(0) == null) {
+      val next : DenseVector = iterator.next
       append(next)
     }
-    buffered + tiled
   }
 
   override def nBuffered() : Int = {
+    if (tiled > 0) {
+      flush
+    }
     buffered
   }
 
@@ -140,7 +141,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
     if (overrun(0) != null) {
       var i = 0
-      while (overrun(i) != null) {
+      while (i < tiling && overrun(i) != null) {
         // TODO what if we run out of space while handling the overrun...
         append(overrun(i))
         overrun(i) = null
@@ -156,24 +157,39 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def next() : DenseVector = {
-    if (tiled > 0) { // Flush once, on first call to next
-      flush
-    }
+    assert(tiled == 0)
     val vectorSize : Int = sizes(iter)
     val vectorOffset : Int = offsets(iter)
     val vectorArr : Array[Double] = new Array[Double](vectorSize)
     OpenCLBridge.fillFromNativeArray(vectorArr, vectorSize, vectorOffset,
         tiling, valuesBuffer)
+    iter += 1
     Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }
 
+  /*
+   * True if overrun was non-empty after copying to device and we transferred
+   * some vectors from overrun into to_tile.
+   */
   override def haveUnprocessedInputs : Boolean = {
-    // True if overrun was non-empty after copying to device
     assert(overrun(0) == null)
     buffered + tiled > 0
   }
 
   override def releaseNativeArrays {
     OpenCLBridge.nativeFree(valuesBuffer)
+  }
+
+  override def reset() {
+    buffered = 0
+    iter = 0
+    valuesBufferPosition = 0
+    var i = 0
+    while (i < tiling && overrun(i) != null) {
+      // TODO what if we run out of space while handling the overrun...
+      append(overrun(i))
+      overrun(i) = null
+      i += 1
+    }
   }
 }

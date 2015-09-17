@@ -62,10 +62,8 @@ object SparkKMeans {
         val inputPath = args(2);
         val useSwat = args(3).toBoolean
 
-        val raw_points : RDD[DenseVector] = sc.objectFile(inputPath)
-        // raw_points.cache
+        val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](inputPath)
         val points = if (useSwat) CLWrapper.cl[DenseVector](raw_points) else raw_points
-        // points.cache
         val samples : Array[DenseVector] = points.takeSample(false, K, 1);
 
         var centers = new Array[DenseVector](K)

@@ -23,13 +23,11 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     filled += 1
   }
 
-  override def aggregateFrom(iter : Iterator[T]) : Int = {
-    val startFilled = filled;
+  override def aggregateFrom(iter : Iterator[T]) {
     while (filled < arr.length && iter.hasNext) {
         arr(filled) = iter.next
         filled += 1
     }
-    filled - startFilled
   }
 
   override def nBuffered() : Int = {
@@ -75,4 +73,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   }
 
   override def releaseNativeArrays { }
+
+  override def reset() {
+    filled = 0
+    iter = 0
+  }
 }
