@@ -109,49 +109,49 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
 
      def next() : U = {
-       // if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
-       //   assert(nested.hasNext)
+       if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
+         assert(nested.hasNext)
 
-       //   val ioStart : Long = System.currentTimeMillis // PROFILE
-       //   if (!firstSample.isEmpty) {
-       //     inputBuffer.get.append(firstSample.get)
-       //     firstSample = None
-       //   }
-       //   inputBuffer.get.aggregateFrom(nested)
-       //   val nLoaded = inputBuffer.get.nBuffered
-       //   val myOffset : Int = totalNLoaded
-       //   totalNLoaded += nLoaded
+         val ioStart : Long = System.currentTimeMillis // PROFILE
+         if (!firstSample.isEmpty) {
+           inputBuffer.get.append(firstSample.get)
+           firstSample = None
+         }
+         inputBuffer.get.aggregateFrom(nested)
+         val nLoaded = inputBuffer.get.nBuffered
+         val myOffset : Int = totalNLoaded
+         totalNLoaded += nLoaded
 
-       //   // inputBuffer.get.reset // after copying to device
+         // inputBuffer.get.reset // after copying to device
 
-       //   RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-       //   System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+         RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
+         System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
-       //   outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer.get))
-       // }
-
-       // outputBuffer.get.next
-
-       if (firstSample.isEmpty) {
-         f(nested.next)
-       } else {
-         val save : T = firstSample.get
-         firstSample = None
-         f(save)
+         outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer.get))
        }
+
+       outputBuffer.get.next
+
+       // if (firstSample.isEmpty) {
+       //   f(nested.next)
+       // } else {
+       //   val save : T = firstSample.get
+       //   firstSample = None
+       //   f(save)
+       // }
      }
 
      def hasNext() : Boolean = {
-       // val nonEmpty = (nested.hasNext ||
-       //         (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
-       //         (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
-       // if (!nonEmpty) {
-       //   System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
-       //       " elements") // PROFILE
-       //   RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-       // }
-       // nonEmpty
-       nested.hasNext
+       val nonEmpty = (nested.hasNext ||
+               (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
+               (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
+       if (!nonEmpty) {
+         System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
+             " elements") // PROFILE
+         RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
+       }
+       nonEmpty
+       // nested.hasNext
      }
 
      //  def next() : U = {
