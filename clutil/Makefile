@@ -4,7 +4,8 @@ include ${SWAT_HOME}/build.conf
 TARGET=libclutil.so
 DEFINES=
 GXX_FLAGS=-O3 -Wall
-INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
+INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
+         -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
 LIBS=-L${CL_HOME}/lib
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)

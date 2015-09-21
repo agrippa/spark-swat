@@ -6,8 +6,8 @@ GXX_FLAGS=-O3 -Wall
 
 SRC=bridge.cpp common.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
-				 -I${JAVA_HOME}/include/linux -I${CLUTIL_HOME} -I${CLALLOC_HOME} \
-				 -I/System/Library/Frameworks/OpenCL.framework/Versions/Current/Headers
+         -I${JAVA_HOME}/include/linux -I${CLUTIL_HOME} -I${CLALLOC_HOME} \
+         -I/System/Library/Frameworks/OpenCL.framework/Versions/Current/Headers
 TARGET=libbridge.so
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
