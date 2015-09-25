@@ -10,6 +10,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldNameInfo
 import com.amd.aparapi.internal.util.UnsafeWrapper
+import com.amd.aparapi.internal.writer.KernelWriter
 
 import java.nio.ByteBuffer
 
@@ -54,7 +55,6 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
       throw new RuntimeException("Unsupported")
     }
 
-    filled = 0
     return 1
   }
 
@@ -77,5 +77,16 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def reset() {
     filled = 0
     iter = 0
+  }
+
+  // Returns # of arguments used
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entryPoint : Entrypoint) : Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, 0, id.broadcast, id.rdd,
+        id.partition, id.offset, id.component, 1)) {
+      return 1
+    } else {
+      return -1
+    }
   }
 }

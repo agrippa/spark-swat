@@ -184,7 +184,8 @@ static void insert_into_buckets(cl_region *region, cl_alloc *alloc, bool try_to_
     ENTER_TRACE("insert_into_buckets");
     region->keeping = try_to_keep;
     if (try_to_keep) {
-        insert_into_buckets_helper(region, alloc->keep_buckets, &alloc->keep_large_bucket);
+        insert_into_buckets_helper(region, alloc->keep_buckets,
+                &alloc->keep_large_bucket);
     } else {
         insert_into_buckets_helper(region, alloc->buckets, &alloc->large_bucket);
     }
@@ -284,6 +285,8 @@ static void split(cl_region *target, size_t first_partition_size,
         free(target);
     }
 
+    ASSERT(lower_region->size >= MIN_ALLOC_SIZE);
+    ASSERT(upper_region->size >= MIN_ALLOC_SIZE);
     insert_into_buckets(lower_region, alloc, false);
     insert_into_buckets(upper_region, alloc, false);
 
@@ -412,6 +415,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             free(next);
             free(to_free);
             remove_from_bucket(prev);
+            ASSERT(prev->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(prev, prev->grandparent, false);
         } else if (!try_to_keep && next && next->refs == 0 && !next->keeping) {
             // Merge with just next
@@ -433,6 +437,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 #endif
             remove_from_bucket(next);
             free(next);
+            ASSERT(to_free->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(to_free, to_free->grandparent, false);
         } else if (!try_to_keep && prev && prev->refs == 0 && !prev->keeping) {
             // Merge with just prev
@@ -455,8 +460,10 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             prev->sub_mem = NULL;
             free(to_free);
             remove_from_bucket(prev);
+            ASSERT(prev->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(prev, prev->grandparent, false);
         } else {
+            ASSERT(to_free->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(to_free, to_free->grandparent, try_to_keep);
             to_free->keeping = try_to_keep;
         }
@@ -752,6 +759,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         new_region->bucket_next = NULL;
         new_region->bucket_prev = NULL;
         new_region->parent = NULL;
+        ASSERT(new_region->size >= MIN_ALLOC_SIZE);
         insert_into_buckets(new_region, new_region->grandparent, false);
 
         if (best_candidate->keeping) {

@@ -40,6 +40,7 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
       setNLoaded : Int) {
+    nLoaded = setNLoaded
     if (clazz.equals(classOf[Double])) {
       OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, outArgNum,
               arr.asInstanceOf[Array[Double]], nLoaded)
@@ -52,7 +53,6 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
     } else {
       throw new RuntimeException("Unsupported output primitive type " + clazz.getName)
     }
-    nLoaded = setNLoaded
   }
 
   override def countArgumentsUsed() : Int = { 1 }

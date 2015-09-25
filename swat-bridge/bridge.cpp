@@ -8,11 +8,11 @@
 #include "common.h"
 #include "ocl_util.h"
 
-// #ifdef VERBOSE
+#ifdef VERBOSE
 #define TRACE(...) fprintf(stderr, __VA_ARGS__)
-// #else
-// #define TRACE(...)
-// #endif
+#else
+#define TRACE(...)
+#endif
 
 static device_context *device_ctxs = NULL;
 static int n_device_ctxs = 0;
@@ -28,6 +28,8 @@ static int n_virtual_devices = 0;
  * Inter-device RDD cache
  */
 static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
+
+static map<rdd_partition_offset, int> *nloaded_cache;
 /*
  * Read lock is acquired when looking for a hint for which device to run on.
  * Read lock is also acquired when checking if there's a cached version of a
@@ -360,6 +362,7 @@ static void populateDeviceContexts() {
         free(platforms);
 
         rdd_cache = new map<rdd_partition_offset, map<int, cl_region *> *>();
+        nloaded_cache = new map<rdd_partition_offset, int>();
 
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
         CHECK_ALLOC(virtual_devices);
@@ -580,6 +583,10 @@ static void postKernelCleanupHelper(swat_context *ctx) {
             } else {
                 allocator = region->grandparent->allocator;
             }
+#ifdef VERBOSE
+            fprintf(stderr, "Freeing index=%d try_to_keep=%d region=%p\n",
+                    i->first, i->second.second, region);
+#endif
             free_cl_region(region, i->second.second);
         }
     }
@@ -650,6 +657,10 @@ static void fetch_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx) {
     ASSERT(context->arguments->find(index) != context->arguments->end());
     cl_mem mem = context->arguments->at(index).first->sub_mem;
+#ifdef VERBOSE
+    fprintf(stderr, "Fetching mem=%p to host=%p at index=%d with size=%lu\n",
+            mem, host, index, len);
+#endif
 
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
                 0, NULL, NULL));
@@ -898,6 +909,12 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
     bool all_succeed = true;
     int c = 0;
 
+#ifdef VERBOSE
+    fprintf(stderr, "tryCache: index=%d broadcast=%ld rdd=%d partition=%d "
+            "offset=%d component=%d ncomponents=%d\n", index, broadcastId,
+            rddid, partitionid, offsetid, componentid, ncomponents);
+#endif
+
     ENTER_TRACE("tryCache");
     if (broadcastId >= 0) {
         ASSERT(rddid < 0 && componentid >= 0);
@@ -905,7 +922,6 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
         int err = pthread_rwlock_rdlock(&dev_ctx->broadcast_lock);
         ASSERT(err == 0);
         
-        int c = 0;
         while (all_succeed && c < ncomponents) {
             broadcast_id uuid(broadcastId, componentid + c);
             cl_region *region = NULL;
@@ -921,6 +937,7 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
                 set_cached_kernel_arg(region, index + c, region->size, context, dev_ctx);
                 (*context->arguments)[index + c] = pair<cl_region *, bool>(region, true);
             } else {
+                TRACE("failed to try-cache broadcast %d %d\n", broadcastId, componentid + c);
                 all_succeed = false;
             }
             c++;
@@ -930,7 +947,6 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
         int err = pthread_rwlock_rdlock(&rdd_cache_lock);
         ASSERT(err == 0);
 
-        int c = 0;
         while (all_succeed && c < ncomponents) {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid + c);
             cl_region *region = NULL;
@@ -949,9 +965,12 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
             if (reallocated) {
                 TRACE("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                         partitionid, offsetid, componentid + c);
-                set_cached_kernel_arg(region, index, region->size, context, dev_ctx);
+                set_cached_kernel_arg(region, index + c, region->size, context, dev_ctx);
                 (*context->arguments)[index] = pair<cl_region *, bool>(region, true);
             } else {
+                TRACE("failed to try-cache rdd=%d partition=%d offset=%d "
+                        "component=%d\n", rddid, partitionid, offsetid,
+                        componentid + c);
                 all_succeed = false;
             }
             c++;
@@ -969,7 +988,7 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
          * increase the complexity of the calling code so for now it's just
          * a TODO.
          */
-        c--;
+        c -= 2;
         while (c >= 0) {
             pair<cl_region *, bool> cached = context->arguments->at(index + c);
             free_cl_region(cached.first, cached.second);
@@ -1297,6 +1316,36 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
     }
     EXIT_TRACE("serializeStridedDenseVectorsToNativeBuffer");
     return nToSerialize;
+}
+
+JNI_JAVA(void, OpenCLBridge, storeNLoaded)(JNIEnv *jenv, jclass clazz, jint rddid,
+         jint partitionid, jint offsetid, jint n_loaded) {
+    assert(rddid >= 0);
+
+    rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
+    map<rdd_partition_offset, int>::iterator found = nloaded_cache->find(uuid);
+    if (found != nloaded_cache->end()) {
+        fprintf(stderr, "checking rdd=%d partition=%d offset=%d found->second=%d n_loaded=%d\n", rddid, partitionid, offsetid, found->second, n_loaded);
+        assert(found->second == n_loaded);
+    } else {
+        fprintf(stderr, "inserting rdd=%d partition=%d offset=%d n_loaded=%d\n", rddid, partitionid, offsetid, n_loaded);
+        bool success = nloaded_cache->insert(pair<rdd_partition_offset, int>(
+                    uuid, n_loaded)).second;
+        assert(success);
+    }
+}
+
+JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddid,
+         jint partitionid, jint offsetid) {
+    assert(rddid >= 0);
+
+    rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
+    map<rdd_partition_offset, int>::iterator found = nloaded_cache->find(uuid);
+    if (found != nloaded_cache->end()) {
+        return found->second;
+    } else {
+        return -1;
+    }
 }
 
 #ifdef __cplusplus

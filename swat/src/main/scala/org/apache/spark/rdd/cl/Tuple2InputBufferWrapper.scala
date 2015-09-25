@@ -13,8 +13,6 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import java.nio.ByteBuffer
 
-
-
 class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val nele : Int,
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
@@ -162,8 +160,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         used = used + 1
     }
 
-    buffered = 0
-
     if (isInput) {
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + used,
               structSize * nele)
@@ -197,5 +193,51 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     buffer2.reset
     iter = 0
     buffered = 0
+  }
+
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entryPoint : Entrypoint) : Int = {
+    val firstMemberClassName : String = sample._1.getClass.getName
+    val secondMemberClassName : String = sample._2.getClass.getName
+    var used = 0
+
+    val firstMemberSize = entryPoint.getSizeOf(firstMemberClassName)
+    val secondMemberSize = entryPoint.getSizeOf(secondMemberClassName)
+
+    val nLoaded : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
+    if (nLoaded == -1) return -1
+
+    if (firstMemberSize > 0) {
+        val cacheSuccess = RuntimeUtil.tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
+                0, id, nLoaded, entryPoint)
+        if (cacheSuccess == -1) {
+          return -1
+        }
+        used = used + cacheSuccess
+        id.incrComponent(used)
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, 0)
+        used = used + 1
+    }
+
+    if (secondMemberSize > 0) {
+        val cacheSuccess = RuntimeUtil.tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
+                0 + used, id, nLoaded, entryPoint)
+        if (cacheSuccess == -1) {
+          OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, used)
+          return -1
+        }
+        used = used + cacheSuccess
+    } else {
+        OpenCLBridge.setNullArrayArg(ctx, 0 + used)
+        used = used + 1
+    }
+
+    val tuple2ClassModel : ClassModel =
+      entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
+          new ObjectMatcher(sample))
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0 + used,
+            tuple2ClassModel.getTotalStructSize * nLoaded)
+    return used + 1
   }
 }

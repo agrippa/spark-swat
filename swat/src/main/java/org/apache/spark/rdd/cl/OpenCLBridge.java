@@ -92,6 +92,9 @@ public class OpenCLBridge {
     public static native void fillFromNativeArray(double[] vectorArr,
         int vectorSize, int vectorOffset, int tiling, long buffer);
 
+    public static native void storeNLoaded(int rddid, int partitionid, int offsetid, int nloaded);
+    public static native int fetchNLoaded(int rddid, int partitionid, int offsetid);
+
     public static int createHeap(long ctx, long dev_ctx, int index,
             int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
       final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,

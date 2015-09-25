@@ -14,6 +14,7 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.HardCodedClassModels.UnparameterizedMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldNameInfo
 import com.amd.aparapi.internal.util.UnsafeWrapper
+import com.amd.aparapi.internal.writer.KernelWriter
 
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
@@ -165,14 +166,6 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     // Number of sparse vectors being copied
     OpenCLBridge.setIntArg(ctx, argnum + 5, buffered)
 
-    buffered = 0
-    currentTileOffset = 0
-
-    if (!overrun.isEmpty) {
-      append(overrun.get)
-      overrun = None
-    }
-
     return 6
   }
 
@@ -199,9 +192,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def haveUnprocessedInputs : Boolean = {
-    // True if overrun was non-empty after copying to device
-    assert(overrun.isEmpty)
-    buffered + tiled > 0
+    !overrun.isEmpty
   }
 
   override def releaseNativeArrays { }
@@ -215,6 +206,30 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     indicesBB.clear
     intIndicesBB.clear
     currentTileOffset = 0
-    overrun = None
+
+    if (!overrun.isEmpty) {
+      append(overrun.get)
+      overrun = None
+    }
+  }
+
+  // Returns # of arguments used
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entrypoint : Entrypoint) :
+      Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, 0 + 1, id.broadcast, id.rdd,
+        id.partition, id.offset, id.component, 4)) {
+      val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
+      // Array of structs for each item
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          KernelWriter.SPARSEVECTOR_CLASSNAME,
+          new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0,
+              c.getTotalStructSize * nVectors)
+      // Number of vectors
+      OpenCLBridge.setIntArg(ctx, 0 + 5, nVectors)
+      return 6
+    } else {
+      return -1
+    }
   }
 }

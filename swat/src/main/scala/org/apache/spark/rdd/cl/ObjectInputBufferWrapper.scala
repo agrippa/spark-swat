@@ -54,7 +54,6 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
         bb.position, cacheID.broadcast, cacheID.rdd, cacheID.partition,
         cacheID.offset, cacheID.component)
-    bb.clear
     return 1
   }
 
@@ -81,5 +80,16 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     objCount = 0
     iter = 0
     bb.clear
+  }
+
+  // Returns # of arguments used
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entrypoint : Entrypoint) :
+      Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, 0, id.broadcast, id.rdd,
+        id.partition, id.offset, id.component, 1)) {
+      return 1
+    } else {
+      return -1
+    }
   }
 }

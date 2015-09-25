@@ -84,7 +84,7 @@ object RuntimeUtil {
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
-        // System.err.println(openCL)
+        System.err.println(openCL)
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }
 

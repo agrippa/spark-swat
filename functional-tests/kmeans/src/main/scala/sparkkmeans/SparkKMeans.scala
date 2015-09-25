@@ -62,15 +62,20 @@ object SparkKMeans {
         val inputPath = args(2);
         val useSwat = args(3).toBoolean
 
-        val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](inputPath)
+        val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](inputPath).cache
         val points = if (useSwat) CLWrapper.cl[DenseVector](raw_points) else raw_points
+
+        System.err.println("npartitions = " + points.partitions.length)
+        System.err.println("partitions = " + points.partitioner.isEmpty)
+
         val samples : Array[DenseVector] = points.takeSample(false, K, 1);
 
         var centers = new Array[DenseVector](K)
-        for (i <- samples.indices) {
-            val s = samples(i)
-
-            centers(i) = s
+        for (i <- 0 until K) {
+            centers(i) = samples(i)
+            // val arr : Array[Double] = new Array[Double](68)
+            // for (i <- 0 until 68) arr(i) = i
+            // centers(i) = Vectors.dense(arr).asInstanceOf[DenseVector]
         }
 
         val startTime = System.currentTimeMillis
@@ -79,6 +84,9 @@ object SparkKMeans {
             val iterStartTime = System.currentTimeMillis
 
             val broadcastedCenters = sc.broadcast(centers)
+
+            val input_count = points.count
+            System.err.println("input count = " + input_count)
 
             val classified : RDD[Tuple2[Int, DenseVector]] = points.map(point => {
                 var closest_center = -1
@@ -107,7 +115,10 @@ object SparkKMeans {
                  Vectors.dense(copyOfClosest).asInstanceOf[DenseVector])
             })
             val dummy = classified.count
+            System.err.println("classified count = " + dummy)
             val iterEndTime = System.currentTimeMillis
+
+            // System.exit(1)
 
             val counts = classified.countByKey()
             for (c <- counts) {
