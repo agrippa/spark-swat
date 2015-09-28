@@ -10,7 +10,8 @@ else
 GXX_FLAGS=-O3 -Wall -fPIC -DOPENCL_ALLOCATOR
 endif
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
-				 -I${JAVA_HOME}/include/linux
+         -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
+LIBS=-L${CL_HOME}/lib
 
 ifneq ($(GXX),nvcc)
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
@@ -23,7 +24,7 @@ endif
 
 ${TARGET}: allocator.cpp allocator.h
 	test ! -z "${GXX}" || { echo 'GXX missing, should be defined in SWAT_HOME/build.conf'; exit 1; }
-	${GXX} ${GXX_FLAGS} ${DEFINES} allocator.cpp -o libclalloc.so ${INCLUDES} \
+	${GXX} ${GXX_FLAGS} ${DEFINES} allocator.cpp -o libclalloc.so ${INCLUDES} ${LIBS} \
 		--shared -I${CLUTIL_HOME} -L${CLUTIL_HOME} -lclutil
 
 clean:
