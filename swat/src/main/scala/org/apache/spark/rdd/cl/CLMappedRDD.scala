@@ -79,20 +79,19 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
 //      RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
-     val firstSample : T = nested.next
+     var firstSample : Option[T] = Some(nested.next)
      var sampleOutput : java.lang.Object = None
 
      if (entryPoint == null) {
 //        val initStart = System.currentTimeMillis // PROFILE
-       sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
+       sampleOutput = f(firstSample.get).asInstanceOf[java.lang.Object]
        val entrypointAndKernel : Tuple2[Entrypoint, String] =
-           RuntimeUtil.getEntrypointAndKernel[T, U](firstSample, sampleOutput,
+           RuntimeUtil.getEntrypointAndKernel[T, U](firstSample.get, sampleOutput,
            params, f, classModel, descriptor, dev_ctx, threadId)
        entryPoint = entrypointAndKernel._1
        openCL = entrypointAndKernel._2
 
-       inputBuffer = RuntimeUtil.getInputBufferFor(firstSample, N, entryPoint)
-       inputBuffer.append(firstSample)
+       inputBuffer = RuntimeUtil.getInputBufferFor(firstSample.get, N, entryPoint)
 
        nativeOutputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
                    sampleOutput.asInstanceOf[U], N, entryPoint))
@@ -117,35 +116,39 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 //          val ioStart : Long = System.currentTimeMillis // PROFILE
          inputBuffer.reset
 
-         // val myOffset : Int = totalNLoaded
-         // val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
-         //     new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
-         //     else NoCache
+         val myOffset : Int = totalNLoaded
+         val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
+             new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
+             else NoCache
 
-         // var nLoaded : Int = -1
-         // val inputCacheSuccess : Int = if (inputCacheId == NoCache) -1 else
-         //   inputBuffer.get.tryCache(inputCacheId, ctx, dev_ctx, entryPoint)
+         var nLoaded : Int = -1
+         val inputCacheSuccess : Int = if (inputCacheId == NoCache) -1 else
+           inputBuffer.tryCache(inputCacheId, ctx, dev_ctx, entryPoint)
 
-         // if (inputCacheSuccess != -1) {
-         //   nLoaded = OpenCLBridge.fetchNLoaded(inputCacheId.rdd, inputCacheId.partition,
-         //     inputCacheId.offset)
-         //   if (!firstSample.isEmpty) {
-         //     firstSample = None
-         //     nested.drop(nLoaded - 1)
-         //   } else {
-         //     nested.drop(nLoaded)
-         //   }
-         // } else {
+         if (inputCacheSuccess != -1) {
+           nLoaded = OpenCLBridge.fetchNLoaded(inputCacheId.rdd, inputCacheId.partition,
+             inputCacheId.offset)
+           if (!firstSample.isEmpty) {
+             firstSample = None
+             nested.drop(nLoaded - 1)
+           } else {
+             nested.drop(nLoaded)
+           }
+         } else {
+           if (!firstSample.isEmpty) {
+             inputBuffer.append(firstSample.get)
+             firstSample = None
+           }
            inputBuffer.aggregateFrom(nested)
            inputBuffer.flush
 
-           // nLoaded = inputBuffer.get.nBuffered
-           // if (inputCacheId != NoCache) {
-           //   OpenCLBridge.storeNLoaded(inputCacheId.rdd, inputCacheId.partition,
-           //     inputCacheId.offset, nLoaded)
-           // }
-         // }
-         // totalNLoaded += nLoaded
+           nLoaded = inputBuffer.nBuffered
+           if (inputCacheId != NoCache) {
+             OpenCLBridge.storeNLoaded(inputCacheId.rdd, inputCacheId.partition,
+               inputCacheId.offset, nLoaded)
+           }
+         }
+         totalNLoaded += nLoaded
 
          /*
 
