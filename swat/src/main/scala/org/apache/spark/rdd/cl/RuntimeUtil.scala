@@ -20,10 +20,10 @@ import com.amd.aparapi.internal.model.Entrypoint
 
 object RuntimeUtil {
 
-  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-          (System.currentTimeMillis - startTime) + " ms") // PROFILE
-  } // PROFILE
+//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+//           (System.currentTimeMillis - startTime) + " ms") // PROFILE
+//   } // PROFILE
 
 
   def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
@@ -33,7 +33,7 @@ object RuntimeUtil {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
-    val startClassGeneration = System.currentTimeMillis // PROFILE
+//     val startClassGeneration = System.currentTimeMillis // PROFILE
 
     val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     if (firstSample.isInstanceOf[Tuple2[_, _]]) {
@@ -56,39 +56,39 @@ object RuntimeUtil {
       }
     }
 
-    profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
-    val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
+//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
 
     val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
             lambda.getClass.getName)
     EntrypointCache.cache.synchronized {
       if (EntrypointCache.cache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
         entryPoint = EntrypointCache.cache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
         entryPoint = classModel.getEntrypoint("apply", methodDescriptor,
             lambda, params, hardCodedClassModels,
             CodeGenUtil.createCodeGenConfig(dev_ctx))
         EntrypointCache.cache.put(entrypointKey, entryPoint)
       }
 
-      profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
-      val startKernelGeneration = System.currentTimeMillis // PROFILE
+//       profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
+//       val startKernelGeneration = System.currentTimeMillis // PROFILE
 
       if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
         openCL = EntrypointCache.kernelCache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " generating kernel") // PROFILE
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
-        System.err.println(openCL)
+//         System.err.println(openCL) // PROFILE
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }
 
-      profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
+//       profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
     }
     (entryPoint, openCL)
   }

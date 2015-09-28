@@ -45,21 +45,20 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   var valuesBufferPosition : Int = 0
   val valuesBufferCapacity : Long = vectorElementCapacity * 8
 
-  val sizes : Array[Int] = new Array[Int](vectorCapacity)
-  val offsets : Array[Int] = new Array[Int](vectorCapacity)
+  val sizesBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
+  val offsetsBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
 
   val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
 
   override def flush() {
     if (tiled > 0) {
       val nTiled : Int = OpenCLBridge.serializeStridedDenseVectorsToNativeBuffer(
-          valuesBuffer, valuesBufferPosition, valuesBufferCapacity, to_tile,
+          valuesBuffer, valuesBufferPosition, valuesBufferCapacity, sizesBuffer,
+          offsetsBuffer, buffered, vectorCapacity, to_tile,
           if (buffered + tiled > vectorCapacity) (vectorCapacity - buffered) else tiled, tiling)
       if (nTiled > 0) {
         var newValuesBufferPosition : Int = valuesBufferPosition + 0 +
             (tiling * (to_tile(0).size - 1))
-        sizes(buffered) = to_tile(0).size
-        offsets(buffered) = valuesBufferPosition
 
         for (i <- 1 until nTiled) {
           val curr : DenseVector = to_tile(i)
@@ -67,9 +66,6 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
           if (pos > newValuesBufferPosition) {
             newValuesBufferPosition = pos
           }
-
-          sizes(buffered + i) = curr.size
-          offsets(buffered + i) = valuesBufferPosition + i
         }
 
         valuesBufferPosition = newValuesBufferPosition + 1
@@ -117,10 +113,8 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       cacheID : CLCacheID) : Int = {
-    if (tiled > 0) {
-      flush
-    }
-
+    // Should call a flush explicitly from the RDD iterator next() function
+    assert(tiled == 0)
     // Array of structs for each item
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
             denseVectorStructSize * vectorCapacity)
@@ -129,11 +123,11 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
         valuesBufferPosition, cacheID.broadcast, cacheID.rdd, cacheID.partition,
         cacheID.offset, cacheID.component)
     // Sizes of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 2, sizes, buffered,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2, sizesBuffer, buffered * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
             cacheID.component + 1)
     // Offsets of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, offsets, buffered,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, offsetsBuffer, buffered * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
             cacheID.component + 2)
     // Number of vectors
@@ -148,8 +142,8 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def next() : DenseVector = {
     assert(tiled == 0)
-    val vectorSize : Int = sizes(iter)
-    val vectorOffset : Int = offsets(iter)
+    val vectorSize : Int = OpenCLBridge.getIntFromArray(sizesBuffer, iter)
+    val vectorOffset : Int = OpenCLBridge.getIntFromArray(offsetsBuffer, iter)
     val vectorArr : Array[Double] = new Array[Double](vectorSize)
     OpenCLBridge.fillFromNativeArray(vectorArr, vectorSize, vectorOffset,
         tiling, valuesBuffer)
@@ -167,6 +161,8 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def releaseNativeArrays {
     OpenCLBridge.nativeFree(valuesBuffer)
+    OpenCLBridge.nativeFree(sizesBuffer)
+    OpenCLBridge.nativeFree(offsetsBuffer)
   }
 
   override def reset() {

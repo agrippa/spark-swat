@@ -178,6 +178,7 @@ object OpenCLBridgeWrapper {
       for (i <- 0 until argLength) {
         buffer.append(arg(i))
       }
+      buffer.flush
       return buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
     }
   }
@@ -204,6 +205,7 @@ object OpenCLBridgeWrapper {
       for (i <- 0 until argLength) {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }
+      buffer.flush
       return buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
     }
   }

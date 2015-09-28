@@ -59,8 +59,7 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArg(long ctx, long dev_ctx,
             int index, byte[] arg, int argLength);
 
-    public static native void run(long ctx, long dev_ctx, int range,
-            boolean isWorkSharing);
+    public static native void run(long ctx, long dev_ctx, int range);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
@@ -83,14 +82,16 @@ public class OpenCLBridge {
     public static native long nativeMalloc(long nbytes);
     public static native void nativeFree(long buffer);
     public static native int serializeStridedDenseVectorsToNativeBuffer(
-            long buffer, int position, long capacity,
+            long buffer, int position, long capacity, long sizesBuffer,
+            long offsetsBuffer, int buffered, int vectorCapacity,
             org.apache.spark.mllib.linalg.DenseVector[] vectors,
             int nToSerialize, int tiling);
-    public static native boolean setNativeArrayArg(long ctx, long dev_ctx,
+    public static native boolean setNativeArrayArgImpl(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component);
     public static native void fillFromNativeArray(double[] vectorArr,
         int vectorSize, int vectorOffset, int tiling, long buffer);
+    public static native int getIntFromArray(long buffer, int index);
 
     public static native void storeNLoaded(int rddid, int partitionid, int offsetid, int nloaded);
     public static native int fetchNLoaded(int rddid, int partitionid, int offsetid);
@@ -103,6 +104,16 @@ public class OpenCLBridge {
         throw new OpenCLOutOfMemoryException();
       }
       return argsUsed;
+    }
+
+    public static void setNativeArrayArg(long ctx, long dev_ctx,
+        int index, long buffer, int len, long broadcast, int rdd,
+        int partition, int offset, int component) throws OpenCLOutOfMemoryException {
+      final boolean success = setNativeArrayArgImpl(ctx, dev_ctx, index, buffer,
+          len, broadcast, rdd, partition, offset, component);
+      if (!success) {
+          throw new OpenCLOutOfMemoryException();
+      }
     }
 
     public static void setIntArrayArg(long ctx, long dev_ctx, int index,

@@ -84,6 +84,10 @@ typedef struct _swat_context {
     int host_thread_index;
 
     map<int, pair<cl_region *, bool> > *arguments;
+
+    int event_capacity;
+    int n_events;
+    cl_event *events;
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
