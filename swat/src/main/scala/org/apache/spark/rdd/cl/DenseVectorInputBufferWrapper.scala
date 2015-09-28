@@ -142,11 +142,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def next() : DenseVector = {
     assert(tiled == 0)
-    val vectorSize : Int = OpenCLBridge.getIntFromArray(sizesBuffer, iter)
-    val vectorOffset : Int = OpenCLBridge.getIntFromArray(offsetsBuffer, iter)
-    val vectorArr : Array[Double] = new Array[Double](vectorSize)
-    OpenCLBridge.fillFromNativeArray(vectorArr, vectorSize, vectorOffset,
-        tiling, valuesBuffer)
+    val vectorArr : Array[Double] =
+        OpenCLBridge.deserializeValuesFromNativeArray(valuesBuffer, sizesBuffer,
+        offsetsBuffer, iter, tiling)
     iter += 1
     Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }

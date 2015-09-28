@@ -784,19 +784,28 @@ static cl_region *is_cached(jlong broadcastId, jint rddid, jint partitionid,
     return region;
 }
 
-JNI_JAVA(void, OpenCLBridge, fillFromNativeArray)(JNIEnv *jenv, jclass clazz,
-            jarray vectorArr, jint vectorSize, jint vectorOffset, jint tiling,
-            jlong buffer) {
-    ENTER_TRACE("fillFromNativeArray");
-    double *nativeBuffer = (double *)buffer;
+JNI_JAVA(jdoubleArray, OpenCLBridge, deserializeValuesFromNativeArray)(JNIEnv *jenv,
+        jclass clazz, jlong valuesBuffer, jlong sizesBuffer,
+        jlong offsetsBuffer, jint index, jint tiling) {
+    ENTER_TRACE("deserializeValuesFromNativeArray");
+    double *values = (double *)valuesBuffer;
+    int *sizes = (int *)sizesBuffer;
+    int *offsets = (int *)offsetsBuffer;
 
-    double *arr = (double *)jenv->GetPrimitiveArrayCritical(vectorArr, NULL);
+    const int size = sizes[index];
+    const int offset = offsets[index];
+    jdoubleArray jvmArray = jenv->NewDoubleArray(size);
+    CHECK_JNI(jvmArray);
+/*
+    double *arr = (double *)jenv->GetPrimitiveArrayCritical(jvmArray, NULL);
     CHECK_JNI(arr);
-    for (int i = 0; i < vectorSize; i++) {
-        arr[i] = nativeBuffer[vectorOffset + (i * tiling)];
+    for (int i = 0; i < size; i++) {
+        arr[i] = values[offset + (i * tiling)];
     }
-    jenv->ReleasePrimitiveArrayCritical(vectorArr, arr, JNI_COMMIT);
-    EXIT_TRACE("fillFromNativeArray");
+    jenv->ReleasePrimitiveArrayCritical(jvmArray, arr, 0);
+*/
+    EXIT_TRACE("deserializeValuesFromNativeArray");
+    return jvmArray;
 }
 
 JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
@@ -1311,14 +1320,6 @@ JNI_JAVA(void, OpenCLBridge, nativeFree)
     free(ptr);
 }
 
-JNI_JAVA(jint, OpenCLBridge, getIntFromArray)
-        (JNIEnv *jenv, jclass clazz, jlong buffer, jint index) {
-    ENTER_TRACE("getIntFromArray");
-    int *arr = (int *)buffer;
-    EXIT_TRACE("getIntFromArray");
-    return arr[index];
-}
-
 #define ELE_UNROLLING 16
 #define VECTOR_UNROLLING 2
 
@@ -1328,6 +1329,7 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
          jint buffered, jint vectorCapacity, jobjectArray vectors,
          jint nToSerialize, jint tiling) {
     ENTER_TRACE("serializeStridedDenseVectorsToNativeBuffer");
+    jenv->EnsureLocalCapacity(nToSerialize);
 
     double *serialized = (double *)buffer;
     int *sizes = (int *)sizesBuffer;
@@ -1338,13 +1340,14 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
         jobject vector = jenv->GetObjectArrayElement(vectors, i);
         CHECK_JNI(vector);
 
-        const jint vectorSize = jenv->CallIntMethod(vector, denseVectorSizeMethod);
+        const jint vectorSize = 68;
+        // const jint vectorSize = jenv->CallIntMethod(vector, denseVectorSizeMethod);
         const long lastElement = offset + ((vectorSize - 1) * tiling);
         if (buffered + i >= vectorCapacity || lastElement >= bufferCapacity) {
             EXIT_TRACE("serializeStridedDenseVectorsToNativeBuffer");
             return i;
         }
-
+/*
         // double[] array backing the dense vector
         jarray vectorArray = (jarray)jenv->CallObjectMethod(vector,
                 denseVectorValuesMethod);
@@ -1354,27 +1357,13 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
                 vectorArray, NULL);
         CHECK_JNI(vectorArrayValues);
 
-        const int niters = vectorSize / ELE_UNROLLING;
-        for (int j = 0; j < niters; j += ELE_UNROLLING) {
-            double tile[ELE_UNROLLING];
-            for (int k = 0; k < ELE_UNROLLING; k++) {
-                tile[k] = vectorArrayValues[j + k];
-            }
-
-            for (int k = 0; k < ELE_UNROLLING; k++) {
-                serialized[offset + ((j + k) * tiling)] = tile[k];
-            }
-        }
-        for (int j = niters * ELE_UNROLLING; j < vectorSize; j++) {
-            serialized[offset + (j * tiling)] = vectorArrayValues[j];
-        }
-
         // for (int j = 0; j < vectorSize; j++) {
         //     serialized[offset + (j * tiling)] = vectorArrayValues[j];
         // }
 
         jenv->ReleasePrimitiveArrayCritical(vectorArray, vectorArrayValues,
                 JNI_ABORT);
+*/
 
         sizes[buffered + i] = vectorSize;
         offsets[buffered + i] = offset;
