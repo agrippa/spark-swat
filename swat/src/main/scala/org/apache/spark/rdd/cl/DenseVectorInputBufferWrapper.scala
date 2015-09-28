@@ -40,6 +40,11 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   val tiling : Int = DenseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
+  val to_tile_sizes : Array[Int] = new Array[Int](tiling)
+
+  val next_buffered : Array[Array[Double]] = new Array[Array[Double]](tiling)
+  var next_buffered_iter : Int = 0
+  var n_next_buffered : Int = 0
 
   val valuesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 8)
   var valuesBufferPosition : Int = 0
@@ -54,7 +59,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     if (tiled > 0) {
       val nTiled : Int = OpenCLBridge.serializeStridedDenseVectorsToNativeBuffer(
           valuesBuffer, valuesBufferPosition, valuesBufferCapacity, sizesBuffer,
-          offsetsBuffer, buffered, vectorCapacity, to_tile,
+          offsetsBuffer, buffered, vectorCapacity, to_tile, to_tile_sizes,
           if (buffered + tiled > vectorCapacity) (vectorCapacity - buffered) else tiled, tiling)
       if (nTiled > 0) {
         var newValuesBufferPosition : Int = valuesBufferPosition + 0 +
@@ -89,6 +94,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   def append(obj : DenseVector) {
     to_tile(tiled) = obj
+    to_tile_sizes(tiled) = obj.size
     tiled += 1
 
     if (tiled == tiling) {
@@ -142,11 +148,24 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   override def next() : DenseVector = {
     assert(tiled == 0)
-    val vectorArr : Array[Double] =
-        OpenCLBridge.deserializeValuesFromNativeArray(valuesBuffer, sizesBuffer,
-        offsetsBuffer, iter, tiling)
+    if (next_buffered_iter == n_next_buffered) {
+        next_buffered_iter = 0
+        n_next_buffered = if (buffered - iter > tiling) tiling else buffered - iter
+        OpenCLBridge.deserializeValuesFromNativeArray(
+                next_buffered.asInstanceOf[Array[java.lang.Object]],
+                n_next_buffered, valuesBuffer, sizesBuffer, offsetsBuffer, iter, tiling)
+    }
+    val result : DenseVector = Vectors.dense(next_buffered(next_buffered_iter))
+        .asInstanceOf[DenseVector]
+    next_buffered_iter += 1
     iter += 1
-    Vectors.dense(vectorArr).asInstanceOf[DenseVector]
+    result
+
+    // val vectorArr : Array[Double] =
+    //     OpenCLBridge.deserializeValuesFromNativeArray(valuesBuffer, sizesBuffer,
+    //         offsetsBuffer, iter, tiling)
+    // iter += 1
+    // Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }
 
   /*

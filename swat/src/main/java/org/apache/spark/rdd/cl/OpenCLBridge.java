@@ -85,13 +85,14 @@ public class OpenCLBridge {
             long buffer, int position, long capacity, long sizesBuffer,
             long offsetsBuffer, int buffered, int vectorCapacity,
             org.apache.spark.mllib.linalg.DenseVector[] vectors,
-            int nToSerialize, int tiling);
+            int[] vectorSizes, int nToSerialize, int tiling);
     public static native boolean setNativeArrayArgImpl(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component);
-    public static native double[] deserializeValuesFromNativeArray(
-            long valuesBuffer, long sizesBuffer, long offsetsBuffer, int index,
-            int tiling);
+
+    public static native void deserializeValuesFromNativeArray(
+            Object[] bufferTo, int nToBuffer, long valuesBuffer, long sizesBuffer,
+            long offsetsBuffer, int index, int tiling);
 
     public static native void storeNLoaded(int rddid, int partitionid, int offsetid, int nloaded);
     public static native int fetchNLoaded(int rddid, int partitionid, int offsetid);
