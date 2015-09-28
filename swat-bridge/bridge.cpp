@@ -1356,11 +1356,14 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
 
         const int niters = vectorSize / ELE_UNROLLING;
         for (int j = 0; j < niters; j += ELE_UNROLLING) {
-            double val1 = vectorArrayValues[j];
-            double val2 = vectorArrayValues[j + 1];
+            double tile[ELE_UNROLLING];
+            for (int k = 0; k < ELE_UNROLLING; k++) {
+                tile[k] = vectorArrayValues[j + k];
+            }
 
-            serialized[offset + (j * tiling)] = val1;
-            serialized[offset + ((j + 1) * tiling)] = val2;
+            for (int k = 0; k < ELE_UNROLLING; k++) {
+                serialized[offset + ((j + k) * tiling)] = tile[k];
+            }
         }
         for (int j = niters * ELE_UNROLLING; j < vectorSize; j++) {
             serialized[offset + (j * tiling)] = vectorArrayValues[j];
