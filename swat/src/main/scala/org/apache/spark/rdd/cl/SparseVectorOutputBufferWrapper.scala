@@ -137,4 +137,7 @@ class SparseVectorOutputBufferWrapper(val N : Int)
     currSlot = 0
     nLoaded = -1
   }
+
+  override def releaseNativeArrays() {
+  }
 }

@@ -21,7 +21,9 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
     heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
   assert(devicePointerSize == 4 || devicePointerSize == 8)
 
+  val heapTopArgnum : Int = processingSucceededArgnum - 2
   val anyFailed : Array[Int] = new Array[Int](1)
+  val heapTop : Array[Int] = new Array[Int](1)
   val processingSucceeded : Array[Int] = new Array[Int](N)
 
   /*
@@ -34,17 +36,24 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
   outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-  val heapOut : Array[Byte] = new Array[Byte](heapSize)
-  val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
-  heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
+  var heapOutBufferSize : Int = 0
+  var heapOutBuffer : Long = 0
+  // val heapOut : Array[Byte] = new Array[Byte](heapSize)
+  // val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
+  // heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
   def readFromDevice() : Boolean = {
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
+    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
-            heapSize)
+    if (heapOutBufferSize < heapTop(0)) {
+      heapOutBufferSize = heapTop(0)
+      heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
+    }
+    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
+            heapOutBuffer, heapTop(0))
 
     anyFailed(0) == 0 // return true when the kernel completed successfully
   }
@@ -60,15 +69,24 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
       outArgBuffer.getInt else outArgBuffer.getLong.toInt
     val size : Int = outArgBuffer.getInt
 
-    val values : Array[Double] = new Array[Double](size)
-    heapOutBuffer.position(heapOffset.toInt)
-    var i = 0
-    while (i < size) {
-      values(i) = heapOutBuffer.getDouble
-      i += 1
-    }
+    val values : Array[Double] =
+        OpenCLBridge.deserializeChunkedValuesFromNativeArray(heapOutBuffer,
+        heapOffset, size)
+    // val values : Array[Double] = new Array[Double](size)
+    // heapOutBuffer.position(heapOffset.toInt)
+    // var i = 0
+    // while (i < size) {
+    //   values(i) = heapOutBuffer.getDouble
+    //   i += 1
+    // }
 
     Vectors.dense(values).asInstanceOf[DenseVector]
+  }
+
+  def releaseNativeArrays() {
+    if (heapOutBufferSize > 0) {
+      OpenCLBridge.nativeFree(heapOutBuffer)
+    }
   }
 }
 
@@ -124,5 +142,14 @@ class DenseVectorOutputBufferWrapper(val N : Int)
     nFilledBuffers = 0
     currSlot = 0
     nLoaded = -1
+  }
+
+  override def releaseNativeArrays() {
+    val iter : java.util.Iterator[DenseVectorDeviceBuffersWrapper] =
+        buffers.iterator
+    while (iter.hasNext) {
+      val wrapper : DenseVectorDeviceBuffersWrapper = iter.next
+      wrapper.releaseNativeArrays
+    }
   }
 }

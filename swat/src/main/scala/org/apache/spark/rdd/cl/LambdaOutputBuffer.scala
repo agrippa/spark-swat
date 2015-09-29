@@ -14,34 +14,33 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
     acc : InputBufferWrapper[T]) extends OutputBufferWrapper[U] {
-  def next() : U = {
+  override def next() : U = {
     f(acc.next)
   }
 
-  def hasNext() : Boolean = {
+  override def hasNext() : Boolean = {
     acc.hasNext
   }
 
-  def releaseBuffers(bbCache : ByteBufferCache) {
-    throw new java.lang.UnsupportedOperationException()
-  }
-
   // Returns true if all work on the device is complete
-  def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
           heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, nLoaded : Int) {
+  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, nLoaded : Int) {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def countArgumentsUsed() : Int = {
+  override def countArgumentsUsed() : Int = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def reset() {
+  override def reset() {
     throw new java.lang.UnsupportedOperationException()
+  }
+
+  override def releaseNativeArrays() {
   }
 }

@@ -57,4 +57,9 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     member0OutputBuffer.reset
     member1OutputBuffer.reset
   }
+
+  override def releaseNativeArrays() {
+    member0OutputBuffer.releaseNativeArrays
+    member1OutputBuffer.releaseNativeArrays
+  }
 }

@@ -20,7 +20,7 @@ public class OpenCLBridge {
 
     public static native long createSwatContext(String label, String _source,
             long dev_ctx, int host_thread_index, boolean requiresDouble,
-            boolean requiresHeap);
+            boolean requiresHeap, int max_n_buffered);
     public static native void cleanupSwatContext(long ctx);
     public static native long getActualDeviceContext(int device_index);
     public static native void postKernelCleanup(long ctx);
@@ -59,6 +59,9 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArg(long ctx, long dev_ctx,
             int index, byte[] arg, int argLength);
 
+    public static native void fetchByteArrayArgToNativeArray(long ctx,
+            long dev_ctx, int index, long buffer, int argLength);
+
     public static native void run(long ctx, long dev_ctx, int range);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
@@ -81,6 +84,8 @@ public class OpenCLBridge {
 
     public static native long nativeMalloc(long nbytes);
     public static native void nativeFree(long buffer);
+    public static native long nativeRealloc(long buffer, long nbytes);
+
     public static native int serializeStridedDenseVectorsToNativeBuffer(
             long buffer, int position, long capacity, long sizesBuffer,
             long offsetsBuffer, int buffered, int vectorCapacity,
@@ -90,12 +95,16 @@ public class OpenCLBridge {
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component);
 
-    public static native void deserializeValuesFromNativeArray(
-            Object[] bufferTo, int nToBuffer, long valuesBuffer, long sizesBuffer,
-            long offsetsBuffer, int index, int tiling);
+    public static native void deserializeStridedValuesFromNativeArray(
+            Object[] bufferTo, int nToBuffer, long valuesBuffer,
+            long sizesBuffer, long offsetsBuffer, int index, int tiling);
+    public static native double[] deserializeChunkedValuesFromNativeArray(
+            long buffer, int offset, int size);
 
-    public static native void storeNLoaded(int rddid, int partitionid, int offsetid, int nloaded);
-    public static native int fetchNLoaded(int rddid, int partitionid, int offsetid);
+    public static native void storeNLoaded(int rddid, int partitionid,
+            int offsetid, int nloaded);
+    public static native int fetchNLoaded(int rddid, int partitionid,
+            int offsetid);
 
     public static int createHeap(long ctx, long dev_ctx, int index,
             int size, int max_n_buffered) throws OpenCLOutOfMemoryException {

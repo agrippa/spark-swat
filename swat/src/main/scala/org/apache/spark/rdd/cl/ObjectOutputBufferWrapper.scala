@@ -61,4 +61,7 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     iter = 0
     nLoaded = -1
   }
+
+  override def releaseNativeArrays() {
+  }
 }

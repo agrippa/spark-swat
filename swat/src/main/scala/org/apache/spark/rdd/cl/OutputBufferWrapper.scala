@@ -36,4 +36,6 @@ trait OutputBufferWrapper[T] {
    * to prepare it for future buffering.
    */
   def reset()
+
+  def releaseNativeArrays()
 }

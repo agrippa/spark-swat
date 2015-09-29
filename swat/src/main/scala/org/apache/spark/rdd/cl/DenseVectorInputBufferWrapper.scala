@@ -151,7 +151,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     if (next_buffered_iter == n_next_buffered) {
         next_buffered_iter = 0
         n_next_buffered = if (buffered - iter > tiling) tiling else buffered - iter
-        OpenCLBridge.deserializeValuesFromNativeArray(
+        OpenCLBridge.deserializeStridedValuesFromNativeArray(
                 next_buffered.asInstanceOf[Array[java.lang.Object]],
                 n_next_buffered, valuesBuffer, sizesBuffer, offsetsBuffer, iter, tiling)
     }
@@ -160,12 +160,6 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     next_buffered_iter += 1
     iter += 1
     result
-
-    // val vectorArr : Array[Double] =
-    //     OpenCLBridge.deserializeValuesFromNativeArray(valuesBuffer, sizesBuffer,
-    //         offsetsBuffer, iter, tiling)
-    // iter += 1
-    // Vectors.dense(vectorArr).asInstanceOf[DenseVector]
   }
 
   /*

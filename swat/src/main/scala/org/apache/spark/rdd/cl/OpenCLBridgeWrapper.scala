@@ -206,7 +206,9 @@ object OpenCLBridgeWrapper {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }
       buffer.flush
-      return buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
+      val result = buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID)
+      buffer.releaseNativeArrays
+      return result
     }
   }
 

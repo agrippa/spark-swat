@@ -546,7 +546,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         void (*callback)(void *), void *user_data) {
     ENTER_TRACE("allocate_cl_region");
     ASSERT(allocator);
-    ASSERT(size > 0);
 
     // size_t rounded_size = size;
     size_t rounded_size = size + (allocator->address_align -

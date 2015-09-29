@@ -105,7 +105,7 @@ object CodeGenTests {
 
       val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
           openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
-          entryPoint.requiresHeap);
+          entryPoint.requiresHeap, 1);
 
       Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
       Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
