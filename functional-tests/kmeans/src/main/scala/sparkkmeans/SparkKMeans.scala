@@ -64,7 +64,7 @@ object SparkKMeans {
 
         val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](inputPath).cache
         val points = if (useSwat) CLWrapper.cl[DenseVector](raw_points) else raw_points
-        points.cache
+        // points.cache
 
         System.err.println("npartitions = " + points.partitions.length)
         System.err.println("partitions = " + points.partitioner.isEmpty)
