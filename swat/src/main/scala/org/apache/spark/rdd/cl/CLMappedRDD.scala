@@ -113,8 +113,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
      def next() : U = {
        if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
-       // if (!inputBuffer.hasNext) { //TODO remove
-//          val ioStart : Long = System.currentTimeMillis // PROFILE
          inputBuffer.reset
          nativeOutputBuffer.get.reset
 
@@ -219,7 +217,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            }
          }
 
-       } //TODO remove
+       }
 
        outputBuffer.get.next
 
@@ -236,31 +234,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      }
 
      def hasNext() : Boolean = {
-       /*
-       val nonEmpty = (nested.hasNext ||
-               (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
-               (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
-       if (!nonEmpty && !ctxCache.isEmpty) {
-         val startEnd = System.currentTimeMillis
-         val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] =
-           ctxCache.entrySet.iterator
-         while (iter.hasNext) {
-             val curr : java.util.Map.Entry[Long, Long] = iter.next
-             OpenCLBridge.cleanupSwatContext(curr.getValue)
-         }
-         ctxCache.clear
-         inputBuffer.get.releaseNativeArrays
-         // nativeOutputBuffer.get.reset
-//          RuntimeUtil.profPrint("Finish", startEnd, threadId) // PROFILE
-
-//          System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
-//              " elements") // PROFILE
-//          RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-       }
-       nonEmpty
-       */
-
-       // val haveNext = nested.hasNext || inputBuffer.hasNext
        val haveNext = nested.hasNext || outputBuffer.get.hasNext
        if (!haveNext) {
          inputBuffer.releaseNativeArrays
@@ -270,126 +243,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
        }
        haveNext
      }
-
-     //  def next() : U = {
-
-     //    if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
-     //      assert(nested.hasNext)
-
-//      //      val ioStart : Long = System.currentTimeMillis // PROFILE
-     //      inputBuffer.get.append(firstSample)
-     //      inputBuffer.get.aggregateFrom(nested)
-     //      val nLoaded = inputBuffer.get.nBuffered
-     //      val myOffset : Int = totalNLoaded
-     //      totalNLoaded += nLoaded
-
-//      //      RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-//      //      System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
-
-//      //      val writeStart = System.currentTimeMillis // PROFILE
-
-     //      try {
-     //        // Only try to cache on GPU if the programmer has cached it in memory
-     //        val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
-     //            new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
-     //            else NoCache
-     //        var argnum : Int = inputBuffer.get.copyToDevice(0, ctx, dev_ctx,
-     //                inputCacheId)
-
-     //        val outArgNum : Int = argnum
-     //        argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
-     //            dev_ctx, argnum, nLoaded, classTag[U].runtimeClass,
-     //            entryPoint, sampleOutput.asInstanceOf[U])
-
-     //        val iter = entryPoint.getReferencedClassModelFields.iterator
-     //        while (iter.hasNext) {
-     //          val field = iter.next
-     //          val isBroadcast = entryPoint.isBroadcastField(field)
-     //          argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
-     //              field.getName, field.getDescriptor, entryPoint, isBroadcast, bbCache)
-     //        }
-
-     //        val heapArgStart : Int = argnum
-     //        if (entryPoint.requiresHeap) {
-     //          argnum += OpenCLBridge.createHeap(ctx, dev_ctx, argnum, heapSize,
-     //                  nLoaded)
-     //        }   
-
-     //        OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
-     //        val anyFailedArgNum = argnum - 1
-
-//      //        RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
-//      //        val runStart = System.currentTimeMillis // PROFILE
-     //       
-     //        var complete : Boolean = true
-//      //        var ntries : Int = 0 // PROFILE
-     //        do {
-     //          OpenCLBridge.run(ctx, dev_ctx, nLoaded)
-     //          if (entryPoint.requiresHeap) {
-     //            complete = nativeOutputBuffer.get.kernelAttemptCallback(
-     //                    nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,
-     //                    heapArgStart, heapSize, ctx, dev_ctx, entryPoint, bbCache,
-     //                    devicePointerSize)
-     //            OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
-     //          }
-//      //          ntries += 1 // PROFILE
-     //        } while (!complete)
-
-     //        nativeOutputBuffer.get.finish(ctx, dev_ctx)
-
-//      //        RuntimeUtil.profPrint("Run", runStart, threadId) // PROFILE
-//      //        System.err.println("Thread " + threadId + " performed " + ntries + " kernel retries") // PROFILE
-//      //        val readStart = System.currentTimeMillis // PROFILE
-
-     //        OpenCLBridge.postKernelCleanup(ctx);
-//      //        RuntimeUtil.profPrint("Read", readStart, threadId) // PROFILE
-     //        outputBuffer = Some(nativeOutputBuffer.get)
-     //      } catch {
-     //        case oom : OpenCLOutOfMemoryException => {
-//      //          System.err.println("SWAT PROF " + threadId + " OOM, using LambdaOutputBuffer") // PROFILE
-     //          outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer.get))
-     //        }
-     //      }
-     //    }
-
-     //    outputBuffer.get.next
-     //  }
-
-     //  def hasNext : Boolean = {
-     //    /*
-     //     * There remains work to do if:
-     //     *   1. The parent partition iterator still has elements to process.
-     //     *   2. The input accumulator has buffered data that has not been
-     //     *      processed on the device yet (may only be true for dense vector,
-     //     *      sparse vector input buffers which may fetch an item from the
-     //     *      input stream but not have enough space to serialize it yet).
-     //     *   3. The output buffer has elements left to return.
-     //     */
-     //    val nonEmpty = (nested.hasNext ||
-     //            (!outputBuffer.isEmpty && outputBuffer.get.hasNext) ||
-     //            (!inputBuffer.isEmpty && inputBuffer.get.haveUnprocessedInputs))
-     //    if (!nonEmpty && !ctxCache.isEmpty) {
-     //      val iter : java.util.Iterator[java.util.Map.Entry[Long, Long]] =
-     //        ctxCache.entrySet.iterator
-     //      while (iter.hasNext) {
-     //          val curr : java.util.Map.Entry[Long, Long] = iter.next
-     //          OpenCLBridge.cleanupSwatContext(curr.getValue)
-     //      }
-     //      ctxCache.clear
-     //      inputBuffer.get.releaseNativeArrays
-     //      nativeOutputBuffer.get.reset
-//      //      System.err.println("SWAT PROF " + threadId + " Processed " + totalNLoaded + // PROFILE
-//      //          " elements") // PROFILE
-//      //      RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-     //    }
-     //    nonEmpty
-     //  }
     }
 
     iter
   }
-
-  // override def map[V: ClassTag](f: U => V): RDD[V] = {
-  //   new CLMappedRDD(this, sparkContext.clean(f))
-  // }
 }
