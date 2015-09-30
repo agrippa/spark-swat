@@ -24,15 +24,12 @@ static pthread_mutex_t device_ctxs_lock = PTHREAD_MUTEX_INITIALIZER;
 static int *virtual_devices = NULL;
 static int n_virtual_devices = 0;
 
-/*
- * Inter-device RDD cache
- */
-static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
 
 /*
  * Cache a mapping from unique RDD identifier to the number of items loaded for
  * that part of the RDD.
  */
+static pthread_rwlock_t nloaded_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 static map<rdd_partition_offset, int> *nloaded_cache;
 
 /*
@@ -51,6 +48,11 @@ const unsigned zero = 0;
  * the RDD caching.
  */
 static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+/*
+ * Inter-device RDD cache
+ */
+static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
 
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
@@ -1457,6 +1459,9 @@ JNI_JAVA(void, OpenCLBridge, storeNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
          jint partitionid, jint offsetid, jint n_loaded) {
     assert(rddid >= 0);
 
+    int err = pthread_rwlock_wrlock(&nloaded_cache_lock);
+    ASSERT(err == 0);
+
     rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
     map<rdd_partition_offset, int>::iterator found = nloaded_cache->find(uuid);
     if (found != nloaded_cache->end()) {
@@ -1466,19 +1471,31 @@ JNI_JAVA(void, OpenCLBridge, storeNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
                     uuid, n_loaded)).second;
         assert(success);
     }
+
+    err = pthread_rwlock_unlock(&nloaded_cache_lock);
+    ASSERT(err == 0);
 }
 
 JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddid,
          jint partitionid, jint offsetid) {
     assert(rddid >= 0);
+    int result;
+
+    int err = pthread_rwlock_rdlock(&nloaded_cache_lock);
+    ASSERT(err == 0);
 
     rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
     map<rdd_partition_offset, int>::iterator found = nloaded_cache->find(uuid);
     if (found != nloaded_cache->end()) {
-        return found->second;
+        result = found->second;
     } else {
-        return -1;
+        result = -1;
     }
+
+    err = pthread_rwlock_unlock(&nloaded_cache_lock);
+    ASSERT(err == 0);
+
+    return result;
 }
 
 JNI_JAVA(void, OpenCLBridge, fetchByteArrayArgToNativeArray)(JNIEnv *jenv,

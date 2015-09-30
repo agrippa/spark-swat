@@ -86,6 +86,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      val initializing : Boolean = (entryPoint == null)
 
      if (initializing) {
+
 //        val initStart = System.currentTimeMillis // PROFILE
        sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
        val entrypointAndKernel : Tuple2[Entrypoint, String] =
