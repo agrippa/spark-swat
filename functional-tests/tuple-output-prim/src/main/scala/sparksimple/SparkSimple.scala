@@ -7,13 +7,6 @@ import scala.math._
 import org.apache.spark.rdd._
 import java.net._
 
-class Point(val x: Float, val y: Float, val z: Float)
-    extends java.io.Serializable {
-  def this() {
-    this(0.0f, 0.0f, 0.0f)
-  }
-}
-
 object SparkSimple {
     def main(args : Array[String]) {
         if (args.length < 1) {
@@ -28,36 +21,23 @@ object SparkSimple {
         } else if (cmd == "run") {
             run_simple(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
-            val correct : Array[(Float, Point)] = run_simple(args.slice(1, args.length), false)
-            val actual : Array[(Float, Point)] = run_simple(args.slice(1, args.length), true)
+            val correct : Array[(Float, Double)] = run_simple(args.slice(1, args.length), false)
+            val actual : Array[(Float, Double)] = run_simple(args.slice(1, args.length), true)
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
-                val a : (Float, Point) = correct(i)
-                val b : (Float, Point) = actual(i)
+                val a : (Float, Double) = correct(i)
+                val b : (Float, Double) = actual(i)
                 var error : Boolean = false
-
-                // System.err.println(a._1 + " (" + a._2.x + " " + a._2.y +
-                //         " " + a._2.z + ") " + b._1 + " (" + b._2.x + " " +
-                //         b._2.y + " " + b._2.z + ")")
 
                 if (a._1 != b._1) {
                     System.err.println(i + " _1 expected " + a._1 +
                         " but got " + b._1)
                     error = true
                 }
-                if (a._2.x != b._2.x) {
-                    System.err.println(i + " _2.x expected " + a._2.x +
-                        " but got " + b._2.x)
-                    error = true
-                }
-                if (a._2.y != b._2.y) {
-                    System.err.println(i + " _2.y expected " + a._2.y +
-                        " but got " + b._2.y)
-                    error = true
-                }
-                if (a._2.z != b._2.z) {
-                    System.err.println(i + " _2.z expected " + a._2.z +
-                        " but got " + b._2.z)
+
+                if (a._2 != b._2) {
+                    System.err.println(i + " _2 expected " + a._2 +
+                        " but got " + b._2)
                     error = true
                 }
 
@@ -77,27 +57,26 @@ object SparkSimple {
         return new SparkContext(conf)
     }
 
-    def run_simple(args : Array[String], useSwat : Boolean) : Array[(Float, Point)] = {
+    def run_simple(args : Array[String], useSwat : Boolean) : Array[(Float, Double)] = {
         if (args.length != 1) {
             println("usage: SparkSimple run input-path");
-            return new Array[(Float, Point)](0);
+            return new Array[(Float, Double)](0);
         }
         val sc = get_spark_context("Spark Simple");
 
         val m : Float = 4.0f
 
-        val arr : Array[Point] = new Array[Point](3)
-        arr(0) = new Point(0, 1, 2)
-        arr(1) = new Point(3, 4, 5)
-        arr(2) = new Point(6, 7, 8)
+        val arr : Array[Double] = new Array[Double](3)
+        arr(0) = 0.0
+        arr(1) = 3.0
+        arr(2) = 6.0
 
         val inputPath = args(0)
         val inputs_raw : RDD[Float] = sc.objectFile[Float](inputPath).cache
         val inputs = if (useSwat) CLWrapper.cl[Float](inputs_raw) else inputs_raw
-        val outputs : RDD[(Float, Point)] =
-            // inputs.map(v => (v, new Point(v + 1.0f + m, v + 2.0f + arr(0).x, v + 3.0f + arr(1).y)))
-            inputs.map(v => (v, new Point(1.0f + m, v, 3.0f)))
-        val outputs2 : Array[(Float, Point)] = outputs.collect
+        val outputs : RDD[(Float, Double)] =
+            inputs.map(v => (v, v + m * arr(1)))
+        val outputs2 : Array[(Float, Double)] = outputs.collect
         sc.stop
         outputs2
     }

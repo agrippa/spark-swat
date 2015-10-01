@@ -21,7 +21,9 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
         heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
   assert(devicePointerSize == 4 || devicePointerSize == 8)
 
+  val heapTopArgnum : Int = processingSucceededArgnum - 2
   val anyFailed : Array[Int] = new Array[Int](1)
+  val heapTop : Array[Int] = new Array[Int](1)
   val processingSucceeded : Array[Int] = new Array[Int](N)
 
   /*
@@ -34,17 +36,21 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
   outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-  val heapOut : Array[Byte] = new Array[Byte](heapSize)
-  val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
-  heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
+  var heapOutBufferSize : Int = 0
+  var heapOutBuffer : Long = 0
 
   def readFromDevice() : Boolean = {
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
+    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, heapArgStart, heapOut,
-            heapSize)
+    if (heapOutBufferSize < heapTop(0)) {
+      heapOutBufferSize = heapTop(0)
+      heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
+    }
+    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
+            heapOutBuffer, heapTop(0))
 
     anyFailed(0) == 0 // return true when the kernel completed successfully
   }
@@ -63,25 +69,20 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
       outArgBuffer.getInt else outArgBuffer.getLong.toInt
     val size : Int = outArgBuffer.getInt
 
-    val indices : Array[Int] = new Array[Int](size)
-    val values : Array[Double] = new Array[Double](size)
-
-    // Pull out indices
-    heapOutBuffer.position(indicesHeapOffset)
-    var i = 0
-    while (i < size) {
-      indices(i) = heapOutBuffer.getInt
-      i += 1
-    }
-    // Pull out values
-    heapOutBuffer.position(valuesHeapOffset)
-    i = 0
-    while (i < size) {
-      values(i) = heapOutBuffer.getDouble
-      i += 1
-    }
+    val indices : Array[Int] =
+        OpenCLBridge.deserializeChunkedIndicesFromNativeArray(heapOutBuffer,
+        indicesHeapOffset, size)
+    val values : Array[Double] =
+        OpenCLBridge.deserializeChunkedValuesFromNativeArray(heapOutBuffer,
+        valuesHeapOffset, size)
 
     Vectors.sparse(size, indices, values).asInstanceOf[SparseVector]
+  }
+
+  def releaseNativeArrays() {
+    if (heapOutBufferSize > 0) {
+      OpenCLBridge.nativeFree(heapOutBuffer)
+    }
   }
 }
 
@@ -91,7 +92,7 @@ class SparseVectorOutputBufferWrapper(val N : Int)
   val buffers : java.util.List[SparseVectorDeviceBuffersWrapper] =
       new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
   var currSlot : Int = 0
-  var nLoaded : Int = 0
+  var nLoaded : Int = -1
 
   override def next() : SparseVector = {
     val iter = buffers.iterator
@@ -121,6 +122,7 @@ class SparseVectorOutputBufferWrapper(val N : Int)
       buffer = new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
                 processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
                 ctx, dev_ctx, devicePointerSize)
+      buffers.add(buffer)
     }
     nFilledBuffers += 1
     buffer.readFromDevice
@@ -139,5 +141,11 @@ class SparseVectorOutputBufferWrapper(val N : Int)
   }
 
   override def releaseNativeArrays() {
+    val iter : java.util.Iterator[SparseVectorDeviceBuffersWrapper] =
+        buffers.iterator
+    while (iter.hasNext) {
+      val wrapper : SparseVectorDeviceBuffersWrapper = iter.next
+      wrapper.releaseNativeArrays
+    }
   }
 }

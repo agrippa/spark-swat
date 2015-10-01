@@ -38,9 +38,6 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
 
   var heapOutBufferSize : Int = 0
   var heapOutBuffer : Long = 0
-  // val heapOut : Array[Byte] = new Array[Byte](heapSize)
-  // val heapOutBuffer : ByteBuffer = ByteBuffer.wrap(heapOut)
-  // heapOutBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
   def readFromDevice() : Boolean = {
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
@@ -65,6 +62,7 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
   def get(slot : Int) : DenseVector = {
     val slotOffset = slot * denseVectorStructSize
     outArgBuffer.position(slotOffset)
+
     val heapOffset : Int = if (devicePointerSize == 4)
       outArgBuffer.getInt else outArgBuffer.getLong.toInt
     val size : Int = outArgBuffer.getInt
@@ -72,13 +70,6 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
     val values : Array[Double] =
         OpenCLBridge.deserializeChunkedValuesFromNativeArray(heapOutBuffer,
         heapOffset, size)
-    // val values : Array[Double] = new Array[Double](size)
-    // heapOutBuffer.position(heapOffset.toInt)
-    // var i = 0
-    // while (i < size) {
-    //   values(i) = heapOutBuffer.getDouble
-    //   i += 1
-    // }
 
     Vectors.dense(values).asInstanceOf[DenseVector]
   }

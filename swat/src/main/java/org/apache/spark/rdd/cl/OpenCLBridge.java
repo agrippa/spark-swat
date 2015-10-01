@@ -91,6 +91,12 @@ public class OpenCLBridge {
             long offsetsBuffer, int buffered, int vectorCapacity,
             org.apache.spark.mllib.linalg.DenseVector[] vectors,
             int[] vectorSizes, int nToSerialize, int tiling);
+    public static native int serializeStridedSparseVectorsToNativeBuffer(
+            long valuesBuffer, long indicesBuffer, int position, long capacity, long sizesBuffer,
+            long offsetsBuffer, int buffered, int vectorCapacity,
+            org.apache.spark.mllib.linalg.SparseVector[] vectors,
+            int[] vectorSizes, int nToSerialize, int tiling);
+
     public static native boolean setNativeArrayArgImpl(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component);
@@ -98,8 +104,15 @@ public class OpenCLBridge {
     public static native void deserializeStridedValuesFromNativeArray(
             Object[] bufferTo, int nToBuffer, long valuesBuffer,
             long sizesBuffer, long offsetsBuffer, int index, int tiling);
+    public static native void deserializeStridedIndicesFromNativeArray(
+            Object[] bufferTo, int nToBuffer, long indicesBuffer,
+            long sizesBuffer, long offsetsBuffer, int index, int tiling);
+
     public static native double[] deserializeChunkedValuesFromNativeArray(
             long buffer, int offset, int size);
+    public static native int[] deserializeChunkedIndicesFromNativeArray(
+            long buffer, int offset, int size);
+
 
     public static native void storeNLoaded(int rddid, int partitionid,
             int offsetid, int nloaded);

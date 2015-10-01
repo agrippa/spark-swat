@@ -33,7 +33,8 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   override def flush() { }
 
   override def append(obj : Any) {
-    OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object], classModel, bb)
+    OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object],
+        classModel, bb)
     objCount += 1
   }
 

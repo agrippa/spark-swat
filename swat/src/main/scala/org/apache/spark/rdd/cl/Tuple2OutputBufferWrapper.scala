@@ -39,13 +39,15 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
               processingSucceededArgnum, outArgNum, heapArgStart, heapSize, ctx,
               dev_ctx, devicePointerSize)
       member1OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
-              processingSucceededArgnum, outArgNum + member0OutputBuffer.countArgumentsUsed, heapArgStart, heapSize, ctx,
-              dev_ctx, devicePointerSize)
+              processingSucceededArgnum,
+              outArgNum + member0OutputBuffer.countArgumentsUsed, heapArgStart,
+              heapSize, ctx, dev_ctx, devicePointerSize)
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
       member0OutputBuffer.finish(ctx, dev_ctx, outArgNum, setNLoaded)
-      member1OutputBuffer.finish(ctx, dev_ctx, outArgNum, setNLoaded)
+      member1OutputBuffer.finish(ctx, dev_ctx,
+              outArgNum + member0OutputBuffer.countArgumentsUsed, setNLoaded)
   }
 
   override def countArgumentsUsed() : Int = {

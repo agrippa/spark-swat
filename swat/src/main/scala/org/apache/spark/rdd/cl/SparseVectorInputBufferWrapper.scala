@@ -33,7 +33,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.SparseVector", new UnparameterizedMatcher())
-  val structSize = classModel.getTotalStructSize
+  val sparseVectorStructSize = classModel.getTotalStructSize
 
   var buffered : Int = 0
   var iter : Int = 0
@@ -41,73 +41,53 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   val tiling : Int = SparseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
   val to_tile : Array[SparseVector] = new Array[SparseVector](tiling)
+  val to_tile_sizes : Array[Int] = new Array[Int](tiling)
 
-  val valuesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 8)
-  valuesBB.order(ByteOrder.LITTLE_ENDIAN)
-  val doubleValuesBB : DoubleBuffer = valuesBB.asDoubleBuffer
-  val indicesBB : ByteBuffer = ByteBuffer.allocate(vectorElementCapacity * 4)
-  indicesBB.order(ByteOrder.LITTLE_ENDIAN)
-  val intIndicesBB : IntBuffer = indicesBB.asIntBuffer
+  val next_buffered_values : Array[Array[Double]] = new Array[Array[Double]](tiling)
+  val next_buffered_indices : Array[Array[Int]] = new Array[Array[Int]](tiling)
+  var next_buffered_iter : Int = 0
+  var n_next_buffered : Int = 0
 
-  var currentTileOffset : Int = 0
+  var bufferPosition : Int = 0
+  val valuesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 8)
+  val indicesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 4)
 
-  val sizes : Array[Int] = new Array[Int](vectorCapacity)
-  val offsets : Array[Int] = new Array[Int](vectorCapacity)
+  val sizesBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
+  val offsetsBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
 
-  var overrun : Option[SparseVector] = None
-
-  def calcTileEleStartingOffset(ele : Int) : Int = {
-    currentTileOffset + ele
-  }
-
-  // inclusive
-  def calcTileEleEndingOffsetHelper(ele : Int, eleSize : Int) : Int = {
-    calcTileEleStartingOffset(ele) + (tiling * (eleSize - 1))
-  }
-  def calcTileEleEndingOffset(ele : Int) : Int = {
-    calcTileEleEndingOffsetHelper(ele, to_tile(ele).size)
-  }
-
-  /*
-   * Given the next vector we want to add to the input buffer, will we run out
-   * of space?
-   */
-  def willRunOutOfSpace(next : SparseVector) : Boolean = {
-    assert(tiled < tiling)
-    if (buffered + tiled == vectorCapacity) {
-      return true
-    } else if (calcTileEleEndingOffsetHelper(tiled, next.size) >= vectorElementCapacity) {
-      return true
-    } else {
-      return false
-    }
-  }
+  val overrun : Array[SparseVector] = new Array[SparseVector](tiling)
 
   override def flush() {
-      var maximumOffsetUsed = 0
-      for (i <- 0 until tiled) {
-        val curr : SparseVector = to_tile(i)
+    if (tiled > 0) {
+      val nTiled : Int = OpenCLBridge.serializeStridedSparseVectorsToNativeBuffer(
+          valuesBuffer, indicesBuffer, bufferPosition, vectorElementCapacity, sizesBuffer,
+          offsetsBuffer, buffered, vectorCapacity, to_tile, to_tile_sizes,
+          if (buffered + tiled > vectorCapacity) (vectorCapacity - buffered) else tiled, tiling)
+      if (nTiled > 0) {
+        var newBufferPosition : Int = bufferPosition + 0 +
+            (tiling * (to_tile(0).size - 1))
 
-        val startingOffset = calcTileEleStartingOffset(i)
-        val endingOffset = calcTileEleEndingOffset(i)
-
-        var currOffset = startingOffset
-        for (j <- 0 until curr.size) {
-          doubleValuesBB.put(currOffset, curr.values(j))
-          intIndicesBB.put(currOffset, curr.indices(j))
-          currOffset += tiling
+        for (i <- 1 until nTiled) {
+          val curr : SparseVector = to_tile(i)
+          var pos : Int = bufferPosition + i + (tiling * (curr.size - 1))
+          if (pos > newBufferPosition) {
+            newBufferPosition = pos
+          }
         }
 
-        sizes(buffered + i) = curr.size
-        offsets(buffered + i) = startingOffset
-        if (endingOffset > maximumOffsetUsed) {
-          maximumOffsetUsed = endingOffset
+        bufferPosition = newBufferPosition + 1
+      }
+
+      val nFailed = tiled - nTiled
+      if (nFailed > 0) {
+        for (i <- nTiled until tiled) {
+          overrun(i - nTiled) = to_tile(i)
         }
       }
 
-      buffered += tiled
+      buffered += nTiled
       tiled = 0
-      currentTileOffset = maximumOffsetUsed + 1
+    }
   }
 
   override def append(obj : Any) {
@@ -115,54 +95,52 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   def append(obj : SparseVector) {
+    to_tile(tiled) = obj
+    to_tile_sizes(tiled) = obj.size
+    tiled += 1
+
     if (tiled == tiling) {
         flush
     }
-
-    if (willRunOutOfSpace(obj)) {
-      // Assert not just one vector consuming all buffer space
-      assert(buffered + tiled > 0)
-      overrun = Some(obj)
-    } else {
-      to_tile(tiled) = obj
-      tiled += 1
-    }
   }
 
-  override def aggregateFrom(iter : Iterator[SparseVector]) {
-    assert(overrun.isEmpty)
-    while (iter.hasNext && overrun.isEmpty) {
-      val next : SparseVector = iter.next
+  override def aggregateFrom(iterator : Iterator[SparseVector]) {
+    assert(overrun(0) == null)
+    while (iterator.hasNext && overrun(0) == null) {
+      val next : SparseVector = iterator.next
       append(next)
     }
   }
 
   override def nBuffered() : Int = {
+    if (tiled > 0) {
+      flush
+    }
     buffered
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           cacheID : CLCacheID) : Int = {
-    if (tiled > 0) {
-      flush
-    }
+    assert(tiled == 0)
 
     // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, structSize * vectorCapacity)
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, sparseVectorStructSize * vectorCapacity)
     // indices array, size of double = 4
-    OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 1,
-            indicesBB.array, currentTileOffset, 4, cacheID.broadcast,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1,
+            indicesBuffer, bufferPosition * 4, cacheID.broadcast,
             cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     // values array, size of double = 8
-    OpenCLBridge.setArrayArg(ctx, dev_ctx, argnum + 2,
-            valuesBB.array, currentTileOffset, 8, cacheID.broadcast,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2,
+            valuesBuffer, bufferPosition * 8, cacheID.broadcast,
             cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component + 1)
     // Sizes of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 3, sizes, buffered, cacheID.broadcast,
-            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component + 2)
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, sizesBuffer,
+            buffered * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+            cacheID.offset, cacheID.component + 2)
     // Offsets of each vector
-    OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum + 4, offsets, buffered, cacheID.broadcast,
-            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component + 3)
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 4, offsetsBuffer,
+            buffered * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+            cacheID.offset, cacheID.component + 3)
     // Number of sparse vectors being copied
     OpenCLBridge.setIntArg(ctx, argnum + 5, buffered)
 
@@ -174,42 +152,50 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def next() : SparseVector = {
-    if (tiled > 0) {
-      flush
+    assert(tiled == 0)
+    if (next_buffered_iter == n_next_buffered) {
+        next_buffered_iter = 0
+        n_next_buffered = if (buffered - iter > tiling) tiling else buffered - iter
+        OpenCLBridge.deserializeStridedValuesFromNativeArray(
+                next_buffered_values.asInstanceOf[Array[java.lang.Object]],
+                n_next_buffered, valuesBuffer, sizesBuffer, offsetsBuffer, iter,
+                tiling)
+        OpenCLBridge.deserializeStridedIndicesFromNativeArray(
+                next_buffered_indices.asInstanceOf[Array[java.lang.Object]],
+                n_next_buffered, indicesBuffer, sizesBuffer, offsetsBuffer, iter,
+                tiling)
     }
-    val vectorSize : Int = sizes(iter)
-    val vectorOffset : Int = offsets(iter)
-    val vectorValues : Array[Double] = new Array[Double](vectorSize)
-    val vectorIndices : Array[Int] = new Array[Int](vectorSize)
-    var i = 0
-    while (i < vectorSize) {
-      vectorValues(i) = valuesBB.get(vectorOffset + i * tiling)
-      vectorIndices(i) = indicesBB.get(vectorOffset + i * tiling)
-      i += 1
-    }
+
+    val values : Array[Double] = next_buffered_values(next_buffered_iter)
+    val indices : Array[Int] = next_buffered_indices(next_buffered_iter)
+    val result : SparseVector = Vectors.sparse(indices.size, indices, values)
+            .asInstanceOf[SparseVector]
+    next_buffered_iter += 1
     iter += 1
-    Vectors.sparse(vectorSize, vectorIndices, vectorValues).asInstanceOf[SparseVector]
+    result
   }
 
   override def haveUnprocessedInputs : Boolean = {
-    !overrun.isEmpty
+    overrun(0) != null
   }
 
-  override def releaseNativeArrays { }
+  override def releaseNativeArrays {
+    OpenCLBridge.nativeFree(valuesBuffer)
+    OpenCLBridge.nativeFree(indicesBuffer)
+    OpenCLBridge.nativeFree(sizesBuffer)
+    OpenCLBridge.nativeFree(offsetsBuffer)
+  }
 
   override def reset() {
     buffered = 0
     iter = 0
-    tiled = 0
-    valuesBB.clear
-    doubleValuesBB.clear
-    indicesBB.clear
-    intIndicesBB.clear
-    currentTileOffset = 0
-
-    if (!overrun.isEmpty) {
-      append(overrun.get)
-      overrun = None
+    bufferPosition = 0
+    var i = 0
+    while (i < tiling && overrun(i) != null) {
+      // TODO what if we run out of space while handling the overrun...
+      append(overrun(i))
+      overrun(i) = null
+      i += 1
     }
   }
 

@@ -3,6 +3,7 @@ package org.apache.spark.rdd.cl
 import scala.reflect.ClassTag
 import scala.reflect._
 
+import java.nio.ByteOrder
 import java.nio.ByteBuffer
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -27,6 +28,7 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
       Some(classModel.getStructMemberOffsets)
   val structSize : Int = classModel.getTotalStructSize
   val bb : ByteBuffer = ByteBuffer.allocate(structSize * N)
+  bb.order(ByteOrder.LITTLE_ENDIAN)
   var nLoaded : Int = -1
 
   override def next() : T = {
@@ -50,9 +52,9 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
       setNLoaded : Int) {
+    nLoaded = setNLoaded
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, bb.array,
             structSize * nLoaded)
-    nLoaded = setNLoaded
   }
 
   override def countArgumentsUsed() : Int = { 1 }
@@ -60,6 +62,7 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
   override def reset() {
     iter = 0
     nLoaded = -1
+    bb.clear
   }
 
   override def releaseNativeArrays() {

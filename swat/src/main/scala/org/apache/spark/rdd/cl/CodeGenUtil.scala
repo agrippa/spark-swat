@@ -73,7 +73,7 @@ object CodeGenUtil {
         getClassForDescriptor(returnType), "out", DIRECTION.OUT)
   }
 
-  def cleanClassName(className : String) : String = {
+  def cleanClassName(className : String, objectMangling : Boolean = true) : String = {
     if (className.length() == 1) {
       // Primitive descriptor
       return className
@@ -84,7 +84,11 @@ object CodeGenUtil {
     } else if (className.equals("java.lang.Double")) {
       return "D"
     } else {
-      return "L" + className + ";"
+      if (objectMangling) {
+        return "L" + className + ";"
+      } else {
+        return className
+      }
     }
   }
 

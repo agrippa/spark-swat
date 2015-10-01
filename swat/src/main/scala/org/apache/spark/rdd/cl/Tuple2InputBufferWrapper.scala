@@ -95,6 +95,8 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   }
 
   override def flush() {
+    buffer1.flush
+    buffer2.flush
   }
 
   override def append(obj : Any) {
@@ -197,8 +199,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
 
   override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
       entryPoint : Entrypoint) : Int = {
-    val firstMemberClassName : String = sample._1.getClass.getName
-    val secondMemberClassName : String = sample._2.getClass.getName
+    val firstMemberClassName : String = CodeGenUtil.cleanClassName(
+            sample._1.getClass.getName, objectMangling = true)
+    val secondMemberClassName : String = CodeGenUtil.cleanClassName(
+            sample._2.getClass.getName, objectMangling = true)
     var used = 0
 
     val firstMemberSize = entryPoint.getSizeOf(firstMemberClassName)
