@@ -93,7 +93,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
         ASSERT(err == 0); \
         if (reallocated) { \
-            TRACE("caching broadcast %d %d\n", broadcastId, componentid); \
+            TRACE("caching broadcast %ld %d\n", broadcastId, componentid); \
             set_cached_kernel_arg(region, index, len, context, dev_ctx); \
             set_argument(context, index, region, true); \
         } else { \
@@ -107,25 +107,18 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
             err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock); \
             ASSERT(err == 0); \
             (*dev_ctx->broadcast_cache)[uuid] = new_region; \
-            TRACE("adding broadcast %d %d to cache\n", broadcastId, \
+            TRACE("adding broadcast %ld %d to cache\n", broadcastId, \
                     componentid); \
             err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
             ASSERT(err == 0); \
         } \
     } else if (rddid >= 0) { \
-        ASSERT_MSG(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && componentid >= 0, "check RDD"); \
+        ASSERT_MSG(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && \
+                componentid >= 0, "check RDD"); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
-        cl_region *region = NULL; \
         int err = pthread_rwlock_rdlock(&rdd_cache_lock); \
         ASSERT(err == 0); \
-        map<rdd_partition_offset, map<int, cl_region *> *>::iterator found = rdd_cache->find(uuid); \
-        if (found != rdd_cache->end()) { \
-            map<int, cl_region *> *cached = found->second; \
-            map<int, cl_region *>::iterator found_in_cache = cached->find(dev_ctx->device_index); \
-            if (found_in_cache != cached->end()) { \
-                region = found_in_cache->second; \
-            } \
-        } \
+        cl_region *region = check_rdd_cache(uuid, dev_ctx); \
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
         err = pthread_rwlock_unlock(&rdd_cache_lock); \
         ASSERT(err == 0); \
@@ -143,12 +136,9 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
             \
             err = pthread_rwlock_wrlock(&rdd_cache_lock); \
             ASSERT(err == 0); \
-            if (rdd_cache->find(uuid) == rdd_cache->end()) { \
-                bool success = rdd_cache->insert( \
-                        pair<rdd_partition_offset, map<int, cl_region *> *>( \
-                            uuid, new map<int, cl_region *>())).second; \
-                ASSERT_MSG(success, "uuid insert"); \
-            } \
+            rdd_cache->insert( \
+                    pair<rdd_partition_offset, map<int, cl_region *> *>( \
+                        uuid, new map<int, cl_region *>())); \
             (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region; \
             TRACE("adding rdd=%d partition=%d offset=%d component=%d\n", \
                     rddid, partitionid, offsetid, componentid); \
@@ -243,6 +233,25 @@ static void add_event_to_context(swat_context *context, cl_event event) {
     context->n_events = context->n_events + 1;
 }
 
+/*
+ * Assume the parent handles any necessary locking of rdd_cache_lock for us.
+ */
+static cl_region *check_rdd_cache(rdd_partition_offset uuid,
+        device_context *dev_ctx) {
+    cl_region *region = NULL;
+    map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
+        rdd_cache->find(uuid);
+    if (found != rdd_cache->end()) {
+        map<int, cl_region *> *cached = found->second;
+        map<int, cl_region *>::iterator found_in_cache = cached->find(
+                dev_ctx->device_index);
+        if (found_in_cache != cached->end()) {
+            region = found_in_cache->second;
+        }
+    }
+    return region;
+}
+
 static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
         cl_uint arg_index, size_t arg_size, void *arg_value) {
 #ifdef VERBOSE
@@ -284,7 +293,7 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
         size_t ext_len;
         CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &ext_len));
         char *exts = (char *)malloc(ext_len);
-        CHECK_ALLOC(exts)
+        CHECK_ALLOC(exts);
         CHECK(clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, ext_len, exts, NULL));
 
         if (requiresDouble && !checkExtension(exts, ext_len, "cl_khr_fp64")) {
@@ -586,7 +595,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         CHECK_JNI(raw_source)
         source_len = jenv->GetStringLength(source);
         store_source = (char *)malloc(source_len + 1);
-        CHECK_ALLOC(store_source)
+        CHECK_ALLOC(store_source);
         memcpy(store_source, raw_source, source_len);
         store_source[source_len] = '\0';
         jenv->ReleaseStringUTFChars(source, raw_source);
@@ -598,7 +607,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         source_len = jenv->GetStringLength(source);
 #ifdef BRIDGE_DEBUG
         store_source = (char *)malloc(source_len + 1);
-        CHECK_ALLOC(store_source)
+        CHECK_ALLOC(store_source);
         memcpy(store_source, raw_source, source_len);
         store_source[source_len] = '\0';
 #endif
@@ -614,7 +623,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
             CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0,
                         NULL, &build_log_size));
             char *build_log = (char *)malloc(build_log_size + 1);
-            CHECK_ALLOC(build_log)
+            CHECK_ALLOC(build_log);
             CHECK(clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                         build_log_size, build_log, NULL));
             build_log[build_log_size] = '\0';
@@ -637,17 +646,19 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     CHECK(err);
 
     swat_context *context = (swat_context *)malloc(sizeof(swat_context));
-    CHECK_ALLOC(context)
+    CHECK_ALLOC(context);
     context->kernel = kernel;
     context->host_thread_index = host_thread_index;
 
     context->arguments_capacity = 20;
     context->arguments_region = (cl_region **)malloc(
             context->arguments_capacity * sizeof(cl_region *));
+    CHECK_ALLOC(context->arguments_region);
     memset(context->arguments_region, 0x00, context->arguments_capacity *
             sizeof(cl_region *));
     context->arguments_keep = (bool *)malloc(
             context->arguments_capacity * sizeof(bool));
+    CHECK_ALLOC(context->arguments_keep);
 
     context->zeros = malloc(max_n_buffered * sizeof(int));
     CHECK_ALLOC(context->zeros);
@@ -658,6 +669,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->n_events = 0;
     context->events = (cl_event *)malloc(context->event_capacity *
             sizeof(cl_event));
+    CHECK_ALLOC(context->events);
 
     context->n_allocated = 0;
 #ifdef BRIDGE_DEBUG
@@ -947,7 +959,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
             offsetid, componentid, dev_ctx, context);
     if (broadcastId >= 0) {
         if (reallocated) {
-            TRACE("caching broadcast %d %d\n", broadcastId, componentid);
+            TRACE("caching broadcast %ld %d\n", broadcastId, componentid);
             set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
             set_argument(context, index, reallocated, true);
         } else {
@@ -960,7 +972,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
             int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
             ASSERT(err == 0);
             (*dev_ctx->broadcast_cache)[uuid] = new_region;
-            TRACE("adding broadcast %d %d to cache\n", broadcastId, componentid);
+            TRACE("adding broadcast %ld %d to cache\n", broadcastId, componentid);
             err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
             ASSERT(err == 0);
         }
@@ -979,12 +991,9 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
 
             int err = pthread_rwlock_wrlock(&rdd_cache_lock);
             ASSERT(err == 0);
-            if (rdd_cache->find(uuid) == rdd_cache->end()) {
-                bool success = rdd_cache->insert(
-                        pair<rdd_partition_offset, map<int, cl_region *> *>(
-                            uuid, new map<int, cl_region *>())).second;
-                ASSERT(success);
-            }
+            rdd_cache->insert(
+                    pair<rdd_partition_offset, map<int, cl_region *> *>(
+                        uuid, new map<int, cl_region *>()));
             (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region;
             TRACE("adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
@@ -1022,7 +1031,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
 
     if (broadcastId >= 0) {
         if (reallocated) {
-            TRACE("caching broadcast %d %d\n", broadcastId, componentid);
+            TRACE("caching broadcast %ld %d\n", broadcastId, componentid);
             set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
             set_argument(context, index, reallocated, true);
         } else {
@@ -1037,7 +1046,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
             int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
             ASSERT(err == 0);
             (*dev_ctx->broadcast_cache)[uuid] = new_region;
-            TRACE("adding broadcast %d %d to cache\n", broadcastId, componentid);
+            TRACE("adding broadcast %ld %d to cache\n", broadcastId, componentid);
             err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
             ASSERT(err == 0);
         }
@@ -1057,12 +1066,9 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
 
             int err = pthread_rwlock_wrlock(&rdd_cache_lock);
             ASSERT(err == 0);
-            if (rdd_cache->find(uuid) == rdd_cache->end()) {
-                bool success = rdd_cache->insert(
-                        pair<rdd_partition_offset, map<int, cl_region *> *>(
-                            uuid, new map<int, cl_region *>())).second;
-                ASSERT(success);
-            }
+            rdd_cache->insert(
+                    pair<rdd_partition_offset, map<int, cl_region *> *>(
+                        uuid, new map<int, cl_region *>()));
             (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region;
             TRACE("adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
@@ -1116,11 +1122,11 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
             bool reallocated = (region && re_allocate_cl_region(region,
                         dev_ctx->device_index));
             if (reallocated) {
-                TRACE("caching broadcast %d %d\n", broadcastId, componentid + c);
+                TRACE("caching broadcast %ld %d\n", broadcastId, componentid + c);
                 set_cached_kernel_arg(region, index + c, region->size, context, dev_ctx);
                 set_argument(context, index + c, region, true);
             } else {
-                TRACE("failed to try-cache broadcast %d %d\n", broadcastId, componentid + c);
+                TRACE("failed to try-cache broadcast %ld %d\n", broadcastId, componentid + c);
                 all_succeed = false;
             }
             c++;
@@ -1441,7 +1447,7 @@ JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
     ASSERT(new_ptr);
 #ifdef VERBOSE
     if (old == NULL) {
-        fprintf(stderr, "Allocating %ld bytes, ptr=%p\n", nbytes, new_ptr);
+        fprintf(stderr, "nativeRealloc: Allocating %ld bytes, ptr=%p\n", nbytes, new_ptr);
     }
 #endif
     return (jlong)new_ptr;
@@ -1450,9 +1456,9 @@ JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
 JNI_JAVA(jlong, OpenCLBridge, nativeMalloc)
         (JNIEnv *jenv, jclass clazz, jlong nbytes) {
     void *ptr = (void *)malloc(nbytes);
-    ASSERT(ptr);
+    CHECK_ALLOC(ptr);
 #ifdef VERBOSE
-    fprintf(stderr, "Allocating %ld bytes, ptr=%p\n", nbytes, ptr);
+    fprintf(stderr, "nativeMalloc: Allocating %ld bytes, ptr=%p\n", nbytes, ptr);
 #endif
     return (jlong)ptr;
 }
@@ -1461,7 +1467,7 @@ JNI_JAVA(void, OpenCLBridge, nativeFree)
         (JNIEnv *jenv, jclass clazz, jlong buffer) {
     void *ptr = (void *)buffer;
 #ifdef VERBOSE
-    fprintf(stderr, "Freeing allocation %p\n", ptr);
+    fprintf(stderr, "nativeFree: Freeing allocation %p\n", ptr);
 #endif
     free(ptr);
 }

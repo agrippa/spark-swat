@@ -207,7 +207,7 @@ static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
 
 static cl_region *copy_cl_region(cl_region *input) {
     cl_region *copy = (cl_region *)malloc(sizeof(cl_region));
-    CHECK_ALLOC(copy)
+    CHECK_ALLOC(copy);
     memcpy(copy, input, sizeof(cl_region));
     copy->refs = 0;
     copy->parent = NULL;
@@ -487,12 +487,25 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     ENTER_TRACE("re_allocate_cl_region");
 
     if (target_region->invalidated) {
+#ifdef VERBOSE
+        fprintf(stderr, "Cleaning up target_region=%p because invalidated\n",
+                target_region);
+#endif
         free(target_region);
         EXIT_TRACE("re_allocate_cl_region");
         return false;
     }
 
     lock_alloc(target_region->grandparent);
+
+#ifdef VERBOSE
+    fprintf(stderr, "re_allocate_cl_region: target_region=%p target_device=%d "
+            "target_region->keeping=%d target_region->refs=%d "
+            "target_region->invalidated=%d GET_DEVICE_FOR(target_region)=%d\n",
+            target_region, target_device, target_region->keeping,
+            target_region->refs, target_region->invalidated,
+            GET_DEVICE_FOR(target_region));
+#endif
 
     /*
      * For now, it is the responsibility of the higher layers to track which
@@ -699,7 +712,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         }
 #endif
         cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
-        CHECK_ALLOC(new_region)
+        CHECK_ALLOC(new_region);
         memcpy(new_region, best_candidate, sizeof(cl_region));
 
         cl_region *succ = best_candidate->next;
@@ -870,10 +883,10 @@ cl_allocator *init_allocator(int device_index)
 
 
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
-    CHECK_ALLOC(allocator)
+    CHECK_ALLOC(allocator);
     allocator->nallocs = nallocs;
     allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
-    CHECK_ALLOC(allocator->allocs)
+    CHECK_ALLOC(allocator->allocs);
     allocator->address_align = address_align;
     allocator->device_index = device_index;
 
@@ -925,7 +938,7 @@ cl_allocator *init_allocator(int device_index)
         ASSERT(perr == 0);
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
-        CHECK_ALLOC(first_region)
+        CHECK_ALLOC(first_region);
         first_region->sub_mem = NULL;
         first_region->offset = 0;
         first_region->size = alloc_size;
