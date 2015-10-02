@@ -65,6 +65,9 @@ class rdd_partition_offset {
 
             return component < other.component;
         }
+
+        int get_partition() { return index; }
+
     private:
         // The RDD this buffer is a member of
         int rdd;

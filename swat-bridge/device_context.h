@@ -42,7 +42,6 @@ class broadcast_id {
         int component;
 };
 
-
 typedef struct _device_context {
     cl_platform_id platform;
     cl_device_id dev;
@@ -54,7 +53,7 @@ typedef struct _device_context {
      * Locked for setting args on device (for broadcast cache?) and when
      * building a program for a new device (which should happen infrequently).
      */
-    pthread_rwlock_t broadcast_lock;
+    pthread_mutex_t broadcast_lock;
     pthread_mutex_t program_cache_lock;
 
     cl_allocator *allocator;

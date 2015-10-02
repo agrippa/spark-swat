@@ -51,12 +51,14 @@ const unsigned zero = 0;
  * piece of an RDD. Write lock is acquired when we need to update metadata on
  * the RDD caching.
  */
-static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
+#define RDD_CACHE_BUCKETS 16
+static pthread_mutex_t rdd_cache_locks[RDD_CACHE_BUCKETS];
+// static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /*
- * Inter-device RDD cache
+ * Inter-device RDD cache, bucketed by partition.
  */
-static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache;
+static map<rdd_partition_offset, map<int, cl_region *> *> *rdd_caches[RDD_CACHE_BUCKETS];
 
 #define ARG_MACRO(ltype, utype) \
 JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
@@ -80,8 +82,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
     if (broadcastId >= 0) { \
         ASSERT_MSG(rddid < 0 && componentid >= 0, "broadcast check"); \
         broadcast_id uuid(broadcastId, componentid); \
-        int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock); \
-        ASSERT(err == 0); \
+        lock_bcast_cache(dev_ctx); \
         \
         cl_region *region = NULL; \
         map<broadcast_id, cl_region *>::iterator found = dev_ctx->broadcast_cache->find(uuid); \
@@ -100,22 +101,19 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
                     dev_ctx, broadcastId, rddid, NULL); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
-                err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
-                ASSERT(err == 0); \
+                unlock_bcast_cache(dev_ctx); \
                 return false; \
             } \
             (*dev_ctx->broadcast_cache)[uuid] = new_region; \
             TRACE_MSG("adding broadcast %ld %d to cache\n", broadcastId, \
                     componentid); \
         } \
-        err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock); \
-        ASSERT(err == 0); \
+        unlock_bcast_cache(dev_ctx); \
     } else if (rddid >= 0) { \
         ASSERT_MSG(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && \
                 componentid >= 0, "check RDD"); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
-        int err = pthread_rwlock_wrlock(&rdd_cache_lock); \
-        ASSERT(err == 0); \
+        lock_rdd_cache(uuid); \
         cl_region *region = check_rdd_cache(uuid, dev_ctx); \
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
         if (reallocated) { \
@@ -129,19 +127,14 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
                     dev_ctx, broadcastId, rddid, NULL); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
-                err = pthread_rwlock_unlock(&rdd_cache_lock); \
-                ASSERT(err == 0); \
+                unlock_rdd_cache(uuid); \
                 return false; \
             } \
-            rdd_cache->insert( \
-                    pair<rdd_partition_offset, map<int, cl_region *> *>( \
-                        uuid, new map<int, cl_region *>())); \
-            (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region; \
+            update_rdd_cache(uuid, new_region, dev_ctx->device_index); \
             TRACE_MSG("adding rdd=%d partition=%d offset=%d component=%d\n", \
                     rddid, partitionid, offsetid, componentid); \
         } \
-        err = pthread_rwlock_unlock(&rdd_cache_lock); \
-        ASSERT(err == 0); \
+        unlock_rdd_cache(uuid); \
     } else { \
         ASSERT_MSG(rddid < 0 && broadcastId < 0, "neither RDD or broadcast"); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
@@ -234,11 +227,21 @@ static void add_event_to_context(swat_context *context, cl_event event) {
 }
 
 /*
- * Assume the parent handles any necessary locking of rdd_cache_lock for us.
+ * Utility functions that handle accessing data in the RDD cache. These utilities
+ * assume the parent handles any necessary locking of rdd_cache_locks for us.
  */
-static cl_region *check_rdd_cache(rdd_partition_offset uuid,
+static inline unsigned rdd_cache_bucket_for_partition(int partition) {
+    return (partition % RDD_CACHE_BUCKETS);
+}
+static inline unsigned rdd_cache_bucket_for(rdd_partition_offset uuid) {
+    return rdd_cache_bucket_for_partition(uuid.get_partition());
+}
+
+static inline cl_region *check_rdd_cache(rdd_partition_offset uuid,
         device_context *dev_ctx) {
     cl_region *region = NULL;
+    map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache =
+        rdd_caches[rdd_cache_bucket_for(uuid)];
     map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
         rdd_cache->find(uuid);
     if (found != rdd_cache->end()) {
@@ -252,7 +255,31 @@ static cl_region *check_rdd_cache(rdd_partition_offset uuid,
     return region;
 }
 
+static inline void lock_rdd_cache_by_partition(int partition) {
+    const int err = pthread_mutex_lock(rdd_cache_locks +
+            rdd_cache_bucket_for_partition(partition));
+    ASSERT(err == 0);
+}
+
+static inline void unlock_rdd_cache_by_partition(int partition) {
+    const int err = pthread_mutex_unlock(rdd_cache_locks +
+            rdd_cache_bucket_for_partition(partition));
+    ASSERT(err == 0);
+}
+
+static inline void lock_rdd_cache(rdd_partition_offset uuid) {
+    const int err = pthread_mutex_lock(rdd_cache_locks + rdd_cache_bucket_for(uuid));
+    ASSERT(err == 0);
+}
+
+static inline void unlock_rdd_cache(rdd_partition_offset uuid) {
+    const int err = pthread_mutex_unlock(rdd_cache_locks + rdd_cache_bucket_for(uuid));
+    ASSERT(err == 0);
+}
+
 static void remove_from_rdd_cache_if_present(rdd_partition_offset uuid, int dev) {
+    map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache =
+        rdd_caches[rdd_cache_bucket_for(uuid)];
     map<rdd_partition_offset, map<int, cl_region *> *>::iterator found = rdd_cache->find(uuid);
     if (found != rdd_cache->end()) {
         map<int, cl_region *> *for_uuid = found->second;
@@ -261,6 +288,33 @@ static void remove_from_rdd_cache_if_present(rdd_partition_offset uuid, int dev)
             for_uuid->erase(dev_found);
         }
     }
+}
+
+static void update_rdd_cache(rdd_partition_offset uuid, cl_region *new_region,
+        int device_index) {
+    const int rdd_bucket = rdd_cache_bucket_for(uuid);
+    map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache = rdd_caches[rdd_bucket];
+    if (rdd_cache->find(uuid) == rdd_cache->end()) {
+        rdd_cache->insert(
+                pair<rdd_partition_offset, map<int, cl_region *> *>(
+                    uuid, new map<int, cl_region *>()));
+    }
+    (*rdd_cache->at(uuid))[device_index] = new_region;
+}
+
+/*
+ * Utility functions that handle accessing data in the broadcast caches (one for
+ * each device). These utilities assume the parent handles any necessary locking
+ * of rdd_cache_locks for us.
+ */
+static inline void lock_bcast_cache(device_context *ctx) {
+    const int err = pthread_mutex_lock(&ctx->broadcast_lock);
+    ASSERT(err == 0);
+}
+
+static inline void unlock_bcast_cache(device_context *ctx) {
+    const int err = pthread_mutex_unlock(&ctx->broadcast_lock);
+    ASSERT(err == 0);
 }
 
 static void remove_from_broadcast_cache_if_present(broadcast_id uuid,
@@ -403,7 +457,7 @@ static void populateDeviceContexts(JNIEnv *jenv) {
                 tmp_device_ctxs[global_device_id].cmd = cmd;
                 tmp_device_ctxs[global_device_id].device_index = global_device_id;
 
-                int perr = pthread_rwlock_init(
+                int perr = pthread_mutex_init(
                         &(tmp_device_ctxs[global_device_id].broadcast_lock),
                         NULL);
                 ASSERT(perr == 0);
@@ -439,9 +493,6 @@ static void populateDeviceContexts(JNIEnv *jenv) {
         }
 
         free(platforms);
-
-        rdd_cache = new map<rdd_partition_offset, map<int, cl_region *> *>();
-        nloaded_cache = new map<rdd_partition_offset, int>();
 
         virtual_devices = (int *)malloc(sizeof(int) * n_virtual_devices);
         CHECK_ALLOC(virtual_devices);
@@ -495,6 +546,14 @@ static void populateDeviceContexts(JNIEnv *jenv) {
         CHECK_JNI(sparseVectorIndicesMethod);
 
         device_ctxs = tmp_device_ctxs;
+
+        // Initialize cache state
+        for (int i = 0; i < RDD_CACHE_BUCKETS; i++) {
+            rdd_cache_locks[i] = PTHREAD_MUTEX_INITIALIZER;
+            rdd_caches[i] = new map<rdd_partition_offset, map<int, cl_region *> *>();
+        }
+
+        nloaded_cache = new map<rdd_partition_offset, int>();
     }
 
     perr = pthread_mutex_unlock(&device_ctxs_lock);
@@ -524,10 +583,11 @@ JNI_JAVA(jint, OpenCLBridge, getDeviceHintFor)
     rdd_partition_offset uuid(rdd, partition, offset, component);
     int result = -1;
 
-    int perr = pthread_rwlock_wrlock(&rdd_cache_lock);
-    ASSERT(perr == 0);
+    lock_rdd_cache(uuid);
 
-    if (rdd_cache) {
+    if (device_ctxs) { // if we've been initialized
+        map<rdd_partition_offset, map<int, cl_region *> *> *rdd_cache =
+            rdd_caches[rdd_cache_bucket_for(uuid)];
         map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
             rdd_cache->find(uuid);
         if (found != rdd_cache->end()) {
@@ -547,8 +607,7 @@ JNI_JAVA(jint, OpenCLBridge, getDeviceHintFor)
         }
     }
 
-    perr = pthread_rwlock_unlock(&rdd_cache_lock);
-    ASSERT(perr == 0);
+    unlock_rdd_cache(uuid);
 
     EXIT_TRACE("getDeviceHintFor");
     return result;
@@ -838,36 +897,24 @@ static cl_region *is_cached(jlong broadcastId, jint rddid, jint partitionid,
     if (broadcastId >= 0) {
         ASSERT(rddid < 0 && componentid >= 0);
         broadcast_id uuid(broadcastId, componentid);
-        int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
-        ASSERT(err == 0);
+        lock_bcast_cache(dev_ctx);
 
         map<broadcast_id, cl_region *>::iterator found = dev_ctx->broadcast_cache->find(uuid);
         if (found != dev_ctx->broadcast_cache->end()) {
             region = found->second;
         }
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index));
-        err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
-        ASSERT(err == 0);
+        unlock_bcast_cache(dev_ctx);
 
         if (!reallocated) region = NULL;
     } else if (rddid >= 0) {
         ASSERT(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && componentid >= 0); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
 
-        int err = pthread_rwlock_wrlock(&rdd_cache_lock);
-        ASSERT(err == 0);
-        map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
-            rdd_cache->find(uuid);
-        if (found != rdd_cache->end()) {
-            map<int, cl_region *> *cached = found->second;
-            map<int, cl_region *>::iterator found_in_cache = cached->find(dev_ctx->device_index);
-            if (found_in_cache != cached->end()) {
-                region = found_in_cache->second;
-            }
-        }
+        lock_rdd_cache(uuid);
+        region = check_rdd_cache(uuid, dev_ctx);
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index));
-        err = pthread_rwlock_unlock(&rdd_cache_lock);
-        ASSERT(err == 0);
+        unlock_rdd_cache(uuid);
 
         if (!reallocated) region = NULL;
     }
@@ -989,12 +1036,10 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
                     context, dev_ctx, broadcastId, rddid, NULL);
             if (new_region == NULL) return false;
 
-            int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
-            ASSERT(err == 0);
+            lock_bcast_cache(dev_ctx);
             (*dev_ctx->broadcast_cache)[uuid] = new_region;
             TRACE_MSG("adding broadcast %ld %d to cache\n", broadcastId, componentid);
-            err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
-            ASSERT(err == 0);
+            unlock_bcast_cache(dev_ctx);
         }
     } else if (rddid >= 0) {
         if (reallocated) {
@@ -1009,16 +1054,11 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
                     dev_ctx, broadcastId, rddid, NULL);
             if (new_region == NULL) return false;
 
-            int err = pthread_rwlock_wrlock(&rdd_cache_lock);
-            ASSERT(err == 0);
-            rdd_cache->insert(
-                    pair<rdd_partition_offset, map<int, cl_region *> *>(
-                        uuid, new map<int, cl_region *>()));
-            (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region;
+            lock_rdd_cache(uuid);
+            update_rdd_cache(uuid, new_region, dev_ctx->device_index);
             TRACE_MSG("adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
-            err = pthread_rwlock_unlock(&rdd_cache_lock);
-            ASSERT(err == 0);
+            unlock_rdd_cache(uuid);
         }
     } else {
         assert(reallocated == NULL);
@@ -1063,12 +1103,10 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             if (new_region == NULL) return false;
 
-            int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
-            ASSERT(err == 0);
+            lock_bcast_cache(dev_ctx);
             (*dev_ctx->broadcast_cache)[uuid] = new_region;
             TRACE_MSG("adding broadcast %ld %d to cache\n", broadcastId, componentid);
-            err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
-            ASSERT(err == 0);
+            unlock_bcast_cache(dev_ctx);
         }
     } else if (rddid >= 0) {
         if (reallocated) {
@@ -1084,16 +1122,11 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             if (new_region == NULL) return false;
 
-            int err = pthread_rwlock_wrlock(&rdd_cache_lock);
-            ASSERT(err == 0);
-            rdd_cache->insert(
-                    pair<rdd_partition_offset, map<int, cl_region *> *>(
-                        uuid, new map<int, cl_region *>()));
-            (*rdd_cache->at(uuid))[dev_ctx->device_index] = new_region;
+            lock_rdd_cache(uuid);
+            update_rdd_cache(uuid, new_region, dev_ctx->device_index);
             TRACE_MSG("adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
-            err = pthread_rwlock_unlock(&rdd_cache_lock);
-            ASSERT(err == 0);
+            unlock_rdd_cache(uuid);
         }
     } else {
         assert(reallocated == NULL);
@@ -1128,8 +1161,7 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
     if (broadcastId >= 0) {
         ASSERT(rddid < 0 && componentid >= 0);
 
-        int err = pthread_rwlock_wrlock(&dev_ctx->broadcast_lock);
-        ASSERT(err == 0);
+        lock_bcast_cache(dev_ctx);
         
         while (all_succeed && c < ncomponents) {
             broadcast_id uuid(broadcastId, componentid + c);
@@ -1154,22 +1186,11 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
         }
     } else if (rddid >= 0) {
         ASSERT(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && componentid >= 0);
-        int err = pthread_rwlock_wrlock(&rdd_cache_lock);
-        ASSERT(err == 0);
+        lock_rdd_cache_by_partition(partitionid);
 
         while (all_succeed && c < ncomponents) {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid + c);
-            cl_region *region = NULL;
-            map<rdd_partition_offset, map<int, cl_region *> *>::iterator found =
-                rdd_cache->find(uuid);
-            if (found != rdd_cache->end()) {
-                map<int, cl_region *> *cached = found->second;
-                map<int, cl_region *>::iterator found_in_cache = cached->find(
-                        dev_ctx->device_index);
-                if (found_in_cache != cached->end()) {
-                    region = found_in_cache->second;
-                }
-            }
+            cl_region *region = check_rdd_cache(uuid, dev_ctx);
             bool reallocated = (region && re_allocate_cl_region(region,
                         dev_ctx->device_index));
             if (reallocated) {
@@ -1211,11 +1232,9 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
     }
 
     if (broadcastId >= 0) {
-        int err = pthread_rwlock_unlock(&dev_ctx->broadcast_lock);
-        ASSERT(err == 0);
+        unlock_bcast_cache(dev_ctx);
     } else if (rddid >= 0) {
-        int err = pthread_rwlock_unlock(&rdd_cache_lock);
-        ASSERT(err == 0);
+        unlock_rdd_cache_by_partition(partitionid);
     }
 
     EXIT_TRACE("tryCache");
@@ -1445,7 +1464,8 @@ JNI_JAVA(void, OpenCLBridge, run)
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    size_t global_range = range;
+    const size_t local_size = 128;
+    const size_t global_size = range + (local_size - (range % local_size));
     cl_event event;
 
 #ifdef BRIDGE_DEBUG
@@ -1459,7 +1479,7 @@ JNI_JAVA(void, OpenCLBridge, run)
 #endif
 
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,
-                &global_range, NULL, context->n_events, context->events, &event));
+                &global_size, &local_size, context->n_events, context->events, &event));
     CHECK(clWaitForEvents(1, &event));
     context->n_events = 0;
     EXIT_TRACE("run");
