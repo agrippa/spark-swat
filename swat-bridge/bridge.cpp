@@ -1551,7 +1551,6 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
         jarray vectorArray = (jarray)jenv->CallObjectMethod(vector,
                 denseVectorValuesMethod);
         CHECK_JNI(vectorArray);
-
         double *vectorArrayValues = (double *)jenv->GetPrimitiveArrayCritical(
                 vectorArray, NULL);
         CHECK_JNI(vectorArrayValues);

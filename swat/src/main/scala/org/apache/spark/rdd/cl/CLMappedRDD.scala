@@ -130,6 +130,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            inputBuffer.tryCache(inputCacheId, ctx, dev_ctx, entryPoint)
 
          if (inputCacheSuccess != -1) {
+           val handlingCachedStart = System.currentTimeMillis
            nLoaded = OpenCLBridge.fetchNLoaded(inputCacheId.rdd, inputCacheId.partition,
              inputCacheId.offset)
            /*
@@ -143,7 +144,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            } else {
              nested.drop(nLoaded - inputBuffer.nBuffered)
            }
+           RuntimeUtil.profPrint("Cached", handlingCachedStart, threadId) // PROFILE
          } else {
+           val handlingUncachedStart = System.currentTimeMillis // PROFILE
            if (firstBufferOp) {
              inputBuffer.append(firstSample)
            }
@@ -155,6 +158,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
              OpenCLBridge.storeNLoaded(inputCacheId.rdd, inputCacheId.partition,
                inputCacheId.offset, nLoaded)
            }
+           RuntimeUtil.profPrint("Uncached", handlingUncachedStart, threadId) // PROFILE
          }
          firstBufferOp = false
          totalNLoaded += nLoaded
