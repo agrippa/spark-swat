@@ -273,4 +273,11 @@ public class OpenCLBridge {
         throw new RuntimeException("Unable to find default constructor for " +
                 clazz.getName());
     }
+
+    public static void printStack() {
+        for (StackTraceElement ele : Thread.currentThread().getStackTrace()) {
+            System.err.println(ele.toString());
+        }
+        System.err.println();
+    }
 }

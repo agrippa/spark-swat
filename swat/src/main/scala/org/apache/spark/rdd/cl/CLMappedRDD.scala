@@ -41,6 +41,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
+
     // val N = 65536 * 8
     val N = 100000
     var inputBuffer : InputBufferWrapper[T] = null
@@ -72,12 +73,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
              firstParent[T].id, split.index, totalNLoaded, 0)
 
-//      val deviceInitStart = System.currentTimeMillis // PROFILE
+     val deviceInitStart = System.currentTimeMillis // PROFILE
      val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint, threadId)
-//      System.err.println("Selected device " + device_index) // PROFILE
+     System.err.println("Selected device " + device_index) // PROFILE
      val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index)
      val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
-//      RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
+     RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
      val firstSample : T = nested.next
      var firstBufferOp : Boolean = true
@@ -87,7 +88,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
      if (initializing) {
 
-//        val initStart = System.currentTimeMillis // PROFILE
+       val initStart = System.currentTimeMillis // PROFILE
        sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
        val entrypointAndKernel : Tuple2[Entrypoint, String] =
            RuntimeUtil.getEntrypointAndKernel[T, U](firstSample, sampleOutput,
@@ -99,10 +100,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
        nativeOutputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
                    sampleOutput.asInstanceOf[U], N, entryPoint))
-//        RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
+       RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
      }
 
-//      val ctxCreateStart = System.currentTimeMillis // PROFILE
+     val ctxCreateStart = System.currentTimeMillis // PROFILE
      if (!ctxCache.containsKey(dev_ctx)) {
        ctxCache.put(dev_ctx, OpenCLBridge.createSwatContext(
                    f.getClass.getName, openCL, dev_ctx, threadId,
@@ -110,14 +111,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                    entryPoint.requiresHeap, N))
      }
      val ctx : Long = ctxCache.get(dev_ctx)
-//      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
+     RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
 
      def next() : U = {
        if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
          inputBuffer.reset
          nativeOutputBuffer.get.reset
 
-//          val ioStart = System.currentTimeMillis // PROFILE
+         val ioStart = System.currentTimeMillis // PROFILE
 
          val myOffset : Int = totalNLoaded
          val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
@@ -131,10 +132,16 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          if (inputCacheSuccess != -1) {
            nLoaded = OpenCLBridge.fetchNLoaded(inputCacheId.rdd, inputCacheId.partition,
              inputCacheId.offset)
+           /*
+            * Drop the rest of this buffer from the input stream if cached,
+            * accounting for the fact that some items may already have been
+            * buffered from it, either in the inputBuffer (due to an overrun) or
+            * because of firstSample.
+            */
            if (firstBufferOp) {
-             nested.drop(nLoaded - 1)
+             nested.drop(nLoaded - 1 - inputBuffer.nBuffered)
            } else {
-             nested.drop(nLoaded)
+             nested.drop(nLoaded - inputBuffer.nBuffered)
            }
          } else {
            if (firstBufferOp) {
@@ -152,8 +159,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          firstBufferOp = false
          totalNLoaded += nLoaded
 
-//          RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-//          System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+         RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
+         System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
          try {
 
@@ -162,7 +169,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
              inputBuffer.copyToDevice(0, ctx, dev_ctx, inputCacheId) else
              inputCacheSuccess
 
-//            val writeStart = System.currentTimeMillis // PROFILE
+           val writeStart = System.currentTimeMillis // PROFILE
 
            val outArgNum : Int = argnum
            argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
@@ -182,14 +189,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
              argnum += OpenCLBridge.createHeap(ctx, dev_ctx, argnum, heapSize,
                      N)
            }
-//            RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
+           RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
 
            OpenCLBridge.setIntArg(ctx, argnum, nLoaded)
            val anyFailedArgNum = argnum - 1
 
-//            val runStart = System.currentTimeMillis // PROFILE
+           val runStart = System.currentTimeMillis // PROFILE
            var complete : Boolean = true
-//            var ntries : Int = 0 // PROFILE
+           var ntries : Int = 0 // PROFILE
            do {
              OpenCLBridge.run(ctx, dev_ctx, nLoaded)
              if (entryPoint.requiresHeap) {
@@ -201,21 +208,21 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
                  OpenCLBridge.resetHeap(ctx, dev_ctx, heapArgStart)
                }
              }
-//              ntries += 1 // PROFILE
+             ntries += 1 // PROFILE
            } while (!complete)
 
-//            RuntimeUtil.profPrint("Run", runStart, threadId) // PROFILE
-//            System.err.println("Thread " + threadId + " performed " + ntries + " kernel retries") // PROFILE
-//            val readStart = System.currentTimeMillis // PROFILE
+           RuntimeUtil.profPrint("Run", runStart, threadId) // PROFILE
+           System.err.println("Thread " + threadId + " performed " + ntries + " kernel retries") // PROFILE
+           val readStart = System.currentTimeMillis // PROFILE
 
            nativeOutputBuffer.get.finish(ctx, dev_ctx, outArgNum, nLoaded)
            OpenCLBridge.postKernelCleanup(ctx);
            outputBuffer = Some(nativeOutputBuffer.get)
 
-//            RuntimeUtil.profPrint("Read", readStart, threadId) // PROFILE
+           RuntimeUtil.profPrint("Read", readStart, threadId) // PROFILE
          } catch {
            case oom : OpenCLOutOfMemoryException => {
-//              System.err.println("SWAT PROF " + threadId + " OOM, using LambdaOutputBuffer") // PROFILE
+             System.err.println("SWAT PROF " + threadId + " OOM, using LambdaOutputBuffer") // PROFILE
              outputBuffer = Some(new LambdaOutputBuffer[T, U](f, inputBuffer))
            }
          }
@@ -243,6 +250,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          nativeOutputBuffer.get.releaseNativeArrays
          inputBuffer = null
          nativeOutputBuffer = null
+         RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
        }
        haveNext
      }

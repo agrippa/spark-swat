@@ -83,6 +83,11 @@ typedef struct _swat_context {
     cl_kernel kernel;
     int host_thread_index;
 
+    /*
+     * arguments_region should be cleared following each failed or successful
+     * kernel attempt to ensure that only the current kernel arguments are
+     * stored.
+     */
     cl_region **arguments_region;
     bool *arguments_keep;
     int arguments_capacity;

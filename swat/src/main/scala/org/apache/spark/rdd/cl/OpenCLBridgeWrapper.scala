@@ -193,7 +193,7 @@ object OpenCLBridgeWrapper {
      * __global int *broadcasted$1_offsets
      * int nbroadcasted$1
      */
-    val cacheSuccess = RuntimeUtil.tryCacheDenseVector(ctx, dev_ctx, argnum,
+    val cacheSuccess : Int = RuntimeUtil.tryCacheDenseVector(ctx, dev_ctx, argnum,
             cacheID, argLength, entryPoint)
 
     if (cacheSuccess != -1) {
