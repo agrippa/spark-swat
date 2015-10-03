@@ -9,30 +9,12 @@ import org.apache.spark.rdd._
 import java.net._
 import scala.io.Source
 
+import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.Vectors
+
 /*
  * Based on http://www.bindichen.co.uk/post/AI/fuzzy-c-means.html
  */
-
-class Point(val x: Float, val y: Float, val z: Float)
-    extends java.io.Serializable {
-  def this() {
-    this(0.0f, 0.0f, 0.0f)
-  }
-
-  def dist(center : Point) : Float = {
-    val diffx : Float = center.x - x
-    val diffy : Float = center.y - y
-    val diffz : Float = center.z - z
-    sqrt(diffx * diffx + diffy * diffy + diffz * diffz).asInstanceOf[Float]
-  }
-}
-
-class PointMembership(val x : Float, val y : Float, val z : Float,
-    val membership : Float) extends java.io.Serializable {
-  def this() {
-    this(0.0f, 0.0f, 0.0f, 0.0f)
-  }
-}
 
 object SparkFuzzyCMeans {
     def main(args : Array[String]) {
@@ -61,49 +43,50 @@ object SparkFuzzyCMeans {
         return new SparkContext(conf)
     }
 
+    def dist(a : DenseVector, b : DenseVector) : Double = {
+        val len : Int = a.size
+        var i = 0
+        var d : Double = 0.0
+        while (i < len) {
+            val diff = b(i) - a(i)
+            d += (diff * diff)
+            i += 1
+        }
+        scala.math.sqrt(d)
+    }
+
     def run_fuzzy_cmeans(args : Array[String]) {
         if (args.length != 4) {
-            println("usage: SparkFuzzyCMeans run info-file iters input-path use-swat");
+            println("usage: SparkFuzzyCMeans run K iters input-path use-swat");
             return;
         }
         val sc = get_spark_context("Spark Fuzzy CMeans");
 
-        val infoFile = args(0)
-        val infoIter : Iterator[String] = Source.fromFile(infoFile).getLines
-        val K = infoIter.next.toInt
-
+        val K = args(0).toInt
         val iters = args(1).toInt;
         val inputPath = args(2);
         val useSwat = args(3).toBoolean
 
         val m = 2
-        val raw_points : RDD[Point] = sc.objectFile(inputPath)
-        val collected_points : Array[Point] = raw_points.collect
-        val npoints : Int = collected_points.length
-        val samples : Array[Point] = raw_points.takeSample(false, K, 1);
-        val broadcasted_points = sc.broadcast(collected_points)
+        val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](inputPath)
+        val npoints : Long = raw_points.count
+        val samples : Array[DenseVector] = raw_points.takeSample(false, K, 1);
 
-        val point_cluster_pairs_raw : RDD[(Int, Point)] =
-            // sc.parallelize(0 to npoints - 1, sc.defaultParallelism * 2).flatMap(point_id => {
-            sc.parallelize(0 to npoints - 1).flatMap(point_id => {
-              var buffer = new ListBuffer[Tuple2[Int, Point]]()
-              for (i <- 0 until K) {
-                  buffer += new Tuple2[Int, Point](i, broadcasted_points.value(point_id))
-              }
-              buffer.toList
-            })
+        val point_cluster_pairs_raw : RDD[Tuple2[Int, DenseVector]] = raw_points.flatMap(point => {
+            var buffer = new ListBuffer[Tuple2[Int, DenseVector]]()
+            for (i <- 0 until K) {
+                buffer += new Tuple2[Int, DenseVector](i, point)
+            }
+            buffer.toList
+        })
         point_cluster_pairs_raw.cache
 
-        val point_cluster_pairs : RDD[(Int, Point)] =
-            if (useSwat) CLWrapper.cl[(Int, Point)](point_cluster_pairs_raw) else point_cluster_pairs_raw
+        val point_cluster_pairs : RDD[(Int, DenseVector)] =
+            if (useSwat) CLWrapper.cl[(Int, DenseVector)](point_cluster_pairs_raw) else point_cluster_pairs_raw
 
-        System.err.println("Initial centers:")
-        var centers : Array[Point] = new Array[Point](K)
+        var centers : Array[DenseVector] = new Array[DenseVector](K)
         for (i <- samples.indices) {
-            val s = samples(i)
-
-            System.err.println("  " + s.x + ", " + s.y + ", " + s.z)
-            centers(i) = new Point(s.x, s.y, s.z)
+            centers(i) = samples(i)
         }
 
         val startTime = System.currentTimeMillis
@@ -113,46 +96,74 @@ object SparkFuzzyCMeans {
             val iterStartTime = System.currentTimeMillis
             val broadcastedCenters = sc.broadcast(centers)
 
-            val memberships : RDD[(Int, PointMembership)] = point_cluster_pairs.map(pair => {
-                  val center : Point = broadcastedCenters.value(pair._1)
-                  val point : Point = pair._2
+            val memberships : RDD[(Int, DenseVector)] = point_cluster_pairs.map(pair => {
+                  val center_id = pair._1
+                  val center : DenseVector = broadcastedCenters.value(center_id)
+                  val point : DenseVector = pair._2
+                  val point_len : Int = point.size
 
-                  val target_dist : Float = point.dist(center)
+                  val target_dist : Double = dist(point, center)
 
-                  var sum : Float = 0.0f
+                  var sum : Double = 0.0
                   var i = 0
                   while (i < K) {
-                      val dist : Float = point.dist(broadcastedCenters.value(i))
-                      if (dist != 0.0f) {
-                        val ratio : Float = target_dist / dist
+                      val d : Double = dist(point, broadcastedCenters.value(i))
+                      if (d != 0.0) {
+                        val ratio : Double = target_dist / d
                         sum += ratio
                       }
 
                       i += 1
                   }
 
+                  // last element is reserved for the u_m value
+                  val output_arr : Array[Double] = new Array[Double](point_len + 1)
+                  i = 0
+                  while (i < point_len) {
+                    output_arr(i) = point(i)
+                    i += 1
+                  }
+
                   if (sum == 0.0f) {
                     // because target_dist == 0.0f
-                    (pair._1, new PointMembership(point.x, point.y, point.z, 1.0f))
+                    output_arr(point_len) = 1.0
                   } else {
-                    val u : Float = 1 / (scala.math.pow(sum, 2 / (m - 1)).asInstanceOf[Float])
-                    val u_m : Float = scala.math.pow(u, m).asInstanceOf[Float]
-                    (pair._1, new PointMembership(point.x * u_m, point.y * u_m, point.z * u_m, u_m))
+                    val u : Double = 1 / (scala.math.pow(sum, 2 / (m - 1)))
+                    val u_m : Double = scala.math.pow(u, m)
+                    output_arr(point_len) = u_m
                   }
+                  (center_id, Vectors.dense(output_arr).asInstanceOf[DenseVector])
                 })
 
-            val updates : RDD[(Int, PointMembership)] = memberships.reduceByKey((p1, p2) => {
-                  new PointMembership(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, p1.membership + p2.membership)
+            val updates : RDD[Tuple2[Int, DenseVector]] =
+                memberships.reduceByKey((p1, p2) => {
+                  assert(p1.size == p2.size)
+                  // Last element is still u_m
+                  val arr : Array[Double] = new Array[Double](p1.size)
+                  var i = 0
+                  while (i < p1.size) {
+                      arr(i) = p1(i) + p2(i)
+                      i += 1
+                  }
+                  Vectors.dense(arr).asInstanceOf[DenseVector]
                 })
 
-            val new_clusters : RDD[(Int, Point)] = updates.map(input => {
-                  val divisor : Float = input._2.membership
+            val new_clusters : RDD[(Int, DenseVector)] = updates.map(input => {
+                  val point : DenseVector = input._2
+                  val point_len : Int = point.size - 1
+                  val divisor : Double = point(point_len)
 
-                  (input._1, new Point(input._2.x / divisor, input._2.y / divisor,
-                        input._2.z / divisor))
+                  val arr : Array[Double] = new Array[Double](point_len)
+                  var i = 0
+                  while (i < point_len) {
+                      arr(i) = point(i) / divisor
+                      i += 1
+                  }
+
+                  (input._1, Vectors.dense(arr).asInstanceOf[DenseVector])
                 })
 
-            val new_centers_with_ids : Array[(Int, Point)] = new_clusters.collect
+            val new_centers_with_ids : Array[Tuple2[Int, DenseVector]] = new_clusters.collect
             for (c_id <- new_centers_with_ids) {
                 centers(c_id._1) = c_id._2
             }
@@ -161,11 +172,6 @@ object SparkFuzzyCMeans {
 
             val iterEndTime = System.currentTimeMillis
             println("iteration " + (iter + 1) + " : " + (iterEndTime - iterStartTime) + " ms")
-            // for (i <- centers.indices) {
-            //     val p : Point = centers(i)
-            //     println("  Cluster " + i + ", (" + p.x + ", " + p.y +
-            //             ", " + p.z + ")")
-            // }
             iter += 1
         }
 
@@ -185,10 +191,15 @@ object SparkFuzzyCMeans {
         val input = sc.textFile(inputDir)
         val converted = input.map(line => {
             val tokens = line.split(" ")
-            val x = tokens(0).toFloat
-            val y = tokens(1).toFloat
-            val z = tokens(2).toFloat
-            new Point(x, y, z) })
+            val arr : Array[Double] = new Array[Double](tokens.size)
+            var i = 0
+            while (i < tokens.size) {
+                arr(i) = tokens(i).toDouble
+                i += 1
+            }
+
+            Vectors.dense(arr).asInstanceOf[DenseVector]
+        })
         converted.saveAsObjectFile(outputDir)
     }
 

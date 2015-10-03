@@ -73,9 +73,6 @@ object SparkKMeans {
         var centers = new Array[DenseVector](K)
         for (i <- 0 until K) {
             centers(i) = samples(i)
-            // val arr : Array[Double] = new Array[Double](68)
-            // for (i <- 0 until 68) arr(i) = i
-            // centers(i) = Vectors.dense(arr).asInstanceOf[DenseVector]
         }
 
         val startTime = System.currentTimeMillis
