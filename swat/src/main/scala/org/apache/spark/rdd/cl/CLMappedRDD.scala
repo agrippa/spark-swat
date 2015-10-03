@@ -51,20 +51,20 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val threadId : Int = RuntimeUtil.getThreadID()
 
-    // if (threadId % 2 == 0) {
-    //   // Every 2 threads runs on the JVM
-    //   return new Iterator[U] {
-    //     val nested = firstParent[T].iterator(split, context)
+    if (threadId % 3 == 0) {
+      // Every 2 threads runs on the JVM
+      return new Iterator[U] {
+        val nested = firstParent[T].iterator(split, context)
 
-    //     def next() : U = {
-    //       f(nested.next)
-    //     }
+        def next() : U = {
+          f(nested.next)
+        }
 
-    //     def hasNext() : Boolean = {
-    //       nested.hasNext
-    //     }
-    //   }
-    // }
+        def hasNext() : Boolean = {
+          nested.hasNext
+        }
+      }
+    }
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
     System.setProperty("com.amd.aparapi.enable.ATHROW", "true");
