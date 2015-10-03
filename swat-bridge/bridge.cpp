@@ -1460,11 +1460,12 @@ static void save_to_dump_file(swat_context *context) {
 #endif
 
 JNI_JAVA(void, OpenCLBridge, run)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range) {
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range,
+         jint local_size_in) {
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    const size_t local_size = 128;
+    const size_t local_size = local_size_in;
     const size_t global_size = range + (local_size - (range % local_size));
     cl_event event;
 

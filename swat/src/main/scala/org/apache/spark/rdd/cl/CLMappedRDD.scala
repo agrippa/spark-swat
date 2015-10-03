@@ -42,8 +42,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
 
-    // val N = 100000
-    val N = 50000
+    val N_str = System.getProperty("swat.input_chunking")
+    val N = if (N_str != null) N_str.toInt else 50000
+    // val N = 100000 // Best known value for Connected Components
+    // val N = 50000 // Best known value for KMeans and Fuzzy
+
+    // val cl_local_size = 128 // Best known value for KMeans and Fuzzy
+    val cl_local_size_str = System.getProperty("swat.cl_local_size")
+    val cl_local_size = if (cl_local_size_str != null) cl_local_size_str.toInt else 128
+
+    System.err.println("Using N=" + N + " cl_local_size=" + cl_local_size)
+
     var inputBuffer : InputBufferWrapper[T] = null
     var nativeOutputBuffer : Option[OutputBufferWrapper[U]] = None
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
@@ -220,7 +229,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            var complete : Boolean = true
 //            var ntries : Int = 0 // PROFILE
            do {
-             OpenCLBridge.run(ctx, dev_ctx, nLoaded)
+             OpenCLBridge.run(ctx, dev_ctx, nLoaded, cl_local_size)
              if (entryPoint.requiresHeap) {
                complete = nativeOutputBuffer.get.kernelAttemptCallback(
                        nLoaded, anyFailedArgNum, heapArgStart + 3, outArgNum,

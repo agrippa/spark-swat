@@ -62,7 +62,8 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArgToNativeArray(long ctx,
             long dev_ctx, int index, long buffer, int argLength);
 
-    public static native void run(long ctx, long dev_ctx, int range);
+    public static native void run(long ctx, long dev_ctx, int range,
+            int local_size);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
