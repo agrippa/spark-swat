@@ -28,7 +28,7 @@ if [[ $INPUT_EXISTS != 1 ]]; then
 fi
 
 spark-submit --class SparkPageRank --jars ${SWAT_JARS} \
-        --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
+        --conf "spark.executor.extraJavaOptions=-Dswat.input_chunking=100000 -Dswat.cl_local_size=128" \
         --master spark://localhost:7077 \
         $SCRIPT_DIR/target/sparkpagerank-0.0.0.jar \
         run $ITERS hdfs://$(hostname):54310/hyperlink-graph-links \

@@ -57,7 +57,7 @@ object SparkPageRank {
          * The convention used here is that link._1 is the destination node of a
          * link, link._2 is the source node of a link
          */
-        val raw_links : RDD[Tuple2[Int, Int]] = sc.objectFile(inputLinksPath)
+        val raw_links : RDD[Tuple2[Int, Int]] = sc.objectFile[Tuple2[Int, Int]](inputLinksPath).cache
         val links = if (useSwat) CLWrapper.cl[Tuple2[Int, Int]](raw_links) else raw_links
 
         val raw_docs : RDD[(Double, Int)] = sc.objectFile(inputDocsPath)

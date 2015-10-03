@@ -84,8 +84,11 @@ object SparkNN {
     }
 
     def reduce_sum(rdd : RDD[Tuple2[Int, DenseVector]]) : DenseVector = {
-      rdd.map(pair => pair._2).reduce(
-        (a : DenseVector, b : DenseVector) => {
+      rdd.reduce(
+        (aa : Tuple2[Int, DenseVector], bb : Tuple2[Int, DenseVector]) => {
+          val a : DenseVector = aa._2
+          val b : DenseVector = bb._2
+
           val size = a.size
           val combined : Array[Double] = new Array[Double](size)
           var i = 0
@@ -93,8 +96,8 @@ object SparkNN {
             combined(i) = a(i) + b(i)
             i += 1
           }
-          Vectors.dense(combined).asInstanceOf[DenseVector]
-        })
+          (0, Vectors.dense(combined).asInstanceOf[DenseVector])
+        })._2
     }
 
     def feedBackward(delta : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
@@ -296,6 +299,7 @@ object SparkNN {
               val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
                   CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
                   else activations(l - 1)
+              System.err.println("l=" + l + " activationsRdd.count=" + activationsRdd.count)
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
@@ -418,6 +422,7 @@ object SparkNN {
            * the elements in nabla_w[:nlayers - 1] to weights.
            */
           for (l <- 0 until nlayers - 1) {
+            System.err.println("l=" + l + ", nlayers=" + nlayers + ", " + nabla_b(l + 1).count)
             val collected_delta_b : DenseVector = reduce_sum(nabla_b(l + 1))
             assert(collected_delta_b.size == biases(l).size)
             val newBiases : Array[Double] = new Array[Double](biases(l).size)
