@@ -75,6 +75,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     false
   }
 
+  override def outOfSpace : Boolean = {
+    bb.position >= bb.capacity
+  }
+
   override def releaseNativeArrays { }
 
   override def reset() {

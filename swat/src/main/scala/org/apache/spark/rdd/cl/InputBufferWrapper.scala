@@ -43,6 +43,11 @@ trait InputBufferWrapper[T] {
    * store it.
    */
   def haveUnprocessedInputs : Boolean
+  /*
+   * Returns true when an input buffer has been filled to the point where it can
+   * accept no more elements.
+   */
+  def outOfSpace : Boolean
 
   def releaseNativeArrays
   def nBuffered() : Int

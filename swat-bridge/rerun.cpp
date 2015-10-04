@@ -271,6 +271,7 @@ int main(int argc, char **argv) {
 
     int num_args, i;
     safe_read(fd, &num_args, sizeof(num_args));
+    fprintf(stderr, "num_args = %d\n", num_args);
 
     map<int, kernel_arg *> debug_arguments;
     map<int, cl_mem> arguments;

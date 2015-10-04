@@ -510,11 +510,14 @@ object SparkNN {
     }
 
     def convert(args : Array[String]) {
-      if (args.length != 8) {
+      if (args.length != 4) {
+        // System.err.println("usage: SparkNN convert training-input " +
+        //         "training-converted training-correct-input " +
+        //         "training-correct-converted testing-input testing-converted " +
+        //         "testing-correct-input testing-correct-converted")
         System.err.println("usage: SparkNN convert training-input " +
                 "training-converted training-correct-input " +
-                "training-correct-converted testing-input testing-converted " +
-                "testing-correct-input testing-correct-converted")
+                "training-correct-converted")
         System.exit(1)
       }
       val sc = get_spark_context("Spark NN Convert");
@@ -527,12 +530,12 @@ object SparkNN {
       convert_file(trainingInput, trainingOutput, sc)
       convert_file(correctInput, correctOutput, sc)
 
-      val testingInput = args(4)
-      val testingOutput = args(5)
-      val testingCorrectInput = args(6)
-      val testingCorrectOutput = args(7)
+      // val testingInput = args(4)
+      // val testingOutput = args(5)
+      // val testingCorrectInput = args(6)
+      // val testingCorrectOutput = args(7)
 
-      convert_file(testingInput, testingOutput, sc)
-      convert_file(testingCorrectInput, testingCorrectOutput, sc)
+      // convert_file(testingInput, testingOutput, sc)
+      // convert_file(testingCorrectInput, testingCorrectOutput, sc)
     }
 }

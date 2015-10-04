@@ -115,7 +115,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
 
   override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) {
     if (firstMemberSize > 0 && secondMemberSize > 0) {
-      while (buffered < nele && iter.hasNext) {
+      while (!buffer1.outOfSpace && !buffer2.outOfSpace && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffer2.append(obj._2)
@@ -123,14 +123,14 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
       }
 
     } else if (firstMemberSize > 0) {
-      while (buffered < nele && iter.hasNext) {
+      while (!buffer1.outOfSpace && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffered += 1
       }
 
     } else if (secondMemberSize > 0) {
-      while (buffered < nele && iter.hasNext) {
+      while (!buffer2.outOfSpace && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer2.append(obj._2)
         buffered += 1
@@ -145,6 +145,18 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
           cacheId : CLCacheID) : Int = {
     var used = 0
+
+    // We all agree on the number of elements we've buffered
+    if (firstMemberSize > 0 && secondMemberSize > 0) {
+        assert(buffer1.nBuffered == buffer2.nBuffered,
+                "buffer1=" + buffer1.nBuffered + ", buffer2=" +
+                buffer2.nBuffered)
+        assert(buffer2.nBuffered == buffered)
+    } else if (firstMemberSize > 0) {
+        assert(buffer1.nBuffered == buffered)
+    } else if (secondMemberSize > 0) {
+        assert(buffer2.nBuffered == buffered)
+    }
 
     if (firstMemberSize > 0) {
         used = used + buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId)
@@ -183,6 +195,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
 
   override def haveUnprocessedInputs : Boolean = {
     buffer1.haveUnprocessedInputs || buffer2.haveUnprocessedInputs
+  }
+
+  override def outOfSpace : Boolean = {
+    buffer1.outOfSpace || buffer2.outOfSpace
   }
 
   override def releaseNativeArrays {

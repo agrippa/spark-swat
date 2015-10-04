@@ -72,6 +72,10 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     false
   }
 
+  override def outOfSpace : Boolean = {
+    filled >= N
+  }
+
   override def releaseNativeArrays { }
 
   override def reset() {

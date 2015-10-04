@@ -170,6 +170,10 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     haveOverrun
   }
 
+  override def outOfSpace : Boolean = {
+    haveOverrun
+  }
+
   override def releaseNativeArrays {
     OpenCLBridge.nativeFree(valuesBuffer)
     OpenCLBridge.nativeFree(sizesBuffer)

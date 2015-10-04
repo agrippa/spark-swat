@@ -179,6 +179,10 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     overrun(0) != null
   }
 
+  override def outOfSpace : Boolean = {
+    overrun(0) != null
+  }
+
   override def releaseNativeArrays {
     OpenCLBridge.nativeFree(valuesBuffer)
     OpenCLBridge.nativeFree(indicesBuffer)

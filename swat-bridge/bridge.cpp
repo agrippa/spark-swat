@@ -1434,7 +1434,8 @@ static void save_to_dump_file(swat_context *context) {
     int fd;
     do {
         char filename[256];
-        sprintf(filename, "bridge.dump.%d", dump_index);
+        sprintf(filename, "bridge.dump.tid%d.%d", context->host_thread_index,
+                dump_index);
         fd = open(filename, O_WRONLY | O_CREAT, O_EXCL | S_IRUSR | S_IWUSR);
         dump_index++;
     } while(fd == -1);
@@ -1490,11 +1491,11 @@ JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
         (JNIEnv *jenv, jclass clazz, jlong old, jlong nbytes) {
     void *new_ptr = (void *)realloc((void *)old, nbytes);
     ASSERT(new_ptr);
-#ifdef VERBOSE
+// #ifdef VERBOSE
     if (old == NULL) {
         fprintf(stderr, "nativeRealloc: Allocating %ld bytes, ptr=%p\n", nbytes, new_ptr);
     }
-#endif
+// #endif
     return (jlong)new_ptr;
 }
 
@@ -1502,9 +1503,9 @@ JNI_JAVA(jlong, OpenCLBridge, nativeMalloc)
         (JNIEnv *jenv, jclass clazz, jlong nbytes) {
     void *ptr = (void *)malloc(nbytes);
     CHECK_ALLOC(ptr);
-#ifdef VERBOSE
+// #ifdef VERBOSE
     fprintf(stderr, "nativeMalloc: Allocating %ld bytes, ptr=%p\n", nbytes, ptr);
-#endif
+// #endif
     return (jlong)ptr;
 }
 
