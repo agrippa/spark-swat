@@ -16,6 +16,7 @@ typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVecto
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
    __global double*  values;
    int  size;
+   int  tiling;
    
 } org_apache_spark_mllib_linalg_DenseVector;
 
@@ -28,7 +29,7 @@ static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_s
 
 
 static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[32 * index];
+    return (this->values)[this->tiling * index];
 }
 
 static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_DenseVector* in){
@@ -46,13 +47,13 @@ static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(
    });
 }
 __kernel void run(
-      __global org_apache_spark_mllib_linalg_DenseVector* in0, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, 
+      __global org_apache_spark_mllib_linalg_DenseVector* in0, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, int in0_tiling, 
       __global double* out, int N) {
    This thisStruct;
    This* this=&thisStruct;
    __global org_apache_spark_mllib_linalg_DenseVector *my_in0 = in0 + get_global_id(0);
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      my_in0->values = in0_values + in0_offsets[i]; my_in0->size = in0_sizes[i];
+      my_in0->values = in0_values + in0_offsets[i]; my_in0->size = in0_sizes[i]; my_in0->tiling = in0_tiling;
       out[i] = org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(this, in0 + i);
       
    }

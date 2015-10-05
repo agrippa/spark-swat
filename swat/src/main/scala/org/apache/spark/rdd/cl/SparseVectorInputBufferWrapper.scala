@@ -37,6 +37,8 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
 
   var buffered : Int = 0
   var iter : Int = 0
+  var vectorsUsed : Int = -1
+  var elementsUsed : Int = -1
 
   val tiling : Int = SparseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
@@ -56,6 +58,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   val offsetsBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
 
   val overrun : Array[SparseVector] = new Array[SparseVector](tiling)
+  var haveOverrun : Boolean = false
 
   override def flush() {
     if (tiled > 0) {
@@ -83,6 +86,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
         for (i <- nTiled until tiled) {
           overrun(i - nTiled) = to_tile(i)
         }
+        haveOverrun = true
       }
 
       buffered += nTiled
@@ -105,8 +109,8 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def aggregateFrom(iterator : Iterator[SparseVector]) {
-    assert(overrun(0) == null)
-    while (iterator.hasNext && overrun(0) == null) {
+    assert(!haveOverrun)
+    while (iterator.hasNext && !haveOverrun) {
       val next : SparseVector = iterator.next
       append(next)
     }
@@ -120,29 +124,37 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-          cacheID : CLCacheID) : Int = {
+          cacheID : CLCacheID, limit : Int = -1) : Int = {
     assert(tiled == 0)
+    val vectorsToCopy = if (limit == -1) buffered else limit
+    assert(vectorsToCopy <= buffered)
+    val elementsToCopy = if (vectorsToCopy == buffered) bufferPosition else
+        OpenCLBridge.getMaxOffsetOfStridedVectors(vectorsToCopy, sizesBuffer,
+                offsetsBuffer, tiling) + 1
 
     // Array of structs for each item
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, sparseVectorStructSize * vectorCapacity)
     // indices array, size of double = 4
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1,
-            indicesBuffer, bufferPosition * 4, cacheID.broadcast,
+            indicesBuffer, elementsToCopy * 4, cacheID.broadcast,
             cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     // values array, size of double = 8
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2,
-            valuesBuffer, bufferPosition * 8, cacheID.broadcast,
+            valuesBuffer, elementsToCopy * 8, cacheID.broadcast,
             cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component + 1)
     // Sizes of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, sizesBuffer,
-            buffered * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+            vectorsToCopy * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
             cacheID.offset, cacheID.component + 2)
     // Offsets of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 4, offsetsBuffer,
-            buffered * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+            vectorsToCopy * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
             cacheID.offset, cacheID.component + 3)
     // Number of sparse vectors being copied
-    OpenCLBridge.setIntArg(ctx, argnum + 5, buffered)
+    OpenCLBridge.setIntArg(ctx, argnum + 5, vectorsToCopy)
+
+    vectorsUsed = vectorsToCopy
+    elementsUsed = elementsToCopy
 
     return 6
   }
@@ -176,11 +188,11 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def haveUnprocessedInputs : Boolean = {
-    overrun(0) != null
+    haveOverrun
   }
 
   override def outOfSpace : Boolean = {
-    overrun(0) != null
+    haveOverrun
   }
 
   override def releaseNativeArrays {
@@ -191,9 +203,26 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def reset() {
-    buffered = 0
+    if (vectorsUsed != -1 && vectorsUsed != buffered) {
+      assert(elementsUsed != -1 && elementsUsed != bufferPosition)
+
+      val leftoverVectors = buffered - vectorsUsed
+      val leftoverElements = bufferPosition - elementsUsed
+      OpenCLBridge.resetSparseVectorBuffers(indicesBuffer, valuesBuffer, sizesBuffer,
+              offsetsBuffer, vectorsUsed, elementsUsed, leftoverVectors,
+              leftoverElements)
+      buffered = leftoverVectors
+      bufferPosition = leftoverElements
+    } else {
+      buffered = 0
+      bufferPosition = 0
+    }
+
+    vectorsUsed = -1
+    elementsUsed = -1
+
     iter = 0
-    bufferPosition = 0
+    haveOverrun = false
     var i = 0
     while (i < tiling && overrun(i) != null) {
       // TODO what if we run out of space while handling the overrun...

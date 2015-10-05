@@ -32,8 +32,7 @@ object Tuple2DenseOutputTest extends CodeGenTest[Int, (Int, DenseVector)] {
         inputClassType1Name, inputClassType2Name, true)
     models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
 
-    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create(
-            DenseVectorInputBufferWrapperConfig.tiling)
+    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create()
     models.addClassModelFor(classOf[DenseVector], denseVectorModel)
 
     models

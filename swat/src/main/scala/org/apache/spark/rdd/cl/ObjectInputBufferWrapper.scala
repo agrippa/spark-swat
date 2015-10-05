@@ -29,6 +29,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
 
   var iter : Int = 0
   var objCount : Int = 0
+  var used : Int = -1
 
   override def flush() { }
 
@@ -39,7 +40,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def aggregateFrom(iter : Iterator[T]) {
-    while (bb.position < bb.capacity && iter.hasNext) {
+    while (objCount < nele && iter.hasNext) {
       OpenCLBridgeWrapper.writeObjectToStream(
               iter.next.asInstanceOf[java.lang.Object], classModel, bb)
       objCount += 1
@@ -51,10 +52,15 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID) : Int = {
+      cacheID : CLCacheID, limit : Int = -1) : Int = {
+    val tocopy = if (limit == -1) objCount else limit
+
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-        bb.position, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+        tocopy * structSize, cacheID.broadcast, cacheID.rdd, cacheID.partition,
         cacheID.offset, cacheID.component)
+
+    used = tocopy
+
     return 1
   }
 
@@ -76,15 +82,24 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def outOfSpace : Boolean = {
-    bb.position >= bb.capacity
+    objCount >= nele
   }
 
   override def releaseNativeArrays { }
 
   override def reset() {
-    objCount = 0
+    if (used != -1 && used != objCount) {
+      val leftoverObjects = objCount - used
+      System.arraycopy(bb.array, used * structSize, bb.array, 0,
+              leftoverObjects * structSize)
+      objCount = leftoverObjects
+    } else {
+      objCount = 0
+    }
+
+    bb.position(objCount * structSize)
+    used = -1
     iter = 0
-    bb.clear
   }
 
   // Returns # of arguments used

@@ -103,7 +103,7 @@ object RuntimeUtil {
   }
 
   def getInputBufferFor[T : ClassTag](firstSample : T, N : Int,
-      entryPoint : Entrypoint) : InputBufferWrapper[T] = {
+      denseVectorTiling : Int, entryPoint : Entrypoint) : InputBufferWrapper[T] = {
     if (firstSample.isInstanceOf[Double] ||
         firstSample.isInstanceOf[Int] ||
         firstSample.isInstanceOf[Float]) {
@@ -113,7 +113,7 @@ object RuntimeUtil {
               firstSample.asInstanceOf[Tuple2[_, _]],
               entryPoint).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[DenseVector]) {
-      new DenseVectorInputBufferWrapper(N,
+      new DenseVectorInputBufferWrapper(N, denseVectorTiling,
               entryPoint).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[SparseVector]) {
       new SparseVectorInputBufferWrapper(N,
@@ -125,7 +125,7 @@ object RuntimeUtil {
   }
 
   def tryCacheDenseVector(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nVectors : Int, tiling : Int, entryPoint : Entrypoint) : Int = {
 
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
         cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3)) {
@@ -137,7 +137,9 @@ object RuntimeUtil {
               c.getTotalStructSize * nVectors)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, argnum + 4, nVectors)
-      return 5
+      // Tiling
+      OpenCLBridge.setIntArg(ctx, argnum + 5, tiling)
+      return 6
     } else {
       return -1
     }
@@ -174,7 +176,7 @@ object RuntimeUtil {
 
   def tryCacheTuple(ctx : Long, dev_ctx : Long, startArgnum : Int,
           cacheID : CLCacheID, nLoaded : Int, sample : Tuple2[_, _],
-          entryPoint : Entrypoint) : Int = {
+          denseVectorTiling : Int, entryPoint : Entrypoint) : Int = {
     val firstMemberClassName : String = sample._1.getClass.getName
     val secondMemberClassName : String = sample._2.getClass.getName
     var used = 0
@@ -184,7 +186,7 @@ object RuntimeUtil {
 
     if (firstMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
-                startArgnum, cacheID, nLoaded, entryPoint)
+                startArgnum, cacheID, nLoaded, denseVectorTiling, entryPoint)
         if (cacheSuccess == -1) {
           return -1
         }
@@ -197,7 +199,7 @@ object RuntimeUtil {
 
     if (secondMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
-                startArgnum + used, cacheID, nLoaded, entryPoint)
+                startArgnum + used, cacheID, nLoaded, denseVectorTiling, entryPoint)
         if (cacheSuccess == -1) {
           OpenCLBridge.manuallyRelease(ctx, dev_ctx, startArgnum, used)
           return -1
@@ -217,7 +219,8 @@ object RuntimeUtil {
   }
 
   def tryCacheHelper(desc : String, ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nLoaded : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nLoaded : Int, denseVectorTiling : Int,
+      entryPoint : Entrypoint) : Int = {
     desc match {
       case "I" | "F" | "D" => {
         if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
@@ -230,7 +233,7 @@ object RuntimeUtil {
       }
       case KernelWriter.DENSEVECTOR_CLASSNAME => {
         return tryCacheDenseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
-                entryPoint)
+                denseVectorTiling, entryPoint)
       }
       case KernelWriter.SPARSEVECTOR_CLASSNAME => {
         return tryCacheSparseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,

@@ -28,8 +28,7 @@ object DenseVectorOutputTest extends CodeGenTest[Int, DenseVector] {
 
   def init() : HardCodedClassModels = {
     val models = new HardCodedClassModels()
-    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create(
-            DenseVectorInputBufferWrapperConfig.tiling)
+    val denseVectorModel : DenseVectorClassModel = DenseVectorClassModel.create()
     models.addClassModelFor(classOf[DenseVector], denseVectorModel)
     models
   }

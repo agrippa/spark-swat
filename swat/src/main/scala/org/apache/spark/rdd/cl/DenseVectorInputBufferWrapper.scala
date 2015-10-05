@@ -21,13 +21,16 @@ import org.apache.spark.InterruptibleIterator
 
 object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
+  val avgVectorLength_str = System.getProperty("swat.avg_vec_length")
+  val avgVectorLength = if (avgVectorLength_str == null) 70 else avgVectorLength_str.toInt
 }
 
 class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorCapacity : Int,
-        entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
+        tiling : Int, entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
 
-  def this(vectorCapacity : Int, entryPoint : Entrypoint) =
-      this(vectorCapacity * 70, vectorCapacity, entryPoint)
+  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint) =
+      this(vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVectorLength,
+              vectorCapacity, tiling, entryPoint)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -36,8 +39,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
   var buffered : Int = 0
   var iter : Int = 0
+  var vectorsUsed : Int = -1
+  var elementsUsed : Int = -1
 
-  val tiling : Int = DenseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
   val to_tile : Array[DenseVector] = new Array[DenseVector](tiling)
   val to_tile_sizes : Array[Int] = new Array[Int](tiling)
@@ -118,28 +122,39 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID) : Int = {
+      cacheID : CLCacheID, limit : Int = -1) : Int = {
     // Should call a flush explicitly from the RDD iterator next() function
     assert(tiled == 0)
+    val vectorsToCopy = if (limit == -1) buffered else limit
+    assert(vectorsToCopy <= buffered)
+    val elementsToCopy = if (vectorsToCopy == buffered) valuesBufferPosition else
+        OpenCLBridge.getMaxOffsetOfStridedVectors(vectorsToCopy, sizesBuffer,
+                offsetsBuffer, tiling) + 1
+
     // Array of structs for each item
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
             denseVectorStructSize * vectorCapacity)
     // values array, size of double = 8
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1, valuesBuffer,
-        valuesBufferPosition * 8, cacheID.broadcast, cacheID.rdd, cacheID.partition,
+        elementsToCopy * 8, cacheID.broadcast, cacheID.rdd, cacheID.partition,
         cacheID.offset, cacheID.component)
     // Sizes of each vector
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2, sizesBuffer, buffered * 4,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2, sizesBuffer, vectorsToCopy * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
             cacheID.component + 1)
     // Offsets of each vector
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, offsetsBuffer, buffered * 4,
+    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, offsetsBuffer, vectorsToCopy * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
             cacheID.component + 2)
     // Number of vectors
-    OpenCLBridge.setIntArg(ctx, argnum + 4, buffered)
+    OpenCLBridge.setIntArg(ctx, argnum + 4, vectorsToCopy)
+    // Tiling
+    OpenCLBridge.setIntArg(ctx, argnum + 5, tiling)
 
-    return 5
+    vectorsUsed = vectorsToCopy
+    elementsUsed = elementsToCopy
+
+    return 6
   }
 
   override def hasNext() : Boolean = {
@@ -181,9 +196,25 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def reset() {
-    buffered = 0
+    if (vectorsUsed != -1 && vectorsUsed != buffered) {
+      assert(elementsUsed != -1 && elementsUsed != valuesBufferPosition)
+
+      val leftoverVectors = buffered - vectorsUsed
+      val leftoverElements = valuesBufferPosition - elementsUsed
+      OpenCLBridge.resetDenseVectorBuffers(valuesBuffer, sizesBuffer,
+              offsetsBuffer, vectorsUsed, elementsUsed, leftoverVectors,
+              leftoverElements)
+      buffered = leftoverVectors
+      valuesBufferPosition = leftoverElements
+    } else {
+      buffered = 0
+      valuesBufferPosition = 0
+    }
+
+    vectorsUsed = -1
+    elementsUsed = -1
+
     iter = 0
-    valuesBufferPosition = 0
     haveOverrun = false
     var i = 0
     while (i < tiling && overrun(i) != null) {
@@ -208,7 +239,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
               c.getTotalStructSize * nVectors)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, 0 + 4, nVectors)
-      return 5
+      // Tiling
+      OpenCLBridge.setIntArg(ctx, 0 + 5, tiling)
+      return 6
     } else {
       return -1
     }

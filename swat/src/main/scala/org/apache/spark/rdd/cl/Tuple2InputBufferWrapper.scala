@@ -52,14 +52,14 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
                 sample._2.getClass.getName,
                 new NameMatcher(sample._2.getClass.getName))
 
-  var iter : Int = 0
-  var buffered :  Int = 0
+  var used : Int = -1
+
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling)
 
   def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
     desc match {
@@ -110,7 +110,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     if (secondMemberSize > 0) {
       buffer2.append(obj._2)
     }
-    buffered += 1
   }
 
   override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) {
@@ -119,78 +118,76 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffer2.append(obj._2)
-        buffered += 1
       }
 
     } else if (firstMemberSize > 0) {
       while (!buffer1.outOfSpace && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
-        buffered += 1
       }
 
     } else if (secondMemberSize > 0) {
       while (!buffer2.outOfSpace && iter.hasNext) {
         val obj : Tuple2[K, V] = iter.next
         buffer2.append(obj._2)
-        buffered += 1
       }
     }
   }
 
   override def nBuffered() : Int = {
-    buffered
+    val buffered1 = buffer1.nBuffered
+    val buffered2 = buffer2.nBuffered
+    if (buffered1 < buffered2) buffered1 else buffered2
   }
 
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
-          cacheId : CLCacheID) : Int = {
-    var used = 0
+          cacheId : CLCacheID, limit : Int = -1) : Int = {
+    var usedArgs = 0
+    assert(limit == -1)
 
-    // We all agree on the number of elements we've buffered
+    // Find least number of elements buffered
+    var tocopy : Int = -1
     if (firstMemberSize > 0 && secondMemberSize > 0) {
-        assert(buffer1.nBuffered == buffer2.nBuffered,
-                "buffer1=" + buffer1.nBuffered + ", buffer2=" +
-                buffer2.nBuffered)
-        assert(buffer2.nBuffered == buffered)
+        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered else buffer2.nBuffered
     } else if (firstMemberSize > 0) {
-        assert(buffer1.nBuffered == buffered)
+        tocopy = buffer1.nBuffered
     } else if (secondMemberSize > 0) {
-        assert(buffer2.nBuffered == buffered)
+        tocopy = buffer2.nBuffered
     }
 
     if (firstMemberSize > 0) {
-        used = used + buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId)
-        cacheId.incrComponent(used)
+        usedArgs = usedArgs + buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId, limit=tocopy)
+        cacheId.incrComponent(usedArgs)
     } else {
         OpenCLBridge.setNullArrayArg(ctx, startArgnum)
-        used = used + 1
+        usedArgs = usedArgs + 1
     }
 
     if (secondMemberSize > 0) {
-        used = used + buffer2.copyToDevice(startArgnum + used, ctx, dev_ctx,
-                cacheId)
+        usedArgs = usedArgs + buffer2.copyToDevice(startArgnum + usedArgs, ctx, dev_ctx,
+                cacheId, limit=tocopy)
     } else {
-        OpenCLBridge.setNullArrayArg(ctx, startArgnum + used)
-        used = used + 1
+        OpenCLBridge.setNullArrayArg(ctx, startArgnum + usedArgs)
+        usedArgs = usedArgs + 1
     }
 
+    used = tocopy
+
     if (isInput) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + used,
-              structSize * nele)
-      return used + 1
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + usedArgs,
+              structSize * tocopy)
+      return usedArgs + 1
     } else {
-      return used
+      return usedArgs
     }
   }
 
   override def hasNext() : Boolean = {
-    iter < buffered
+    buffer1.hasNext && buffer2.hasNext
   }
 
   override def next() : Tuple2[K, V] = {
-    val t : Tuple2[K, V] = (buffer1.next, buffer2.next)
-    iter += 1
-    t
+    (buffer1.next, buffer2.next)
   }
 
   override def haveUnprocessedInputs : Boolean = {
@@ -209,8 +206,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   override def reset() {
     buffer1.reset
     buffer2.reset
-    iter = 0
-    buffered = 0
   }
 
   override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
@@ -219,7 +214,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
             sample._1.getClass.getName, objectMangling = true)
     val secondMemberClassName : String = CodeGenUtil.cleanClassName(
             sample._2.getClass.getName, objectMangling = true)
-    var used = 0
+    var usedArgs = 0
 
     val firstMemberSize = entryPoint.getSizeOf(firstMemberClassName)
     val secondMemberSize = entryPoint.getSizeOf(secondMemberClassName)
@@ -228,36 +223,39 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     if (nLoaded == -1) return -1
 
     if (firstMemberSize > 0) {
-        val cacheSuccess = RuntimeUtil.tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
-                0, id, nLoaded, entryPoint)
+        val cacheSuccess = RuntimeUtil.tryCacheHelper(firstMemberClassName, ctx,
+                dev_ctx, 0, id, nLoaded,
+                DenseVectorInputBufferWrapperConfig.tiling, entryPoint)
         if (cacheSuccess == -1) {
           return -1
         }
-        used = used + cacheSuccess
-        id.incrComponent(used)
+        usedArgs = usedArgs + cacheSuccess
+        id.incrComponent(usedArgs)
     } else {
         OpenCLBridge.setNullArrayArg(ctx, 0)
-        used = used + 1
+        usedArgs = usedArgs + 1
     }
 
     if (secondMemberSize > 0) {
-        val cacheSuccess = RuntimeUtil.tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
-                0 + used, id, nLoaded, entryPoint)
+        val cacheSuccess = RuntimeUtil.tryCacheHelper(secondMemberClassName,
+                ctx, dev_ctx, 0 + usedArgs, id, nLoaded,
+                DenseVectorInputBufferWrapperConfig.tiling,
+                entryPoint)
         if (cacheSuccess == -1) {
-          OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, used)
+          OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, usedArgs)
           return -1
         }
-        used = used + cacheSuccess
+        usedArgs = usedArgs + cacheSuccess
     } else {
-        OpenCLBridge.setNullArrayArg(ctx, 0 + used)
-        used = used + 1
+        OpenCLBridge.setNullArrayArg(ctx, 0 + usedArgs)
+        usedArgs = usedArgs + 1
     }
 
     val tuple2ClassModel : ClassModel =
       entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
           new ObjectMatcher(sample))
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0 + used,
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0 + usedArgs,
             tuple2ClassModel.getTotalStructSize * nLoaded)
-    return used + 1
+    return usedArgs + 1
   }
 }

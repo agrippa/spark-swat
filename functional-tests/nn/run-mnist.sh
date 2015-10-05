@@ -35,6 +35,7 @@ fi
 
 spark-submit --class SparkNN --jars ${SWAT_JARS} \
         --master spark://localhost:7077 \
+        --conf "spark.executor.extraJavaOptions=-Dswat.input_chunking=10000 -Dswat.cl_local_size=128" \
         ${SWAT_HOME}/functional-tests/nn/target/nn-0.0.0.jar \
         run $1 $SPARK_DATA/nn/info \
         hdfs://$(hostname):54310/mnist-converted/input \

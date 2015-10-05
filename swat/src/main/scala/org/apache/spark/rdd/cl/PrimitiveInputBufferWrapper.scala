@@ -18,6 +18,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   val arr : Array[T] = new Array[T](N)
   var filled : Int = 0
   var iter : Int = 0
+  var used : Int = -1
 
   override def append(obj : Any) {
     arr(filled) = obj.asInstanceOf[T]
@@ -38,22 +39,26 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID) : Int = {
+      cacheID : CLCacheID, limit : Int = -1) : Int = {
+    val tocopy = if (limit == -1) filled else limit
+
     if (arr.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Double]], filled, cacheID.broadcast,
+          arr.asInstanceOf[Array[Double]], tocopy, cacheID.broadcast,
           cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else if (arr.isInstanceOf[Array[Int]]) {
       OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
-              arr.asInstanceOf[Array[Int]], filled, cacheID.broadcast,
+              arr.asInstanceOf[Array[Int]], tocopy, cacheID.broadcast,
           cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else if (arr.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Float]], filled, cacheID.broadcast,
+          arr.asInstanceOf[Array[Float]], tocopy, cacheID.broadcast,
           cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
     } else {
       throw new RuntimeException("Unsupported")
     }
+
+    used = tocopy
 
     return 1
   }
@@ -79,7 +84,17 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def releaseNativeArrays { }
 
   override def reset() {
-    filled = 0
+    // If we did a copy to device but not of everything
+    if (used != -1 && used != filled) {
+      val leftover = filled - used
+      // System.arraycopy handles overlapping regions
+      System.arraycopy(arr, used, arr, 0, leftover)
+      filled = leftover
+    } else {
+      filled = 0
+    }
+
+    used = -1
     iter = 0
   }
 

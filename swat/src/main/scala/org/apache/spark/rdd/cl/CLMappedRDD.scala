@@ -122,7 +122,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
        entryPoint = entrypointAndKernel._1
        openCL = entrypointAndKernel._2
 
-       inputBuffer = RuntimeUtil.getInputBufferFor(firstSample, N, entryPoint)
+       inputBuffer = RuntimeUtil.getInputBufferFor(firstSample, N,
+               DenseVectorInputBufferWrapperConfig.tiling, entryPoint)
 
        nativeOutputBuffer = Some(OpenCLBridgeWrapper.getOutputBufferFor[U](
                    sampleOutput.asInstanceOf[U], N, entryPoint))

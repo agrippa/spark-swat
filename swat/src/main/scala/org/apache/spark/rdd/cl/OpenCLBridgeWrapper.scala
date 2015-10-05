@@ -194,14 +194,16 @@ object OpenCLBridgeWrapper {
      * int nbroadcasted$1
      */
     val cacheSuccess : Int = RuntimeUtil.tryCacheDenseVector(ctx, dev_ctx, argnum,
-            cacheID, argLength, entryPoint)
+            cacheID, argLength, 1, entryPoint)
 
     if (cacheSuccess != -1) {
       return cacheSuccess
     } else {
-      val requiredElementCapacity = getMaxDenseElementIndexFor((i) => arg(i).size, argLength) + 1
+      val requiredElementCapacity = getMaxVectorElementIndexFor(
+              (i) => arg(i).size, 1, argLength) + 1
       val buffer : DenseVectorInputBufferWrapper =
-            new DenseVectorInputBufferWrapper(requiredElementCapacity, argLength, entryPoint)
+              new DenseVectorInputBufferWrapper(requiredElementCapacity,
+              argLength, 1, entryPoint)
       for (i <- 0 until argLength) {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }
@@ -213,9 +215,9 @@ object OpenCLBridgeWrapper {
   }
 
   def getInputBufferFor[T](argLength : Int, entryPoint : Entrypoint,
-          className : String,
-          sparseVectorSizeHandler : Option[Function[Int, Int]],
-          denseVectorSizeHandler : Option[Function[Int, Int]]) : InputBufferWrapper[T] = {
+          className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
+          denseVectorSizeHandler : Option[Function[Int, Int]],
+          denseVectorTiling : Int) : InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
           new PrimitiveInputBufferWrapper[Int](argLength)
@@ -228,11 +230,11 @@ object OpenCLBridgeWrapper {
       }
       case "org.apache.spark.mllib.linalg.DenseVector" => {
           if (denseVectorSizeHandler.isEmpty) {
-            new DenseVectorInputBufferWrapper(argLength, entryPoint)
+            new DenseVectorInputBufferWrapper(argLength, denseVectorTiling, entryPoint)
           } else {
             new DenseVectorInputBufferWrapper(
                     getMaxDenseElementIndexFor(denseVectorSizeHandler.get,
-                        argLength), argLength, entryPoint)
+                        argLength), argLength, denseVectorTiling, entryPoint)
           }
       }
       case "org.apache.spark.mllib.linalg.SparseVector" => {
@@ -272,7 +274,7 @@ object OpenCLBridgeWrapper {
           val sample = arrOfTuples(0)
 
           val cacheSuccess : Int = RuntimeUtil.tryCacheTuple(ctx, dev_ctx,
-              startArgnum, cacheID, argLength, sample, entryPoint)
+              startArgnum, cacheID, argLength, sample, 1, entryPoint)
           if (cacheSuccess != -1) {
             return cacheSuccess
           } else {

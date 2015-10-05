@@ -28,9 +28,9 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
 
   /*
    * devicePointerSize is either 4 or 8 for the pointer in DenseVector + 4 for
-   * size field
+   * size field + 4 for tiling field
    */
-  val denseVectorStructSize = devicePointerSize + 4
+  val denseVectorStructSize = devicePointerSize + 4 + 4
   val outArgLength = N * denseVectorStructSize
   val outArg : Array[Byte] = new Array[Byte](outArgLength)
   val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
@@ -44,13 +44,16 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
+    System.err.println("outArgLength=" + outArgLength)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
-    if (heapOutBufferSize < heapTop(0)) {
-      heapOutBufferSize = heapTop(0)
+
+    val nHeapBytesAvailable = if (heapTop(0) > heapSize) heapSize else heapTop(0)
+    if (heapOutBufferSize < nHeapBytesAvailable) {
+      heapOutBufferSize = nHeapBytesAvailable
       heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
     }
     OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
-            heapOutBuffer, heapTop(0))
+            heapOutBuffer, nHeapBytesAvailable)
 
     anyFailed(0) == 0 // return true when the kernel completed successfully
   }

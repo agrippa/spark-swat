@@ -922,6 +922,88 @@ static cl_region *is_cached(jlong broadcastId, jint rddid, jint partitionid,
     return region;
 }
 
+JNI_JAVA(jint, OpenCLBridge, getMaxOffsetOfStridedVectors)(
+        JNIEnv *jenv, jclass clazz, jint nvectors, jlong sizesBuffer,
+        jlong offsetsBuffer, jint tiling) {
+    ENTER_TRACE("getMaxOffsetOfStridedVectors");
+    int *sizes = (int *)sizesBuffer;
+    int *offsets = (int *)offsetsBuffer;
+
+    // Look at the last tile of vectors
+    int start_search;
+    if (nvectors % tiling == 0) {
+        start_search = nvectors - tiling;
+    } else {
+        start_search = nvectors - (nvectors % tiling);
+    }
+    int end_search = nvectors;
+
+    int found_max = -1;
+    for (int i = start_search; i < end_search; i++) {
+        const int max_offset = offsets[i] + (sizes[i] - 1) * tiling;
+        if (found_max == -1 || max_offset > found_max) {
+            found_max = max_offset;
+        }
+    }
+    ASSERT(found_max != -1);
+
+    EXIT_TRACE("getMaxOffsetOfStridedVectors");
+    return found_max;
+}
+
+JNI_JAVA(void, OpenCLBridge, resetDenseVectorBuffers)(
+        JNIEnv *jenv, jclass clazz, jlong valuesBuffer, jlong sizesBuffer,
+        jlong offsetsBuffer, jint vectorsUsed, jint elementsUsed,
+        jint leftoverVectors, jint leftoverElements) {
+    ENTER_TRACE("resetDenseVectorBuffers");
+    /*
+     * These asserts are not necessarily true, but are simply put here to allow
+     * us to make simplifying assumptions (i.e. that the used and leftover
+     * regions do not overlap) and to make sure they are tripped when this isn't
+     * true any longer. In general this should be the most common case (i.e.
+     * that the buffer has many more used vectors than unused).
+     *
+     * Same comment for resetSparseVectorBuffers below.
+     */
+    ASSERT(leftoverVectors < vectorsUsed);
+    ASSERT(leftoverElements < elementsUsed);
+    double *values = (double *)valuesBuffer;
+    int *sizes = (int *)sizesBuffer;
+    int *offsets = (int *)offsetsBuffer;
+
+    memcpy(sizes, sizes + vectorsUsed, leftoverVectors * sizeof(int));
+    memcpy(values, values + elementsUsed, leftoverElements * sizeof(double));
+    for (int i = 0; i < leftoverVectors; i++) {
+        offsets[i] = offsets[vectorsUsed + i] - elementsUsed;
+    }
+
+    EXIT_TRACE("resetDenseVectorBuffers");
+}
+
+JNI_JAVA(void, OpenCLBridge, resetSparseVectorBuffers)(
+        JNIEnv *jenv, jclass clazz, jlong indicesBuffer, jlong valuesBuffer,
+        jlong sizesBuffer, jlong offsetsBuffer, jint vectorsUsed,
+        jint elementsUsed, jint leftoverVectors, jint leftoverElements) {
+    ENTER_TRACE("resetSparseVectorBuffers");
+
+    ASSERT(leftoverVectors < vectorsUsed);
+    ASSERT(leftoverElements < elementsUsed);
+    int *indices = (int *)indicesBuffer;
+    double *values = (double *)valuesBuffer;
+    int *sizes = (int *)sizesBuffer;
+    int *offsets = (int *)offsetsBuffer;
+
+    memcpy(indices, indices + elementsUsed, leftoverElements * sizeof(int));
+    memcpy(values, values + elementsUsed, leftoverElements * sizeof(double));
+    memcpy(sizes, sizes + vectorsUsed, leftoverVectors * sizeof(int));
+    for (int i = 0; i < leftoverVectors; i++) {
+        offsets[i] = offsets[vectorsUsed + i] - elementsUsed;
+    }
+
+    EXIT_TRACE("resetSparseVectorBuffers");
+}
+
+
 JNI_JAVA(void, OpenCLBridge, deserializeStridedValuesFromNativeArray)(
         JNIEnv *jenv, jclass clazz, jobjectArray bufferTo, jint nToBuffer,
         jlong valuesBuffer, jlong sizesBuffer, jlong offsetsBuffer, jint index,
@@ -1313,6 +1395,11 @@ JNI_JAVA(int, OpenCLBridge, createHeapImpl)
          jint size, jint max_n_buffered) {
     ENTER_TRACE("createHeap");
 
+#ifdef VERBOSE
+    fprintf(stderr, "Creating heap starting at argnum=%d, size=%d, "
+            "max_n_buffered=%d\n", argnum, size, max_n_buffered);
+#endif
+
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     jint local_argnum = argnum;
@@ -1491,11 +1578,12 @@ JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
         (JNIEnv *jenv, jclass clazz, jlong old, jlong nbytes) {
     void *new_ptr = (void *)realloc((void *)old, nbytes);
     ASSERT(new_ptr);
-// #ifdef VERBOSE
+#ifdef VERBOSE
     if (old == NULL) {
-        fprintf(stderr, "nativeRealloc: Allocating %ld bytes, ptr=%p\n", nbytes, new_ptr);
+        fprintf(stderr, "nativeRealloc: Allocating %ld bytes, old=%p ptr=%p\n",
+                nbytes, (void *)old, new_ptr);
     }
-// #endif
+#endif
     return (jlong)new_ptr;
 }
 
@@ -1503,9 +1591,9 @@ JNI_JAVA(jlong, OpenCLBridge, nativeMalloc)
         (JNIEnv *jenv, jclass clazz, jlong nbytes) {
     void *ptr = (void *)malloc(nbytes);
     CHECK_ALLOC(ptr);
-// #ifdef VERBOSE
+#ifdef VERBOSE
     fprintf(stderr, "nativeMalloc: Allocating %ld bytes, ptr=%p\n", nbytes, ptr);
-// #endif
+#endif
     return (jlong)ptr;
 }
 

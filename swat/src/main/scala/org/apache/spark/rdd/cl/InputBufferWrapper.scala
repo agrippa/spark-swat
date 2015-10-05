@@ -24,7 +24,7 @@ trait InputBufferWrapper[T] {
 
   // Transfer the aggregated input items to an OpenCL device
   def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheId : CLCacheID) : Int
+      cacheId : CLCacheID, limit : Int = -1) : Int
   // Ensure as many stored items as possible are serialized
   def flush()
 

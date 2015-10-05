@@ -87,6 +87,17 @@ public class OpenCLBridge {
     public static native void nativeFree(long buffer);
     public static native long nativeRealloc(long buffer, long nbytes);
 
+    public static native int getMaxOffsetOfStridedVectors(int nVectors,
+            long sizesBuffer, long offsetsBuffer, int tiling);
+    public static native void resetDenseVectorBuffers(long valuesBuffer,
+            long sizesBuffer, long offsetsBuffer, int vectorsUsed,
+            int elementsUsed, int leftoverVectors, int leftoverElements);
+    public static native void resetSparseVectorBuffers(long indicesBuffer,
+            long valuesBuffer, long sizesBuffer, long offsetsBuffer,
+            int vectorsUsed, int elementsUsed, int leftoverVectors,
+            int leftoverElements);
+
+
     public static native int serializeStridedDenseVectorsToNativeBuffer(
             long buffer, int position, long capacity, long sizesBuffer,
             long offsetsBuffer, int buffered, int vectorCapacity,

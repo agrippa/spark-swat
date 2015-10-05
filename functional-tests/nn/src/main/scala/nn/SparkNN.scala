@@ -251,6 +251,9 @@ object SparkNN {
                 arr(j) = rand.nextGaussian
             }
 
+            System.err.println("Weights " + i + " has size " + layerMatrixSize +
+                    " (" + layerDimensionalities(i + 1) + " x " +
+                    layerDimensionalities(i) + ")")
             weights(i) = Vectors.dense(arr).asInstanceOf[DenseVector]
         }
 
@@ -272,6 +275,7 @@ object SparkNN {
          * in raw_inputs.
          */
         val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath).cache
+
         // no z for the input layer as its outputs are constant
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
