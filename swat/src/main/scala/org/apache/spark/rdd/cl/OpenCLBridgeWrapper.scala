@@ -100,18 +100,18 @@ object OpenCLBridgeWrapper {
 
   def setObjectTypedArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, arg : T, typeName : String, isInput : Boolean,
-      entryPoint : Entrypoint, cacheID : CLCacheID, bbCache : ByteBufferCache) :
+      entryPoint : Entrypoint, cacheID : CLCacheID) :
       Int = {
     arg match {
       case arr : Array[_] => {
         setObjectTypedArrayArgHelper(ctx, dev_ctx, argnum,
                 arg.asInstanceOf[Array[_]], arg.asInstanceOf[Array[_]].length,
-                typeName, isInput, entryPoint, cacheID, bbCache)
+                typeName, isInput, entryPoint, cacheID)
       }
       case ref : scala.runtime.ObjectRef[_] => {
         setObjectTypedArrayArg(ctx, dev_ctx, argnum,
                 arg.asInstanceOf[scala.runtime.ObjectRef[_]].elem,
-                typeName, isInput, entryPoint, cacheID, bbCache)
+                typeName, isInput, entryPoint, cacheID)
       }
       case _ => {
         throw new RuntimeException("Unexpected type " + arg.getClass.getName)
@@ -256,8 +256,7 @@ object OpenCLBridgeWrapper {
 
   def setObjectTypedArrayArgHelper[T](ctx : scala.Long, dev_ctx : scala.Long,
       startArgnum : Int, arg : Array[T], argLength : Int, typeName : String,
-      isInput : Boolean, entryPoint : Entrypoint, cacheID : CLCacheID,
-      bbCache : ByteBufferCache) : Int = {
+      isInput : Boolean, entryPoint : Entrypoint, cacheID : CLCacheID) : Int = {
 
     arg match {
       case denseVectorArray : Array[DenseVector] => {
@@ -298,7 +297,8 @@ object OpenCLBridgeWrapper {
                 typeName, new NameMatcher(typeName))
             val structSize = c.getTotalStructSize
 
-            val bb : ByteBuffer = bbCache.getBuffer(structSize * argLength)
+            val bb : ByteBuffer = ByteBuffer.allocate(structSize * argLength)
+            bb.order(ByteOrder.LITTLE_ENDIAN)
 
             for (eleIndex <- 0 until argLength) {
               writeObjectToStream[T](arg(eleIndex), c, bb)
@@ -306,8 +306,7 @@ object OpenCLBridgeWrapper {
 
             OpenCLBridge.setByteArrayArg(ctx, dev_ctx, startArgnum, bb.array,
                 structSize * argLength, cacheID.broadcast, cacheID.rdd,
-                cacheID.partition, cacheID.offset, cacheID.component)
-            bbCache.releaseBuffer(bb)
+                cacheID.partition, cacheID.offset, cacheID.component, 0)
             return 1
           }
         }
@@ -332,25 +331,6 @@ object OpenCLBridgeWrapper {
         case _ => throw new RuntimeException("Unsupported type " + typ);
       }
       i += 1
-    }
-  }
-
-  def fetchObjectTypedArrayArg(ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, arg : Array[_], typeName : String, entryPoint : Entrypoint,
-      bbCache : ByteBufferCache) {
-    val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-        typeName, new NameMatcher(typeName))
-    val arrLength : Int = arg.length
-    val structSize : Int = c.getTotalStructSize
-
-    assert(!arg(0).isInstanceOf[Tuple2[_, _]])
-    val bb : ByteBuffer = bbCache.getBuffer(structSize * arrLength)
-
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, argnum, bb.array, structSize * arrLength)
-
-    for (ele <- arg) {
-      readObjectFromStream(ele, c, bb, c.getStructMemberTypes,
-              c.getStructMemberOffsets)
     }
   }
 
@@ -390,27 +370,6 @@ object OpenCLBridgeWrapper {
       i += 1
     }
   }
-
-  /*
-  def fetchArrayArg[T](ctx : scala.Long, dev_ctx : scala.Long, argnum : Int,
-      arg : Array[T], entryPoint : Entrypoint, bbCache : ByteBufferCache) {
-    if (arg.isInstanceOf[Array[Double]]) {
-      val casted : Array[Double] = arg.asInstanceOf[Array[Double]]
-      OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
-    } else if (arg.isInstanceOf[Array[Int]]) {
-      val casted : Array[Int] = arg.asInstanceOf[Array[Int]]
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
-    } else if (arg.isInstanceOf[Array[Float]]) {
-      val casted : Array[Float] = arg.asInstanceOf[Array[Float]]
-      OpenCLBridge.fetchFloatArrayArg(ctx, dev_ctx, argnum, casted, casted.length)
-    } else if (arg.isInstanceOf[Array[Tuple2[_, _]]]) {
-      throw new RuntimeException("This code path does not support Tuple2 anymore")
-    } else {
-      fetchObjectTypedArrayArg(ctx, dev_ctx, argnum, arg, arg(0).getClass.getName,
-          entryPoint, bbCache)
-    }
-  }
-  */
 
   def setUnitializedArrayArg[U](ctx : scala.Long, dev_ctx : scala.Long,
       argnum : Int, N : Int, clazz : java.lang.Class[_],

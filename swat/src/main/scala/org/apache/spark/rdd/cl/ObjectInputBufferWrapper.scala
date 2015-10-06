@@ -57,7 +57,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
 
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
         tocopy * structSize, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component)
+        cacheID.offset, cacheID.component, 0)
 
     used = tocopy
 

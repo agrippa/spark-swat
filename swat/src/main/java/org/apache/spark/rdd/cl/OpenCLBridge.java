@@ -33,16 +33,16 @@ public class OpenCLBridge {
 
     public static native boolean setIntArrayArgImpl(long ctx, long dev_ctx, int index,
             int[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer);
     public static native boolean setDoubleArrayArgImpl(long ctx, long dev_ctx,
             int index, double[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer);
     public static native boolean setFloatArrayArgImpl(long ctx, long dev_ctx,
             int index, float[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer);
     public static native boolean setByteArrayArgImpl(long ctx, long dev_ctx, int index,
             byte[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer);
     public static native void setNullArrayArg(long ctx, int index);
     
     public static native boolean setArrayArgImpl(long ctx, long dev_ctx,
@@ -153,9 +153,9 @@ public class OpenCLBridge {
 
     public static void setIntArrayArg(long ctx, long dev_ctx, int index,
             int[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer) throws OpenCLOutOfMemoryException {
         final boolean success = setIntArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer);
         if (!success) {
           throw new OpenCLOutOfMemoryException();
         }
@@ -163,9 +163,10 @@ public class OpenCLBridge {
 
     public static void setDoubleArrayArg(long ctx, long dev_ctx,
             int index, double[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer)
+            throws OpenCLOutOfMemoryException {
         final boolean success = setDoubleArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer);
         if (!success) {
           throw new OpenCLOutOfMemoryException();
         }
@@ -173,9 +174,9 @@ public class OpenCLBridge {
 
     public static void setFloatArrayArg(long ctx, long dev_ctx,
             int index, float[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer) throws OpenCLOutOfMemoryException {
         final boolean success = setFloatArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer);
         if (!success) {
           throw new OpenCLOutOfMemoryException();
         }
@@ -183,9 +184,9 @@ public class OpenCLBridge {
 
     public static void setByteArrayArg(long ctx, long dev_ctx, int index,
             byte[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer) throws OpenCLOutOfMemoryException {
         final boolean success = setByteArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer);
         if (!success) {
             throw new OpenCLOutOfMemoryException();
         }
@@ -204,8 +205,8 @@ public class OpenCLBridge {
     }
 
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
-            String name, String desc, Entrypoint entryPoint, boolean isBroadcast,
-            ByteBufferCache bbCache) throws OpenCLOutOfMemoryException {
+            String name, String desc, Entrypoint entryPoint,
+            boolean isBroadcast) throws OpenCLOutOfMemoryException {
         final int argsUsed;
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
@@ -244,22 +245,22 @@ public class OpenCLBridge {
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
                 setIntArrayArg(ctx, dev_ctx, index, (int[])fieldInstance,
-                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("F")) {
                 setFloatArrayArg(ctx, dev_ctx, index, (float[])fieldInstance,
-                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
-                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
               final int argsUsedForData = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx,
                       dev_ctx, index, fieldInstance, arrayElementTypeName,
-                      true, entryPoint, new CLCacheID(broadcastId, 0), bbCache);
+                      true, entryPoint, new CLCacheID(broadcastId, 0));
               argsUsed = (lengthUsed ? argsUsedForData + 1 : argsUsedForData);
             }
 

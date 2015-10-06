@@ -1,7 +1,7 @@
 include ${SWAT_HOME}/build.conf
 
-# DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
-DEFINES=
+# DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE -DPROFILE_OPENCL
+DEFINES=-DPROFILE_OPENCL
 GXX_FLAGS=-O3 -Wall
 
 SRC=bridge.cpp common.cpp
@@ -26,7 +26,7 @@ ${TARGET}: ${SRC}
 
 rerun: rerun.cpp common.cpp
 	${GXX} ${DEFINES} ${INCLUDES} rerun.cpp common.cpp -o rerun \
-		 -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS}
+		 -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS} -lrt
 
 query_tool: query_tool.cpp
 	${GXX} query_tool.cpp -o query_tool -L${CLUTIL_HOME} -lclutil ${INCLUDES} ${GXX_FLAGS}

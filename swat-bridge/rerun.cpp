@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #include <map>
 
 #include "ocl_util.h"
@@ -24,6 +25,14 @@ typedef struct _output_arg {
 void usage(char **argv) {
     fprintf(stderr, "usage: %s -i file -d device -h -l -p -k kernel-file "
             "-o index:type -v\n", argv[0]);
+}
+
+// Nanoseconds
+unsigned long long get_clock_gettime() {
+    struct timespec t ={0,0};
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
+    return (unsigned long long)t.tv_nsec + s;
 }
 
 void get_arg_type_index(char *arg, ARG_TYPE *out_type, int *out_index) {
@@ -240,6 +249,11 @@ int main(int argc, char **argv) {
         return (1);
     }
 
+    size_t global_size, local_size;
+    safe_read(fd, &global_size, sizeof(global_size));
+    safe_read(fd, &local_size, sizeof(local_size));
+    fprintf(stderr, "global_size=%lu local_size=%lu\n", global_size, local_size);
+
     size_t kernel_src_len;
     char *kernel_src;
     safe_read(fd, &kernel_src_len, sizeof(kernel_src_len));
@@ -380,13 +394,17 @@ int main(int argc, char **argv) {
         }
     }
     CHECK(clFinish(cmd));
-
+    
+    unsigned long long start_time = get_clock_gettime();
     cl_event event;
-    size_t range = 1024;
-    CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &range, NULL, 0, NULL,
+    CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &global_size, &local_size, 0, NULL,
                 &event));
     CHECK(clWaitForEvents(1, &event));
     CHECK(clFinish(cmd));
+    unsigned long long end_time = get_clock_gettime();
+    unsigned long long elapsed = end_time - start_time;
+    fprintf(stderr, "Kernel took %llu ns (%f us, %f ms, %f s)\n", elapsed,
+            elapsed / 1000.0, elapsed / 1000000.0, elapsed / 1000000000.0);
 
     for (int i = 0; i < n_output_args; i++) {
         output_arg arg = output_args[i];

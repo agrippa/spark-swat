@@ -44,7 +44,6 @@ class DenseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
-    System.err.println("outArgLength=" + outArgLength)
     OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
 
     val nHeapBytesAvailable = if (heapTop(0) > heapSize) heapSize else heapTop(0)

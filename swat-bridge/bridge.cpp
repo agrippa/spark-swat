@@ -73,8 +73,9 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
 JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index, \
          j##ltype##Array arg, jint argLength, jlong broadcastId, jint rddid, \
-         jint partitionid, jint offsetid, jint componentid) { \
+         jint partitionid, jint offsetid, jint componentid, jlong nativeBuffer) { \
     ENTER_TRACE("set"#utype"ArrayArg"); \
+    void *buffer = (void *)nativeBuffer; \
     jsize len = argLength * sizeof(ctype); \
     device_context *dev_ctx = (device_context *)l_dev_ctx; \
     swat_context *context = (swat_context *)lctx; \
@@ -97,8 +98,9 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
-            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
-                    dev_ctx, broadcastId, rddid, NULL); \
+            cl_region *new_region = set_and_write_kernel_arg_async_optional( \
+                    arr, buffer, len, index, context, dev_ctx, broadcastId, \
+                    rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
                 unlock_bcast_cache(dev_ctx); \
@@ -123,8 +125,9 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
             set_argument(context, index, region, true); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
-            cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, \
-                    dev_ctx, broadcastId, rddid, NULL); \
+            cl_region *new_region = set_and_write_kernel_arg_async_optional( \
+                    arr, buffer, len, index, context, dev_ctx, broadcastId, \
+                    rddid); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
                 unlock_rdd_cache(uuid); \
@@ -139,8 +142,8 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         ASSERT_MSG(rddid < 0 && broadcastId < 0, "neither RDD or broadcast"); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
-        cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context, dev_ctx, \
-                broadcastId, rddid, NULL); \
+        cl_region *new_region = set_and_write_kernel_arg_async_optional(arr, \
+                buffer, len, index, context, dev_ctx, broadcastId, rddid); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
         if (new_region == NULL) return false; \
         \
@@ -444,7 +447,10 @@ static void populateDeviceContexts(JNIEnv *jenv) {
 
                 cl_command_queue_properties props = 0;
 #ifndef __APPLE__
-                props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+                props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+#endif
+#ifdef PROFILE_OPENCL
+                props |= CL_QUEUE_PROFILING_ENABLE;
 #endif
 
                 cl_command_queue cmd = clCreateCommandQueue(ctx, curr_dev,
@@ -645,9 +651,9 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 #ifdef VERBOSE
     char *device_name = get_device_name(device);
 
-    fprintf(stderr, "SWAT: Using device %s, require double? %d, "
-            "require heap? %d\n", device_name, requiresDouble,
-            requiresHeap);
+    fprintf(stderr, "SWAT: host thread %d using device %s (index=%d), require "
+            "double? %d, require heap? %d\n", host_thread_index, device_name,
+            dev_ctx->device_index, requiresDouble, requiresHeap);
     free(device_name);
 #endif
     const char *raw_label = jenv->GetStringUTFChars(label, NULL);
@@ -848,6 +854,25 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
             len);
 #endif
     return region;
+}
+
+static cl_region *set_and_write_kernel_arg_async_optional(void *jvm,
+        void *buffer, size_t len, int index, swat_context *context,
+        device_context *dev_ctx, jlong broadcastId, jint rdd) {
+    cl_region *new_region = NULL;
+    if (buffer) {
+        cl_event event;
+        memcpy(buffer, jvm, len);
+        new_region = set_and_write_kernel_arg(buffer, len, index, context,
+                dev_ctx, broadcastId, rdd, &event);
+        if (new_region) {
+            add_event_to_context(context, event);
+        }
+    } else {
+        new_region = set_and_write_kernel_arg(jvm, len, index, context,
+                dev_ctx, broadcastId, rdd, NULL);
+    }
+    return new_region;
 }
 
 static void fetch_kernel_arg(void *host, size_t len, int index,
@@ -1516,7 +1541,7 @@ JNI_JAVA(void, OpenCLBridge, resetHeap)
 }
 
 #ifdef BRIDGE_DEBUG
-static void save_to_dump_file(swat_context *context) {
+static void save_to_dump_file(swat_context *context, size_t global_size, size_t local_size) {
     int dump_index = 0;
     int fd;
     do {
@@ -1528,6 +1553,8 @@ static void save_to_dump_file(swat_context *context) {
     } while(fd == -1);
 
     // Write kernel source to dump file
+    safe_write(fd, &global_size, sizeof(global_size));
+    safe_write(fd, &local_size, sizeof(local_size));
     safe_write(fd, &context->kernel_src_len, sizeof(context->kernel_src_len));
     safe_write(fd, context->kernel_src, context->kernel_src_len + 1);
     int num_args = context->debug_arguments->size();
@@ -1558,7 +1585,7 @@ JNI_JAVA(void, OpenCLBridge, run)
     cl_event event;
 
 #ifdef BRIDGE_DEBUG
-    save_to_dump_file(context);
+    save_to_dump_file(context, global_size, local_size);
 #endif
 
 #ifdef VERBOSE
@@ -1566,11 +1593,27 @@ JNI_JAVA(void, OpenCLBridge, run)
             context->host_thread_index, get_device_name(dev_ctx->dev));
     print_allocator(dev_ctx->allocator, context->host_thread_index);
 #endif
-
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,
                 &global_size, &local_size, context->n_events, context->events, &event));
     CHECK(clWaitForEvents(1, &event));
     context->n_events = 0;
+
+#ifdef PROFILE_OPENCL
+    cl_ulong queued, submitted, started, finished;
+    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_QUEUED,
+                sizeof(queued), &queued, NULL));
+    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_SUBMIT,
+                sizeof(submitted), &submitted, NULL));
+    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START,
+                sizeof(started), &started, NULL));
+    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END,
+                sizeof(finished), &finished, NULL));
+    fprintf(stderr, "Kernel invocation: %lu ns total on device %d (queued -> "
+            "submitted %lu ns, submitted -> started %lu ns, started -> "
+            "finished %lu ns)\n", finished - queued, dev_ctx->device_index,
+            submitted - queued, started - submitted, finished - started);
+#endif
+
     EXIT_TRACE("run");
 }
 

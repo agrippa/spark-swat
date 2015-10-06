@@ -81,8 +81,8 @@ object SparkFuzzyCMeans {
         })
         point_cluster_pairs_raw.cache
 
-        val point_cluster_pairs : RDD[(Int, DenseVector)] =
-            if (useSwat) CLWrapper.cl[(Int, DenseVector)](point_cluster_pairs_raw) else point_cluster_pairs_raw
+        val point_cluster_pairs : RDD[Tuple2[Int, DenseVector]] =
+            if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](point_cluster_pairs_raw) else point_cluster_pairs_raw
 
         var centers : Array[DenseVector] = new Array[DenseVector](K)
         for (i <- samples.indices) {
@@ -96,6 +96,12 @@ object SparkFuzzyCMeans {
             val iterStartTime = System.currentTimeMillis
             val broadcastedCenters = sc.broadcast(centers)
 
+            /*
+             * For each point and center, calculate a u_m value based on the
+             * relative closeness of the current point to the current center
+             * relative to all other centers. Output a pair of center and point
+             * with the u_m value appended to the end of the point.
+             */
             val memberships : RDD[(Int, DenseVector)] = point_cluster_pairs.map(pair => {
                   val center_id = pair._1
                   val center : DenseVector = broadcastedCenters.value(center_id)
@@ -134,7 +140,13 @@ object SparkFuzzyCMeans {
                   }
                   (center_id, Vectors.dense(output_arr).asInstanceOf[DenseVector])
                 })
+            val membershipCount = memberships.count
+            System.err.println("membershipCount = " + membershipCount)
+            System.exit(1)
 
+            /*
+             * Sum the contributions of all points for all centers.
+             */
             val updates : RDD[Tuple2[Int, DenseVector]] =
                 memberships.reduceByKey((p1, p2) => {
                   assert(p1.size == p2.size)
@@ -148,6 +160,10 @@ object SparkFuzzyCMeans {
                   Vectors.dense(arr).asInstanceOf[DenseVector]
                 })
 
+            /*
+             * Scale each value for each cluster by a divisor (the sum of all
+             * u_m values from the original map).
+             */
             val new_clusters : RDD[(Int, DenseVector)] = updates.map(input => {
                   val point : DenseVector = input._2
                   val point_len : Int = point.size - 1

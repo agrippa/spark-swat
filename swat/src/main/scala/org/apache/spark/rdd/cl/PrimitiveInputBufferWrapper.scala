@@ -20,6 +20,15 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   var iter : Int = 0
   var used : Int = -1
 
+  var buffer : Long = -1L
+  if (arr.isInstanceOf[Array[Double]]) {
+    buffer = OpenCLBridge.nativeMalloc(8 * N)
+  } else if (arr.isInstanceOf[Array[Int]] || arr.isInstanceOf[Array[Float]]) {
+    buffer = OpenCLBridge.nativeMalloc(4 * N)
+  } else {
+    throw new RuntimeException("Unsupported")
+  }
+
   override def append(obj : Any) {
     arr(filled) = obj.asInstanceOf[T]
     filled += 1
@@ -45,15 +54,15 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     if (arr.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
           arr.asInstanceOf[Array[Double]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
     } else if (arr.isInstanceOf[Array[Int]]) {
       OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
               arr.asInstanceOf[Array[Int]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
     } else if (arr.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
           arr.asInstanceOf[Array[Float]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
+          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
     } else {
       throw new RuntimeException("Unsupported")
     }
@@ -81,7 +90,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
     filled >= N
   }
 
-  override def releaseNativeArrays { }
+  override def releaseNativeArrays {
+    OpenCLBridge.nativeFree(buffer)
+  }
 
   override def reset() {
     // If we did a copy to device but not of everything

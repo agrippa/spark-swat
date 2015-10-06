@@ -21,8 +21,8 @@ if [[ $INPUT_EXISTS != 1 ]]; then
         $SPARK_DATASETS/census/3.dup/part* /census-data/
 fi
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19 -Xloggc:/tmp/SWAT.log -verbose:gc" \
-# --conf "spark.executor.extraJavaOptions=-XX:+PrintGCDetails" \
 
 spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} \
+        --conf "spark.executor.extraJavaOptions=-Dswat.cl_local_size=128" \
         --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \
         run $CENTERS $ITERS hdfs://$(hostname):54310/census-data $USE_SWAT
