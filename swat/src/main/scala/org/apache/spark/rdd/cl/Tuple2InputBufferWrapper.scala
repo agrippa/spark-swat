@@ -18,10 +18,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
-        val isInput : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
+        val isInput : Boolean, val blockingCopies : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
 
-  def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint) =
-      this(nele, sample, entryPoint, None, None, true)
+  def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint, blockingCopies : Boolean) =
+      this(nele, sample, entryPoint, None, None, true, blockingCopies)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
@@ -56,10 +56,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
 
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling, blockingCopies)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling, blockingCopies)
 
   def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
     desc match {
@@ -141,14 +141,18 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   }
 
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
-          cacheId : CLCacheID, limit : Int = -1) : Int = {
-    var usedArgs = 0
+          cacheId : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
+    val firstMemberUsed = if (firstMemberSize > 0) buffer1.countArgumentsUsed
+        else 1
+    val secondMemberUsed = if (secondMemberSize > 0) buffer2.countArgumentsUsed
+        else 1
     assert(limit == -1)
 
     // Find least number of elements buffered
     var tocopy : Int = -1
     if (firstMemberSize > 0 && secondMemberSize > 0) {
-        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered else buffer2.nBuffered
+        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered
+            else buffer2.nBuffered
     } else if (firstMemberSize > 0) {
         tocopy = buffer1.nBuffered
     } else if (secondMemberSize > 0) {
@@ -156,30 +160,39 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     }
 
     if (firstMemberSize > 0) {
-        usedArgs = usedArgs + buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId, limit=tocopy)
-        cacheId.incrComponent(usedArgs)
+        buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId, persistent,
+                limit=tocopy)
+        cacheId.incrComponent(firstMemberUsed)
     } else {
         OpenCLBridge.setNullArrayArg(ctx, startArgnum)
-        usedArgs = usedArgs + 1
     }
 
     if (secondMemberSize > 0) {
-        usedArgs = usedArgs + buffer2.copyToDevice(startArgnum + usedArgs, ctx, dev_ctx,
-                cacheId, limit=tocopy)
+        buffer2.copyToDevice(startArgnum + firstMemberUsed, ctx, dev_ctx,
+                cacheId, persistent, limit=tocopy)
     } else {
-        OpenCLBridge.setNullArrayArg(ctx, startArgnum + usedArgs)
-        usedArgs = usedArgs + 1
+        OpenCLBridge.setNullArrayArg(ctx, startArgnum + firstMemberUsed)
     }
 
     used = tocopy
 
     if (isInput) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + usedArgs,
-              structSize * tocopy)
-      return usedArgs + 1
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx,
+              startArgnum + firstMemberUsed + secondMemberUsed,
+              structSize * tocopy, persistent)
+      return firstMemberUsed + secondMemberUsed + 1
     } else {
-      return usedArgs
+      return firstMemberUsed + secondMemberUsed
     }
+  }
+
+  override def countArgumentsUsed : Int = {
+    val firstMemberUsed = if (firstMemberSize > 0) buffer1.countArgumentsUsed
+        else 1
+    val secondMemberUsed = if (secondMemberSize > 0) buffer2.countArgumentsUsed
+        else 1
+    if (isInput) firstMemberUsed + secondMemberUsed + 1
+        else firstMemberUsed + secondMemberUsed
   }
 
   override def hasNext() : Boolean = {
@@ -209,7 +222,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   }
 
   override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
-      entryPoint : Entrypoint) : Int = {
+      entryPoint : Entrypoint, persistent : Boolean) : Int = {
     val firstMemberClassName : String = CodeGenUtil.cleanClassName(
             sample._1.getClass.getName, objectMangling = true)
     val secondMemberClassName : String = CodeGenUtil.cleanClassName(
@@ -225,7 +238,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     if (firstMemberSize > 0) {
         val cacheSuccess = RuntimeUtil.tryCacheHelper(firstMemberClassName, ctx,
                 dev_ctx, 0, id, nLoaded,
-                DenseVectorInputBufferWrapperConfig.tiling, entryPoint)
+                DenseVectorInputBufferWrapperConfig.tiling, entryPoint, persistent)
         if (cacheSuccess == -1) {
           return -1
         }
@@ -240,7 +253,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val cacheSuccess = RuntimeUtil.tryCacheHelper(secondMemberClassName,
                 ctx, dev_ctx, 0 + usedArgs, id, nLoaded,
                 DenseVectorInputBufferWrapperConfig.tiling,
-                entryPoint)
+                entryPoint, persistent)
         if (cacheSuccess == -1) {
           OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, usedArgs)
           return -1
@@ -255,7 +268,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
       entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
           new ObjectMatcher(sample))
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0 + usedArgs,
-            tuple2ClassModel.getTotalStructSize * nLoaded)
+            tuple2ClassModel.getTotalStructSize * nLoaded, false)
     return usedArgs + 1
   }
 }

@@ -82,6 +82,29 @@ class rdd_partition_offset {
         int component;
 };
 
+enum arg_type {
+    REGION,
+    INT,
+    FLOAT,
+    DOUBLE
+};
+
+typedef union _region_or_scalar {
+    cl_region *region;
+    int i;
+    float f;
+    double d;
+} region_or_scalar;
+
+typedef struct _arg_value {
+    int index;
+    bool keep; // only set for region type
+    bool persistent; // only set for region type
+    size_t len; // only set for region type
+    enum arg_type type;
+    region_or_scalar val;
+} arg_value;
+
 typedef struct _swat_context {
     cl_kernel kernel;
     int host_thread_index;
@@ -91,8 +114,14 @@ typedef struct _swat_context {
      * kernel attempt to ensure that only the current kernel arguments are
      * stored.
      */
+
+    arg_value *accumulated_arguments;
+    int accumulated_arguments_len;
+    int accumulated_arguments_capacity;
+
     cl_region **arguments_region;
     bool *arguments_keep;
+    bool *arguments_persistent;
     int arguments_capacity;
 
     void *zeros;
@@ -101,7 +130,6 @@ typedef struct _swat_context {
     int event_capacity;
     int n_events;
     cl_event *events;
-
 
     unsigned n_allocated;
 #ifdef BRIDGE_DEBUG

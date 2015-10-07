@@ -35,13 +35,16 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
           heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
-      member0OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
+      val member0Complete = member0OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
               processingSucceededArgnum, outArgNum, heapArgStart, heapSize, ctx,
               dev_ctx, devicePointerSize)
-      member1OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
+      val member1Complete = member1OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
               processingSucceededArgnum,
               outArgNum + member0OutputBuffer.countArgumentsUsed, heapArgStart,
               heapSize, ctx, dev_ctx, devicePointerSize)
+      assert(member0Complete == member1Complete, "member0=" + member0Complete +
+              ", member1=" + member1Complete)
+      member0Complete
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {

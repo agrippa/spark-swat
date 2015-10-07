@@ -65,7 +65,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint index, j##ltype arg) { \
     ENTER_TRACE("set"#utype"Arg"); \
     swat_context *context = (swat_context *)lctx; \
-    clSetKernelArgWrapper(context, context->kernel, index, sizeof(arg), &arg); \
+    add_pending_##ltype##_arg(context, index, arg); \
     EXIT_TRACE("set"#utype"Arg"); \
 }
 
@@ -73,7 +73,8 @@ JNI_JAVA(void, OpenCLBridge, set##utype##Arg) \
 JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index, \
          j##ltype##Array arg, jint argLength, jlong broadcastId, jint rddid, \
-         jint partitionid, jint offsetid, jint componentid, jlong nativeBuffer) { \
+         jint partitionid, jint offsetid, jint componentid, jlong nativeBuffer, \
+         jboolean persistent) { \
     ENTER_TRACE("set"#utype"ArrayArg"); \
     void *buffer = (void *)nativeBuffer; \
     jsize len = argLength * sizeof(ctype); \
@@ -81,6 +82,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
     swat_context *context = (swat_context *)lctx; \
     jboolean isCopy; \
     if (broadcastId >= 0) { \
+        ASSERT(persistent); \
         ASSERT_MSG(rddid < 0 && componentid >= 0, "broadcast check"); \
         broadcast_id uuid(broadcastId, componentid); \
         lock_bcast_cache(dev_ctx); \
@@ -93,14 +95,14 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
         if (reallocated) { \
             TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid); \
-            set_cached_kernel_arg(region, index, len, context, dev_ctx); \
-            set_argument(context, index, region, true); \
+            add_pending_region_arg(context, index, true, persistent, region); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
-            cl_region *new_region = set_and_write_kernel_arg_async_optional( \
-                    arr, buffer, len, index, context, dev_ctx, broadcastId, \
-                    rddid); \
+            if (buffer) memcpy(buffer, arr, len); \
+            cl_region *new_region = set_and_write_kernel_arg( \
+                    buffer ? buffer : arr, len, index, context, dev_ctx, broadcastId, \
+                    rddid, persistent, buffer == NULL); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
                 unlock_bcast_cache(dev_ctx); \
@@ -112,6 +114,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         } \
         unlock_bcast_cache(dev_ctx); \
     } else if (rddid >= 0) { \
+        ASSERT(!persistent); \
         ASSERT_MSG(broadcastId < 0 && partitionid >= 0 && offsetid >= 0 && \
                 componentid >= 0, "check RDD"); \
         rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid); \
@@ -121,13 +124,14 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         if (reallocated) { \
             TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", \
                     rddid, partitionid, offsetid, componentid); \
-            set_cached_kernel_arg(region, index, len, context, dev_ctx); \
-            set_argument(context, index, region, true); \
+            add_pending_region_arg(context, index, true, persistent, region); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
-            cl_region *new_region = set_and_write_kernel_arg_async_optional( \
-                    arr, buffer, len, index, context, dev_ctx, broadcastId, \
-                    rddid); \
+            CHECK_JNI(arr); \
+            if (buffer) memcpy(buffer, arr, len); \
+            cl_region *new_region = set_and_write_kernel_arg( \
+                    buffer ? buffer : arr, len, index, context, dev_ctx, broadcastId, \
+                    rddid, persistent, buffer == NULL); \
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
             if (new_region == NULL) { \
                 unlock_rdd_cache(uuid); \
@@ -142,8 +146,10 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         ASSERT_MSG(rddid < 0 && broadcastId < 0, "neither RDD or broadcast"); \
         void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
         CHECK_JNI(arr) \
-        cl_region *new_region = set_and_write_kernel_arg_async_optional(arr, \
-                buffer, len, index, context, dev_ctx, broadcastId, rddid); \
+        if (buffer) memcpy(buffer, arr, len); \
+        cl_region *new_region = set_and_write_kernel_arg(buffer ? buffer : arr, \
+                len, index, context, dev_ctx, broadcastId, rddid, persistent, \
+                buffer == NULL); \
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT); \
         if (new_region == NULL) return false; \
         \
@@ -179,7 +185,7 @@ JNI_JAVA(void, OpenCLBridge, set##utype##ArgByName) \
     CHECK_JNI(field) \
     jenv->ReleaseStringUTFChars(name, raw_name); \
     ltype val = jenv->Get##utype##Field(obj, field); \
-    clSetKernelArgWrapper(context, context->kernel, index, sizeof(val), &val); \
+    add_pending_##ltype##_arg(context, index, val); \
     EXIT_TRACE("set"#utype"ArgByName"); \
 }
 
@@ -198,7 +204,13 @@ void exit_trace(const char *lbl) {
 #endif
 
 static void set_argument(swat_context *context, int index, cl_region *region,
-        bool keep) {
+        bool keep, bool persistent) {
+#ifdef VERBOSE
+    fprintf(stderr, "set_argument: thread=%d index=%d region=%p keep=%s "
+            "persistent=%s existing argument=%p\n", context->host_thread_index,
+            index, region, keep ? "true" : "false",
+            persistent ? "true" : "false", (context->arguments_region)[index]);
+#endif
     if (index >= context->arguments_capacity) {
         const int new_capacity = context->arguments_capacity * 2;
         context->arguments_region = (cl_region **)realloc(
@@ -208,13 +220,67 @@ static void set_argument(swat_context *context, int index, cl_region *region,
                 context->arguments_capacity * sizeof(cl_region *));
         context->arguments_keep = (bool *)realloc(context->arguments_keep,
                 new_capacity * sizeof(bool));
-        ASSERT(context->arguments_keep)
+        ASSERT(context->arguments_keep);
+        context->arguments_persistent = (bool *)realloc(
+                context->arguments_persistent, new_capacity * sizeof(bool));
+        ASSERT(context->arguments_persistent);
+            
         context->arguments_capacity = new_capacity;
     }
 
-    assert((context->arguments_region)[index] == NULL);
+    ASSERT((context->arguments_region)[index] == NULL);
     (context->arguments_region)[index] = region;
     (context->arguments_keep)[index] = keep;
+    (context->arguments_persistent)[index] = persistent;
+}
+
+static void add_pending_arg(swat_context *context, int index, bool keep,
+        bool persistent, enum arg_type type, region_or_scalar val) {
+#ifdef VERBOSE
+    fprintf(stderr, "add_pending_arg: thread=%d index=%d keep=%s persistent=%s "
+            "type=%d\n", context->host_thread_index, index,
+            keep ? "true" : "false", persistent ? "true" : "false", type);
+#endif
+
+    if (context->accumulated_arguments_len >= context->accumulated_arguments_capacity) {
+        const int new_capacity = context->accumulated_arguments_capacity * 2;
+        context->accumulated_arguments = (arg_value *)realloc(
+                context->accumulated_arguments, new_capacity *
+                sizeof(arg_value));
+        CHECK_ALLOC(context->accumulated_arguments);
+        context->accumulated_arguments_capacity = new_capacity;
+    }
+
+    ASSERT(context->accumulated_arguments_capacity >
+            context->accumulated_arguments_len);
+    const int acc_index = context->accumulated_arguments_len;
+    (context->accumulated_arguments)[acc_index].index = index;
+    (context->accumulated_arguments)[acc_index].keep = keep;
+    (context->accumulated_arguments)[acc_index].persistent = persistent;
+    (context->accumulated_arguments)[acc_index].type = type;
+    (context->accumulated_arguments)[acc_index].val = val;
+    context->accumulated_arguments_len = context->accumulated_arguments_len + 1;
+}
+
+static void add_pending_region_arg(swat_context *context, int index, bool keep,
+        bool persistent, cl_region *region) {
+    region_or_scalar val; val.region = region;
+    add_pending_arg(context, index, keep, persistent, REGION, val);
+}
+
+static void add_pending_int_arg(swat_context *context, int index, int in) {
+    region_or_scalar val; val.i = in;
+    add_pending_arg(context, index, false, false, INT, val);
+}
+
+static void add_pending_float_arg(swat_context *context, int index, float in) {
+    region_or_scalar val; val.f = in;
+    add_pending_arg(context, index, false, false, FLOAT, val);
+}
+
+static void add_pending_double_arg(swat_context *context, int index, double in) {
+    region_or_scalar val; val.d = in;
+    add_pending_arg(context, index, false, false, DOUBLE, val);
 }
 
 static void add_event_to_context(swat_context *context, cl_event event) {
@@ -326,21 +392,6 @@ static void remove_from_broadcast_cache_if_present(broadcast_id uuid,
     if (found != dev_ctx->broadcast_cache->end()) {
         dev_ctx->broadcast_cache->erase(found);
     }
-}
-
-static void clSetKernelArgWrapper(swat_context *context, cl_kernel kernel,
-        cl_uint arg_index, size_t arg_size, void *arg_value) {
-#ifdef VERBOSE
-    fprintf(stderr, "setting arg %u to value %d with size %lu\n", arg_index,
-            *((int *)arg_value), arg_size);
-#endif
-
-    CHECK(clSetKernelArg(kernel, arg_index, arg_size, arg_value));
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[arg_index] = new kernel_arg(arg_value, arg_size,
-            false, false);
-#endif
-
 }
 
 static int checkExtension(char *exts, size_t ext_len, const char *ext) {
@@ -631,11 +682,29 @@ JNI_JAVA(jlong, OpenCLBridge, getActualDeviceContext)
 JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
         (JNIEnv *jenv, jclass clazz, jlong l_ctx) {
     swat_context *ctx = (swat_context *)l_ctx;
-    CHECK(clReleaseKernel(ctx->kernel));
-    free(ctx->arguments_region);
-    free(ctx->arguments_keep);
-    free(ctx->zeros);
-    free(ctx);
+
+    cl_allocator *allocator = NULL;
+    for (int index = 0; index < ctx->arguments_capacity; index++) {
+        cl_region *region = (ctx->arguments_region)[index];
+        bool persistent = (ctx->arguments_persistent)[index];
+        bool keep = (ctx->arguments_keep)[index];
+
+        if (region) {
+            /*
+             * A region may still exist but not be persistent if we are cleaning
+             * up a SWAT context following a device OOM error.
+             */
+
+            if (allocator) {
+                ASSERT(allocator == region->grandparent->allocator);
+            } else {
+                allocator = region->grandparent->allocator;
+            }
+
+            free_cl_region(region, keep);
+            (ctx->arguments_region)[index] = NULL;
+        }
+    }
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
@@ -734,6 +803,12 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->kernel = kernel;
     context->host_thread_index = host_thread_index;
 
+    context->accumulated_arguments_capacity = 20;
+    context->accumulated_arguments = (arg_value *)malloc(
+            context->accumulated_arguments_capacity * sizeof(arg_value));
+    CHECK_ALLOC(context->accumulated_arguments);
+    context->accumulated_arguments_len = 0;
+
     context->arguments_capacity = 20;
     context->arguments_region = (cl_region **)malloc(
             context->arguments_capacity * sizeof(cl_region *));
@@ -743,6 +818,9 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->arguments_keep = (bool *)malloc(
             context->arguments_capacity * sizeof(bool));
     CHECK_ALLOC(context->arguments_keep);
+    context->arguments_persistent = (bool *)malloc(
+            context->arguments_capacity * sizeof(bool));
+    CHECK_ALLOC(context->arguments_persistent);
 
     context->zeros = malloc(max_n_buffered * sizeof(int));
     CHECK_ALLOC(context->zeros);
@@ -776,7 +854,9 @@ static void postKernelCleanupHelper(swat_context *ctx) {
     cl_allocator *allocator = NULL;
     for (int index = 0; index < ctx->arguments_capacity; index++) {
         cl_region *region = (ctx->arguments_region)[index];
-        if (region) {
+        bool persistent = (ctx->arguments_persistent)[index];
+
+        if (region && !persistent) {
             bool keep = (ctx->arguments_keep)[index];
             if (allocator) {
                 ASSERT(allocator == region->grandparent->allocator);
@@ -801,8 +881,8 @@ static void postKernelCleanupHelperWrapper(void *ctx) {
     postKernelCleanupHelper((swat_context *)ctx);
 }
 
-static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
-        int index, size_t size, jlong broadcastId, jint rdd) {
+static cl_region *get_mem(swat_context *context, device_context *dev_ctx,
+        int index, size_t size, jlong broadcastId, jint rdd, jboolean persistent) {
 #ifdef VERBOSE
     fprintf(stderr, "%d: Allocating region of size %lu bytes for index=%d\n",
             context->host_thread_index, size, index);
@@ -817,38 +897,26 @@ static cl_region *get_mem_cached(swat_context *context, device_context *dev_ctx,
             context->host_thread_index, region, size, index);
 #endif
 
-    set_argument(context, index, region, broadcastId >= 0 || rdd >= 0);
+    add_pending_region_arg(context, index, broadcastId >= 0 || rdd >= 0,
+            persistent, region);
     return region;
-}
-
-static void set_cached_kernel_arg(cl_region *region, int index, size_t len,
-        swat_context *context, device_context *dev_ctx) {
-    CHECK(clSetKernelArg(context->kernel, index, sizeof(region->sub_mem), &region->sub_mem));
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[index] = new kernel_arg(region->sub_mem, len, dev_ctx);
-#endif
-#ifdef VERBOSE
-    fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
-            len);
-#endif
 }
 
 static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx, jlong broadcastId,
-        jint rdd, cl_event *event) {
-    cl_region *region = get_mem_cached(context, dev_ctx, index, len, broadcastId, rdd);
+        jint rdd, bool persistent, bool blocking) {
+    cl_region *region = get_mem(context, dev_ctx, index, len,
+            broadcastId, rdd, persistent);
     if (region == NULL) return NULL;
 
+    cl_event event;
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
-                event == NULL ? CL_TRUE : CL_FALSE, 0, len, host, 0, NULL,
-                event));
+                blocking ? CL_TRUE : CL_FALSE, 0, len, host, 0, NULL,
+                blocking ? NULL : &event));
+    if (!blocking) {
+        add_event_to_context(context, event);
+    }
 
-    CHECK(clSetKernelArg(context->kernel, index, sizeof(region->sub_mem), &region->sub_mem));
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[index] = new kernel_arg(host, len, true, false);
-#endif
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
             len);
@@ -856,32 +924,19 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
     return region;
 }
 
-static cl_region *set_and_write_kernel_arg_async_optional(void *jvm,
-        void *buffer, size_t len, int index, swat_context *context,
-        device_context *dev_ctx, jlong broadcastId, jint rdd) {
-    cl_region *new_region = NULL;
-    if (buffer) {
-        cl_event event;
-        memcpy(buffer, jvm, len);
-        new_region = set_and_write_kernel_arg(buffer, len, index, context,
-                dev_ctx, broadcastId, rdd, &event);
-        if (new_region) {
-            add_event_to_context(context, event);
-        }
-    } else {
-        new_region = set_and_write_kernel_arg(jvm, len, index, context,
-                dev_ctx, broadcastId, rdd, NULL);
-    }
-    return new_region;
-}
-
 static void fetch_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx) {
+#ifdef VERBOSE
+    fprintf(stderr, "fetch_kernel_arg: thread %d fetching to host=%p at "
+            "index=%d with size=%lu\n", context->host_thread_index, host, index,
+            len);
+#endif
     ASSERT((context->arguments_region)[index] != NULL);
     cl_mem mem = (context->arguments_region)[index]->sub_mem;
+
 #ifdef VERBOSE
-    fprintf(stderr, "Fetching mem=%p to host=%p at index=%d with size=%lu\n",
-            mem, host, index, len);
+    fprintf(stderr, "fetch_kernel_arg: thread %d fetching to host=%p from "
+            "mem=%p\n", context->host_thread_index, host, mem);
 #endif
 
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, mem, CL_TRUE, 0, len, host,
@@ -1088,8 +1143,19 @@ JNI_JAVA(void, OpenCLBridge, deserializeStridedIndicesFromNativeArray)(
 }
 
 JNI_JAVA(jdoubleArray, OpenCLBridge, deserializeChunkedValuesFromNativeArray)(
-        JNIEnv *jenv, jclass clazz, jlong buffer, jint offset, jint size) {
+        JNIEnv *jenv, jclass clazz, jlong buffer, jlong infoBuffer,
+        jint offsetOffset, jint sizeOffset, jint offsetSize) {
     ENTER_TRACE("deserializeChunkedValuesFromNativeArray");
+
+    char *info = (char *)infoBuffer;
+    int offset, size;
+    if (offsetSize == 4) {
+        offset = *((int *)(info + offsetOffset));
+    } else { // offsetSize == 8
+        offset = *((long *)(info + offsetOffset));
+    }
+    size = *((int *)(info + sizeOffset));
+
     double *values = (double *)(((char *)buffer) + offset);
 
     jdoubleArray jvmArray = jenv->NewDoubleArray(size);
@@ -1105,8 +1171,19 @@ JNI_JAVA(jdoubleArray, OpenCLBridge, deserializeChunkedValuesFromNativeArray)(
 }
 
 JNI_JAVA(jintArray, OpenCLBridge, deserializeChunkedIndicesFromNativeArray)(
-        JNIEnv *jenv, jclass clazz, jlong buffer, jint offset, jint size) {
+        JNIEnv *jenv, jclass clazz, jlong buffer, jlong infoBuffer,
+        jint offsetOffset, jint sizeOffset, jint offsetSize) {
     ENTER_TRACE("deserializeChunkedIndicesFromNativeArray");
+
+    char *info = (char *)infoBuffer;
+    int offset, size;
+    if (offsetSize == 4) {
+        offset = *((int *)(info + offsetOffset));
+    } else { // offsetSize == 8
+        offset = *((long *)(info + offsetOffset));
+    }
+    size = *((int *)(info + sizeOffset));
+
     int *indices = (int *)(((char *)buffer) + offset);
 
     jintArray jvmArray = jenv->NewIntArray(size);
@@ -1124,7 +1201,7 @@ JNI_JAVA(jintArray, OpenCLBridge, deserializeChunkedIndicesFromNativeArray)(
 JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index,
          jlong buffer, jint len, jlong broadcastId, jint rddid,
-         jint partitionid, jint offsetid, jint componentid) {
+         jint partitionid, jint offsetid, jint componentid, jboolean persistent, jboolean blocking) {
     ENTER_TRACE("setNativeArrayArg");
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     swat_context *context = (swat_context *)lctx;
@@ -1134,13 +1211,12 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
     if (broadcastId >= 0) {
         if (reallocated) {
             TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid);
-            set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
-            set_argument(context, index, reallocated, true);
+            add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             broadcast_id uuid(broadcastId, componentid);
             void *arr = (void *)buffer;
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
-                    context, dev_ctx, broadcastId, rddid, NULL);
+                    context, dev_ctx, broadcastId, rddid, persistent, blocking);
             if (new_region == NULL) return false;
 
             lock_bcast_cache(dev_ctx);
@@ -1152,13 +1228,12 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
         if (reallocated) {
             TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
-            set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
-            set_argument(context, index, reallocated, true);
+            add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
             void *arr = (void *)buffer;
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
-                    dev_ctx, broadcastId, rddid, NULL);
+                    dev_ctx, broadcastId, rddid, persistent, blocking);
             if (new_region == NULL) return false;
 
             lock_rdd_cache(uuid);
@@ -1173,7 +1248,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
         void *arr = (void *)buffer;
         cl_event event;
         cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
-                context, dev_ctx, broadcastId, rddid, &event);
+                context, dev_ctx, broadcastId, rddid, persistent, blocking);
         add_event_to_context(context, event);
         if (new_region == NULL) return false;
     }
@@ -1185,7 +1260,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
 JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint index,
          jobject argObj, jint argLength, jint argEleSize, jlong broadcastId, jint rddid,
-         jint partitionid, jint offsetid, jint componentid) {
+         jint partitionid, jint offsetid, jint componentid, jboolean persistent) {
     ENTER_TRACE("setArrayArg");
     jarray arg = (jarray)argObj;
 
@@ -1199,14 +1274,13 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
     if (broadcastId >= 0) {
         if (reallocated) {
             TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid);
-            set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
-            set_argument(context, index, reallocated, true);
+            add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             broadcast_id uuid(broadcastId, componentid);
             void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL);
             CHECK_JNI(arr)
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
-                    context, dev_ctx, broadcastId, rddid, NULL);
+                    context, dev_ctx, broadcastId, rddid, persistent, true);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             if (new_region == NULL) return false;
 
@@ -1219,13 +1293,12 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
         if (reallocated) {
             TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
-            set_cached_kernel_arg(reallocated, index, len, context, dev_ctx);
-            set_argument(context, index, reallocated, true);
+            add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
             void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL);
             cl_region *new_region = set_and_write_kernel_arg(arr, len, index, context,
-                    dev_ctx, broadcastId, rddid, NULL);
+                    dev_ctx, broadcastId, rddid, persistent, true);
             jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
             if (new_region == NULL) return false;
 
@@ -1241,7 +1314,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
         void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL);
         CHECK_JNI(arr)
         cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
-                context, dev_ctx, broadcastId, rddid, NULL);
+                context, dev_ctx, broadcastId, rddid, persistent, true);
         jenv->ReleasePrimitiveArrayCritical(arg, arr, JNI_ABORT);
         if (new_region == NULL) return false;
     }
@@ -1252,11 +1325,12 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
 JNI_JAVA(jboolean, OpenCLBridge, tryCache)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
          jint index, jlong broadcastId, jint rddid, jint partitionid,
-         jint offsetid, jint componentid, jint ncomponents) {
+         jint offsetid, jint componentid, jint ncomponents, jboolean persistent) {
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     swat_context *context = (swat_context *)lctx;
     bool all_succeed = true;
     int c = 0;
+    const int pending_arguments_before = context->accumulated_arguments_len;
 
 #ifdef VERBOSE
     fprintf(stderr, "tryCache: index=%d broadcast=%ld rdd=%d partition=%d "
@@ -1281,11 +1355,19 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
             bool reallocated = (region && re_allocate_cl_region(region,
                         dev_ctx->device_index));
             if (reallocated) {
-                TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid + c);
-                set_cached_kernel_arg(region, index + c, region->size, context, dev_ctx);
-                set_argument(context, index + c, region, true);
+#ifdef VERBOSE
+                fprintf(stderr, "%d: caching broadcast %ld %d\n",
+                        context->host_thread_index, broadcastId,
+                        componentid + c);
+#endif
+                // A cached item should never be persistent
+                add_pending_region_arg(context, index + c, true, persistent, region);
             } else {
-                TRACE_MSG("failed to try-cache broadcast %ld %d\n", broadcastId, componentid + c);
+#ifdef VERBOSE
+                fprintf(stderr, "%d: failed to try-cache broadcast %ld %d\n",
+                        context->host_thread_index, broadcastId,
+                        componentid + c);
+#endif
                 remove_from_broadcast_cache_if_present(uuid, dev_ctx);
                 all_succeed = false;
             }
@@ -1301,14 +1383,18 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
             bool reallocated = (region && re_allocate_cl_region(region,
                         dev_ctx->device_index));
             if (reallocated) {
-                TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
+#ifdef VERBOSE
+                fprintf(stderr, "%d: caching rdd=%d partition=%d offset=%d "
+                        "component=%d\n", context->host_thread_index, rddid,
                         partitionid, offsetid, componentid + c);
-                set_cached_kernel_arg(region, index + c, region->size, context, dev_ctx);
-                set_argument(context, index + c, region, true);
+#endif
+                add_pending_region_arg(context, index + c, true, persistent, region);
             } else {
-                TRACE_MSG("failed to try-cache rdd=%d partition=%d offset=%d "
-                        "component=%d\n", rddid, partitionid, offsetid,
-                        componentid + c);
+#ifdef VERBOSE
+                fprintf(stderr, "%d: failed to try-cache rdd=%d partition=%d "
+                        "offset=%d component=%d\n", context->host_thread_index,
+                        rddid, partitionid, offsetid, componentid + c);
+#endif
                 remove_from_rdd_cache_if_present(uuid, dev_ctx->device_index);
                 all_succeed = false;
             }
@@ -1327,15 +1413,12 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
          * increase the complexity of the calling code so for now it's just
          * a TODO.
          */
-        c -= 2;
-        while (c >= 0) {
-            cl_region *cached_region = (context->arguments_region)[index + c];
-            ASSERT(cached_region);
-            (context->arguments_region)[index + c] = NULL;
-            const bool cached_keep = (context->arguments_keep)[index + c];
-            free_cl_region(cached_region, cached_keep);
-            c--;
+        for (int i = pending_arguments_before;
+                i < context->accumulated_arguments_len; i++) {
+            arg_value *curr = context->accumulated_arguments + i;
+            free_cl_region(curr->val.region, curr->keep);
         }
+        context->accumulated_arguments_len = pending_arguments_before;
     }
 
     if (broadcastId >= 0) {
@@ -1373,19 +1456,14 @@ JNI_JAVA(void, OpenCLBridge, postKernelCleanup)
 
 JNI_JAVA(jboolean, OpenCLBridge, setArgUnitialized)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint argnum,
-         jlong size) {
+         jlong size, jboolean persistent) {
     ENTER_TRACE("setArgUnitialized");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    cl_region *region = get_mem_cached(context, dev_ctx, argnum, size, -1, -1);
+    cl_region *region = get_mem(context, dev_ctx, argnum, size, -1, -1,
+            persistent);
     if (region == NULL) return false;
 
-    CHECK(clSetKernelArg(context->kernel, argnum, sizeof(region->sub_mem), &region->sub_mem));
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[argnum] = new kernel_arg(NULL, size, true,
-            false);
-#endif
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to an unitialized value with size %ld\n",
             argnum, size);
@@ -1398,17 +1476,8 @@ JNI_JAVA(jboolean, OpenCLBridge, setArgUnitialized)
 JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum) {
     ENTER_TRACE("setNullArrayArg");
-
-    cl_mem none = 0x0;
     swat_context *context = (swat_context *)lctx;
-    CHECK(clSetKernelArg(context->kernel, argnum, sizeof(none), &none));
-
-    set_argument(context, argnum, NULL, false);
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[argnum] = new kernel_arg(&none, sizeof(none),
-            false, false);
-#endif
+    add_pending_region_arg(context, argnum, false, false, NULL);
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a null value\n", argnum);
 #endif
@@ -1430,43 +1499,24 @@ JNI_JAVA(int, OpenCLBridge, createHeapImpl)
     jint local_argnum = argnum;
 
     // The heap
-    cl_region *region = get_mem_cached(context, dev_ctx, local_argnum, size, -1, -1);
+    cl_region *region = get_mem(context, dev_ctx, local_argnum, size, -1,
+            -1, true);
     if (region == NULL) return -1;
-    CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
     local_argnum++;
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL, size,
-            true, false);
-#endif
 
     // free_index
-    region = get_mem_cached(context, dev_ctx, local_argnum, sizeof(zero), -1, -1);
+    region = get_mem(context, dev_ctx, local_argnum, sizeof(zero), -1,
+            -1, true);
     if (region == NULL) return -1;
-    cl_event free_index_event;
-    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE, 0,
-                sizeof(zero), &zero, 0, NULL, &free_index_event));
-    add_event_to_context(context, free_index_event);
-    CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
     local_argnum++;
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(zero), true, true);
-#endif
 
     // heap_size
-    CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(size), &size));
+    add_pending_int_arg(context, local_argnum, size);
     local_argnum++;
 
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(&size,
-            sizeof(size), false, false);
-#endif
-
     // processing_succeeded
-    region = get_mem_cached(context, dev_ctx, local_argnum,
-            sizeof(int) * max_n_buffered, -1, -1);
+    region = get_mem(context, dev_ctx, local_argnum,
+            sizeof(int) * max_n_buffered, -1, -1, true);
     if (region == NULL) return -1;
 #ifdef VERBOSE
     fprintf(stderr, "%d: Creating %p, %lu bytes for processing_succeeded\n",
@@ -1474,43 +1524,123 @@ JNI_JAVA(int, OpenCLBridge, createHeapImpl)
             sizeof(int) * max_n_buffered);
 #endif
     assert(context->zeros_capacity >= max_n_buffered);
-    cl_event processing_succeeded_event;
-    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE, 0,
-                max_n_buffered * sizeof(int), context->zeros, 0, NULL,
-                &processing_succeeded_event));
-    add_event_to_context(context, processing_succeeded_event);
-    CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
     local_argnum++;
 
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(int) * max_n_buffered, true, true);
-#endif
-
     // any_failed
-    region = get_mem_cached(context, dev_ctx, local_argnum, sizeof(unsigned), -1, -1);
+    region = get_mem(context, dev_ctx, local_argnum, sizeof(unsigned),
+            -1, -1, true);
     if (region == NULL) return -1;
 #ifdef VERBOSE
     fprintf(stderr, "%d: Creating %p, %lu bytes for any_failed\n",
             context->host_thread_index, region->sub_mem, sizeof(unsigned));
 #endif
-    cl_event any_failed_event;
-    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE, 0,
-                sizeof(zero), &zero, 0, NULL, &any_failed_event));
-    add_event_to_context(context, any_failed_event);
-    CHECK(clSetKernelArg(context->kernel, local_argnum, sizeof(region->sub_mem), &region->sub_mem));
     local_argnum++;
 
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[local_argnum - 1] = new kernel_arg(NULL,
-            sizeof(unsigned), true, true);
-#endif
 #ifdef VERBOSE
     fprintf(stderr, "Creating heap at %d->%d (inclusive)\n", argnum,
             local_argnum - 1);
 #endif
     EXIT_TRACE("createHeap");
     return (local_argnum - argnum); // Number of kernel arguments added
+}
+
+JNI_JAVA(void, OpenCLBridge, cleanupArguments)(JNIEnv *jenv, jclass clazz,
+        jlong l_ctx) {
+    swat_context *context = (swat_context *)l_ctx;
+
+    for (int a = 0; a < context->accumulated_arguments_len; a++) {
+        arg_value *val = context->accumulated_arguments + a;
+        if (val->type == REGION) {
+            cl_region *region = val->val.region;
+            free_cl_region(region, val->keep);
+        }
+    }
+
+    context->accumulated_arguments_len = 0;
+}
+
+JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
+        jlong l_ctx) {
+    swat_context *context = (swat_context *)l_ctx;
+
+    for (int a = 0; a < context->accumulated_arguments_len; a++) {
+        arg_value *val = context->accumulated_arguments + a;
+        const int index = val->index;
+
+        switch (val->type) {
+            case REGION:
+                cl_region *region = val->val.region;
+                if (region) {
+                    cl_mem mem = val->val.region->sub_mem;
+                    set_argument(context, index, val->val.region, val->keep,
+                            val->persistent);
+                    CHECK(clSetKernelArg(context->kernel, index, sizeof(mem),
+                                &mem));
+                } else {
+                    cl_mem none = 0x0;
+                    CHECK(clSetKernelArg(context->kernel, index, sizeof(none), &none));
+                    set_argument(context, index, NULL, false, false);
+                }
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(
+                        mem, val->val.region->size, dev_ctx);
+#endif
+                break;
+            case INT:
+                const int i = val->val.i;
+                CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(&i, sizeof(i),
+                        false, false);
+#endif
+                break;
+            case FLOAT:
+                const float f = val->val.f;
+                CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(&f, sizeof(f),
+                        false, false);
+#endif
+                break;
+            case DOUBLE:
+                const double d = val->val.d;
+                CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(&d, sizeof(d),
+                        false, false);
+#endif
+                break;
+            default:
+                fprintf(stderr, "Unexpected type\n");
+                exit(1);
+        }
+    }
+    context->accumulated_arguments_len = 0;
+}
+
+JNI_JAVA(void, OpenCLBridge, setupHeap)(JNIEnv *jenv, jclass clazz, jlong l_ctx,
+        jlong l_dev_ctx, jint starting_argnum, jint n_buffered) {
+    ENTER_TRACE("setupHeap");
+    swat_context *context = (swat_context *)l_ctx;
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+
+#ifdef VERBOSE
+    fprintf(stderr, "%d: setupHeap, starting_argnum=%d n_buffered=%d\n",
+            context->host_thread_index, starting_argnum, n_buffered);
+#endif
+
+    const int processing_succeeded_argnum = starting_argnum + 3;
+    cl_region *region = (context->arguments_region)[processing_succeeded_argnum];
+    ASSERT(region);
+
+    ASSERT(n_buffered <= context->zeros_capacity);
+    cl_event processing_succeeded_event;
+    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE, 0,
+                n_buffered * sizeof(int), context->zeros, 0, NULL,
+                &processing_succeeded_event));
+    add_event_to_context(context, processing_succeeded_event);
+
+    EXIT_TRACE("setupHeap");
 }
 
 JNI_JAVA(void, OpenCLBridge, resetHeap)
@@ -1589,12 +1719,15 @@ JNI_JAVA(void, OpenCLBridge, run)
 #endif
 
 #ifdef VERBOSE
-    fprintf(stderr, "Host thread %d launching kernel on OpenCL device %s\n",
-            context->host_thread_index, get_device_name(dev_ctx->dev));
+    fprintf(stderr, "Host thread %d launching kernel on OpenCL device %s, "
+            "range=%d, global_size=%lu, local_size=%lu\n",
+            context->host_thread_index, get_device_name(dev_ctx->dev), range,
+            global_size, local_size);
     print_allocator(dev_ctx->allocator, context->host_thread_index);
 #endif
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,
-                &global_size, &local_size, context->n_events, context->events, &event));
+                &global_size, &local_size, context->n_events, context->events,
+                &event));
     CHECK(clWaitForEvents(1, &event));
     context->n_events = 0;
 

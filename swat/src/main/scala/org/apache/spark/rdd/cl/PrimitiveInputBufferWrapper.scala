@@ -14,19 +14,22 @@ import com.amd.aparapi.internal.writer.KernelWriter
 
 import java.nio.ByteBuffer
 
-class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferWrapper[T]{
+class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
+    val blockingCopies : Boolean) extends InputBufferWrapper[T]{
   val arr : Array[T] = new Array[T](N)
   var filled : Int = 0
   var iter : Int = 0
   var used : Int = -1
 
-  var buffer : Long = -1L
-  if (arr.isInstanceOf[Array[Double]]) {
-    buffer = OpenCLBridge.nativeMalloc(8 * N)
-  } else if (arr.isInstanceOf[Array[Int]] || arr.isInstanceOf[Array[Float]]) {
-    buffer = OpenCLBridge.nativeMalloc(4 * N)
-  } else {
-    throw new RuntimeException("Unsupported")
+  var buffer : Long = 0L
+  if (!blockingCopies) {
+    if (arr.isInstanceOf[Array[Double]]) {
+      buffer = OpenCLBridge.nativeMalloc(8 * N)
+    } else if (arr.isInstanceOf[Array[Int]] || arr.isInstanceOf[Array[Float]]) {
+      buffer = OpenCLBridge.nativeMalloc(4 * N)
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
   }
 
   override def append(obj : Any) {
@@ -48,29 +51,34 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   override def flush() { }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID, limit : Int = -1) : Int = {
+      cacheID : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
     val tocopy = if (limit == -1) filled else limit
 
     if (arr.isInstanceOf[Array[Double]]) {
       OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Double]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
+              arr.asInstanceOf[Array[Double]], tocopy, cacheID.broadcast,
+              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
+              buffer, persistent)
     } else if (arr.isInstanceOf[Array[Int]]) {
       OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
               arr.asInstanceOf[Array[Int]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
+              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
+              buffer, persistent)
     } else if (arr.isInstanceOf[Array[Float]]) {
       OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-          arr.asInstanceOf[Array[Float]], tocopy, cacheID.broadcast,
-          cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, buffer)
+              arr.asInstanceOf[Array[Float]], tocopy, cacheID.broadcast,
+              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
+              buffer, persistent)
     } else {
       throw new RuntimeException("Unsupported")
     }
 
     used = tocopy
 
-    return 1
+    return countArgumentsUsed
   }
+
+  override def countArgumentsUsed : Int = { 1 }
 
   override def hasNext() : Boolean = {
     iter < filled
@@ -91,7 +99,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
   }
 
   override def releaseNativeArrays {
-    OpenCLBridge.nativeFree(buffer)
+    if (buffer > 0L) {
+      OpenCLBridge.nativeFree(buffer)
+    }
   }
 
   override def reset() {
@@ -111,9 +121,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int) extends InputBufferW
 
   // Returns # of arguments used
   override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
-      entryPoint : Entrypoint) : Int = {
+      entryPoint : Entrypoint, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, 0, id.broadcast, id.rdd,
-        id.partition, id.offset, id.component, 1)) {
+        id.partition, id.offset, id.component, 1, persistent)) {
       return 1
     } else {
       return -1

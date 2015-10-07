@@ -24,11 +24,11 @@ object SparseVectorInputBufferWrapperConfig {
 }
 
 class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
-        val vectorCapacity : Int, entryPoint : Entrypoint)
+        val vectorCapacity : Int, val entryPoint : Entrypoint, val blockingCopies : Boolean)
         extends InputBufferWrapper[SparseVector] {
 
-  def this(vectorCapacity : Int, entryPoint : Entrypoint) =
-        this(vectorCapacity * 30, vectorCapacity, entryPoint)
+  def this(vectorCapacity : Int, entryPoint : Entrypoint, blockingCopies : Boolean) =
+        this(vectorCapacity * 30, vectorCapacity, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -124,7 +124,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-          cacheID : CLCacheID, limit : Int = -1) : Int = {
+          cacheID : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
     assert(tiled == 0)
     val vectorsToCopy = if (limit == -1) buffered else limit
     assert(vectorsToCopy <= buffered)
@@ -133,31 +133,35 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
                 offsetsBuffer, tiling) + 1
 
     // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, sparseVectorStructSize * vectorCapacity)
+    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, sparseVectorStructSize * vectorCapacity, persistent)
     // indices array, size of double = 4
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1,
             indicesBuffer, elementsToCopy * 4, cacheID.broadcast,
-            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component)
+            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
+            persistent, blockingCopies)
     // values array, size of double = 8
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2,
             valuesBuffer, elementsToCopy * 8, cacheID.broadcast,
-            cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component + 1)
+            cacheID.rdd, cacheID.partition, cacheID.offset,
+            cacheID.component + 1, persistent, blockingCopies)
     // Sizes of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, sizesBuffer,
             vectorsToCopy * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-            cacheID.offset, cacheID.component + 2)
+            cacheID.offset, cacheID.component + 2, persistent, blockingCopies)
     // Offsets of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 4, offsetsBuffer,
             vectorsToCopy * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-            cacheID.offset, cacheID.component + 3)
+            cacheID.offset, cacheID.component + 3, persistent, blockingCopies)
     // Number of sparse vectors being copied
     OpenCLBridge.setIntArg(ctx, argnum + 5, vectorsToCopy)
 
     vectorsUsed = vectorsToCopy
     elementsUsed = elementsToCopy
 
-    return 6
+    return countArgumentsUsed
   }
+
+  override def countArgumentsUsed : Int = { 6 }
 
   override def hasNext() : Boolean = {
     iter < buffered
@@ -233,20 +237,21 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   // Returns # of arguments used
-  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entrypoint : Entrypoint) :
-      Int = {
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entrypoint : Entrypoint, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, 0 + 1, id.broadcast, id.rdd,
-        id.partition, id.offset, id.component, 4)) {
+        id.partition, id.offset, id.component, 4, persistent)) {
       val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
       // Array of structs for each item
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           KernelWriter.SPARSEVECTOR_CLASSNAME,
           new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0,
-              c.getTotalStructSize * nVectors)
+              c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, 0 + 5, nVectors)
-      return 6
+
+      return countArgumentsUsed
     } else {
       return -1
     }

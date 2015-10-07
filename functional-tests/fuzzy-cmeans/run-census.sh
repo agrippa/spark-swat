@@ -23,6 +23,6 @@ fi
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19 -Xloggc:/tmp/SWAT.log -verbose:gc" \
 
 spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} \
-        --conf "spark.executor.extraJavaOptions=-Dswat.cl_local_size=128" \
+        --conf "spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 -Dswat.input_chunking=100000" \
         --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \
         run $CENTERS $ITERS hdfs://$(hostname):54310/census-data $USE_SWAT

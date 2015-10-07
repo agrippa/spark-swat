@@ -24,7 +24,7 @@ trait InputBufferWrapper[T] {
 
   // Transfer the aggregated input items to an OpenCL device
   def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheId : CLCacheID, limit : Int = -1) : Int
+      cacheId : CLCacheID, persistent : Boolean, limit : Int = -1) : Int
   // Ensure as many stored items as possible are serialized
   def flush()
 
@@ -43,16 +43,23 @@ trait InputBufferWrapper[T] {
    * store it.
    */
   def haveUnprocessedInputs : Boolean
+
   /*
    * Returns true when an input buffer has been filled to the point where it can
    * accept no more elements.
    */
   def outOfSpace : Boolean
 
+  /*
+   * Return the number of kernel arguments this type of input buffer will use.
+   */
+  def countArgumentsUsed : Int
+
   def releaseNativeArrays
   def nBuffered() : Int
   def reset()
 
   // Returns # of arguments used
-  def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entryPoint : Entrypoint) : Int
+  def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entryPoint : Entrypoint, persistent : Boolean) : Int
 }

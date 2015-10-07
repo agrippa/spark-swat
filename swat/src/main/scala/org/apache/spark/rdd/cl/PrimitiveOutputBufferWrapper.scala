@@ -33,7 +33,8 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
 
   override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) :
+          Boolean = {
       OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
       anyFailed(0) == 0
   }

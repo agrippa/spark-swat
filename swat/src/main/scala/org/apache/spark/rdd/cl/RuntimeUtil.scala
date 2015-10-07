@@ -20,11 +20,14 @@ import com.amd.aparapi.internal.model.Entrypoint
 
 object RuntimeUtil {
 
-  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-          (System.currentTimeMillis - startTime) + " ms") // PROFILE
-  } // PROFILE
+//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+//       profPrintTotal(lbl, System.currentTimeMillis - startTime, threadId) // PROFILE
+//   } // PROFILE
 
+//   def profPrintTotal(lbl : String, totalTime : Long, threadId : Int) { // PROFILE
+//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+//           totalTime + " ms " + System.currentTimeMillis) // PROFILE
+//   } // PROFILE
 
   def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
       sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
@@ -33,7 +36,7 @@ object RuntimeUtil {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
-    val startClassGeneration = System.currentTimeMillis // PROFILE
+//     val startClassGeneration = System.currentTimeMillis // PROFILE
 
     val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     if (firstSample.isInstanceOf[Tuple2[_, _]]) {
@@ -56,39 +59,39 @@ object RuntimeUtil {
       }
     }
 
-    profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
-    val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
+//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
 
     val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
             lambda.getClass.getName)
     EntrypointCache.cache.synchronized {
       if (EntrypointCache.cache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
         entryPoint = EntrypointCache.cache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
         entryPoint = classModel.getEntrypoint("apply", methodDescriptor,
             lambda, params, hardCodedClassModels,
             CodeGenUtil.createCodeGenConfig(dev_ctx))
         EntrypointCache.cache.put(entrypointKey, entryPoint)
       }
 
-      profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
-      val startKernelGeneration = System.currentTimeMillis // PROFILE
+//       profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
+//       val startKernelGeneration = System.currentTimeMillis // PROFILE
 
       if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
         openCL = EntrypointCache.kernelCache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " generating kernel") // PROFILE
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
-        System.err.println(openCL) // PROFILE
+//         System.err.println(openCL) // PROFILE
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }
 
-      profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
+//       profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
     }
     (entryPoint, openCL)
   }
@@ -103,38 +106,40 @@ object RuntimeUtil {
   }
 
   def getInputBufferFor[T : ClassTag](firstSample : T, N : Int,
-      denseVectorTiling : Int, entryPoint : Entrypoint) : InputBufferWrapper[T] = {
+      denseVectorTiling : Int, entryPoint : Entrypoint,
+      blockingCopies : Boolean) : InputBufferWrapper[T] = {
     if (firstSample.isInstanceOf[Double] ||
         firstSample.isInstanceOf[Int] ||
         firstSample.isInstanceOf[Float]) {
-      new PrimitiveInputBufferWrapper(N)
+      new PrimitiveInputBufferWrapper(N, blockingCopies)
     } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       new Tuple2InputBufferWrapper(N,
               firstSample.asInstanceOf[Tuple2[_, _]],
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[DenseVector]) {
       new DenseVectorInputBufferWrapper(N, denseVectorTiling,
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[SparseVector]) {
       new SparseVectorInputBufferWrapper(N,
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
     } else {
       new ObjectInputBufferWrapper(N,
-              firstSample.getClass.getName, entryPoint)
+              firstSample.getClass.getName, entryPoint, blockingCopies)
     }
   }
 
   def tryCacheDenseVector(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nVectors : Int, tiling : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nVectors : Int, tiling : Int,
+      entryPoint : Entrypoint, persistent : Boolean) : Int = {
 
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
-        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3)) {
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3, persistent)) {
       // Array of structs for each item
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           KernelWriter.DENSEVECTOR_CLASSNAME,
           new NameMatcher(KernelWriter.DENSEVECTOR_CLASSNAME))
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-              c.getTotalStructSize * nVectors)
+              c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, argnum + 4, nVectors)
       // Tiling
@@ -146,15 +151,17 @@ object RuntimeUtil {
   }
 
   def tryCacheSparseVector(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint,
+      persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
-        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 4)) {
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 4,
+        persistent)) {
       // Array of structs for each item
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           KernelWriter.SPARSEVECTOR_CLASSNAME,
           new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-              c.getTotalStructSize * nVectors)
+              c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, argnum + 5, nVectors)
       return 6
@@ -164,10 +171,10 @@ object RuntimeUtil {
   }
 
   def tryCacheObject(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID) : Int = {
+      cacheID : CLCacheID, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
         cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
-        1)) {
+        1, persistent)) {
       return 1
     } else {
       return -1
@@ -176,7 +183,8 @@ object RuntimeUtil {
 
   def tryCacheTuple(ctx : Long, dev_ctx : Long, startArgnum : Int,
           cacheID : CLCacheID, nLoaded : Int, sample : Tuple2[_, _],
-          denseVectorTiling : Int, entryPoint : Entrypoint) : Int = {
+          denseVectorTiling : Int, entryPoint : Entrypoint,
+          persistent : Boolean) : Int = {
     val firstMemberClassName : String = sample._1.getClass.getName
     val secondMemberClassName : String = sample._2.getClass.getName
     var used = 0
@@ -186,7 +194,8 @@ object RuntimeUtil {
 
     if (firstMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
-                startArgnum, cacheID, nLoaded, denseVectorTiling, entryPoint)
+                startArgnum, cacheID, nLoaded, denseVectorTiling, entryPoint,
+                persistent)
         if (cacheSuccess == -1) {
           return -1
         }
@@ -199,7 +208,8 @@ object RuntimeUtil {
 
     if (secondMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
-                startArgnum + used, cacheID, nLoaded, denseVectorTiling, entryPoint)
+                startArgnum + used, cacheID, nLoaded, denseVectorTiling,
+                entryPoint, persistent)
         if (cacheSuccess == -1) {
           OpenCLBridge.manuallyRelease(ctx, dev_ctx, startArgnum, used)
           return -1
@@ -214,18 +224,18 @@ object RuntimeUtil {
       entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
           new ObjectMatcher(sample))
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + used,
-            tuple2ClassModel.getTotalStructSize * nLoaded)
+            tuple2ClassModel.getTotalStructSize * nLoaded, persistent)
     return used + 1
   }
 
   def tryCacheHelper(desc : String, ctx : Long, dev_ctx : Long, argnum : Int,
       cacheID : CLCacheID, nLoaded : Int, denseVectorTiling : Int,
-      entryPoint : Entrypoint) : Int = {
+      entryPoint : Entrypoint, persistent : Boolean) : Int = {
     desc match {
       case "I" | "F" | "D" => {
         if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
                     cacheID.rdd, cacheID.partition, cacheID.offset,
-                    cacheID.component, 1)) {
+                    cacheID.component, 1, persistent)) {
           return 1
         } else {
           return -1
@@ -233,17 +243,17 @@ object RuntimeUtil {
       }
       case KernelWriter.DENSEVECTOR_CLASSNAME => {
         return tryCacheDenseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
-                denseVectorTiling, entryPoint)
+                denseVectorTiling, entryPoint, persistent)
       }
       case KernelWriter.SPARSEVECTOR_CLASSNAME => {
         return tryCacheSparseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
-                entryPoint)
+                entryPoint, persistent)
       }
       case "scala.Tuple2" => {
         throw new UnsupportedOperationException()
       }
       case _ => {
-        return tryCacheObject(ctx, dev_ctx, argnum, cacheID)
+        return tryCacheObject(ctx, dev_ctx, argnum, cacheID, persistent)
       }
     }
   }

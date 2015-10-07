@@ -13,13 +13,21 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
-    acc : InputBufferWrapper[T]) extends OutputBufferWrapper[U] {
+    acc : InputBufferWrapper[T], val readerThread : Thread) extends OutputBufferWrapper[U] {
+  var anyLeft = true
+
   override def next() : U = {
     f(acc.next)
   }
 
   override def hasNext() : Boolean = {
-    acc.hasNext
+    if (!acc.hasNext) {
+      anyLeft = false
+      if (readerThread != null) {
+        readerThread.start
+      }
+    }
+    anyLeft
   }
 
   // Returns true if all work on the device is complete

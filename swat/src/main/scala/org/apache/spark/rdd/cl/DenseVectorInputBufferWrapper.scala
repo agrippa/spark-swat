@@ -25,12 +25,13 @@ object DenseVectorInputBufferWrapperConfig {
   val avgVectorLength = if (avgVectorLength_str == null) 70 else avgVectorLength_str.toInt
 }
 
-class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorCapacity : Int,
-        tiling : Int, entryPoint : Entrypoint) extends InputBufferWrapper[DenseVector] {
+class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
+        val vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+        val blockingCopies : Boolean) extends InputBufferWrapper[DenseVector] {
 
-  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint) =
+  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint, blockingCopies : Boolean) =
       this(vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVectorLength,
-              vectorCapacity, tiling, entryPoint)
+              vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -122,7 +123,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID, limit : Int = -1) : Int = {
+      cacheID : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
     // Should call a flush explicitly from the RDD iterator next() function
     assert(tiled == 0)
     val vectorsToCopy = if (limit == -1) buffered else limit
@@ -133,19 +134,19 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
 
     // Array of structs for each item
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-            denseVectorStructSize * vectorCapacity)
+            denseVectorStructSize * vectorCapacity, persistent)
     // values array, size of double = 8
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1, valuesBuffer,
         elementsToCopy * 8, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component)
+        cacheID.offset, cacheID.component, persistent, blockingCopies)
     // Sizes of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2, sizesBuffer, vectorsToCopy * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
-            cacheID.component + 1)
+            cacheID.component + 1, persistent, blockingCopies)
     // Offsets of each vector
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, offsetsBuffer, vectorsToCopy * 4,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
-            cacheID.component + 2)
+            cacheID.component + 2, persistent, blockingCopies)
     // Number of vectors
     OpenCLBridge.setIntArg(ctx, argnum + 4, vectorsToCopy)
     // Tiling
@@ -154,8 +155,10 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
     vectorsUsed = vectorsToCopy
     elementsUsed = elementsToCopy
 
-    return 6
+    return countArgumentsUsed
   }
+
+  override def countArgumentsUsed : Int = { 6 }
 
   override def hasNext() : Boolean = {
     iter < buffered
@@ -226,22 +229,23 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int, val vectorC
   }
 
   // Returns # of arguments used
-  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entrypoint : Entrypoint) :
-      Int = {
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entrypoint : Entrypoint, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, 0 + 1, id.broadcast, id.rdd,
-        id.partition, id.offset, id.component, 3)) {
+        id.partition, id.offset, id.component, 3, persistent)) {
       val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
       // Array of structs for each item
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           KernelWriter.DENSEVECTOR_CLASSNAME,
           new NameMatcher(KernelWriter.DENSEVECTOR_CLASSNAME))
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, 0,
-              c.getTotalStructSize * nVectors)
+              c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, 0 + 4, nVectors)
       // Tiling
       OpenCLBridge.setIntArg(ctx, 0 + 5, tiling)
-      return 6
+
+      return countArgumentsUsed
     } else {
       return -1
     }

@@ -32,9 +32,7 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
    */
   val sparseVectorStructSize = (2 * devicePointerSize) + 4
   val outArgLength = N * sparseVectorStructSize
-  val outArg : Array[Byte] = new Array[Byte](outArgLength)
-  val outArgBuffer : ByteBuffer = ByteBuffer.wrap(outArg)
-  outArgBuffer.order(ByteOrder.LITTLE_ENDIAN)
+  val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
 
   var heapOutBufferSize : Int = 0
   var heapOutBuffer : Long = 0
@@ -44,11 +42,14 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, outArg, outArgLength)
+
     if (heapOutBufferSize < heapTop(0)) {
       heapOutBufferSize = heapTop(0)
       heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
     }
+
+    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, outArgNum,
+            outArgBuffer, outArgLength)
     OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
             heapOutBuffer, heapTop(0))
 
@@ -61,28 +62,24 @@ class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
 
   def get(slot : Int) : SparseVector = {
     val slotOffset = slot * sparseVectorStructSize
-    outArgBuffer.position(slotOffset)
-
-    val indicesHeapOffset : Int = if (devicePointerSize == 4)
-      outArgBuffer.getInt else outArgBuffer.getLong.toInt
-    val valuesHeapOffset : Int = if (devicePointerSize == 4)
-      outArgBuffer.getInt else outArgBuffer.getLong.toInt
-    val size : Int = outArgBuffer.getInt
 
     val indices : Array[Int] =
         OpenCLBridge.deserializeChunkedIndicesFromNativeArray(heapOutBuffer,
-        indicesHeapOffset, size)
+        outArgBuffer, slotOffset, slotOffset + 2 * devicePointerSize, devicePointerSize)
     val values : Array[Double] =
         OpenCLBridge.deserializeChunkedValuesFromNativeArray(heapOutBuffer,
-        valuesHeapOffset, size)
+        outArgBuffer, slotOffset + devicePointerSize,
+        slotOffset + 2 * devicePointerSize, devicePointerSize)
+    assert(indices.size == values.size)
 
-    Vectors.sparse(size, indices, values).asInstanceOf[SparseVector]
+    Vectors.sparse(indices.size, indices, values).asInstanceOf[SparseVector]
   }
 
   def releaseNativeArrays() {
     if (heapOutBufferSize > 0) {
       OpenCLBridge.nativeFree(heapOutBuffer)
     }
+    OpenCLBridge.nativeFree(outArgBuffer)
   }
 }
 

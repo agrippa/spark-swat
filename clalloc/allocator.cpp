@@ -871,6 +871,22 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
     return copy;
 }
 
+/*
+ * re_allocate_cl_region is intended only for use with allocations that have
+ * been marked as keeping, i.e. things that the allocator will do its best to
+ * keep persistent on the device even if no one actively has a handle to it.
+ *
+ * However, it will also work for regions that are allocated and shared among
+ * multiple entities as long as at least one is always holding it. However, if
+ * this is the use case and all entities release their handle, then another
+ * comes along and tries to re-allocate through a stale handle, this method will
+ * fail.
+ *
+ * Therefore, if you want to use re_allocate_cl_region to deduplicate read-only
+ * data you must either 1) ensure that freeing these regions always sets
+ * try_to_keep (which may lead to memory fragmentation), or 2) ensure there is
+ * always at least one live reference.
+ */
 bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     ENTER_TRACE("re_allocate_cl_region");
 

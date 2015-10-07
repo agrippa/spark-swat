@@ -14,7 +14,7 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import java.nio.ByteBuffer
 
 class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
-    val entryPoint : Entrypoint) extends InputBufferWrapper[T] {
+    val entryPoint : Entrypoint, val blockingCopies : Boolean) extends InputBufferWrapper[T] {
   val clazz : java.lang.Class[_] = Class.forName(typeName)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -24,8 +24,14 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   val structMemberOffsets : Option[Array[Long]] = if (classModel == null) None else
       Some(classModel.getStructMemberOffsets)
   val structSize = classModel.getTotalStructSize
-  val bb : ByteBuffer = ByteBuffer.allocate(classModel.getTotalStructSize * nele)
+
+  val bb : ByteBuffer = ByteBuffer.allocate(structSize * nele)
   bb.order(ByteOrder.LITTLE_ENDIAN)
+
+  var buffer : Long = 0L
+  if (!blockingCopies) {
+    buffer = OpenCLBridge.nativeMalloc(structSize * nele)
+  }
 
   var iter : Int = 0
   var objCount : Int = 0
@@ -52,17 +58,19 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID, limit : Int = -1) : Int = {
+      cacheID : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
     val tocopy = if (limit == -1) objCount else limit
 
     OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
         tocopy * structSize, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component, 0)
+        cacheID.offset, cacheID.component, buffer, persistent)
 
     used = tocopy
 
-    return 1
+    return countArgumentsUsed
   }
+
+  override def countArgumentsUsed : Int = { 1 }
 
   override def hasNext() : Boolean = {
     iter < objCount
@@ -85,7 +93,11 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     objCount >= nele
   }
 
-  override def releaseNativeArrays { }
+  override def releaseNativeArrays {
+    if (buffer > 0) {
+      OpenCLBridge.nativeFree(buffer)
+    }
+  }
 
   override def reset() {
     if (used != -1 && used != objCount) {
@@ -103,10 +115,10 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   // Returns # of arguments used
-  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long, entrypoint : Entrypoint) :
-      Int = {
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entrypoint : Entrypoint, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, 0, id.broadcast, id.rdd,
-        id.partition, id.offset, id.component, 1)) {
+        id.partition, id.offset, id.component, 1, persistent)) {
       return 1
     } else {
       return -1
