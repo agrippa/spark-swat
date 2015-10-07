@@ -25,25 +25,28 @@ if len(sys.argv) != 2:
 fp = open(sys.argv[1], 'r')
 
 nthreads_per_worker = 2
-supported_labels = {'Input-I/O'             : 0,
-                    'Run'                   : 1,
-                    'Write'                 : 1,
-                    'Read'                  : 1,
-                    'KernelAttemptCallback' : 1}
+supported_labels = {'Input-I/O'             : [0, 'r', 'Red'],
+                    'Run'                   : [1, 'y', 'Yellow'],
+                    'Write'                 : [1, 'b', 'Blue'],
+                    'Read'                  : [1, 'g', 'Green'],
+                    'KernelAttemptCallback' : [1, 'c', 'Cyan']}
 tasks = {}
 
 for line in fp:
     line = line[:len(line)-1]
     tokens = line.split()
 
+    if len(tokens) < 7:
+        continue
+
     if tokens[0] != 'SWAT':
         continue
 
-    if tokens[2] != 'PROF':
+    if tokens[1] != 'PROF':
         continue
 
-    tid = int(tokens[3])
-    lbl = tokens[4]
+    tid = int(tokens[2])
+    lbl = tokens[3]
 
     if lbl not in supported_labels.keys():
         continue
@@ -51,14 +54,14 @@ for line in fp:
     if tid not in tasks.keys():
         tasks[tid] = {}
         i = 0
-        while (i < threads_per_worker):
+        while (i < nthreads_per_worker):
             tasks[tid][i] = []
             i += 1
 
-    elapsed = int(tokens[5])
-    finish = int(tokens[7])
+    elapsed = int(tokens[4])
+    finish = int(tokens[6])
 
-    tasks[tid][supported_labels[lbl]].append(Task(finish - elapsed, elapsed, lbl))
+    tasks[tid][supported_labels[lbl][0]].append(Task(finish - elapsed, elapsed, lbl))
 
     nthreads = max(nthreads, tid + 1)
     max_timestamp = max(max_timestamp, finish)
@@ -76,14 +79,19 @@ ind = 0
 thread_labels = []
 sorted_tids = sorted(tasks.keys())
 
+print('min_timestamp=' + str(min_timestamp) + ', max_timestamp=' +
+      str(max_timestamp))
+for lbl in supported_labels.keys():
+    print(lbl + ' -> ' + supported_labels[lbl][2])
+
 for tid in sorted_tids:
-    for i in sorted_tids[tid]:
+    for i in tasks[tid]:
         thread_labels.append(str(tid) + ':' + str(i))
-        for t in sorted_tids[tid][i]:
+        for t in tasks[tid][i]:
             t.normalize_start(min_timestamp)
 
             plt.barh(ind, t.elapsed, height=width, left=t.start, linewidth=1,
-                     color=colors[color_counter])
+                     color=supported_labels[t.lbl][1])
 
         ind = ind + width
 
@@ -96,4 +104,3 @@ plt.yticks(np.arange(0, nthreads * nthreads_per_worker, width) + width/2.,
 plt.axis([ 0, max_timestamp-min_timestamp, 0, ind ])
 # plt.legend( (p1[0], p2[0]), ('Men', 'Women') )
 plt.show()
-
