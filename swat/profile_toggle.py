@@ -7,7 +7,15 @@ if len(sys.argv) < 3:
     print('usage: python profile_toggle.py <enable|disable> input1 input2 ...')
     sys.exit(1)
 
-enable = True if sys.argv[1] == 'enable' else False
+enable = False
+if sys.argv[1] == 'enable':
+    enable = True
+elif sys.argv[1] == 'disable':
+    enable = False
+else:
+    print('Unexpected argument "' + sys.argv[1] + '", expected enable or disable')
+    sys.exit(1)
+
 input_filenames = sys.argv[2:]
 
 for input_filename in input_filenames:
