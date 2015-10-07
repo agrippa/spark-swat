@@ -163,7 +163,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
    val firstSample : T = nested.next
    var firstBufferOp : Boolean = true
-   var oom : Boolean = false
    var sampleOutput : java.lang.Object = None
 
    val initializing : Boolean = (entryPoint == null)
@@ -246,18 +245,20 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
      var nLoaded : Int = -1
      var noMoreInputBuffering = false
+     var inputCacheSuccess : Int = -1
+     var inputCacheId : CLCacheID = NoCache
      val readerRunner = new Runnable() {
        override def run() {
          val ioStart = System.currentTimeMillis // PROFILE
          inputBuffer.reset
 
          val myOffset : Int = totalNLoaded
-         val inputCacheId : CLCacheID = if (firstParent[T].getStorageLevel.useMemory)
+         inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
              new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
              else NoCache
 
          nLoaded = -1
-         val inputCacheSuccess : Int = if (inputCacheId == NoCache) -1 else
+         inputCacheSuccess = if (inputCacheId == NoCache) -1 else
            inputBuffer.tryCache(inputCacheId, ctx, dev_ctx, entryPoint, false)
 
          if (inputCacheSuccess != -1) {
@@ -291,20 +292,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          firstBufferOp = false
          totalNLoaded += nLoaded
 
-         if (inputCacheSuccess == -1) {
-           try {
-             val writeStart = System.currentTimeMillis // PROFILE
-             inputBuffer.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
-             RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
-           } catch {
-             case oomExc : OpenCLOutOfMemoryException => {
-               System.err.println("SWAT PROF " + threadId + // PROFILE
-                       " OOM during input allocation, using LambdaOutputBuffer") // PROFILE
-               oom = true
-             }
-           }
-         }
-
          RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
          System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
        }
@@ -319,6 +306,21 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          nativeOutputBuffer.reset
 
          readerThread.join
+
+         var oom : Boolean = false
+         if (inputCacheSuccess == -1) {
+           try {
+             val writeStart = System.currentTimeMillis // PROFILE
+             inputBuffer.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
+             RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
+           } catch {
+             case oomExc : OpenCLOutOfMemoryException => {
+               System.err.println("SWAT PROF " + threadId + // PROFILE
+                       " OOM during input allocation, using LambdaOutputBuffer") // PROFILE
+               oom = true
+             }
+           }
+         }
 
          if (oom) {
            oom = false
