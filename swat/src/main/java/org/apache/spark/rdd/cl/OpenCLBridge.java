@@ -22,11 +22,13 @@ public class OpenCLBridge {
             long dev_ctx, int host_thread_index, boolean requiresDouble,
             boolean requiresHeap, int max_n_buffered);
     public static native void cleanupSwatContext(long ctx);
-    public static native long getActualDeviceContext(int device_index);
+    public static native long getActualDeviceContext(int device_index,
+            int heaps_per_device, int heap_size);
     public static native void postKernelCleanup(long ctx);
     public static native int getDeviceHintFor(int rdd, int partition,
             int offset, int component);
-    public static native int getDeviceToUse(int hint, int host_thread_index);
+    public static native int getDeviceToUse(int hint, int host_thread_index,
+            int heaps_per_device, int heap_size);
     public static native int getDevicePointerSizeInBytes(long dev_ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);
@@ -62,8 +64,9 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArgToNativeArray(long ctx,
             long dev_ctx, int index, long buffer, int argLength);
 
+    public static native void waitForPendingEvents(long ctx);
     public static native void run(long ctx, long dev_ctx, int range,
-            int local_size);
+            int local_size, int iterArgNum, int iter, int heapArgStart);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
@@ -72,12 +75,9 @@ public class OpenCLBridge {
     public static native boolean setArgUnitialized(long ctx, long dev_ctx,
             int index, long size, boolean persistent);
 
-    public static native int createHeapImpl(long ctx, long dev_ctx, int index,
-            int size, int max_n_buffered);
-    public static native void resetHeap(long ctx, long dev_ctx,
-            int starting_argnum);
-    public static native void setupHeap(long ctx, long dev_ctx,
-            int starting_argnum, int n_buffered);
+    public static native long acquireHeap(long ctx, long dev_ctx,
+            int heapStartArgnum);
+    public static native void releaseHeap(long dev_ctx, long heap_ctx);
     public static native void setupArguments(long ctx);
     public static native void cleanupArguments(long ctx);
 
@@ -117,6 +117,10 @@ public class OpenCLBridge {
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component, boolean persistent, boolean blocking);
 
+    public static native double[] getDenseVectorValuesFromOutputBuffers(
+            long[] heapBuffers, long infoBuffer, int slot, int structSize,
+            int offsetOffset, int offsetSize, int sizeOffset, int iterOffset);
+
     public static native void deserializeStridedValuesFromNativeArray(
             Object[] bufferTo, int nToBuffer, long valuesBuffer,
             long sizesBuffer, long offsetsBuffer, int index, int tiling);
@@ -136,15 +140,15 @@ public class OpenCLBridge {
     public static native int fetchNLoaded(int rddid, int partitionid,
             int offsetid);
 
-    public static int createHeap(long ctx, long dev_ctx, int index,
-            int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
-      final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,
-          max_n_buffered);
-      if (argsUsed == -1) {
-        throw new OpenCLOutOfMemoryException();
-      }
-      return argsUsed;
-    }
+    // public static int createHeap(long ctx, long dev_ctx, int index,
+    //         int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
+    //   final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,
+    //       max_n_buffered);
+    //   if (argsUsed == -1) {
+    //     throw new OpenCLOutOfMemoryException();
+    //   }
+    //   return argsUsed;
+    // }
 
     public static void setNativeArrayArg(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,

@@ -99,7 +99,8 @@ typedef union _region_or_scalar {
 typedef struct _arg_value {
     int index;
     bool keep; // only set for region type
-    bool persistent; // only set for region type
+    bool dont_free; // only set for region type
+    bool clear_arguments; // only set for region type
     size_t len; // only set for region type
     enum arg_type type;
     region_or_scalar val;
@@ -121,7 +122,8 @@ typedef struct _swat_context {
 
     cl_region **arguments_region;
     bool *arguments_keep;
-    bool *arguments_persistent;
+    bool *arguments_dont_free;
+    bool *arguments_clear_arguments;
     int arguments_capacity;
 
     void *zeros;

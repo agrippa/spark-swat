@@ -96,8 +96,6 @@ object CodeGenUtil {
     assert(dev_ctx != -1L)
     val config : java.util.Map[String, String] = new java.util.HashMap[String, String]()
 
-    config.put(Entrypoint.sparseVectorTilingConfig, Integer.toString(
-                SparseVectorInputBufferWrapperConfig.tiling))
     config.put(Entrypoint.clDevicePointerSize, Integer.toString(
                 OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)))
 
@@ -112,8 +110,7 @@ object CodeGenUtil {
   }
   
   def createHardCodedSparseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
-    val sparseVectorClassModel : SparseVectorClassModel =
-        SparseVectorClassModel.create(SparseVectorInputBufferWrapperConfig.tiling)
+    val sparseVectorClassModel : SparseVectorClassModel = SparseVectorClassModel.create()
     hardCodedClassModels.addClassModelFor(
             Class.forName("org.apache.spark.mllib.linalg.SparseVector"),
             sparseVectorClassModel)

@@ -13,7 +13,7 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
-    acc : InputBufferWrapper[T], val readerThread : Thread) extends OutputBufferWrapper[U] {
+    acc : InputBufferWrapper[T]) extends OutputBufferWrapper[U] {
   var anyLeft = true
 
   override def next() : U = {
@@ -23,17 +23,18 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
   override def hasNext() : Boolean = {
     if (!acc.hasNext) {
       anyLeft = false
-      if (readerThread != null) {
-        readerThread.start
+      acc.synchronized {
+        acc.ready = false
+        acc.notify
       }
     }
     anyLeft
   }
 
   // Returns true if all work on the device is complete
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+  override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
     throw new java.lang.UnsupportedOperationException()
   }
 

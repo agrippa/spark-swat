@@ -21,16 +21,17 @@ import org.apache.spark.InterruptibleIterator
 
 object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
-  val avgVectorLength_str = System.getProperty("swat.avg_vec_length")
-  val avgVectorLength = if (avgVectorLength_str == null) 70 else avgVectorLength_str.toInt
+  val avgVecLength_str = System.getProperty("swat.avg_vec_length")
+  val avgVecLength = if (avgVecLength_str == null) 70 else avgVecLength_str.toInt
 }
 
 class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
-        val vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+        val vectorCapacity : Int, val tiling : Int, entryPoint : Entrypoint,
         val blockingCopies : Boolean) extends InputBufferWrapper[DenseVector] {
 
-  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint, blockingCopies : Boolean) =
-      this(vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVectorLength,
+  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+          blockingCopies : Boolean) = this(
+              vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVecLength,
               vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =

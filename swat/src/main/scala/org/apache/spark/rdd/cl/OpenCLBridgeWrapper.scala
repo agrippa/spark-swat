@@ -163,7 +163,7 @@ object OpenCLBridgeWrapper {
      * int nbroadcasted$1
      */
     val cacheSuccess = RuntimeUtil.tryCacheSparseVector(ctx, dev_ctx, argnum,
-            cacheID, argLength, entryPoint, true)
+            cacheID, argLength, 1, entryPoint, true)
 
     if (cacheSuccess != -1) {
       return cacheSuccess
@@ -173,7 +173,7 @@ object OpenCLBridgeWrapper {
       val structSize = c.getTotalStructSize
       val requiredElementCapacity = getMaxSparseElementIndexFor((i) => arg(i).size, argLength) + 1
       val buffer : SparseVectorInputBufferWrapper =
-            new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength,
+            new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength, 1,
                     entryPoint, true)
       for (i <- 0 until argLength) {
         buffer.append(arg(i))
@@ -219,7 +219,7 @@ object OpenCLBridgeWrapper {
   def getInputBufferFor[T](argLength : Int, entryPoint : Entrypoint,
           className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorSizeHandler : Option[Function[Int, Int]],
-          denseVectorTiling : Int, blockingCopies : Boolean) : InputBufferWrapper[T] = {
+          denseVectorTiling : Int, sparseVectorTiling : Int, blockingCopies : Boolean) : InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
           new PrimitiveInputBufferWrapper[Int](argLength, blockingCopies)
@@ -243,11 +243,11 @@ object OpenCLBridgeWrapper {
       }
       case "org.apache.spark.mllib.linalg.SparseVector" => {
           if (sparseVectorSizeHandler.isEmpty) {
-            new SparseVectorInputBufferWrapper(argLength, entryPoint, blockingCopies)
+            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies)
           } else {
             new SparseVectorInputBufferWrapper(
                     getMaxSparseElementIndexFor(sparseVectorSizeHandler.get,
-                        argLength), argLength, entryPoint, blockingCopies)
+                        argLength), argLength, sparseVectorTiling, entryPoint, blockingCopies)
           }
       }
       case _ => {
@@ -282,7 +282,7 @@ object OpenCLBridgeWrapper {
           val sample = arrOfTuples(0)
 
           val cacheSuccess : Int = RuntimeUtil.tryCacheTuple(ctx, dev_ctx,
-              startArgnum, cacheID, argLength, sample, 1, entryPoint, true)
+              startArgnum, cacheID, argLength, sample, 1, 1, entryPoint, true)
           if (cacheSuccess != -1) {
             return cacheSuccess
           } else {
@@ -432,11 +432,11 @@ object OpenCLBridgeWrapper {
   }
 
   def getOutputBufferFor[T : ClassTag](sampleOutput : T, N : Int,
-      entryPoint : Entrypoint) : OutputBufferWrapper[T] = {
+      entryPoint : Entrypoint, devicePointerSize : Int, heapSize : Int) : OutputBufferWrapper[T] = {
     val className : String = sampleOutput.getClass.getName
 
     if (className.equals("org.apache.spark.mllib.linalg.DenseVector")) {
-        new DenseVectorOutputBufferWrapper(N).asInstanceOf[OutputBufferWrapper[T]]
+        new DenseVectorOutputBufferWrapper(N, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("org.apache.spark.mllib.linalg.SparseVector")) {
         new SparseVectorOutputBufferWrapper(N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Double")) {
@@ -448,7 +448,7 @@ object OpenCLBridgeWrapper {
     } else if (className.startsWith("scala.Tuple2")) {
         new Tuple2OutputBufferWrapper(
                 sampleOutput.asInstanceOf[Tuple2[_, _]], N,
-                entryPoint).asInstanceOf[OutputBufferWrapper[T]]
+                entryPoint, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
     } else {
         new ObjectOutputBufferWrapper[T](className, N,
                 entryPoint).asInstanceOf[OutputBufferWrapper[T]]

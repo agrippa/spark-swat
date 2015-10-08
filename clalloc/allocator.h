@@ -170,6 +170,7 @@ extern cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
 extern bool free_cl_region(cl_region *to_free, bool try_to_keep);
 extern void print_allocator(cl_allocator *allocator, int lbl);
 extern void bump_time(cl_allocator *allocator);
+extern size_t count_free_bytes(cl_allocator *allocator);
 
 #define GET_DEVICE_FOR(my_region) ((my_region)->grandparent->allocator->device_index)
 

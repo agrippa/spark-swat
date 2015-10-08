@@ -21,14 +21,18 @@ import org.apache.spark.mllib.linalg.Vectors
 
 object SparseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
+  val avgVecLength_str = System.getProperty("swat.avg_vec_length")
+  val avgVecLength = if (avgVecLength_str == null) 70 else avgVecLength_str.toInt
 }
 
 class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
-        val vectorCapacity : Int, val entryPoint : Entrypoint, val blockingCopies : Boolean)
-        extends InputBufferWrapper[SparseVector] {
+        val vectorCapacity : Int, val tiling : Int, val entryPoint : Entrypoint,
+        val blockingCopies : Boolean) extends InputBufferWrapper[SparseVector] {
 
-  def this(vectorCapacity : Int, entryPoint : Entrypoint, blockingCopies : Boolean) =
-        this(vectorCapacity * 30, vectorCapacity, entryPoint, blockingCopies)
+  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+          blockingCopies : Boolean) = this(
+              vectorCapacity * SparseVectorInputBufferWrapperConfig.avgVecLength,
+              vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -40,7 +44,6 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   var vectorsUsed : Int = -1
   var elementsUsed : Int = -1
 
-  val tiling : Int = SparseVectorInputBufferWrapperConfig.tiling
   var tiled : Int = 0
   val to_tile : Array[SparseVector] = new Array[SparseVector](tiling)
   val to_tile_sizes : Array[Int] = new Array[Int](tiling)
@@ -154,6 +157,8 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
             cacheID.offset, cacheID.component + 3, persistent, blockingCopies)
     // Number of sparse vectors being copied
     OpenCLBridge.setIntArg(ctx, argnum + 5, vectorsToCopy)
+    // Tiling
+    OpenCLBridge.setIntArg(ctx, argnum + 6, tiling)
 
     vectorsUsed = vectorsToCopy
     elementsUsed = elementsToCopy
@@ -161,7 +166,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     return countArgumentsUsed
   }
 
-  override def countArgumentsUsed : Int = { 6 }
+  override def countArgumentsUsed : Int = { 7 }
 
   override def hasNext() : Boolean = {
     iter < buffered
@@ -250,6 +255,8 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
               c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, 0 + 5, nVectors)
+      // Tiling
+      OpenCLBridge.setIntArg(ctx, 0 + 6, tiling)
 
       return countArgumentsUsed
     } else {

@@ -21,10 +21,9 @@ trait OutputBufferWrapper[T] {
    * completion (e.g. anyFailed). Returns true if all work on the device is
    * complete.
    */
-  def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) :
-          Boolean
+  def kernelAttemptCallback(nLoaded : Int, processingSucceededArgnum : Int,
+          outArgNum : Int, heapArgStart : Int, heapSize : Int, ctx : Long,
+          dev_ctx : Long, devicePointerSize : Int, heapTop : Int)
   /*
    * Called after all kernel attempts have completed and we know all inputs have
    * been processed.

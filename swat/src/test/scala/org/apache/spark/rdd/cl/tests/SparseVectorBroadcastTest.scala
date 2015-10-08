@@ -22,8 +22,7 @@ object SparseVectorBroadcastTest extends CodeGenTest[Int, Double] {
 
   def init() : HardCodedClassModels = {
     val models = new HardCodedClassModels()
-    val denseVectorModel : SparseVectorClassModel = SparseVectorClassModel.create(
-            SparseVectorInputBufferWrapperConfig.tiling)
+    val denseVectorModel : SparseVectorClassModel = SparseVectorClassModel.create()
     models.addClassModelFor(classOf[SparseVector], denseVectorModel)
     models
   }

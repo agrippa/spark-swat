@@ -389,6 +389,23 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size,
     return target_region;
 }
 
+size_t count_free_bytes(cl_allocator *allocator) {
+    size_t count = 0;
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        lock_alloc(alloc);
+    }
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        count += alloc->free_bytes;
+    }
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        unlock_alloc(alloc);
+    }
+    return count;
+}
+
 /*
  * free_cl_region always merges later ranges into earlier ranges, so no need to
  * update region_list_head. Returns true if the region was actually freed, false

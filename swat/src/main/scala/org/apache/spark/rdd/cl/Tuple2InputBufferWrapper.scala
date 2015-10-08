@@ -56,10 +56,12 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
 
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
 
   def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
     desc match {
@@ -238,7 +240,9 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     if (firstMemberSize > 0) {
         val cacheSuccess = RuntimeUtil.tryCacheHelper(firstMemberClassName, ctx,
                 dev_ctx, 0, id, nLoaded,
-                DenseVectorInputBufferWrapperConfig.tiling, entryPoint, persistent)
+                DenseVectorInputBufferWrapperConfig.tiling,
+                SparseVectorInputBufferWrapperConfig.tiling, entryPoint,
+                persistent)
         if (cacheSuccess == -1) {
           return -1
         }
@@ -253,7 +257,8 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val cacheSuccess = RuntimeUtil.tryCacheHelper(secondMemberClassName,
                 ctx, dev_ctx, 0 + usedArgs, id, nLoaded,
                 DenseVectorInputBufferWrapperConfig.tiling,
-                entryPoint, persistent)
+                SparseVectorInputBufferWrapperConfig.tiling, entryPoint,
+                persistent)
         if (cacheSuccess == -1) {
           OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, usedArgs)
           return -1

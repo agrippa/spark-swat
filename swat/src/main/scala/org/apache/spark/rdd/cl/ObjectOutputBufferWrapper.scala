@@ -17,7 +17,6 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     val N : Int, entryPoint : Entrypoint) extends OutputBufferWrapper[T] {
   var iter : Int = 0
-  val anyFailed : Array[Int] = new Array[Int](1)
   val clazz : java.lang.Class[_] = Class.forName(className)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -43,11 +42,9 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     iter < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+  override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
-      anyFailed(0) == 0
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,

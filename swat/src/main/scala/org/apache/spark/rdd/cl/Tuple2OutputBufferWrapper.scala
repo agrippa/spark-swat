@@ -14,15 +14,15 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     sampleOutput : Tuple2[_, _], N : Int,
-    entryPoint : Entrypoint) extends OutputBufferWrapper[Tuple2[K, V]] {
+    entryPoint : Entrypoint, devicePointerSize : Int, heapSize : Int) extends OutputBufferWrapper[Tuple2[K, V]] {
   var iter : Int = 0
 
   val member0OutputBuffer : OutputBufferWrapper[K] =
         OpenCLBridgeWrapper.getOutputBufferFor[K](
-        sampleOutput._1.asInstanceOf[K], N, entryPoint)
+        sampleOutput._1.asInstanceOf[K], N, entryPoint, devicePointerSize, heapSize)
   val member1OutputBuffer : OutputBufferWrapper[V] =
         OpenCLBridgeWrapper.getOutputBufferFor[V](
-        sampleOutput._2.asInstanceOf[V], N, entryPoint)
+        sampleOutput._2.asInstanceOf[V], N, entryPoint, devicePointerSize, heapSize)
 
   override def next() : Tuple2[K, V] = {
     (member0OutputBuffer.next, member1OutputBuffer.next)
@@ -32,19 +32,16 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     member0OutputBuffer.hasNext
   }
 
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+  override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
-      val member0Complete = member0OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
+      member0OutputBuffer.kernelAttemptCallback(nLoaded,
               processingSucceededArgnum, outArgNum, heapArgStart, heapSize, ctx,
-              dev_ctx, devicePointerSize)
-      val member1Complete = member1OutputBuffer.kernelAttemptCallback(nLoaded, anyFailedArgNum,
+              dev_ctx, devicePointerSize, heapTop)
+      member1OutputBuffer.kernelAttemptCallback(nLoaded,
               processingSucceededArgnum,
               outArgNum + member0OutputBuffer.countArgumentsUsed, heapArgStart,
-              heapSize, ctx, dev_ctx, devicePointerSize)
-      assert(member0Complete == member1Complete, "member0=" + member0Complete +
-              ", member1=" + member1Complete)
-      member0Complete
+              heapSize, ctx, dev_ctx, devicePointerSize, heapTop)
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {

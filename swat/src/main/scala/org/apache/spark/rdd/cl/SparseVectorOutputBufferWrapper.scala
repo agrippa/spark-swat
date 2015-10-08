@@ -16,44 +16,37 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class SparseVectorDeviceBuffersWrapper(N : Int, anyFailedArgNum : Int,
+class SparseVectorDeviceBuffersWrapper(N : Int,
         processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
         heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
   assert(devicePointerSize == 4 || devicePointerSize == 8)
 
-  val heapTopArgnum : Int = processingSucceededArgnum - 2
-  val anyFailed : Array[Int] = new Array[Int](1)
-  val heapTop : Array[Int] = new Array[Int](1)
   val processingSucceeded : Array[Int] = new Array[Int](N)
 
   /*
    * devicePointerSize is either 4 or 8 for the pointers in SparseVector + 4 for
    * size field
    */
-  val sparseVectorStructSize = (2 * devicePointerSize) + 4
+  val sparseVectorStructSize = (2 * devicePointerSize) + 4 + 4
   val outArgLength = N * sparseVectorStructSize
   val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
 
   var heapOutBufferSize : Int = 0
   var heapOutBuffer : Long = 0
 
-  def readFromDevice() : Boolean = {
-    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
-    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgnum, heapTop, 1)
+  def readFromDevice(heapTop : Int) {
     OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
             processingSucceeded, N)
 
-    if (heapOutBufferSize < heapTop(0)) {
-      heapOutBufferSize = heapTop(0)
+    if (heapOutBufferSize < heapTop) {
+      heapOutBufferSize = heapTop
       heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
     }
 
     OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, outArgNum,
             outArgBuffer, outArgLength)
     OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
-            heapOutBuffer, heapTop(0))
-
-    anyFailed(0) == 0 // return true when the kernel completed successfully
+            heapOutBuffer, heapTop)
   }
 
   def hasSlot(slot : Int) : Boolean = {
@@ -109,20 +102,20 @@ class SparseVectorOutputBufferWrapper(val N : Int)
     currSlot < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
+  override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
     var buffer : SparseVectorDeviceBuffersWrapper = null
     if (buffers.size > nFilledBuffers) {
       buffer = buffers.get(nFilledBuffers)
     } else {
-      buffer = new SparseVectorDeviceBuffersWrapper(nLoaded, anyFailedArgNum,
+      buffer = new SparseVectorDeviceBuffersWrapper(nLoaded,
                 processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
                 ctx, dev_ctx, devicePointerSize)
       buffers.add(buffer)
     }
     nFilledBuffers += 1
-    buffer.readFromDevice
+    buffer.readFromDevice(heapTop)
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
