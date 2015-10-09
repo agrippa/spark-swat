@@ -2216,6 +2216,32 @@ JNI_JAVA(void, OpenCLBridge, fetchByteArrayArgToNativeArray)(JNIEnv *jenv,
     EXIT_TRACE("fetchByteArrayArgToNativeArray");
 }
 
+typedef struct _callback_data {
+    int foo;
+} callback_data;
+
+static void callback(cl_event event, cl_int event_command_exec_status, void *user_data) {
+    callback_data *data = (callback_data *)user_data;
+    fprintf(stderr, "Howdy! %d\n", data->foo);
+    free(data);
+}
+
+JNI_JAVA(void, OpenCLBridge, enqueueBufferFreeCallback)(JNIEnv *jenv,
+        jclass clazz, jlong l_ctx, jlong l_dev_ctx) {
+    ENTER_TRACE("enqueueBufferFreeCallback");
+    swat_context *ctx = (swat_context *)ctx;
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+
+    // This is somewhat coarse grained...
+    cl_event event;
+    CHECK(clEnqueueMarker(dev_ctx->cmd, &event));
+
+    callback_data *data = (callback_data *)malloc(sizeof(callback_data));
+    data->foo = 42;
+    CHECK(clSetEventCallback(event, CL_COMPLETE, callback, data));
+    EXIT_TRACE("enqueueBufferFreeCallback");
+}
+
 #ifdef __cplusplus
 }
 #endif

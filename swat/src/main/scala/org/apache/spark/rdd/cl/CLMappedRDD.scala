@@ -346,11 +346,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            done = !nested.hasNext && !inputBuffer.haveUnprocessedInputs
 
            filledNativeInputBuffers.synchronized {
-             filledNativeInputBuffers.push(filled)
-             filledNativeInputBuffers.notify
              if (done) {
                lastBuffer = true
              }
+             filledNativeInputBuffers.push(filled)
+             filledNativeInputBuffers.notify
            }
 
            if (done) {
@@ -385,6 +385,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          try {
            val writeStart = System.currentTimeMillis // PROFILE
            filledBuffer.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
+           OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx)
            RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
          } catch {
            case oomExc : OpenCLOutOfMemoryException => {
