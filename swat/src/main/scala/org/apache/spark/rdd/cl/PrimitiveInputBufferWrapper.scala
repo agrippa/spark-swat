@@ -62,6 +62,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
 
   override def setupNativeBuffersForCopy(limit : Int) {
     val tocopy = if (limit == -1) filled else limit
+    assert(tocopy <= filled)
     OpenCLBridge.copyJVMArrayToNativeArray(nativeBuffers.buffer, 0, arr, 0,
             tocopy * eleSize)
     nativeBuffers.tocopy = tocopy

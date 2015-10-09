@@ -36,6 +36,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.DenseVector", new UnparameterizedMatcher())
   val denseVectorStructSize = classModel.getTotalStructSize
+  System.err.println("denseVectorStructSize=" + denseVectorStructSize)
 
   var buffered : Int = 0
 
@@ -147,6 +148,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     val elementsToCopy = if (vectorsToCopy == buffered) bufferPosition else
         OpenCLBridge.getMaxOffsetOfStridedVectors(vectorsToCopy, nativeBuffers.sizesBuffer,
                 nativeBuffers.offsetsBuffer, tiling) + 1
+    assert(elementsToCopy <= bufferPosition)
 
     nativeBuffers.vectorsToCopy = vectorsToCopy
     nativeBuffers.elementsToCopy = elementsToCopy

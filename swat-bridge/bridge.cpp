@@ -919,14 +919,20 @@ static void postKernelCleanupHelper(swat_context *ctx) {
             } else {
                 allocator = region->grandparent->allocator;
             }
-#ifdef VERBOSE
-            fprintf(stderr, "Freeing index=%d try_to_keep=%d region=%p\n",
-                    index, keep, region);
-#endif
+
             if (!dont_free) {
+#ifdef VERBOSE
+                fprintf(stderr, "Freeing index=%d try_to_keep=%d region=%p\n",
+                        index, keep, region);
+#endif
                 free_cl_region(region, keep);
             }
+
             if (clear_arguments) {
+#ifdef VERBOSE
+                fprintf(stderr, "Clearing arguments for index=%d try_to_keep=%d "
+                        "region=%p\n", index, keep, region);
+#endif
                 (ctx->arguments_region)[index] = NULL;
             }
         }
@@ -1484,6 +1490,8 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
          jint index, jlong broadcastId, jint rddid, jint partitionid,
          jint offsetid, jint componentid, jint ncomponents, jboolean persistent) {
+    ENTER_TRACE("tryCache");
+
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     swat_context *context = (swat_context *)lctx;
     bool all_succeed = true;
@@ -1495,8 +1503,6 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
             "offset=%d component=%d ncomponents=%d\n", index, broadcastId,
             rddid, partitionid, offsetid, componentid, ncomponents);
 #endif
-
-    ENTER_TRACE("tryCache");
     if (broadcastId >= 0) {
         ASSERT(rddid < 0 && componentid >= 0);
 
@@ -1750,8 +1756,9 @@ JNI_JAVA(void, OpenCLBridge, cleanupArguments)(JNIEnv *jenv, jclass clazz,
 }
 
 JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
-        jlong l_ctx) {
+        jlong l_ctx, jlong l_dev_ctx) {
     swat_context *context = (swat_context *)l_ctx;
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
 
     for (int a = 0; a < context->accumulated_arguments_len; a++) {
         arg_value *val = context->accumulated_arguments + a;
@@ -1766,15 +1773,19 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
                             val->dont_free, val->clear_arguments);
                     CHECK(clSetKernelArg(context->kernel, index, sizeof(mem),
                                 &mem));
+#ifdef BRIDGE_DEBUG
+                    (*context->debug_arguments)[index] = new kernel_arg(
+                            mem, val->val.region->size, dev_ctx);
+#endif
                 } else {
                     cl_mem none = 0x0;
                     CHECK(clSetKernelArg(context->kernel, index, sizeof(none), &none));
                     set_argument(context, index, NULL, false, false, false);
-                }
 #ifdef BRIDGE_DEBUG
-                (*context->debug_arguments)[index] = new kernel_arg(
-                        mem, val->val.region->size, dev_ctx);
+                    (*context->debug_arguments)[index] = new kernel_arg(
+                            &none, sizeof(none), false, false);
 #endif
+                }
                 break;
             case INT:
                 const int i = val->val.i;
@@ -1784,7 +1795,7 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
 #endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
 #ifdef BRIDGE_DEBUG
-                (*context->debug_arguments)[index] = new kernel_arg(&i, sizeof(i),
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&i, sizeof(i),
                         false, false);
 #endif
                 break;
@@ -1796,7 +1807,7 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
 #endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
 #ifdef BRIDGE_DEBUG
-                (*context->debug_arguments)[index] = new kernel_arg(&f, sizeof(f),
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&f, sizeof(f),
                         false, false);
 #endif
                 break;
@@ -1808,7 +1819,7 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
 #endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
 #ifdef BRIDGE_DEBUG
-                (*context->debug_arguments)[index] = new kernel_arg(&d, sizeof(d),
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&d, sizeof(d),
                         false, false);
 #endif
                 break;
@@ -2141,6 +2152,10 @@ JNI_JAVA(void, OpenCLBridge, storeNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
 
 JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddid,
          jint partitionid, jint offsetid) {
+#ifdef VERBOSE
+    fprintf(stderr, "fetchNLoaded: rddid=%d partitionid=%d offsetid=%d\n",
+            rddid, partitionid, offsetid);
+#endif
     assert(rddid >= 0);
     int result;
 
@@ -2157,6 +2172,11 @@ JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
 
     err = pthread_rwlock_unlock(&nloaded_cache_lock);
     ASSERT(err == 0);
+
+#ifdef VERBOSE
+    fprintf(stderr, "fetchNLoaded: for rddid=%d partitionid=%d offsetid=%d\n "
+            "returning result=%d", rddid, partitionid, offsetid, result);
+#endif
 
     return result;
 }

@@ -2,6 +2,7 @@ package org.apache.spark.rdd.cl
 
 trait NativeInputBuffers[T] {
   var nLoaded : Int = -1
+  var inputCacheId : CLCacheID = NoCache
 
   def releaseNativeArrays()
 

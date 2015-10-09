@@ -78,7 +78,7 @@ public class OpenCLBridge {
     public static native long acquireHeap(long ctx, long dev_ctx,
             int heapStartArgnum);
     public static native void releaseHeap(long dev_ctx, long heap_ctx);
-    public static native void setupArguments(long ctx);
+    public static native void setupArguments(long ctx, long dev_ctx);
     public static native void cleanupArguments(long ctx);
 
     public static native boolean tryCache(long ctx, long dev_ctx, int index,

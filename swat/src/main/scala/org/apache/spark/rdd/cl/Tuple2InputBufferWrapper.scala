@@ -124,15 +124,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   override def setupNativeBuffersForCopy(limit : Int) {
     assert(limit == -1)
 
-    var tocopy : Int = -1
-    if (firstMemberSize > 0 && secondMemberSize > 0) {
-        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered
-            else buffer2.nBuffered
-    } else if (firstMemberSize > 0) {
-        tocopy = buffer1.nBuffered
-    } else if (secondMemberSize > 0) {
-        tocopy = buffer2.nBuffered
-    }
+    val tocopy : Int = nBuffered()
 
     nativeBuffers.tocopy = tocopy
     buffer1.setupNativeBuffersForCopy(tocopy)
@@ -193,9 +185,16 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   }
 
   override def nBuffered() : Int = {
-    val buffered1 = buffer1.nBuffered
-    val buffered2 = buffer2.nBuffered
-    if (buffered1 < buffered2) buffered1 else buffered2
+    if (firstMemberSize > 0 && secondMemberSize > 0) {
+      if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered
+          else buffer2.nBuffered
+    } else if (firstMemberSize > 0) {
+      buffer1.nBuffered
+    } else if (secondMemberSize > 0) {
+      buffer2.nBuffered
+    } else {
+      throw new RuntimeException("Unsupported")
+    }
   }
 
   override def countArgumentsUsed : Int = {
