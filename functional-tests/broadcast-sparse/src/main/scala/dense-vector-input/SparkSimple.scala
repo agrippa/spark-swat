@@ -86,7 +86,7 @@ object SparkSimple {
         val broadcasted = sc.broadcast(arr)
 
         val outputs : RDD[Double] = inputs.map(v => {
-            broadcasted.value(v % 5).values(v % 5) + broadcasted.value(v % 5).indices(v % 5)
+            broadcasted.value(v % 5).values(0 /* v % 5 */ ) + broadcasted.value(v % 5).indices(v % 5)
           })
         val outputs2 : Array[Double] = outputs.collect
         broadcasted.unpersist

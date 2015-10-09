@@ -90,6 +90,8 @@ public class OpenCLBridge {
     public static native long nativeMalloc(long nbytes);
     public static native void nativeFree(long buffer);
     public static native long nativeRealloc(long buffer, long nbytes);
+    public static native void nativeMemcpy(long dst, int dstOffset, long src,
+            int srcOffset, int nbytes);
 
     public static native int getMaxOffsetOfStridedVectors(int nVectors,
             long sizesBuffer, long offsetsBuffer, int tiling);
@@ -101,6 +103,14 @@ public class OpenCLBridge {
             int vectorsUsed, int elementsUsed, int leftoverVectors,
             int leftoverElements);
 
+    public static native void transferOverflowDenseVectorBuffers(long dstValues,
+            long dstSizes, long dstOffsets, long srcValues, long srcSizes,
+            long srcOffsets, int vectorsUsed, int elementsUsed,
+            int leftoverVectors, int leftoverElements);
+    public static native void transferOverflowSparseVectorBuffers(long dstValues, long dstIndices,
+            long dstSizes, long dstOffsets, long srcValues, long srcIndices, long srcSizes,
+            long srcOffsets, int vectorsUsed, int elementsUsed,
+            int leftoverVectors, int leftoverElements);
 
     public static native int serializeStridedDenseVectorsToNativeBuffer(
             long buffer, int position, long capacity, long sizesBuffer,
@@ -134,6 +144,11 @@ public class OpenCLBridge {
     public static native int[] deserializeChunkedIndicesFromNativeArray(
             long buffer, long infoBuffer, int offsetOffset, int sizeOffset,
             int devicePointerSize);
+
+    public static native void copyNativeArrayToJVMArray(long nativeBuffer,
+            int nativeOffset, Object arr, int size);
+    public static native void copyJVMArrayToNativeArray(long nativeBuffer,
+            int nativeOffset, Object arr, int arrOffset, int size);
 
     public static native void storeNLoaded(int rddid, int partitionid,
             int offsetid, int nloaded);

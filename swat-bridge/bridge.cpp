@@ -518,9 +518,10 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 cl_device_id curr_dev = devices[i];
 #ifdef VERBOSE
                 char *device_name = get_device_name(curr_dev);
-                fprintf(stderr, "SWAT %d: platform %d, device %d, %s (%s)\n",
+                fprintf(stderr, "SWAT %d: platform %d, device %d, %s (%s), %d bytes/ptr\n",
                         global_device_id, platform_index, i, device_name,
-                        get_device_type_str(curr_dev));
+                        get_device_type_str(curr_dev),
+                        get_device_pointer_size_in_bytes(curr_dev));
                 free(device_name);
 #endif
 
@@ -1021,11 +1022,7 @@ FETCH_ARRAY_ARG_MACRO(byte, Byte, jbyte)
 JNI_JAVA(int, OpenCLBridge, getDevicePointerSizeInBytes)
         (JNIEnv *jenv, jclass clazz, jlong l_dev_ctx) {
     device_context *dev_ctx = (device_context *)l_dev_ctx;
-    cl_uint pointer_size_in_bits;
-    CHECK(clGetDeviceInfo(dev_ctx->dev, CL_DEVICE_ADDRESS_BITS,
-                sizeof(pointer_size_in_bits), &pointer_size_in_bits, NULL));
-    assert(pointer_size_in_bits % 8 == 0);
-    return pointer_size_in_bits / 8;
+    return get_device_pointer_size_in_bytes(dev_ctx->dev);
 }
 
 static cl_region *is_cached(jlong broadcastId, jint rddid, jint partitionid,
@@ -1088,6 +1085,59 @@ JNI_JAVA(jint, OpenCLBridge, getMaxOffsetOfStridedVectors)(
 
     EXIT_TRACE("getMaxOffsetOfStridedVectors");
     return found_max;
+}
+
+JNI_JAVA(void, OpenCLBridge, transferOverflowSparseVectorBuffers)(JNIEnv *jenv,
+        jclass clazz, jlong dstValuesBuffer, jlong dstIndicesBuffer,
+        jlong dstSizesBuffer, jlong dstOffsetsBuffer, jlong srcValuesBuffer,
+        jlong srcIndicesBuffer, jlong srcSizesBuffer, jlong srcOffsetsBuffer,
+        jint vectorsUsed, jint elementsUsed, jint leftoverVectors,
+        jint leftoverElements) {
+    ENTER_TRACE("transferOverflowSparseVectorBuffers");
+
+    double *dstValues = (double *)dstValuesBuffer;
+    int *dstIndices = (int *)dstIndicesBuffer;
+    int *dstSizes = (int *)dstSizesBuffer;
+    int *dstOffsets = (int *)dstSizesBuffer;
+
+    double *srcValues = (double *)srcValuesBuffer;
+    int *srcIndices = (int *)srcIndicesBuffer;
+    int *srcSizes = (int *)srcSizesBuffer;
+    int *srcOffsets = (int *)srcSizesBuffer;
+
+    memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
+    memcpy(dstValues, dstValues + elementsUsed, leftoverElements * sizeof(double));
+    memcpy(dstIndices, srcIndices + elementsUsed, leftoverElements * sizeof(int));
+    for (int i = 0; i < leftoverVectors; i++) {
+        dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
+    }
+
+    EXIT_TRACE("transferOverflowSparseVectorBuffers");
+}
+
+
+JNI_JAVA(void, OpenCLBridge, transferOverflowDenseVectorBuffers)(JNIEnv *jenv,
+        jclass clazz, jlong dstValuesBuffer, jlong dstSizesBuffer,
+        jlong dstOffsetsBuffer, jlong srcValuesBuffer, jlong srcSizesBuffer,
+        jlong srcOffsetsBuffer, jint vectorsUsed, jint elementsUsed,
+        jint leftoverVectors, jint leftoverElements) {
+    ENTER_TRACE("transferOverflowDenseVectorBuffers");
+
+    double *dstValues = (double *)dstValuesBuffer;
+    int *dstSizes = (int *)dstSizesBuffer;
+    int *dstOffsets = (int *)dstSizesBuffer;
+
+    double *srcValues = (double *)srcValuesBuffer;
+    int *srcSizes = (int *)srcSizesBuffer;
+    int *srcOffsets = (int *)srcSizesBuffer;
+
+    memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
+    memcpy(dstValues, dstValues + elementsUsed, leftoverElements * sizeof(double));
+    for (int i = 0; i < leftoverVectors; i++) {
+        dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
+    }
+
+    EXIT_TRACE("transferOverflowDenseVectorBuffers");
 }
 
 JNI_JAVA(void, OpenCLBridge, resetDenseVectorBuffers)(
@@ -1297,6 +1347,14 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
          jint partitionid, jint offsetid, jint componentid, jboolean persistent,
          jboolean blocking) {
     ENTER_TRACE("setNativeArrayArg");
+#ifdef VERBOSE
+    fprintf(stderr, "setNativeArrayArgImpl: index=%d buffer=%ld len=%d "
+            "broadcastId=%ld rddid=%d partitionid=%d offsetid=%d componentid=%d "
+            "persistent=%s blocking=%s\n", index, buffer, len, broadcastId,
+            rddid, partitionid, offsetid, componentid,
+            persistent ? "true" : "false", blocking ? "true" : "false");
+#endif
+
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     swat_context *context = (swat_context *)lctx;
 
@@ -1304,7 +1362,9 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
             offsetid, componentid, dev_ctx, context);
     if (broadcastId >= 0) {
         if (reallocated) {
-            TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid);
+#ifdef VERBOSE
+            fprintf(stderr, "caching broadcast %ld %d\n", broadcastId, componentid);
+#endif
             add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             broadcast_id uuid(broadcastId, componentid);
@@ -1315,13 +1375,17 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
 
             lock_bcast_cache(dev_ctx);
             (*dev_ctx->broadcast_cache)[uuid] = new_region;
-            TRACE_MSG("adding broadcast %ld %d to cache\n", broadcastId, componentid);
+#ifdef VERBOSE
+            fprintf(stderr, "adding broadcast %ld %d to cache\n", broadcastId, componentid);
+#endif
             unlock_bcast_cache(dev_ctx);
         }
     } else if (rddid >= 0) {
         if (reallocated) {
-            TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
+#ifdef VERBOSE
+            fprintf(stderr, "caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
+#endif
             add_pending_region_arg(context, index, true, persistent, reallocated);
         } else {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
@@ -1332,18 +1396,18 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
 
             lock_rdd_cache(uuid);
             update_rdd_cache(uuid, new_region, dev_ctx->device_index);
-            TRACE_MSG("adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
+#ifdef VERBOSE
+            fprintf(stderr, "adding rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
+#endif
             unlock_rdd_cache(uuid);
         }
     } else {
         assert(reallocated == NULL);
         ASSERT(rddid < 0 && broadcastId < 0);
         void *arr = (void *)buffer;
-        cl_event event;
         cl_region *new_region = set_and_write_kernel_arg(arr, len, index,
                 context, dev_ctx, broadcastId, rddid, persistent, blocking);
-        add_event_to_context(context, event);
         if (new_region == NULL) return false;
     }
 
@@ -1714,6 +1778,10 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
                 break;
             case INT:
                 const int i = val->val.i;
+#ifdef VERBOSE
+                fprintf(stderr, "set_argument: thread=%d index=%d val=%d\n",
+                        context->host_thread_index, index, i);
+#endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(&i, sizeof(i),
@@ -1722,6 +1790,10 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
                 break;
             case FLOAT:
                 const float f = val->val.f;
+#ifdef VERBOSE
+                fprintf(stderr, "set_argument: thread=%d index=%d val=%f\n",
+                        context->host_thread_index, index, f);
+#endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(&f, sizeof(f),
@@ -1730,6 +1802,10 @@ JNI_JAVA(void, OpenCLBridge, setupArguments)(JNIEnv *jenv, jclass clazz,
                 break;
             case DOUBLE:
                 const double d = val->val.d;
+#ifdef VERBOSE
+                fprintf(stderr, "set_argument: thread=%d index=%d val=%f\n",
+                        context->host_thread_index, index, d);
+#endif
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(&d, sizeof(d),
@@ -1782,6 +1858,9 @@ JNI_JAVA(void, OpenCLBridge, waitForPendingEvents)(JNIEnv *jenv, jclass clazz,
         jlong lctx) {
     ENTER_TRACE("waitForPendingEvents");
     swat_context *context = (swat_context *)lctx;
+#ifdef VERBOSE
+    fprintf(stderr, "waitForPendingEvents: n_events=%d\n", context->n_events);
+#endif
     CHECK(clWaitForEvents(context->n_events, context->events));
     context->n_events = 0;
     EXIT_TRACE("waitForPendingEvents");
@@ -1861,6 +1940,15 @@ JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
     }
 #endif
     return (jlong)new_ptr;
+}
+
+JNI_JAVA(void, OpenCLBridge, nativeMemcpy)(JNIEnv *jenv, jclass clazz,
+        jlong dstBuffer, jint dstOffset, jlong srcBuffer, jint srcOffset, jint nbytes) {
+    ENTER_TRACE("nativeMemcpy");
+    char *dst = (char *)dstBuffer;
+    char *src = (char *)srcBuffer;
+    memcpy(dst + dstOffset, src + srcOffset, nbytes);
+    EXIT_TRACE("nativeMemcpy");
 }
 
 JNI_JAVA(jlong, OpenCLBridge, nativeMalloc)
@@ -1999,6 +2087,7 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedSparseVectorsToNativeBuffer)
         CHECK_JNI(vectorArrayValues);
         int *vectorArrayIndices = (int *)jenv->GetPrimitiveArrayCritical(
                 vectorIndices, NULL);
+        CHECK_JNI(vectorArrayIndices);
 
         for (int j = 0; j < vectorSize; j++) {
             serializedValues[offset + (j * tiling)] = vectorArrayValues[j];
@@ -2070,6 +2159,31 @@ JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
     ASSERT(err == 0);
 
     return result;
+}
+
+JNI_JAVA(void, OpenCLBridge, copyNativeArrayToJVMArray)(JNIEnv *jenv,
+        jclass clazz, jlong buffer, jint offset, jobject arr, jint size) {
+    ENTER_TRACE("copyNativeArrayToByteArray");
+
+    char *src = (char *)buffer;
+    char *dst = (char *)jenv->GetPrimitiveArrayCritical((jarray)arr, NULL);
+    memcpy(dst, src + offset, size);
+    jenv->ReleasePrimitiveArrayCritical((jarray)arr, dst, JNI_ABORT);
+
+    EXIT_TRACE("copyNativeArrayToByteArray");
+}
+
+JNI_JAVA(void, OpenCLBridge, copyJVMArrayToNativeArray)(JNIEnv *jenv,
+        jclass clazz, jlong buffer, jint bufferOffset, jobject arr,
+        jint arrOffset, jint size) {
+    ENTER_TRACE("copyByteArrayToNativeArray");
+
+    char *dst = (char *)buffer;
+    char *src = (char *)jenv->GetPrimitiveArrayCritical((jarray)arr, NULL);
+    memcpy(dst + bufferOffset, src + arrOffset, size);
+    jenv->ReleasePrimitiveArrayCritical((jarray)arr, src, JNI_ABORT);
+
+    EXIT_TRACE("copyByteArrayToNativeArray");
 }
 
 JNI_JAVA(void, OpenCLBridge, fetchByteArrayArgToNativeArray)(JNIEnv *jenv,

@@ -168,18 +168,18 @@ object OpenCLBridgeWrapper {
     if (cacheSuccess != -1) {
       return cacheSuccess
     } else {
-      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-          typeName, new NameMatcher(typeName))
-      val structSize = c.getTotalStructSize
-      val requiredElementCapacity = getMaxSparseElementIndexFor((i) => arg(i).size, argLength) + 1
+      val requiredElementCapacity = getMaxVectorElementIndexFor(
+              (i) => arg(i).size, 1, argLength) + 1
       val buffer : SparseVectorInputBufferWrapper =
             new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength, 1,
-                    entryPoint, true)
+                    entryPoint, true, true)
       for (i <- 0 until argLength) {
         buffer.append(arg(i))
       }
       buffer.flush
-      val result = buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID, true)
+      buffer.setupNativeBuffersForCopy(-1)
+      val result = buffer.getCurrentNativeBuffers.copyToDevice(argnum, ctx,
+              dev_ctx, cacheID, true)
       buffer.releaseNativeArrays
       return result
     }
@@ -205,12 +205,14 @@ object OpenCLBridgeWrapper {
               (i) => arg(i).size, 1, argLength) + 1
       val buffer : DenseVectorInputBufferWrapper =
               new DenseVectorInputBufferWrapper(requiredElementCapacity,
-              argLength, 1, entryPoint, true)
+              argLength, 1, entryPoint, true, true)
       for (i <- 0 until argLength) {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }
       buffer.flush
-      val result = buffer.copyToDevice(argnum, ctx, dev_ctx, cacheID, true)
+      buffer.setupNativeBuffersForCopy(-1)
+      val result = buffer.getCurrentNativeBuffers.copyToDevice(argnum, ctx,
+              dev_ctx, cacheID, true)
       buffer.releaseNativeArrays
       return result
     }
@@ -219,40 +221,42 @@ object OpenCLBridgeWrapper {
   def getInputBufferFor[T](argLength : Int, entryPoint : Entrypoint,
           className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorSizeHandler : Option[Function[Int, Int]],
-          denseVectorTiling : Int, sparseVectorTiling : Int, blockingCopies : Boolean) : InputBufferWrapper[T] = {
+          denseVectorTiling : Int, sparseVectorTiling : Int,
+          blockingCopies : Boolean, selfAllocating : Boolean) :
+          InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
-          new PrimitiveInputBufferWrapper[Int](argLength, blockingCopies)
+          new PrimitiveInputBufferWrapper[Int](argLength, blockingCopies, selfAllocating)
       }
       case "java.lang.Float" => {
-          new PrimitiveInputBufferWrapper[Float](argLength, blockingCopies)
+          new PrimitiveInputBufferWrapper[Float](argLength, blockingCopies, selfAllocating)
       }
       case "java.lang.Double" => {
-          new PrimitiveInputBufferWrapper[Double](argLength, blockingCopies)
+          new PrimitiveInputBufferWrapper[Double](argLength, blockingCopies, selfAllocating)
       }
       case "org.apache.spark.mllib.linalg.DenseVector" => {
           if (denseVectorSizeHandler.isEmpty) {
             new DenseVectorInputBufferWrapper(argLength, denseVectorTiling,
-                    entryPoint, blockingCopies)
+                    entryPoint, blockingCopies, selfAllocating)
           } else {
             new DenseVectorInputBufferWrapper(
                     getMaxDenseElementIndexFor(denseVectorSizeHandler.get,
                         argLength), argLength, denseVectorTiling, entryPoint,
-                        blockingCopies)
+                        blockingCopies, selfAllocating)
           }
       }
       case "org.apache.spark.mllib.linalg.SparseVector" => {
           if (sparseVectorSizeHandler.isEmpty) {
-            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies)
+            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies, selfAllocating)
           } else {
             new SparseVectorInputBufferWrapper(
                     getMaxSparseElementIndexFor(sparseVectorSizeHandler.get,
-                        argLength), argLength, sparseVectorTiling, entryPoint, blockingCopies)
+                        argLength), argLength, sparseVectorTiling, entryPoint, blockingCopies, selfAllocating)
           }
       }
       case _ => {
           new ObjectInputBufferWrapper(argLength, className,
-                  entryPoint, blockingCopies)
+                  entryPoint, blockingCopies, selfAllocating)
       }
     }
     result.asInstanceOf[InputBufferWrapper[T]]
@@ -289,14 +293,15 @@ object OpenCLBridgeWrapper {
             val inputBuffer = new Tuple2InputBufferWrapper(
                     argLength, sample, entryPoint,
                     Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
-                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput, true)
+                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput, true, true)
 
             for (eleIndex <- 0 until argLength) {
               inputBuffer.append(arrOfTuples(eleIndex))
             }
 
-            return inputBuffer.copyToDevice(startArgnum, ctx, dev_ctx, cacheID,
-                    true)
+            inputBuffer.setupNativeBuffersForCopy(-1)
+            return inputBuffer.nativeBuffers.copyToDevice(startArgnum, ctx,
+                    dev_ctx, cacheID, true)
           }
         } else {
           val cacheSuccess : Int = RuntimeUtil.tryCacheObject(ctx, dev_ctx,

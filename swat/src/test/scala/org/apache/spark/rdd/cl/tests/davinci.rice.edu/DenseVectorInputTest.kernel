@@ -48,7 +48,7 @@ static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(
 }
 __kernel void run(
       __global org_apache_spark_mllib_linalg_DenseVector* in0, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, int in0_tiling, 
-      __global double* out, int N) {
+      __global double* out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    __global org_apache_spark_mllib_linalg_DenseVector *my_in0 = in0 + get_global_id(0);

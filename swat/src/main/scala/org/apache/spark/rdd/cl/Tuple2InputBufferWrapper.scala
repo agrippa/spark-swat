@@ -18,10 +18,13 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
-        val isInput : Boolean, val blockingCopies : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
+        val isInput : Boolean, val blockingCopies : Boolean,
+        val selfAllocating : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
 
-  def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint, blockingCopies : Boolean) =
-      this(nele, sample, entryPoint, None, None, true, blockingCopies)
+  def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint,
+          blockingCopies : Boolean, selfAllocating : Boolean) =
+      this(nele, sample, entryPoint, None, None, true, blockingCopies,
+              selfAllocating)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
@@ -52,16 +55,21 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
                 sample._2.getClass.getName,
                 new NameMatcher(sample._2.getClass.getName))
 
-  var used : Int = -1
-
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies, selfAllocating)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies, selfAllocating)
+  val firstMemberNumArgs = if (firstMemberSize > 0) buffer1.countArgumentsUsed else 1
+  val secondMemberNumArgs = if (secondMemberSize > 0) buffer2.countArgumentsUsed else 1
+
+  var nativeBuffers : Tuple2NativeInputBuffers[K, V] = null
+  if (selfAllocating) {
+    nativeBuffers = generateNativeInputBuffer().asInstanceOf[Tuple2NativeInputBuffers[K, V]]
+  }
 
   def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
     desc match {
@@ -96,9 +104,57 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     }
   }
 
+  override def getCurrentNativeBuffers : NativeInputBuffers[Tuple2[K, V]] = nativeBuffers
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[Tuple2[K, V]]) {
+    nativeBuffers = set.asInstanceOf[Tuple2NativeInputBuffers[K, V]]
+    if (set == null) {
+      buffer1.setCurrentNativeBuffers(null)
+      buffer2.setCurrentNativeBuffers(null)
+    } else {
+      buffer1.setCurrentNativeBuffers(nativeBuffers.member0NativeBuffers)
+      buffer2.setCurrentNativeBuffers(nativeBuffers.member1NativeBuffers)
+    }
+  }
+
   override def flush() {
     buffer1.flush
     buffer2.flush
+  }
+
+  override def setupNativeBuffersForCopy(limit : Int) {
+    assert(limit == -1)
+
+    var tocopy : Int = -1
+    if (firstMemberSize > 0 && secondMemberSize > 0) {
+        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered
+            else buffer2.nBuffered
+    } else if (firstMemberSize > 0) {
+        tocopy = buffer1.nBuffered
+    } else if (secondMemberSize > 0) {
+        tocopy = buffer2.nBuffered
+    }
+
+    nativeBuffers.tocopy = tocopy
+    buffer1.setupNativeBuffersForCopy(tocopy)
+    buffer2.setupNativeBuffersForCopy(tocopy)
+  }
+
+  override def transferOverflowTo(
+          otherAbstract : NativeInputBuffers[Tuple2[K, V]]) :
+          NativeInputBuffers[Tuple2[K, V]] = {
+    assert(nativeBuffers.tocopy != -1)
+
+    val other : Tuple2NativeInputBuffers[K, V] =
+        otherAbstract.asInstanceOf[Tuple2NativeInputBuffers[K, V]]
+
+    buffer1.transferOverflowTo(other.member0NativeBuffers)
+    buffer2.transferOverflowTo(other.member1NativeBuffers)
+
+    other.tocopy = -1
+
+    val oldBuffers = nativeBuffers
+    nativeBuffers = other
+    return oldBuffers
   }
 
   override def append(obj : Any) {
@@ -142,52 +198,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     if (buffered1 < buffered2) buffered1 else buffered2
   }
 
-  override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,
-          cacheId : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
-    val firstMemberUsed = if (firstMemberSize > 0) buffer1.countArgumentsUsed
-        else 1
-    val secondMemberUsed = if (secondMemberSize > 0) buffer2.countArgumentsUsed
-        else 1
-    assert(limit == -1)
-
-    // Find least number of elements buffered
-    var tocopy : Int = -1
-    if (firstMemberSize > 0 && secondMemberSize > 0) {
-        tocopy = if (buffer1.nBuffered < buffer2.nBuffered) buffer1.nBuffered
-            else buffer2.nBuffered
-    } else if (firstMemberSize > 0) {
-        tocopy = buffer1.nBuffered
-    } else if (secondMemberSize > 0) {
-        tocopy = buffer2.nBuffered
-    }
-
-    if (firstMemberSize > 0) {
-        buffer1.copyToDevice(startArgnum, ctx, dev_ctx, cacheId, persistent,
-                limit=tocopy)
-        cacheId.incrComponent(firstMemberUsed)
-    } else {
-        OpenCLBridge.setNullArrayArg(ctx, startArgnum)
-    }
-
-    if (secondMemberSize > 0) {
-        buffer2.copyToDevice(startArgnum + firstMemberUsed, ctx, dev_ctx,
-                cacheId, persistent, limit=tocopy)
-    } else {
-        OpenCLBridge.setNullArrayArg(ctx, startArgnum + firstMemberUsed)
-    }
-
-    used = tocopy
-
-    if (isInput) {
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx,
-              startArgnum + firstMemberUsed + secondMemberUsed,
-              structSize * tocopy, persistent)
-      return firstMemberUsed + secondMemberUsed + 1
-    } else {
-      return firstMemberUsed + secondMemberUsed
-    }
-  }
-
   override def countArgumentsUsed : Int = {
     val firstMemberUsed = if (firstMemberSize > 0) buffer1.countArgumentsUsed
         else 1
@@ -195,14 +205,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         else 1
     if (isInput) firstMemberUsed + secondMemberUsed + 1
         else firstMemberUsed + secondMemberUsed
-  }
-
-  override def hasNext() : Boolean = {
-    buffer1.hasNext && buffer2.hasNext
-  }
-
-  override def next() : Tuple2[K, V] = {
-    (buffer1.next, buffer2.next)
   }
 
   override def haveUnprocessedInputs : Boolean = {
@@ -213,9 +215,16 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     buffer1.outOfSpace || buffer2.outOfSpace
   }
 
+  override def generateNativeInputBuffer() : NativeInputBuffers[Tuple2[K, V]] = {
+    new Tuple2NativeInputBuffers(buffer1, buffer2,
+            firstMemberSize > 0, secondMemberSize > 0, firstMemberNumArgs,
+            secondMemberNumArgs, isInput, structSize)
+  }
+
   override def releaseNativeArrays {
-    buffer1.releaseNativeArrays
-    buffer2.releaseNativeArrays
+    if (selfAllocating) {
+      nativeBuffers.releaseNativeArrays
+    }
   }
 
   override def reset() {

@@ -13,7 +13,9 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
-    acc : InputBufferWrapper[T]) extends OutputBufferWrapper[U] {
+    acc : NativeInputBuffers[T],
+    emptyNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]])
+    extends OutputBufferWrapper[U] {
   var anyLeft = true
 
   override def next() : U = {
@@ -23,9 +25,10 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
   override def hasNext() : Boolean = {
     if (!acc.hasNext) {
       anyLeft = false
-      acc.synchronized {
-        acc.ready = false
-        acc.notify
+
+      emptyNativeInputBuffers.synchronized {
+        emptyNativeInputBuffers.push(acc)
+        emptyNativeInputBuffers.notify
       }
     }
     anyLeft

@@ -15,22 +15,24 @@ import com.amd.aparapi.internal.writer.KernelWriter
 import java.nio.ByteBuffer
 
 class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
-    val blockingCopies : Boolean) extends InputBufferWrapper[T]{
+    val blockingCopies : Boolean, val selfAllocating : Boolean)
+    extends InputBufferWrapper[T]{
   val arr : Array[T] = new Array[T](N)
+  val eleSize : Int = if (arr.isInstanceOf[Array[Double]]) 8 else 4
   var filled : Int = 0
-  var iter : Int = 0
   var used : Int = -1
 
-  var buffer : Long = 0L
-  if (!blockingCopies) {
-    if (arr.isInstanceOf[Array[Double]]) {
-      buffer = OpenCLBridge.nativeMalloc(8 * N)
-    } else if (arr.isInstanceOf[Array[Int]] || arr.isInstanceOf[Array[Float]]) {
-      buffer = OpenCLBridge.nativeMalloc(4 * N)
-    } else {
-      throw new RuntimeException("Unsupported")
-    }
+  var nativeBuffers : PrimitiveNativeInputBuffers[T] = null
+  if (selfAllocating) {
+    nativeBuffers = generateNativeInputBuffer().asInstanceOf[PrimitiveNativeInputBuffers[T]]
   }
+
+  override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[T]) {
+    nativeBuffers = set.asInstanceOf[PrimitiveNativeInputBuffers[T]]
+  }
+
+  override def flush() { }
 
   override def append(obj : Any) {
     arr(filled) = obj.asInstanceOf[T]
@@ -48,76 +50,55 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
     filled
   }
 
-  override def flush() { }
-
-  override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID, persistent : Boolean, limit : Int = -1) : Int = {
-    val tocopy = if (limit == -1) filled else limit
-
-    if (arr.isInstanceOf[Array[Double]]) {
-      OpenCLBridge.setDoubleArrayArg(ctx, dev_ctx, argnum,
-              arr.asInstanceOf[Array[Double]], tocopy, cacheID.broadcast,
-              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
-              buffer, persistent)
-    } else if (arr.isInstanceOf[Array[Int]]) {
-      OpenCLBridge.setIntArrayArg(ctx, dev_ctx, argnum,
-              arr.asInstanceOf[Array[Int]], tocopy, cacheID.broadcast,
-              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
-              buffer, persistent)
-    } else if (arr.isInstanceOf[Array[Float]]) {
-      OpenCLBridge.setFloatArrayArg(ctx, dev_ctx, argnum,
-              arr.asInstanceOf[Array[Float]], tocopy, cacheID.broadcast,
-              cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
-              buffer, persistent)
-    } else {
-      throw new RuntimeException("Unsupported")
-    }
-
-    used = tocopy
-
-    return countArgumentsUsed
-  }
-
   override def countArgumentsUsed : Int = { 1 }
 
-  override def hasNext() : Boolean = {
-    iter < filled
-  }
-
-  override def next() : T = {
-    val n : T = arr(iter)
-    iter += 1
-    n
-  }
-
   override def haveUnprocessedInputs : Boolean = {
-    false
+    filled > 0
   }
 
   override def outOfSpace : Boolean = {
     filled >= N
   }
 
+  override def setupNativeBuffersForCopy(limit : Int) {
+    val tocopy = if (limit == -1) filled else limit
+    OpenCLBridge.copyJVMArrayToNativeArray(nativeBuffers.buffer, 0, arr, 0,
+            tocopy * eleSize)
+    nativeBuffers.tocopy = tocopy
+  }
+
+  override def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+      NativeInputBuffers[T] = {
+    // setupNativeBuffersForCopy must have been called beforehand
+    assert(nativeBuffers.tocopy != -1)
+
+    val other : PrimitiveNativeInputBuffers[T] =
+        otherAbstract.asInstanceOf[PrimitiveNativeInputBuffers[T]]
+    val leftover = filled - nativeBuffers.tocopy
+
+    if (leftover > 0) {
+      System.arraycopy(filled, 0, filled, nativeBuffers.tocopy, leftover)
+    }
+    other.tocopy = -1
+
+    filled = leftover
+
+    val oldBuffers = nativeBuffers
+    nativeBuffers = other
+    return oldBuffers
+  }
+
+  override def generateNativeInputBuffer() : NativeInputBuffers[T] = {
+    new PrimitiveNativeInputBuffers(N, eleSize, blockingCopies)
+  }
+
   override def releaseNativeArrays {
-    if (buffer > 0L) {
-      OpenCLBridge.nativeFree(buffer)
+    if (selfAllocating) {
+      nativeBuffers.releaseNativeArrays
     }
   }
 
-  override def reset() {
-    // If we did a copy to device but not of everything
-    if (used != -1 && used != filled) {
-      val leftover = filled - used
-      // System.arraycopy handles overlapping regions
-      System.arraycopy(arr, used, arr, 0, leftover)
-      filled = leftover
-    } else {
-      filled = 0
-    }
-
-    used = -1
-    iter = 0
-  }
+  override def reset() { }
 
   // Returns # of arguments used
   override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,

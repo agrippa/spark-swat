@@ -27,7 +27,10 @@ object SparkSimple {
             for (i <- 0 until correct.length) {
                 val a = correct(i)
                 val b = actual(i)
-                assert(a == b)
+                if (a != b) {
+                    System.err.println(i + ": expected=" + a + ", actual=" + b)
+                    System.exit(1)
+                }
             }
             System.err.println("PASSED")
         }

@@ -1,4 +1,5 @@
 #include "ocl_util.h"
+#include <assert.h>
 
 cl_uint get_num_opencl_platforms() {
     cl_uint num_platforms;
@@ -83,4 +84,13 @@ cl_uint get_num_compute_units(cl_device_id device) {
     CHECK(clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,
                 sizeof(compute_units), &compute_units, NULL));
     return compute_units;
+}
+
+
+cl_uint get_device_pointer_size_in_bytes(cl_device_id device) {
+    cl_uint pointer_size_in_bits;
+    CHECK(clGetDeviceInfo(device, CL_DEVICE_ADDRESS_BITS,
+                sizeof(pointer_size_in_bits), &pointer_size_in_bits, NULL));
+    assert(pointer_size_in_bits % 8 == 0);
+    return pointer_size_in_bits / 8;
 }

@@ -107,24 +107,24 @@ object RuntimeUtil {
 
   def getInputBufferFor[T : ClassTag](firstSample : T, N : Int,
       denseVectorTiling : Int, sparseVectorTiling : Int, entryPoint : Entrypoint,
-      blockingCopies : Boolean) : InputBufferWrapper[T] = {
+      blockingCopies : Boolean, selfAllocating : Boolean) : InputBufferWrapper[T] = {
     if (firstSample.isInstanceOf[Double] ||
         firstSample.isInstanceOf[Int] ||
         firstSample.isInstanceOf[Float]) {
-      new PrimitiveInputBufferWrapper(N, blockingCopies)
+      new PrimitiveInputBufferWrapper(N, blockingCopies, selfAllocating)
     } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       new Tuple2InputBufferWrapper(N,
               firstSample.asInstanceOf[Tuple2[_, _]],
-              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies, selfAllocating).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[DenseVector]) {
       new DenseVectorInputBufferWrapper(N, denseVectorTiling,
-              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies, selfAllocating).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[SparseVector]) {
       new SparseVectorInputBufferWrapper(N, sparseVectorTiling,
-              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies, selfAllocating).asInstanceOf[InputBufferWrapper[T]]
     } else {
       new ObjectInputBufferWrapper(N,
-              firstSample.getClass.getName, entryPoint, blockingCopies)
+              firstSample.getClass.getName, entryPoint, blockingCopies, selfAllocating)
     }
   }
 

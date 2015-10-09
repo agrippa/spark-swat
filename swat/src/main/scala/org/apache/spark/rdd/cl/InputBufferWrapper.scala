@@ -24,18 +24,8 @@ trait InputBufferWrapper[T] {
    */
   def aggregateFrom(iter : Iterator[T])
 
-  // Transfer the aggregated input items to an OpenCL device
-  def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheId : CLCacheID, persistent : Boolean, limit : Int = -1) : Int
   // Ensure as many stored items as possible are serialized
   def flush()
-
-  /*
-   * For use by LambdaOutputBuffer only when reverting to JVM execution due to
-   * OOM errors on the accelerator.
-   */
-  def hasNext() : Boolean
-  def next() : T
 
   /*
    * Used to check if an input buffer has read items from the parent partition
@@ -64,4 +54,13 @@ trait InputBufferWrapper[T] {
   // Returns # of arguments used
   def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
       entryPoint : Entrypoint, persistent : Boolean) : Int
+
+  def generateNativeInputBuffer() : NativeInputBuffers[T]
+  def getCurrentNativeBuffers() : NativeInputBuffers[T]
+  def setCurrentNativeBuffers(set : NativeInputBuffers[T])
+
+  // Must be called prior to transferOverflowTo
+  def setupNativeBuffersForCopy(limit : Int)
+  def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+      NativeInputBuffers[T]
 }
