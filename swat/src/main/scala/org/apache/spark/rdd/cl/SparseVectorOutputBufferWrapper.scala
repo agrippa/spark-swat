@@ -38,14 +38,14 @@ class SparseVectorOutputBufferWrapper(val N : Int, val devicePointerSize : Int,
   val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
 
   override def next() : SparseVector = {
-    val values : Array[Double] = OpenCLBridge.getVectorValuesFromOutputBuffers(
-            buffers, outArgBuffer, currSlot, sparseVectorStructSize, 0,
-            devicePointerSize, 2 * devicePointerSize, 2 * devicePointerSize + 4,
-            false).asInstanceOf[Array[Double]]
     val indices : Array[Int] = OpenCLBridge.getVectorValuesFromOutputBuffers(
             buffers, outArgBuffer, currSlot, sparseVectorStructSize, 0,
-            devicePointerSize, devicePointerSize, devicePointerSize + 4, true)
-        .asInstanceOf[Array[Int]]
+            devicePointerSize, 2 * devicePointerSize, 2 * devicePointerSize + 4,
+            true).asInstanceOf[Array[Int]]
+    val values : Array[Double] = OpenCLBridge.getVectorValuesFromOutputBuffers(
+            buffers, outArgBuffer, currSlot, sparseVectorStructSize, devicePointerSize,
+            devicePointerSize, 2 * devicePointerSize, 2 * devicePointerSize + 4,
+            false).asInstanceOf[Array[Double]]
 
     currSlot += 1
     Vectors.sparse(values.size, indices, values).asInstanceOf[SparseVector]
