@@ -12,7 +12,6 @@ import com.amd.aparapi.internal.model.Entrypoint
  * device in preparation for launching a parallel kernel on its contents.
  */
 trait InputBufferWrapper[T] {
-  var ready : Boolean = false
 
   // Add a single object to the input buffer
   def append(obj : Any)

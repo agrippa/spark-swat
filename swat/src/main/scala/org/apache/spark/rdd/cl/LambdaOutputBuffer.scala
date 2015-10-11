@@ -13,8 +13,7 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
-    acc : NativeInputBuffers[T],
-    emptyNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]])
+    val acc : NativeInputBuffers[T], val ctx : Long, val dev_ctx : Long)
     extends OutputBufferWrapper[U] {
   var anyLeft = true
 
@@ -26,10 +25,7 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
     if (!acc.hasNext) {
       anyLeft = false
 
-      emptyNativeInputBuffers.synchronized {
-        emptyNativeInputBuffers.push(acc)
-        emptyNativeInputBuffers.notify
-      }
+      OpenCLBridge.addFreedNativeBuffer(ctx, dev_ctx, acc.id)
     }
     anyLeft
   }

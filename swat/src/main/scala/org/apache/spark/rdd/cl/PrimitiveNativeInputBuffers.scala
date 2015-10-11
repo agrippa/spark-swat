@@ -22,10 +22,10 @@ class PrimitiveNativeInputBuffers[T : ClassTag](val N : Int, val eleSize : Int,
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           cacheID : CLCacheID, persistent : Boolean) : Int = {
+    assert(tocopy != -1)
     OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum, buffer, tocopy * eleSize,
             cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
             cacheID.component, persistent, blockingCopies)
-
     return 1
   }
 

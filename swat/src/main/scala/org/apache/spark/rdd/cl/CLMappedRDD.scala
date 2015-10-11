@@ -127,8 +127,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      * A queue of native input buffers that are ready to be read into by the
      * reader thread.
      */
-    val emptyNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]] =
+    val initiallyEmptyNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]] =
             new java.util.LinkedList[NativeInputBuffers[T]]()
+    assert(CLMappedRDDStorage.nNativeInputBuffers >= 2)
+    val nativeInputBuffersArray : Array[NativeInputBuffers[T]] =
+            new Array[NativeInputBuffers[T]](CLMappedRDDStorage.nNativeInputBuffers)
     /*
      * Native input buffers that have been filled by the reader thread and are
      * ready to be copied to the device.
@@ -207,10 +210,13 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
      RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
    }
-   inputBuffer.ready = false
 
    for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
-     emptyNativeInputBuffers.add(inputBuffer.generateNativeInputBuffer)
+     val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer
+     newBuffer.id = i
+
+     initiallyEmptyNativeInputBuffers.add(newBuffer)
+     nativeInputBuffersArray(i) = newBuffer
    }
 
    val ctxCreateStart = System.currentTimeMillis // PROFILE
@@ -273,14 +279,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
     val iter = new Iterator[U] {
 
-     var lastBuffer : Boolean = false
      var noMoreInputBuffering = false
      val readerRunner = new Runnable() {
        override def run() {
          var done : Boolean = false
-         val startingNativeInputBuffer : NativeInputBuffers[T] =
-            emptyNativeInputBuffers.pop
-         inputBuffer.setCurrentNativeBuffers(startingNativeInputBuffer)
+         inputBuffer.setCurrentNativeBuffers(initiallyEmptyNativeInputBuffers.remove)
 
          while (!done) {
            val ioStart = System.currentTimeMillis // PROFILE
@@ -330,34 +333,30 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
            val nextNativeInputBuffer : NativeInputBuffers[T] =
-               emptyNativeInputBuffers.synchronized {
-                 while (emptyNativeInputBuffers.isEmpty) {
-                   emptyNativeInputBuffers.wait
-                 }
-                 emptyNativeInputBuffers.pop
+               if (!initiallyEmptyNativeInputBuffers.isEmpty) {
+                 initiallyEmptyNativeInputBuffers.remove
+               } else {
+                 val id : Int = OpenCLBridge.waitForFreedNativeBuffer(ctx, dev_ctx)
+                 nativeInputBuffersArray(id)
                }
 
            inputBuffer.setupNativeBuffersForCopy(-1)
            val filled : NativeInputBuffers[T] = inputBuffer.transferOverflowTo(
                    nextNativeInputBuffer)
+           assert(filled.id != nextNativeInputBuffer.id)
            filled.nLoaded = nLoaded
            filled.inputCacheId = inputCacheId
 
            done = !nested.hasNext && !inputBuffer.haveUnprocessedInputs
+           filled.lastBuffer = done
 
            filledNativeInputBuffers.synchronized {
-             if (done) {
-               lastBuffer = true
-             }
-             filledNativeInputBuffers.push(filled)
+             filledNativeInputBuffers.add(filled)
              filledNativeInputBuffers.notify
            }
 
            if (done) {
              inputBuffer.setCurrentNativeBuffers(null)
-             emptyNativeInputBuffers.synchronized {
-               emptyNativeInputBuffers.push(nextNativeInputBuffer)
-             }
            }
          }
        }
@@ -376,16 +375,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            while (filledNativeInputBuffers.isEmpty) {
              filledNativeInputBuffers.wait
            }
-           filledBuffer = filledNativeInputBuffers.pop
-           noMoreInputBuffering = lastBuffer
+           filledBuffer = filledNativeInputBuffers.remove
          }
+         noMoreInputBuffering = filledBuffer.lastBuffer
+         val thisNLoaded = filledBuffer.nLoaded
          val inputCacheId : CLCacheID = filledBuffer.inputCacheId
 
          var oom : Boolean = false
          try {
            val writeStart = System.currentTimeMillis // PROFILE
            filledBuffer.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
-           OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx)
+           OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx, filledBuffer.id)
            RuntimeUtil.profPrint("Write", writeStart, threadId) // PROFILE
          } catch {
            case oomExc : OpenCLOutOfMemoryException => {
@@ -398,28 +398,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          if (oom) {
            // Make sure any persistent allocations are freed up and removed
            OpenCLBridge.cleanupArguments(ctx);
-           outputBuffer = Some(new LambdaOutputBuffer[T, U](f, filledBuffer,
-                       emptyNativeInputBuffers))
+           outputBuffer = Some(new LambdaOutputBuffer[T, U](f, filledBuffer, ctx, dev_ctx))
          } else {
-           val thisNLoaded = filledBuffer.nLoaded
-
            var ntries : Int = 0 // PROFILE
            var complete : Boolean = true
 
            OpenCLBridge.setIntArg(ctx, lastArgIndex, thisNLoaded)
-           OpenCLBridge.setupArguments(ctx, dev_ctx)
-           OpenCLBridge.waitForPendingEvents(ctx)
-
-           emptyNativeInputBuffers.synchronized {
-             emptyNativeInputBuffers.push(filledBuffer)
-             emptyNativeInputBuffers.notify
-           }
-
            var heap_ctx : Long = -1L
            if (entryPoint.requiresHeap) {
              heap_ctx = OpenCLBridge.acquireHeap(ctx, dev_ctx, heapArgStart)
-             OpenCLBridge.setupArguments(ctx, dev_ctx)
            }
+           OpenCLBridge.setupArguments(ctx, dev_ctx)
+
            do {
              val runStart = System.currentTimeMillis // PROFILE
 
@@ -469,11 +459,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
          inputBuffer = null
          nativeOutputBuffer = null
 
-         assert(emptyNativeInputBuffers.size == CLMappedRDDStorage.nNativeInputBuffers)
-         val iter : java.util.Iterator[NativeInputBuffers[T]] = emptyNativeInputBuffers.iterator
-         while (iter.hasNext) {
-           val buffers : NativeInputBuffers[T] = iter.next
-           buffers.releaseNativeArrays
+         for (buffer <- nativeInputBuffersArray) {
+           buffer.releaseNativeArrays
          }
 
          OpenCLBridge.cleanupSwatContext(ctx)

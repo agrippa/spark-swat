@@ -64,8 +64,10 @@ public class OpenCLBridge {
     public static native void fetchByteArrayArgToNativeArray(long ctx,
             long dev_ctx, int index, long buffer, int argLength);
 
-    public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx);
-    public static native void waitForPendingEvents(long ctx);
+    public static native void addFreedNativeBuffer(long ctx, long dev_ctx, int buffer_id);
+    public static native int waitForFreedNativeBuffer(long ctx, long dev_ctx);
+    public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx, int buffer_id);
+
     public static native void run(long ctx, long dev_ctx, int range,
             int local_size, int iterArgNum, int iter, int heapArgStart);
 

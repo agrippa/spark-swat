@@ -298,18 +298,6 @@ static void add_pending_double_arg(swat_context *context, int index, double in) 
     add_pending_arg(context, index, false, false, false, DOUBLE, val);
 }
 
-static void add_event_to_context(swat_context *context, cl_event event) {
-    assert(context->n_events <= context->event_capacity);
-    if (context->n_events == context->event_capacity) {
-        context->event_capacity *= 2;
-        context->events = (cl_event *)realloc(context->events,
-                context->event_capacity * sizeof(cl_event));
-        CHECK_ALLOC(context->events);
-    }
-    (context->events)[context->n_events] = event;
-    context->n_events = context->n_events + 1;
-}
-
 /*
  * Utility functions that handle accessing data in the RDD cache. These utilities
  * assume the parent handles any necessary locking of rdd_cache_locks for us.
@@ -532,9 +520,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 CHECK(err);
 
                 cl_command_queue_properties props = 0;
-#ifndef __APPLE__
-                props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-#endif
+// #ifndef __APPLE__
+//                 props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+// #endif
 #ifdef PROFILE_OPENCL
                 props |= CL_QUEUE_PROFILING_ENABLE;
 #endif
@@ -757,6 +745,8 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
             (ctx->arguments_region)[index] = NULL;
         }
     }
+
+    ctx->freed_native_input_buffers = NULL;
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
@@ -882,11 +872,13 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     memset(context->zeros, 0x00, max_n_buffered * sizeof(int));
     context->zeros_capacity = max_n_buffered;
 
-    context->event_capacity = 10;
-    context->n_events = 0;
-    context->events = (cl_event *)malloc(context->event_capacity *
-            sizeof(cl_event));
-    CHECK_ALLOC(context->events);
+    context->freed_native_input_buffers = NULL;
+    perr = pthread_mutex_init(&context->freed_native_input_buffers_lock, NULL);
+    ASSERT(perr == 0);
+    perr = pthread_cond_init(&context->freed_native_input_buffers_cond, NULL);
+    ASSERT(perr == 0);
+
+    context->last_event = NULL;
 
     context->n_allocated = 0;
 #ifdef BRIDGE_DEBUG
@@ -901,11 +893,6 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 static void postKernelCleanupHelper(swat_context *ctx) {
 
     // Not normally necessary, but necessary for our testing without doing kernel launch
-    if (ctx->n_events > 0) {
-        CHECK(clWaitForEvents(ctx->n_events, ctx->events));
-        ctx->n_events = 0;
-    }
-
     cl_allocator *allocator = NULL;
     for (int index = 0; index < ctx->arguments_capacity; index++) {
         cl_region *region = (ctx->arguments_region)[index];
@@ -975,12 +962,15 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
             broadcastId, rdd, persistent);
     if (region == NULL) return NULL;
 
-    cl_event event;
-    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
-                blocking ? CL_TRUE : CL_FALSE, 0, len, host, 0, NULL,
-                blocking ? NULL : &event));
-    if (!blocking) {
-        add_event_to_context(context, event);
+    if (blocking) {
+        CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
+                    CL_TRUE, 0, len, host, 0, NULL, NULL));
+    } else {
+        cl_event event;
+        CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
+                    CL_FALSE, 0, len, host, context->last_event ? 1 : 0,
+                    context->last_event ? &context->last_event : NULL, &event));
+        context->last_event = event;
     }
 
 #ifdef VERBOSE
@@ -1865,18 +1855,6 @@ static void save_to_dump_file(swat_context *context, size_t global_size, size_t 
 }
 #endif
 
-JNI_JAVA(void, OpenCLBridge, waitForPendingEvents)(JNIEnv *jenv, jclass clazz,
-        jlong lctx) {
-    ENTER_TRACE("waitForPendingEvents");
-    swat_context *context = (swat_context *)lctx;
-#ifdef VERBOSE
-    fprintf(stderr, "waitForPendingEvents: n_events=%d\n", context->n_events);
-#endif
-    CHECK(clWaitForEvents(context->n_events, context->events));
-    context->n_events = 0;
-    EXIT_TRACE("waitForPendingEvents");
-}
-
 JNI_JAVA(void, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range,
          jint local_size_in, jint iterArgNum, jint iter, jint heapArgStart) {
@@ -1909,27 +1887,29 @@ JNI_JAVA(void, OpenCLBridge, run)
 
         cl_event free_index_event;
         CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, free_index_mem->sub_mem, CL_FALSE, 0,
-                    sizeof(zero), &zero, 0, NULL, &free_index_event));
-        add_event_to_context(context, free_index_event);
+                    sizeof(zero), &zero, context->last_event ? 1 : 0,
+                    context->last_event ? &context->last_event : NULL,
+                    &free_index_event));
+        context->last_event = free_index_event;
     }
 
-    cl_event event;
+    cl_event run_event;
     CHECK(clSetKernelArg(context->kernel, iterArgNum, sizeof(iter), &iter));
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,
-                &global_size, &local_size, context->n_events, context->events,
-                &event));
-    CHECK(clWaitForEvents(1, &event));
-    context->n_events = 0;
+                &global_size, &local_size, context->last_event ? 1 : 0,
+                context->last_event ? &context->last_event : NULL, &run_event));
+    CHECK(clWaitForEvents(1, &run_event));
+    context->last_event = NULL;
 
 #ifdef PROFILE_OPENCL
     cl_ulong queued, submitted, started, finished;
-    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_QUEUED,
+    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_QUEUED,
                 sizeof(queued), &queued, NULL));
-    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_SUBMIT,
+    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_SUBMIT,
                 sizeof(submitted), &submitted, NULL));
-    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START,
+    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_START,
                 sizeof(started), &started, NULL));
-    CHECK(clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END,
+    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_END,
                 sizeof(finished), &finished, NULL));
     fprintf(stderr, "Kernel invocation: %lu ns total on device %d (queued -> "
             "submitted %lu ns, submitted -> started %lu ns, started -> "
@@ -2174,8 +2154,8 @@ JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
     ASSERT(err == 0);
 
 #ifdef VERBOSE
-    fprintf(stderr, "fetchNLoaded: for rddid=%d partitionid=%d offsetid=%d\n "
-            "returning result=%d", rddid, partitionid, offsetid, result);
+    fprintf(stderr, "fetchNLoaded: for rddid=%d partitionid=%d offsetid=%d "
+            "returning result=%d\n", rddid, partitionid, offsetid, result);
 #endif
 
     return result;
@@ -2217,28 +2197,88 @@ JNI_JAVA(void, OpenCLBridge, fetchByteArrayArgToNativeArray)(JNIEnv *jenv,
 }
 
 typedef struct _callback_data {
-    int foo;
+    swat_context *ctx;
+    int buffer_id;
 } callback_data;
 
-static void callback(cl_event event, cl_int event_command_exec_status, void *user_data) {
-    callback_data *data = (callback_data *)user_data;
-    fprintf(stderr, "Howdy! %d\n", data->foo);
-    free(data);
+static void add_freed_native_buffer(swat_context *ctx, int buffer_id,
+        cl_event event) {
+    native_input_buffer_list_node *freed =
+        (native_input_buffer_list_node *)malloc(
+                sizeof(native_input_buffer_list_node));
+    freed->id = buffer_id;
+    freed->event = event;
+    freed->next = NULL;
+
+    int perr = pthread_mutex_lock(&ctx->freed_native_input_buffers_lock);
+    ASSERT(perr == 0);
+
+    if (ctx->freed_native_input_buffers == NULL) {
+        ctx->freed_native_input_buffers = freed;
+    } else {
+        native_input_buffer_list_node *curr = ctx->freed_native_input_buffers;
+        while (curr->next != NULL) {
+            curr = curr->next;
+        }
+        curr->next = freed;
+    }
+
+    perr = pthread_cond_signal(&ctx->freed_native_input_buffers_cond);
+    ASSERT(perr == 0);
+
+    perr = pthread_mutex_unlock(&ctx->freed_native_input_buffers_lock);
+    ASSERT(perr == 0);
+}
+
+JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
+        jclass clazz, jlong l_ctx, jlong l_dev_ctx) {
+    ENTER_TRACE("waitForFreedNativeBuffer");
+    swat_context *ctx = (swat_context *)l_ctx;
+
+    int perr = pthread_mutex_lock(&ctx->freed_native_input_buffers_lock);
+    ASSERT(perr == 0);
+
+    while (ctx->freed_native_input_buffers == NULL) {
+        int perr = pthread_cond_wait(&ctx->freed_native_input_buffers_cond,
+                &ctx->freed_native_input_buffers_lock);
+        ASSERT(perr == 0);
+    }
+    native_input_buffer_list_node *released = ctx->freed_native_input_buffers;
+    ctx->freed_native_input_buffers = ctx->freed_native_input_buffers->next;
+
+    perr = pthread_mutex_unlock(&ctx->freed_native_input_buffers_lock);
+    ASSERT(perr == 0);
+
+    int buffer_id = released->id;
+    if (released->event) {
+        CHECK(clWaitForEvents(1, &released->event));
+    }
+    free(released);
+
+    EXIT_TRACE("waitForFreedNativeBuffer");
+    return buffer_id;
+}
+
+JNI_JAVA(void, OpenCLBridge, addFreedNativeBuffer)(JNIEnv *jenv,
+        jclass clazz, jlong l_ctx, jlong l_dev_ctx, jint buffer_id) {
+    ENTER_TRACE("addFreedNativeBuffer");
+    swat_context *ctx = (swat_context *)l_ctx;
+
+    add_freed_native_buffer(ctx, buffer_id, NULL);
+
+    EXIT_TRACE("addFreedNativeBuffer");
 }
 
 JNI_JAVA(void, OpenCLBridge, enqueueBufferFreeCallback)(JNIEnv *jenv,
-        jclass clazz, jlong l_ctx, jlong l_dev_ctx) {
+        jclass clazz, jlong l_ctx, jlong l_dev_ctx, jint buffer_id) {
     ENTER_TRACE("enqueueBufferFreeCallback");
-    swat_context *ctx = (swat_context *)ctx;
+    swat_context *ctx = (swat_context *)l_ctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
 
     // This is somewhat coarse grained...
-    cl_event event;
-    CHECK(clEnqueueMarker(dev_ctx->cmd, &event));
+    ASSERT(ctx->last_event);
+    add_freed_native_buffer(ctx, buffer_id, ctx->last_event);
 
-    callback_data *data = (callback_data *)malloc(sizeof(callback_data));
-    data->foo = 42;
-    CHECK(clSetEventCallback(event, CL_COMPLETE, callback, data));
     EXIT_TRACE("enqueueBufferFreeCallback");
 }
 

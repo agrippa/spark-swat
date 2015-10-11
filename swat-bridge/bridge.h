@@ -106,6 +106,12 @@ typedef struct _arg_value {
     region_or_scalar val;
 } arg_value;
 
+typedef struct _native_input_buffer_list_node {
+    int id;
+    cl_event event;
+    struct _native_input_buffer_list_node *next;
+} native_input_buffer_list_node;
+
 typedef struct _swat_context {
     cl_kernel kernel;
     int host_thread_index;
@@ -129,9 +135,11 @@ typedef struct _swat_context {
     void *zeros;
     size_t zeros_capacity;
 
-    int event_capacity;
-    int n_events;
-    cl_event *events;
+    cl_event last_event;
+
+    native_input_buffer_list_node *freed_native_input_buffers;
+    pthread_mutex_t freed_native_input_buffers_lock;
+    pthread_cond_t freed_native_input_buffers_cond;
 
     unsigned n_allocated;
 #ifdef BRIDGE_DEBUG
