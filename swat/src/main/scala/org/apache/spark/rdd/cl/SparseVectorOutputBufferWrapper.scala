@@ -16,86 +16,39 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
 
-class SparseVectorDeviceBuffersWrapper(N : Int,
-        processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-        heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) {
-  assert(devicePointerSize == 4 || devicePointerSize == 8)
-
-  val processingSucceeded : Array[Int] = new Array[Int](N)
-
-  /*
-   * devicePointerSize is either 4 or 8 for the pointers in SparseVector + 4 for
-   * size field
-   */
-  val sparseVectorStructSize = (2 * devicePointerSize) + 4 + 4
-  val outArgLength = N * sparseVectorStructSize
-  val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
-
-  var heapOutBufferSize : Int = 0
-  var heapOutBuffer : Long = 0
-
-  def readFromDevice(heapTop : Int) {
-    OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, processingSucceededArgnum,
-            processingSucceeded, N)
-
-    if (heapOutBufferSize < heapTop) {
-      heapOutBufferSize = heapTop
-      heapOutBuffer = OpenCLBridge.nativeRealloc(heapOutBuffer, heapOutBufferSize)
-    }
-
-    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, outArgNum,
-            outArgBuffer, outArgLength)
-    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
-            heapOutBuffer, heapTop)
-  }
-
-  def hasSlot(slot : Int) : Boolean = {
-    processingSucceeded(slot) != 0
-  }
-
-  def get(slot : Int) : SparseVector = {
-    val slotOffset = slot * sparseVectorStructSize
-
-    val indices : Array[Int] =
-        OpenCLBridge.deserializeChunkedIndicesFromNativeArray(heapOutBuffer,
-        outArgBuffer, slotOffset, slotOffset + 2 * devicePointerSize, devicePointerSize)
-    val values : Array[Double] =
-        OpenCLBridge.deserializeChunkedValuesFromNativeArray(heapOutBuffer,
-        outArgBuffer, slotOffset + devicePointerSize,
-        slotOffset + 2 * devicePointerSize, devicePointerSize)
-    assert(indices.size == values.size)
-
-    Vectors.sparse(indices.size, indices, values).asInstanceOf[SparseVector]
-  }
-
-  def releaseNativeArrays() {
-    if (heapOutBufferSize > 0) {
-      OpenCLBridge.nativeFree(heapOutBuffer)
-    }
-    OpenCLBridge.nativeFree(outArgBuffer)
-  }
-}
-
-class SparseVectorOutputBufferWrapper(val N : Int)
-    extends OutputBufferWrapper[SparseVector] {
+class SparseVectorOutputBufferWrapper(val N : Int, val devicePointerSize : Int,
+    val heapSize : Int) extends OutputBufferWrapper[SparseVector] {
   var nFilledBuffers : Int = 0
-  val buffers : java.util.List[SparseVectorDeviceBuffersWrapper] =
-      new java.util.LinkedList[SparseVectorDeviceBuffersWrapper]()
+  val maxBuffers = 5
+  val buffers : Array[Long] = new Array[Long](maxBuffers)
+  val bufferSizes : Array[Long] = new Array[Long](maxBuffers)
+  for (i <- 0 until maxBuffers) {
+    buffers(i) = 0L
+    bufferSizes(i) = 0L
+  }
   var currSlot : Int = 0
   var nLoaded : Int = -1
 
+  /*
+   * devicePointerSize is either 4 or 8 for the values and indices in
+   * SparseVector + 4 for size field + 4 for tiling field
+   */
+  val sparseVectorStructSize = 2 * devicePointerSize + 4 + 4
+  val outArgLength = N * sparseVectorStructSize
+  val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
+
   override def next() : SparseVector = {
-    val iter = buffers.iterator
-    var target : Option[SparseVectorDeviceBuffersWrapper] = None
-    while (target.isEmpty && iter.hasNext) {
-      val buffer = iter.next
-      if (buffer.hasSlot(currSlot)) {
-        target = Some(buffer)
-      }
-    }
-    val vec = target.get.get(currSlot)
+    val values : Array[Double] = OpenCLBridge.getVectorValuesFromOutputBuffers(
+            buffers, outArgBuffer, currSlot, sparseVectorStructSize, 0,
+            devicePointerSize, 2 * devicePointerSize, 2 * devicePointerSize + 4,
+            false).asInstanceOf[Array[Double]]
+    val indices : Array[Int] = OpenCLBridge.getVectorValuesFromOutputBuffers(
+            buffers, outArgBuffer, currSlot, sparseVectorStructSize, 0,
+            devicePointerSize, devicePointerSize, devicePointerSize + 4, true)
+        .asInstanceOf[Array[Int]]
+
     currSlot += 1
-    vec
+    Vectors.sparse(values.size, indices, values).asInstanceOf[SparseVector]
   }
 
   override def hasNext() : Boolean = {
@@ -105,20 +58,31 @@ class SparseVectorOutputBufferWrapper(val N : Int)
   override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
           heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
-    var buffer : SparseVectorDeviceBuffersWrapper = null
-    if (buffers.size > nFilledBuffers) {
-      buffer = buffers.get(nFilledBuffers)
+    assert(devicePointerSize == 4 || devicePointerSize == 8)
+
+    val nHeapBytesAvailable = if (heapTop > heapSize) heapSize else heapTop
+
+    var heapOutBuffer : Long = 0L
+    if (buffers(nFilledBuffers) != 0L) {
+      if (nHeapBytesAvailable > bufferSizes(nFilledBuffers)) {
+        buffers(nFilledBuffers) = OpenCLBridge.nativeRealloc(
+                    buffers(nFilledBuffers), nHeapBytesAvailable)
+        bufferSizes(nFilledBuffers) = nHeapBytesAvailable
+      }
+      heapOutBuffer = buffers(nFilledBuffers)
     } else {
-      buffer = new SparseVectorDeviceBuffersWrapper(nLoaded,
-                processingSucceededArgnum, outArgNum, heapArgStart, heapSize,
-                ctx, dev_ctx, devicePointerSize)
-      buffers.add(buffer)
+      heapOutBuffer = OpenCLBridge.nativeMalloc(nHeapBytesAvailable)
+      buffers(nFilledBuffers) = heapOutBuffer
+      bufferSizes(nFilledBuffers) = nHeapBytesAvailable
     }
+    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, heapArgStart,
+            heapOutBuffer, nHeapBytesAvailable)
     nFilledBuffers += 1
-    buffer.readFromDevice(heapTop)
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
+    OpenCLBridge.fetchByteArrayArgToNativeArray(ctx, dev_ctx, outArgNum,
+            outArgBuffer, outArgLength)
     nLoaded = setNLoaded
   }
 
@@ -131,11 +95,11 @@ class SparseVectorOutputBufferWrapper(val N : Int)
   }
 
   override def releaseNativeArrays() {
-    val iter : java.util.Iterator[SparseVectorDeviceBuffersWrapper] =
-        buffers.iterator
-    while (iter.hasNext) {
-      val wrapper : SparseVectorDeviceBuffersWrapper = iter.next
-      wrapper.releaseNativeArrays
+    var iter : Int = 0
+    while (iter < maxBuffers && buffers(iter) != 0L) {
+      val buffer : Long = buffers(iter)
+      OpenCLBridge.nativeFree(buffer)
+      iter = iter + 1
     }
   }
 }

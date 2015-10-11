@@ -38,11 +38,12 @@ class DenseVectorOutputBufferWrapper(val N : Int, val devicePointerSize : Int,
   val outArgBuffer : Long = OpenCLBridge.nativeMalloc(outArgLength)
 
   override def next() : DenseVector = {
-    val arr : Array[Double] = OpenCLBridge.getDenseVectorValuesFromOutputBuffers(
+    val values : Array[Double] = OpenCLBridge.getVectorValuesFromOutputBuffers(
             buffers, outArgBuffer, currSlot, denseVectorStructSize, 0,
-            devicePointerSize, devicePointerSize, devicePointerSize + 4)
+            devicePointerSize, devicePointerSize, devicePointerSize + 4, false)
+        .asInstanceOf[Array[Double]]
     currSlot += 1
-    Vectors.dense(arr).asInstanceOf[DenseVector]
+    Vectors.dense(values).asInstanceOf[DenseVector]
   }
 
   override def hasNext() : Boolean = {

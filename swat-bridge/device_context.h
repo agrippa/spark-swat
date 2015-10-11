@@ -45,6 +45,7 @@ class broadcast_id {
 typedef struct _heap_context {
     cl_region *heap;
     cl_region *free_index;
+    int h_free_index;
     size_t heap_size;
     int free;
 } heap_context;

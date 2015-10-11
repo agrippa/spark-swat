@@ -236,7 +236,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
    var heapArgStart : Int = -1
    var lastArgIndex : Int = -1
    var heapTopArgNum : Int = -1
-   val heapTopBuffer : Array[Int] = new Array[Int](1)
    try {
      var argnum = outArgNum
      argnum += OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
@@ -413,19 +412,18 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            do {
              val runStart = System.currentTimeMillis // PROFILE
 
-             OpenCLBridge.run(ctx, dev_ctx, thisNLoaded,
+             OpenCLBridge.run(ctx, dev_ctx, heap_ctx, thisNLoaded,
                      CLMappedRDDStorage.cl_local_size, lastArgIndex + 1, ntries,
                      heapArgStart)
              RuntimeUtil.profPrint("Run", runStart, threadId) // PROFILE
 
              if (entryPoint.requiresHeap) {
                val callbackStart = System.currentTimeMillis // PROFILE
-               OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, heapTopArgNum,
-                       heapTopBuffer, 1)
-               complete = (heapTopBuffer(0) <= heapSize)
+               val heapTopAfter : Int = OpenCLBridge.checkHeapTop(heap_ctx)
+               complete = (heapTopAfter <= heapSize)
                nativeOutputBuffer.kernelAttemptCallback(thisNLoaded,
                        heapArgStart + 3, outArgNum, heapArgStart, heapSize, ctx,
-                       dev_ctx, devicePointerSize, heapTopBuffer(0))
+                       dev_ctx, devicePointerSize, heapTopAfter)
                RuntimeUtil.profPrint("KernelAttemptCallback", callbackStart, threadId) // PROFILE
              }
              ntries += 1 // PROFILE
@@ -435,7 +433,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
              OpenCLBridge.releaseHeap(dev_ctx, heap_ctx);
            }
 
-           System.err.println("SWAT PROF Thread " + threadId + " performed " + ntries + " kernel retries") // PROFILE
+           System.err.println("SWAT PROF Thread " + threadId + // PROFILE
+                   " performed " + ntries + " kernel retries") // PROFILE
            val readStart = System.currentTimeMillis // PROFILE
 
            nativeOutputBuffer.finish(ctx, dev_ctx, outArgNum, thisNLoaded)

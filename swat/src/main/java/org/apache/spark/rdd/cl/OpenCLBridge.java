@@ -68,8 +68,10 @@ public class OpenCLBridge {
     public static native int waitForFreedNativeBuffer(long ctx, long dev_ctx);
     public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx, int buffer_id);
 
-    public static native void run(long ctx, long dev_ctx, int range,
-            int local_size, int iterArgNum, int iter, int heapArgStart);
+    public static native void run(long ctx, long dev_ctx, long heap_ctx,
+            int range, int local_size, int iterArgNum, int iter,
+            int heapArgStart);
+    public static native int checkHeapTop(long heap_ctx);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
@@ -130,9 +132,10 @@ public class OpenCLBridge {
         int index, long buffer, int len, long broadcast, int rdd,
         int partition, int offset, int component, boolean persistent, boolean blocking);
 
-    public static native double[] getDenseVectorValuesFromOutputBuffers(
+    public static native Object getVectorValuesFromOutputBuffers(
             long[] heapBuffers, long infoBuffer, int slot, int structSize,
-            int offsetOffset, int offsetSize, int sizeOffset, int iterOffset);
+            int offsetOffset, int offsetSize, int sizeOffset, int iterOffset,
+            boolean isIndices);
 
     public static native void deserializeStridedValuesFromNativeArray(
             Object[] bufferTo, int nToBuffer, long valuesBuffer,

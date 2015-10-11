@@ -443,7 +443,7 @@ object OpenCLBridgeWrapper {
     if (className.equals("org.apache.spark.mllib.linalg.DenseVector")) {
         new DenseVectorOutputBufferWrapper(N, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("org.apache.spark.mllib.linalg.SparseVector")) {
-        new SparseVectorOutputBufferWrapper(N).asInstanceOf[OutputBufferWrapper[T]]
+        new SparseVectorOutputBufferWrapper(N, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Double")) {
         new PrimitiveOutputBufferWrapper[Double](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Integer")) {

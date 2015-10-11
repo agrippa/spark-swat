@@ -1247,10 +1247,10 @@ JNI_JAVA(void, OpenCLBridge, deserializeStridedIndicesFromNativeArray)(
     EXIT_TRACE("deserializeStridedIndicesFromNativeArray");
 }
 
-JNI_JAVA(jdoubleArray, OpenCLBridge, getDenseVectorValuesFromOutputBuffers)(
+JNI_JAVA(jobject, OpenCLBridge, getVectorValuesFromOutputBuffers)(
         JNIEnv *jenv, jclass clazz, jlongArray heapBuffers, jlong infoBuffer,
         jint slot, jint structSize, jint offsetOffset, jint offsetSize, jint sizeOffset,
-        jint iterOffset) {
+        jint iterOffset, jboolean isIndices) {
     ENTER_TRACE("getDenseVectorValuesFromOutputBuffers");
     const int slotOffset = slot * structSize;
     char *info = ((char *)infoBuffer) + slotOffset;
@@ -1268,17 +1268,30 @@ JNI_JAVA(jdoubleArray, OpenCLBridge, getDenseVectorValuesFromOutputBuffers)(
     char *heapBuffer = (char *)buffers[iter];
     jenv->ReleasePrimitiveArrayCritical(heapBuffers, buffers, JNI_ABORT);
 
-    double *values = (double *)(heapBuffer + offset);
+    void *valuesInHeap = (void *)(heapBuffer + offset);
 
-    jdoubleArray jvmArray = jenv->NewDoubleArray(size);
-    CHECK_JNI(jvmArray);
+    jobject resultArray;
+    if (isIndices) {
+        jintArray jvmArray = jenv->NewIntArray(size);
+        CHECK_JNI(jvmArray);
 
-    double *arr = (double *)jenv->GetPrimitiveArrayCritical(jvmArray, NULL);
-    CHECK_JNI(arr);
-    memcpy(arr, values, size * sizeof(double));
-    jenv->ReleasePrimitiveArrayCritical(jvmArray, arr, 0);
+        int *arr = (int *)jenv->GetPrimitiveArrayCritical(jvmArray, NULL);
+        CHECK_JNI(arr);
+        memcpy(arr, valuesInHeap, size * sizeof(int));
+        jenv->ReleasePrimitiveArrayCritical(jvmArray, arr, 0);
+        resultArray = jvmArray;
+    } else {
+        jdoubleArray jvmArray = jenv->NewDoubleArray(size);
+        CHECK_JNI(jvmArray);
+
+        double *arr = (double *)jenv->GetPrimitiveArrayCritical(jvmArray, NULL);
+        CHECK_JNI(arr);
+        memcpy(arr, valuesInHeap, size * sizeof(double));
+        jenv->ReleasePrimitiveArrayCritical(jvmArray, arr, 0);
+        resultArray = jvmArray;
+    }
     EXIT_TRACE("getDenseVectorValuesFromOutputBuffers");
-    return jvmArray;
+    return resultArray;
 }
 
 JNI_JAVA(jdoubleArray, OpenCLBridge, deserializeChunkedValuesFromNativeArray)(
@@ -1856,11 +1869,13 @@ static void save_to_dump_file(swat_context *context, size_t global_size, size_t 
 #endif
 
 JNI_JAVA(void, OpenCLBridge, run)
-        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx, jint range,
-         jint local_size_in, jint iterArgNum, jint iter, jint heapArgStart) {
+        (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
+         jlong l_heap_ctx, jint range, jint local_size_in, jint iterArgNum,
+         jint iter, jint heapArgStart) {
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
+    heap_context *heap_ctx = (heap_context *)l_heap_ctx;
     const size_t local_size = local_size_in;
     const size_t global_size = range + (local_size - (range % local_size));
 
@@ -1880,8 +1895,8 @@ JNI_JAVA(void, OpenCLBridge, run)
             count_free_bytes(dev_ctx->allocator));
 #endif
 
+    const int free_index_arg_index = heapArgStart + 1;
     if (heapArgStart >= 0) {
-        const int free_index_arg_index = heapArgStart + 1;
         cl_region *free_index_mem = (context->arguments_region)[free_index_arg_index];
         ASSERT(free_index_mem);
 
@@ -1898,7 +1913,18 @@ JNI_JAVA(void, OpenCLBridge, run)
     CHECK(clEnqueueNDRangeKernel(dev_ctx->cmd, context->kernel, 1, NULL,
                 &global_size, &local_size, context->last_event ? 1 : 0,
                 context->last_event ? &context->last_event : NULL, &run_event));
-    CHECK(clWaitForEvents(1, &run_event));
+    context->last_event = run_event;
+
+    if (heapArgStart >= 0) {
+        cl_event copy_back_event;
+        cl_region *free_index_mem = (context->arguments_region)[free_index_arg_index];
+        CHECK(clEnqueueReadBuffer(dev_ctx->cmd, free_index_mem->sub_mem,
+                    CL_FALSE, 0, sizeof(heap_ctx->h_free_index),
+                    &heap_ctx->h_free_index, 1, &run_event, &copy_back_event));
+        context->last_event = copy_back_event;
+    }
+
+    CHECK(clWaitForEvents(1, &context->last_event));
     context->last_event = NULL;
 
 #ifdef PROFILE_OPENCL
@@ -1918,6 +1944,14 @@ JNI_JAVA(void, OpenCLBridge, run)
 #endif
 
     EXIT_TRACE("run");
+}
+
+JNI_JAVA(jint, OpenCLBridge, checkHeapTop)(JNIEnv *jenv, jclass clazz,
+        jlong l_heap_ctx) {
+    ENTER_TRACE("checkHeapTop");
+    heap_context *heap_ctx = (heap_context *)l_heap_ctx;
+    EXIT_TRACE("checkHeapTop");
+    return heap_ctx->h_free_index;
 }
 
 JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)

@@ -44,7 +44,8 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
 
   override def kernelAttemptCallback(nLoaded : Int,
           processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
+          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int,
+          heapTop : Int) {
   }
 
   override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
