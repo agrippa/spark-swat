@@ -13,16 +13,19 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
-    sampleOutput : Tuple2[_, _], N : Int,
-    entryPoint : Entrypoint, devicePointerSize : Int, heapSize : Int) extends OutputBufferWrapper[Tuple2[K, V]] {
+    val sampleOutput : Tuple2[_, _], N : Int, val entryPoint : Entrypoint,
+    val devicePointerSize : Int, val heapSize : Int)
+    extends OutputBufferWrapper[Tuple2[K, V]] {
   var iter : Int = 0
 
   val member0OutputBuffer : OutputBufferWrapper[K] =
         OpenCLBridgeWrapper.getOutputBufferFor[K](
-        sampleOutput._1.asInstanceOf[K], N, entryPoint, devicePointerSize, heapSize)
+        sampleOutput._1.asInstanceOf[K], N, entryPoint, devicePointerSize,
+        heapSize)
   val member1OutputBuffer : OutputBufferWrapper[V] =
         OpenCLBridgeWrapper.getOutputBufferFor[V](
-        sampleOutput._2.asInstanceOf[V], N, entryPoint, devicePointerSize, heapSize)
+        sampleOutput._2.asInstanceOf[V], N, entryPoint, devicePointerSize,
+        heapSize)
 
   override def next() : Tuple2[K, V] = {
     (member0OutputBuffer.next, member1OutputBuffer.next)
@@ -32,36 +35,29 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     member0OutputBuffer.hasNext
   }
 
-  override def kernelAttemptCallback(nLoaded : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
-      member0OutputBuffer.kernelAttemptCallback(nLoaded,
-              processingSucceededArgnum, outArgNum, heapArgStart, heapSize, ctx,
-              dev_ctx, devicePointerSize, heapTop)
-      member1OutputBuffer.kernelAttemptCallback(nLoaded,
-              processingSucceededArgnum,
-              outArgNum + member0OutputBuffer.countArgumentsUsed, heapArgStart,
-              heapSize, ctx, dev_ctx, devicePointerSize, heapTop)
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, setNLoaded : Int) {
-      member0OutputBuffer.finish(ctx, dev_ctx, outArgNum, setNLoaded)
-      member1OutputBuffer.finish(ctx, dev_ctx,
-              outArgNum + member0OutputBuffer.countArgumentsUsed, setNLoaded)
-  }
-
   override def countArgumentsUsed() : Int = {
       member0OutputBuffer.countArgumentsUsed +
           member1OutputBuffer.countArgumentsUsed
   }
 
-  override def reset() {
-    member0OutputBuffer.reset
-    member1OutputBuffer.reset
+  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
+    member0OutputBuffer.fillFrom(kernel_ctx, outArgNum)
+    member1OutputBuffer.fillFrom(kernel_ctx, outArgNum + 1)
   }
 
-  override def releaseNativeArrays() {
-    member0OutputBuffer.releaseNativeArrays
-    member1OutputBuffer.releaseNativeArrays
+  override def getNativeOutputBufferInfo() : Array[Int] = {
+    val member0Info : Array[Int] = member0OutputBuffer.getNativeOutputBufferInfo
+    val member1Info : Array[Int] = member1OutputBuffer.getNativeOutputBufferInfo
+    val mergedLength : Int = member0Info.length + member1Info.length
+    val myInfo : Array[Int] = new Array[Int](mergedLength)
+
+    for (i <- 0 until member0Info.length) {
+      myInfo(i) = member0Info(i)
+    }
+    for (i <- 0 until member1Info.length) {
+      myInfo(member0Info.length + i) = member1Info(i)
+    }
+
+    return myInfo
   }
 }

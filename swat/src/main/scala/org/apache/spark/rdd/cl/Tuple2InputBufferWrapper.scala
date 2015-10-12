@@ -268,7 +268,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
                 SparseVectorInputBufferWrapperConfig.tiling, entryPoint,
                 persistent)
         if (cacheSuccess == -1) {
-          OpenCLBridge.manuallyRelease(ctx, dev_ctx, 0, usedArgs)
+          OpenCLBridge.releaseAllPendingRegions(ctx)
           return -1
         }
         usedArgs = usedArgs + cacheSuccess

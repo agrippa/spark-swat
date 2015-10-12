@@ -112,36 +112,43 @@ typedef struct _native_input_buffer_list_node {
     struct _native_input_buffer_list_node *next;
 } native_input_buffer_list_node;
 
+typedef struct _kernel_context kernel_context;
+typedef struct _native_output_buffers native_output_buffers;
+
 typedef struct _swat_context {
     cl_kernel kernel;
-    int host_thread_index;
+    pthread_mutex_t kernel_lock;
 
-    /*
-     * arguments_region should be cleared following each failed or successful
-     * kernel attempt to ensure that only the current kernel arguments are
-     * stored.
-     */
+    int host_thread_index;
 
     arg_value *accumulated_arguments;
     int accumulated_arguments_len;
     int accumulated_arguments_capacity;
 
-    cl_region **arguments_region;
-    bool *arguments_keep;
-    bool *arguments_dont_free;
-    bool *arguments_clear_arguments;
-    int arguments_capacity;
+    arg_value *global_arguments;
+    int global_arguments_len;
+    int global_arguments_capacity;
 
     void *zeros;
     size_t zeros_capacity;
 
-    cl_event last_event;
+    cl_event last_write_event;
 
     native_input_buffer_list_node *freed_native_input_buffers;
     pthread_mutex_t freed_native_input_buffers_lock;
     pthread_cond_t freed_native_input_buffers_cond;
 
-    unsigned n_allocated;
+    unsigned run_seq_no;
+
+    kernel_context *completed_kernels;
+    pthread_mutex_t completed_kernels_lock;
+    pthread_cond_t completed_kernels_cond;
+
+    native_output_buffers *out_buffers;
+    int out_buffers_len;
+    pthread_mutex_t out_buffers_lock;
+    pthread_cond_t out_buffers_cond;
+
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
@@ -149,5 +156,50 @@ typedef struct _swat_context {
 #endif
 
 } swat_context;
+
+/*
+ * The host-side storage of a single heap instance transferred from the device.
+ */
+typedef struct _saved_heap {
+    void *h_heap;
+    size_t size;
+} saved_heap;
+
+typedef struct _native_output_buffers {
+    void **buffers;
+    size_t *buffer_sizes;
+    int *buffer_arg_indices;
+    int n_buffers;
+    int free;
+} native_output_buffers;
+
+struct _kernel_context {
+    swat_context *ctx;
+    device_context *dev_ctx;
+
+    heap_context *curr_heap_ctx;
+    saved_heap *heaps;
+    cl_event *heap_copy_back_events;
+    int n_heap_ctxs;
+    int heapStartArgnum;
+
+    size_t n_loaded;
+    size_t local_size;
+    size_t global_size;
+
+    unsigned seq_no;
+
+    unsigned iter;
+    int iterArgNum;
+
+    kernel_context *next;
+
+    // The set of arguments that are specific to this kernel instance
+    arg_value *accumulated_arguments;
+    int accumulated_arguments_len;
+
+    native_output_buffers *out_buffers;
+};
+
 
 #endif

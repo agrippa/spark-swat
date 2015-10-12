@@ -15,7 +15,8 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
-    val N : Int, entryPoint : Entrypoint) extends OutputBufferWrapper[T] {
+    val N : Int, val entryPoint : Entrypoint)
+    extends OutputBufferWrapper[T] {
   var iter : Int = 0
   val clazz : java.lang.Class[_] = Class.forName(className)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
@@ -42,27 +43,17 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     iter < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int,
-          heapTop : Int) {
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
-      setNLoaded : Int) {
-    nLoaded = setNLoaded
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, bb.array,
-            structSize * nLoaded)
+  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
+    iter = 0
+    bb.clear
+    nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
+    assert(nLoaded <= N)
+    OpenCLBridge.nativeToJVMArray(kernel_ctx, bb.array, outArgNum, nLoaded * structSize)
   }
 
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def reset() {
-    iter = 0
-    nLoaded = -1
-    bb.clear
-  }
-
-  override def releaseNativeArrays() {
+  override def getNativeOutputBufferInfo() : Array[Int] = {
+    Array(structSize * N)
   }
 }

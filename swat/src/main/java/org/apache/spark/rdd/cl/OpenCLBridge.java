@@ -21,7 +21,11 @@ public class OpenCLBridge {
     public static native long createSwatContext(String label, String _source,
             long dev_ctx, int host_thread_index, boolean requiresDouble,
             boolean requiresHeap, int max_n_buffered);
-    public static native void cleanupSwatContext(long ctx);
+    public static native void initNativeOutBuffers(int nPrealloc,
+            int[] bufferSizes, int[]  bufferArgIndices, int nBuffers, long ctx);
+    public static native void cleanupKernelContext(long kernel_ctx);
+    public static native void resetSwatContext(long ctx);
+    public static native void cleanupSwatContext(long ctx, long dev_ctx);
     public static native long getActualDeviceContext(int device_index,
             int heaps_per_device, int heap_size);
     public static native void postKernelCleanup(long ctx);
@@ -52,24 +56,20 @@ public class OpenCLBridge {
             long broadcastId, int rddid, int partitionid, int offset,
             int component, boolean persistent);
 
-    public static native void fetchIntArrayArg(long ctx, long dev_ctx,
-            int index, int[] arg, int argLength);
-    public static native void fetchDoubleArrayArg(long ctx, long dev_ctx,
-            int index, double[] arg, int argLength);
-    public static native void fetchFloatArrayArg(long ctx, long dev_ctx,
-            int index, float[] arg, int argLength);
-    public static native void fetchByteArrayArg(long ctx, long dev_ctx,
-            int index, byte[] arg, int argLength);
-
-    public static native void fetchByteArrayArgToNativeArray(long ctx,
-            long dev_ctx, int index, long buffer, int argLength);
+    public static native void nativeToJVMArray(long kernel_ctx, Object jvmArray,
+            int argIndex, int nbytes);
+    public static native long findNativeArray(long kernel_ctx, int argIndex);
+    public static native void fillHeapBuffersFromKernelContext(long kernel_ctx,
+            long[] jvmArr, int maxHeaps);
+    public static native int getNLoaded(long kernel_ctx);
 
     public static native void addFreedNativeBuffer(long ctx, long dev_ctx, int buffer_id);
     public static native int waitForFreedNativeBuffer(long ctx, long dev_ctx);
     public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx, int buffer_id);
 
-    public static native void run(long ctx, long dev_ctx, long heap_ctx,
-            int range, int local_size, int iterArgNum, int iter,
+    public static native long waitForFinishedKernel(long ctx, long dev_ctx, int seq_no);
+    public static native void run(long ctx, long dev_ctx,
+            int range, int local_size, int iterArgNum,
             int heapArgStart);
     public static native int checkHeapTop(long heap_ctx);
 
@@ -80,17 +80,13 @@ public class OpenCLBridge {
     public static native boolean setArgUnitialized(long ctx, long dev_ctx,
             int index, long size, boolean persistent);
 
-    public static native long acquireHeap(long ctx, long dev_ctx,
-            int heapStartArgnum);
-    public static native void releaseHeap(long dev_ctx, long heap_ctx);
-    public static native void setupArguments(long ctx, long dev_ctx);
+    public static native void setupGlobalArguments(long ctx, long dev_ctx);
     public static native void cleanupArguments(long ctx);
 
     public static native boolean tryCache(long ctx, long dev_ctx, int index,
             long broadcastId, int rddid, int partitionid, int offsetid,
             int componentid, int ncomponents, boolean persistent);
-    public static native void manuallyRelease(long ctx, long dev_ctx,
-            int startingIndexInclusive, int endingIndexExclusive);
+    public static native void releaseAllPendingRegions(long ctx);
 
     public static native long nativeMalloc(long nbytes);
     public static native void nativeFree(long buffer);
@@ -160,6 +156,8 @@ public class OpenCLBridge {
             int offsetid, int nloaded);
     public static native int fetchNLoaded(int rddid, int partitionid,
             int offsetid);
+
+    public static native int getCurrentSeqNo(long ctx);
 
     // public static int createHeap(long ctx, long dev_ctx, int index,
     //         int size, int max_n_buffered) throws OpenCLOutOfMemoryException {

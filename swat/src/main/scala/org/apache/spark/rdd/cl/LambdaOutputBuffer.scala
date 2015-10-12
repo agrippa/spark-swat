@@ -24,31 +24,20 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
   override def hasNext() : Boolean = {
     if (!acc.hasNext) {
       anyLeft = false
-
       OpenCLBridge.addFreedNativeBuffer(ctx, dev_ctx, acc.id)
     }
     anyLeft
-  }
-
-  // Returns true if all work on the device is complete
-  override def kernelAttemptCallback(nLoaded : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int, heapTop : Int) {
-    throw new java.lang.UnsupportedOperationException()
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, nLoaded : Int) {
-    throw new java.lang.UnsupportedOperationException()
   }
 
   override def countArgumentsUsed() : Int = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  override def reset() {
+  def fillFrom(kernel_ctx : Long, outArgNum : Int) {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  override def releaseNativeArrays() {
+  def getNativeOutputBufferInfo() : Array[Int] = {
+    throw new java.lang.UnsupportedOperationException()
   }
 }

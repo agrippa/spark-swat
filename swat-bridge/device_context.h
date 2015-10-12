@@ -42,11 +42,15 @@ class broadcast_id {
         int component;
 };
 
+typedef struct _device_context device_context;
+
 typedef struct _heap_context {
+    device_context *dev_ctx;
     cl_region *heap;
     cl_region *free_index;
+
     int h_free_index;
-    size_t heap_size;
+    unsigned heap_size;
     int free;
 } heap_context;
 
@@ -63,13 +67,15 @@ typedef struct _device_context {
      */
     pthread_mutex_t broadcast_lock;
     pthread_mutex_t program_cache_lock;
-    pthread_mutex_t heap_cache_lock;
 
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;
     map<broadcast_id, cl_region *> *broadcast_cache;
+
     heap_context *heap_cache;
+    pthread_mutex_t heap_cache_lock;
+    pthread_cond_t heap_cache_cond;
     int n_heaps;
 } device_context;
 

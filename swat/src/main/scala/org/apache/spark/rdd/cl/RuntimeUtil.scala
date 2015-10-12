@@ -213,7 +213,7 @@ object RuntimeUtil {
                 startArgnum + used, cacheID, nLoaded, denseVectorTiling,
                 sparseVectorTiling, entryPoint, persistent)
         if (cacheSuccess == -1) {
-          OpenCLBridge.manuallyRelease(ctx, dev_ctx, startArgnum, used)
+          OpenCLBridge.releaseAllPendingRegions(ctx)
           return -1
         }
         used = used + cacheSuccess

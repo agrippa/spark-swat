@@ -22,7 +22,7 @@ all: ${TARGET} rerun query_tool
 ${TARGET}: ${SRC}
 	test ! -z "${GXX}" || { echo 'GXX missing, should be defined in SWAT_HOME/build.conf'; exit 1; }
 	${GXX} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared \
-		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil ${GXX_FLAGS}
+		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil ${GXX_FLAGS} -lrt
 
 rerun: rerun.cpp common.cpp
 	${GXX} ${DEFINES} ${INCLUDES} rerun.cpp common.cpp -o rerun \

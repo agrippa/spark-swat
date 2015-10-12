@@ -13,12 +13,12 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
-    extends OutputBufferWrapper[T] {
+class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int) extends OutputBufferWrapper[T] {
   var nLoaded : Int = -1
   val arr : Array[T] = new Array[T](N)
   var iter : Int = 0
   val clazz : java.lang.Class[_] = classTag[T].runtimeClass
+  val eleSize : Int = if (clazz.equals(classOf[Double])) 8 else 4
 
   override def next() : T = {
     val index = iter
@@ -30,35 +30,16 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
     iter < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int,
-          heapTop : Int) {
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
-      setNLoaded : Int) {
-    nLoaded = setNLoaded
-    if (clazz.equals(classOf[Double])) {
-      OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Double]], nLoaded)
-    } else if (clazz.equals(classOf[Int])) {
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Int]], nLoaded)
-    } else if (clazz.equals(classOf[Float])) {
-      OpenCLBridge.fetchFloatArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Float]], nLoaded)
-    } else {
-      throw new RuntimeException("Unsupported output primitive type " + clazz.getName)
-    }
-  }
-
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def reset() {
+  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
     iter = 0
-    nLoaded = -1
+    nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
+    assert(nLoaded <= N)
+    OpenCLBridge.nativeToJVMArray(kernel_ctx, arr, outArgNum, nLoaded * eleSize)
   }
 
-  override def releaseNativeArrays() { }
+  override def getNativeOutputBufferInfo() : Array[Int] = {
+    Array(eleSize * N)
+  }
 }
