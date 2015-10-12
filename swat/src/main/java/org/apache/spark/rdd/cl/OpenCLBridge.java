@@ -96,13 +96,6 @@ public class OpenCLBridge {
 
     public static native int getMaxOffsetOfStridedVectors(int nVectors,
             long sizesBuffer, long offsetsBuffer, int tiling);
-    public static native void resetDenseVectorBuffers(long valuesBuffer,
-            long sizesBuffer, long offsetsBuffer, int vectorsUsed,
-            int elementsUsed, int leftoverVectors, int leftoverElements);
-    public static native void resetSparseVectorBuffers(long indicesBuffer,
-            long valuesBuffer, long sizesBuffer, long offsetsBuffer,
-            int vectorsUsed, int elementsUsed, int leftoverVectors,
-            int leftoverElements);
 
     public static native void transferOverflowDenseVectorBuffers(long dstValues,
             long dstSizes, long dstOffsets, long srcValues, long srcSizes,

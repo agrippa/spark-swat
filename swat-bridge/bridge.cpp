@@ -51,9 +51,8 @@ const unsigned zero = 0;
  * piece of an RDD. Write lock is acquired when we need to update metadata on
  * the RDD caching.
  */
-#define RDD_CACHE_BUCKETS 16
+#define RDD_CACHE_BUCKETS 256
 static pthread_mutex_t rdd_cache_locks[RDD_CACHE_BUCKETS];
-// static pthread_rwlock_t rdd_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /*
  * Inter-device RDD cache, bucketed by partition.
@@ -489,9 +488,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 CHECK(err);
 
                 cl_command_queue_properties props = 0;
-// #ifndef __APPLE__
-//                 props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-// #endif
+#ifndef __APPLE__
+                props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+#endif
 #ifdef PROFILE_OPENCL
                 props |= CL_QUEUE_PROFILING_ENABLE;
 #endif
@@ -933,6 +932,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->debug_arguments = new map<int, kernel_arg *>();
     context->kernel_src = store_source;
     context->kernel_src_len = source_len;
+    context->dump_index = 0;
 #endif
     EXIT_TRACE("createContext");
     return (jlong)context;
@@ -1117,59 +1117,6 @@ JNI_JAVA(void, OpenCLBridge, transferOverflowDenseVectorBuffers)(JNIEnv *jenv,
 
     EXIT_TRACE("transferOverflowDenseVectorBuffers");
 }
-
-JNI_JAVA(void, OpenCLBridge, resetDenseVectorBuffers)(
-        JNIEnv *jenv, jclass clazz, jlong valuesBuffer, jlong sizesBuffer,
-        jlong offsetsBuffer, jint vectorsUsed, jint elementsUsed,
-        jint leftoverVectors, jint leftoverElements) {
-    ENTER_TRACE("resetDenseVectorBuffers");
-    /*
-     * These asserts are not necessarily true, but are simply put here to allow
-     * us to make simplifying assumptions (i.e. that the used and leftover
-     * regions do not overlap) and to make sure they are tripped when this isn't
-     * true any longer. In general this should be the most common case (i.e.
-     * that the buffer has many more used vectors than unused).
-     *
-     * Same comment for resetSparseVectorBuffers below.
-     */
-    ASSERT(leftoverVectors < vectorsUsed);
-    ASSERT(leftoverElements < elementsUsed);
-    double *values = (double *)valuesBuffer;
-    int *sizes = (int *)sizesBuffer;
-    int *offsets = (int *)offsetsBuffer;
-
-    memcpy(sizes, sizes + vectorsUsed, leftoverVectors * sizeof(int));
-    memcpy(values, values + elementsUsed, leftoverElements * sizeof(double));
-    for (int i = 0; i < leftoverVectors; i++) {
-        offsets[i] = offsets[vectorsUsed + i] - elementsUsed;
-    }
-
-    EXIT_TRACE("resetDenseVectorBuffers");
-}
-
-JNI_JAVA(void, OpenCLBridge, resetSparseVectorBuffers)(
-        JNIEnv *jenv, jclass clazz, jlong indicesBuffer, jlong valuesBuffer,
-        jlong sizesBuffer, jlong offsetsBuffer, jint vectorsUsed,
-        jint elementsUsed, jint leftoverVectors, jint leftoverElements) {
-    ENTER_TRACE("resetSparseVectorBuffers");
-
-    ASSERT(leftoverVectors < vectorsUsed);
-    ASSERT(leftoverElements < elementsUsed);
-    int *indices = (int *)indicesBuffer;
-    double *values = (double *)valuesBuffer;
-    int *sizes = (int *)sizesBuffer;
-    int *offsets = (int *)offsetsBuffer;
-
-    memcpy(indices, indices + elementsUsed, leftoverElements * sizeof(int));
-    memcpy(values, values + elementsUsed, leftoverElements * sizeof(double));
-    memcpy(sizes, sizes + vectorsUsed, leftoverVectors * sizeof(int));
-    for (int i = 0; i < leftoverVectors; i++) {
-        offsets[i] = offsets[vectorsUsed + i] - elementsUsed;
-    }
-
-    EXIT_TRACE("resetSparseVectorBuffers");
-}
-
 
 JNI_JAVA(void, OpenCLBridge, deserializeStridedValuesFromNativeArray)(
         JNIEnv *jenv, jclass clazz, jobjectArray bufferTo, jint nToBuffer,
@@ -1708,7 +1655,8 @@ static void add_to_global_arguments(arg_value *val, swat_context *ctx) {
     ctx->global_arguments_len = ctx->global_arguments_len + 1;
 }
 
-static void setKernelArgument(arg_value *val, swat_context *context) {
+static void setKernelArgument(arg_value *val, swat_context *context,
+        device_context *dev_ctx) {
     const int index = val->index;
 
     switch (val->type) {
@@ -1723,6 +1671,10 @@ static void setKernelArgument(arg_value *val, swat_context *context) {
 
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(mem),
                             &mem));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(mem,
+                        val->val.region->size, dev_ctx);
+#endif
             } else {
 #ifdef VERBOSE
                 fprintf(stderr, "setKernelArgument: thread=%d index=%d "
@@ -1730,6 +1682,10 @@ static void setKernelArgument(arg_value *val, swat_context *context) {
 #endif
                 cl_mem none = 0x0;
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(none), &none));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg(&none,
+                        sizeof(none), false, false);
+#endif
             }
             break;
         case INT:
@@ -1739,6 +1695,10 @@ static void setKernelArgument(arg_value *val, swat_context *context) {
                     context->host_thread_index, index, i);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&i,
+                        sizeof(i), false, false);
+#endif
             break;
         case FLOAT:
             const float f = val->val.f;
@@ -1747,6 +1707,10 @@ static void setKernelArgument(arg_value *val, swat_context *context) {
                     context->host_thread_index, index, f);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&f,
+                        sizeof(f), false, false);
+#endif
             break;
         case DOUBLE:
             const double d = val->val.d;
@@ -1755,6 +1719,10 @@ static void setKernelArgument(arg_value *val, swat_context *context) {
                     context->host_thread_index, index, d);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
+#ifdef BRIDGE_DEBUG
+                (*context->debug_arguments)[index] = new kernel_arg((void *)&d,
+                        sizeof(d), false, false);
+#endif
             break;
         default:
             fprintf(stderr, "setKernelArgument: Unexpected type\n");
@@ -1770,7 +1738,7 @@ JNI_JAVA(void, OpenCLBridge, setupGlobalArguments)(JNIEnv *jenv, jclass clazz,
     for (int a = 0; a < context->accumulated_arguments_len; a++) {
         arg_value *val = context->accumulated_arguments + a;
 
-        setKernelArgument(val, context);
+        setKernelArgument(val, context, dev_ctx);
 
         if (val->type == REGION && val->val.region) {
             add_to_global_arguments(val, context);
@@ -1780,16 +1748,13 @@ JNI_JAVA(void, OpenCLBridge, setupGlobalArguments)(JNIEnv *jenv, jclass clazz,
 }
 
 #ifdef BRIDGE_DEBUG
-static void save_to_dump_file(swat_context *context, size_t global_size, size_t local_size) {
-    int dump_index = 0;
-    int fd;
-    do {
-        char filename[256];
-        sprintf(filename, "bridge.dump.tid%d.%d", context->host_thread_index,
-                dump_index);
-        fd = open(filename, O_WRONLY | O_CREAT, O_EXCL | S_IRUSR | S_IWUSR);
-        dump_index++;
-    } while(fd == -1);
+static void save_to_dump_file(swat_context *context, size_t global_size,
+        size_t local_size) {
+    char filename[256];
+    sprintf(filename, "bridge.dump.tid%d.%d", context->host_thread_index,
+            context->dump_index);
+    int fd = open(filename, O_WRONLY | O_CREAT, O_EXCL | S_IRUSR | S_IWUSR);
+    context->dump_index = context->dump_index + 1;
 
     // Write kernel source to dump file
     safe_write(fd, &global_size, sizeof(global_size));
@@ -1845,6 +1810,17 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
                     sizeof(cl_mem), &heap_ctx->free_index->sub_mem));
         CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->heapStartArgnum + 2,
                     sizeof(heap_ctx->heap_size), &heap_ctx->heap_size));
+#ifdef BRIDGE_DEBUG
+        (*ctx->debug_arguments)[kernel_ctx->heapStartArgnum] = new kernel_arg(
+                heap_ctx->heap->sub_mem, heap_ctx->heap_size,
+                kernel_ctx->dev_ctx);
+        (*ctx->debug_arguments)[kernel_ctx->heapStartArgnum + 1] =
+            new kernel_arg(heap_ctx->free_index->sub_mem, sizeof(zero),
+                    kernel_ctx->dev_ctx);
+        (*ctx->debug_arguments)[kernel_ctx->heapStartArgnum + 2] =
+            new kernel_arg(&heap_ctx->heap_size, sizeof(heap_ctx->heap_size),
+                    false, false);
+#endif
 
         // Clear the free index of the acquired heap asynchronously
         cl_event free_index_event;
@@ -1856,10 +1832,17 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         prev_event = free_index_event;
     }
 
+
     for (int a = 0; a < kernel_ctx->accumulated_arguments_len; a++) {
         arg_value *curr = kernel_ctx->accumulated_arguments + a;
-        setKernelArgument(curr, ctx);
+        setKernelArgument(curr, ctx, kernel_ctx->dev_ctx);
     }
+
+#ifdef BRIDGE_DEBUG
+    (*ctx->debug_arguments)[kernel_ctx->iterArgNum] = new kernel_arg(
+            &kernel_ctx->iter, sizeof(kernel_ctx->iter), false, false);
+    save_to_dump_file(ctx, kernel_ctx->global_size, kernel_ctx->local_size);
+#endif
 
     // Set the current iter of this kernel instance
     CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->iterArgNum,
@@ -2193,12 +2176,6 @@ JNI_JAVA(void, OpenCLBridge, run)
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     const size_t local_size = local_size_in;
     const size_t global_size = range + (local_size - (range % local_size));
-
-#ifdef BRIDGE_DEBUG
-    (*context->debug_arguments)[iterArgNum] = new kernel_arg(&iterArgNum,
-            sizeof(iterArgNum), false, false);
-    save_to_dump_file(context, global_size, local_size);
-#endif
 
 #ifdef VERBOSE
     fprintf(stderr, "Host thread %d launching kernel on OpenCL device %s, "

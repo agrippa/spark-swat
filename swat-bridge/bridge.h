@@ -153,6 +153,7 @@ typedef struct _swat_context {
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
     size_t kernel_src_len;
+    int dump_index;
 #endif
 
 } swat_context;
