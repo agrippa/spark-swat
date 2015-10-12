@@ -66,7 +66,14 @@ typedef struct _device_context {
      * building a program for a new device (which should happen infrequently).
      */
     pthread_mutex_t broadcast_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long broadcast_lock_contention;
+#endif
+
     pthread_mutex_t program_cache_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long program_cache_lock_contention;
+#endif
 
     cl_allocator *allocator;
 
@@ -75,6 +82,10 @@ typedef struct _device_context {
 
     heap_context *heap_cache;
     pthread_mutex_t heap_cache_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long heap_cache_lock_contention;
+    unsigned long long heap_cache_blocked;
+#endif
     pthread_cond_t heap_cache_cond;
     int n_heaps;
 } device_context;

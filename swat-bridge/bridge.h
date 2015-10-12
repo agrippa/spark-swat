@@ -118,6 +118,9 @@ typedef struct _native_output_buffers native_output_buffers;
 typedef struct _swat_context {
     cl_kernel kernel;
     pthread_mutex_t kernel_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long kernel_lock_contention;
+#endif
 
     int host_thread_index;
 
@@ -136,17 +139,29 @@ typedef struct _swat_context {
 
     native_input_buffer_list_node *freed_native_input_buffers;
     pthread_mutex_t freed_native_input_buffers_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long freed_native_input_buffers_lock_contention;
+    unsigned long long freed_native_input_buffers_blocked;
+#endif
     pthread_cond_t freed_native_input_buffers_cond;
 
     unsigned run_seq_no;
 
     kernel_context *completed_kernels;
     pthread_mutex_t completed_kernels_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long completed_kernels_lock_contention;
+    unsigned long long completed_kernels_blocked;
+#endif
     pthread_cond_t completed_kernels_cond;
 
     native_output_buffers *out_buffers;
     int out_buffers_len;
     pthread_mutex_t out_buffers_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long out_buffers_lock_contention;
+    unsigned long long out_buffers_blocked;
+#endif
     pthread_cond_t out_buffers_cond;
 
 #ifdef BRIDGE_DEBUG

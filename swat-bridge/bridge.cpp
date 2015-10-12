@@ -21,6 +21,9 @@ static int n_device_ctxs = 0;
  * initializes them. Should be very little contention on this lock.
  */
 static pthread_mutex_t device_ctxs_lock = PTHREAD_MUTEX_INITIALIZER;
+#ifdef PROFILE_LOCKS
+static unsigned long long device_ctxs_lock_contention = 0ULL;
+#endif
 static int *virtual_devices = NULL;
 static int n_virtual_devices = 0;
 
@@ -53,6 +56,9 @@ const unsigned zero = 0;
  */
 #define RDD_CACHE_BUCKETS 256
 static pthread_mutex_t rdd_cache_locks[RDD_CACHE_BUCKETS];
+#ifdef PROFILE_LOCKS
+static unsigned long long rdd_cache_contention[RDD_CACHE_BUCKETS];
+#endif
 
 /*
  * Inter-device RDD cache, bucketed by partition.
@@ -198,6 +204,16 @@ unsigned long long get_clock_gettime_ns() {
 }
 #endif
 
+static inline void force_pthread_mutex_lock(pthread_mutex_t *mutex) {
+    const int perr = pthread_mutex_lock(mutex);
+    ASSERT(perr == 0);
+}
+
+static inline void force_pthread_mutex_unlock(pthread_mutex_t *mutex) {
+    const int perr = pthread_mutex_unlock(mutex);
+    ASSERT(perr == 0);
+}
+
 static void add_pending_arg(swat_context *context, int index, bool keep,
         bool dont_free, bool clear_arguments, enum arg_type type,
         region_or_scalar val) {
@@ -287,8 +303,14 @@ static inline cl_region *check_rdd_cache(rdd_partition_offset uuid,
 }
 
 static inline void lock_rdd_cache_by_partition(int partition) {
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     const int err = pthread_mutex_lock(rdd_cache_locks +
             rdd_cache_bucket_for_partition(partition));
+#ifdef PROFILE_LOCKS
+    rdd_cache_contention[partition] += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(err == 0);
 }
 
@@ -299,12 +321,21 @@ static inline void unlock_rdd_cache_by_partition(int partition) {
 }
 
 static inline void lock_rdd_cache(rdd_partition_offset uuid) {
-    const int err = pthread_mutex_lock(rdd_cache_locks + rdd_cache_bucket_for(uuid));
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
+    const int err = pthread_mutex_lock(rdd_cache_locks +
+            rdd_cache_bucket_for(uuid));
+#ifdef PROFILE_LOCKS
+    rdd_cache_contention[rdd_cache_bucket_for(uuid)] +=
+        (get_clock_gettime_ns() - start);
+#endif
     ASSERT(err == 0);
 }
 
 static inline void unlock_rdd_cache(rdd_partition_offset uuid) {
-    const int err = pthread_mutex_unlock(rdd_cache_locks + rdd_cache_bucket_for(uuid));
+    const int err = pthread_mutex_unlock(rdd_cache_locks +
+            rdd_cache_bucket_for(uuid));
     ASSERT(err == 0);
 }
 
@@ -339,7 +370,13 @@ static void update_rdd_cache(rdd_partition_offset uuid, cl_region *new_region,
  * of rdd_cache_locks for us.
  */
 static inline void lock_bcast_cache(device_context *ctx) {
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     const int err = pthread_mutex_lock(&ctx->broadcast_lock);
+#ifdef PROFILE_LOCKS
+    ctx->broadcast_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(err == 0);
 }
 
@@ -444,7 +481,13 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
      * ensure no thread makes this call at the same time using a mutex, seems to
      * work fine but this shouldn't be happening to begin with.
      */
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&device_ctxs_lock);
+#ifdef PROFILE_LOCKS
+    device_ctxs_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     // Double check after locking
@@ -521,6 +564,16 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                         &(tmp_device_ctxs[global_device_id].heap_cache_cond),
                         NULL);
                 ASSERT(perr == 0);
+
+#ifdef PROFILE_LOCKS
+                tmp_device_ctxs[global_device_id].broadcast_lock_contention =
+                    0ULL;
+                tmp_device_ctxs[global_device_id].program_cache_lock_contention =
+                    0ULL;
+                tmp_device_ctxs[global_device_id].heap_cache_lock_contention =
+                    0ULL;
+                tmp_device_ctxs[global_device_id].heap_cache_blocked = 0ULL;
+#endif
 
                 tmp_device_ctxs[global_device_id].allocator = init_allocator(
                         curr_dev, global_device_id, ctx, cmd);
@@ -615,6 +668,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
         // Initialize cache state
         for (int i = 0; i < RDD_CACHE_BUCKETS; i++) {
             rdd_cache_locks[i] = PTHREAD_MUTEX_INITIALIZER;
+#ifdef PROFILE_LOCKS
+            rdd_cache_contention[i] = 0ULL;
+#endif
             rdd_caches[i] = new map<rdd_partition_offset, map<int, cl_region *> *>();
         }
 
@@ -728,6 +784,102 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
 
     ctx->freed_native_input_buffers = NULL;
     ctx->global_arguments_len = 0;
+
+#ifdef PROFILE_LOCKS
+    // Global
+    unsigned long long local_device_ctxs_lock_contention;
+    unsigned long long total_rdd_cache_contention = 0ULL;
+    unsigned long long local_rdd_cache_contention[RDD_CACHE_BUCKETS];
+    // SWAT context
+    unsigned long long local_kernel_lock_contention;
+    unsigned long long local_freed_native_input_buffers_lock_contention;
+    unsigned long long local_freed_native_input_buffers_blocked;
+    unsigned long long local_completed_kernels_lock_contention;
+    unsigned long long local_completed_kernels_blocked;
+    unsigned long long local_out_buffers_lock_contention;
+    unsigned long long local_out_buffers_blocked;
+    // Device context
+    unsigned long long local_broadcast_lock_contention;
+    unsigned long long local_program_cache_lock_contention;
+    unsigned long long local_heap_cache_lock_contention;
+    unsigned long long local_heap_cache_blocked;
+
+    force_pthread_mutex_lock(&device_ctxs_lock);
+    local_device_ctxs_lock_contention = device_ctxs_lock_contention;
+    force_pthread_mutex_unlock(&device_ctxs_lock);
+
+    for (int i = 0; i < RDD_CACHE_BUCKETS; i++) {
+        force_pthread_mutex_lock(rdd_cache_locks + i);
+        local_rdd_cache_contention[i] = rdd_cache_contention[i];
+        force_pthread_mutex_unlock(rdd_cache_locks + i);
+        total_rdd_cache_contention += local_rdd_cache_contention[i];
+    }
+
+    force_pthread_mutex_lock(&ctx->kernel_lock);
+    local_kernel_lock_contention = ctx->kernel_lock_contention;
+    force_pthread_mutex_unlock(&ctx->kernel_lock);
+
+    force_pthread_mutex_lock(&ctx->freed_native_input_buffers_lock);
+    local_freed_native_input_buffers_lock_contention =
+        ctx->freed_native_input_buffers_lock_contention;
+    local_freed_native_input_buffers_blocked =
+        ctx->freed_native_input_buffers_blocked;
+    force_pthread_mutex_unlock(&ctx->freed_native_input_buffers_lock);
+
+    force_pthread_mutex_lock(&ctx->completed_kernels_lock);
+    local_completed_kernels_lock_contention =
+        ctx->completed_kernels_lock_contention;
+    local_completed_kernels_blocked = ctx->completed_kernels_blocked;
+    force_pthread_mutex_unlock(&ctx->completed_kernels_lock);
+
+    force_pthread_mutex_lock(&ctx->out_buffers_lock);
+    local_out_buffers_lock_contention = ctx->out_buffers_lock_contention;
+    local_out_buffers_blocked = ctx->out_buffers_blocked;
+    force_pthread_mutex_unlock(&ctx->out_buffers_lock);
+
+    force_pthread_mutex_lock(&dev_ctx->broadcast_lock);
+    local_broadcast_lock_contention = dev_ctx->broadcast_lock_contention;
+    force_pthread_mutex_unlock(&dev_ctx->broadcast_lock);
+
+    force_pthread_mutex_lock(&dev_ctx->program_cache_lock);
+    local_program_cache_lock_contention = dev_ctx->program_cache_lock_contention;
+    force_pthread_mutex_unlock(&dev_ctx->program_cache_lock);
+
+    force_pthread_mutex_lock(&dev_ctx->heap_cache_lock);
+    local_heap_cache_lock_contention = dev_ctx->heap_cache_lock_contention;
+    local_heap_cache_blocked = dev_ctx->heap_cache_blocked;
+    force_pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
+
+    fprintf(stderr, "LOCK SUMMARY, device=%d, host thread=%d\n",
+            dev_ctx->device_index, ctx->host_thread_index);
+    fprintf(stderr, "  device_ctxs_lock_contention                = %llu\n",
+            local_device_ctxs_lock_contention);
+    fprintf(stderr, "  rdd_cache_lock_contention                  = %llu\n",
+            total_rdd_cache_contention);
+    fprintf(stderr, "  kernel_lock_contention                     = %llu\n",
+            local_kernel_lock_contention);
+    fprintf(stderr, "  freed_native_input_buffers_lock_contention = %llu\n",
+            local_freed_native_input_buffers_lock_contention);
+    fprintf(stderr, "  freed_native_input_buffers_blocked         = %llu\n",
+            local_freed_native_input_buffers_blocked);
+    fprintf(stderr, "  completed_kernels_lock_contention          = %llu\n",
+            local_completed_kernels_lock_contention);
+    fprintf(stderr, "  completed_kernels_blocked                  = %llu\n",
+            local_completed_kernels_blocked);
+    fprintf(stderr, "  out_buffers_lock_contention                = %llu\n",
+            local_out_buffers_lock_contention);
+    fprintf(stderr, "  out_buffers_blocked                        = %llu\n",
+            local_out_buffers_blocked);
+    fprintf(stderr, "  broadcast_lock_contention                  = %llu\n",
+            local_broadcast_lock_contention);
+    fprintf(stderr, "  program_cache_lock_contention              = %llu\n",
+            local_program_cache_lock_contention);
+    fprintf(stderr, "  heap_cache_lock_contention                 = %llu\n",
+            local_heap_cache_lock_contention);
+    fprintf(stderr, "  heap_cache_blocked                         = %llu\n",
+            local_heap_cache_blocked);
+
+#endif
     EXIT_TRACE("cleanupSwatContext");
 }
 
@@ -814,7 +966,13 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     std::string label_str(raw_label);
     jenv->ReleaseStringUTFChars(label, raw_label);
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&dev_ctx->program_cache_lock);
+#ifdef PROFILE_LOCKS
+    dev_ctx->program_cache_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
 #ifdef BRIDGE_DEBUG
@@ -887,6 +1045,16 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->kernel = kernel;
     perr = pthread_mutex_init(&context->kernel_lock, NULL);
     ASSERT(perr == 0);
+
+#ifdef PROFILE_LOCKS
+    context->kernel_lock_contention = 0ULL;
+    context->freed_native_input_buffers_lock_contention = 0ULL;
+    context->freed_native_input_buffers_blocked = 0ULL;
+    context->completed_kernels_lock_contention = 0ULL;
+    context->completed_kernels_blocked = 0ULL;
+    context->out_buffers_lock_contention = 0ULL;
+    context->out_buffers_blocked = 0ULL;
+#endif
 
     context->host_thread_index = host_thread_index;
 
@@ -1599,6 +1767,9 @@ static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
     const unsigned long long start = get_clock_gettime_ns();
 #endif
     int err = pthread_mutex_lock(&dev_ctx->heap_cache_lock);
+#ifdef PROFILE_LOCKS
+    dev_ctx->heap_cache_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(err == 0);
 
     heap_context *mine = NULL;
@@ -1609,13 +1780,12 @@ static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
     }
     ASSERT(mine->free == 0);
 
+#ifdef PROFILE_LOCKS
+    dev_ctx->heap_cache_blocked += (get_clock_gettime_ns() - start);
+#endif
+
     err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
     ASSERT(err == 0);
-
-#ifdef PROFILE_LOCKS
-    const unsigned long long elapsed = get_clock_gettime_ns() - start;
-    fprintf(stderr, "SWAT LOCKS acquireHeapImpl %llu\n", elapsed);
-#endif
 
     return mine;
 }
@@ -1789,7 +1959,13 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     cl_region *free_index_mem = NULL;
 
     // Lock kernel to prevent concurrent changes via clSetKernelArg
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&ctx->kernel_lock);
+#ifdef PROFILE_LOCKS
+    ctx->kernel_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     if (kernel_ctx->heapStartArgnum >= 0) {
@@ -1884,7 +2060,13 @@ static void release_device_heap_callback(cl_event event,
     heap_context *heap_ctx = (heap_context *)user_data;
     device_context *dev_ctx = heap_ctx->dev_ctx;
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int err = pthread_mutex_lock(&dev_ctx->heap_cache_lock);
+#ifdef PROFILE_LOCKS
+    dev_ctx->heap_cache_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(err == 0);
 
     heap_ctx->free = 1;
@@ -1930,7 +2112,13 @@ static void finally_done_callback(cl_event event,
     swat_context *ctx = kernel_ctx->ctx;
 
     kernel_ctx->next = NULL;
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&ctx->completed_kernels_lock);
+#ifdef PROFILE_LOCKS
+    ctx->completed_kernels_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     if (ctx->completed_kernels == NULL) {
@@ -1959,6 +2147,9 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
     const unsigned long long start = get_clock_gettime_ns();
 #endif
     int perr = pthread_mutex_lock(&ctx->out_buffers_lock);
+#ifdef PROFILE_LOCKS
+    ctx->out_buffers_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     // TODO blocking here is bad... should we just allocate on the fly?
@@ -1970,12 +2161,11 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
     ASSERT(out_buffers);
     ASSERT(out_buffers->free == 0);
 
+#ifdef PROFILE_LOCKS
+    ctx->out_buffers_blocked += (get_clock_gettime_ns() - start);
+#endif
     perr = pthread_mutex_unlock(&ctx->out_buffers_lock);
     ASSERT(perr == 0);
-#ifdef PROFILE_LOCKS
-    const unsigned long long elapsed = get_clock_gettime_ns() - start;
-    fprintf(stderr, "SWAT LOCKS copy_kernel_outputs %llu\n", elapsed);
-#endif
 
     for (int i = 0; i < out_buffers->n_buffers; i++) {
         cl_region *region = find_kernel_specific_argument_for(kernel_ctx,
@@ -2073,7 +2263,13 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
     }
     free(kernel_ctx->heaps);
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&ctx->out_buffers_lock);
+#ifdef PROFILE_LOCKS
+    ctx->out_buffers_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     kernel_ctx->out_buffers->free = 1;
@@ -2098,6 +2294,9 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
     const unsigned long long start = get_clock_gettime_ns();
 #endif
     int perr = pthread_mutex_lock(&ctx->completed_kernels_lock);
+#ifdef PROFILE_LOCKS
+    ctx->completed_kernels_lock_contention += (get_clock_gettime_ns() - start);
+#endif
     ASSERT(perr == 0);
 
     kernel_context *mine = NULL;
@@ -2108,12 +2307,11 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
     }
     ASSERT(mine);
 
+#ifdef PROFILE_LOCKS
+    ctx->completed_kernels_blocked += (get_clock_gettime_ns() - start);
+#endif
     perr = pthread_mutex_unlock(&ctx->completed_kernels_lock);
     ASSERT(perr == 0);
-#ifdef PROFILE_LOCKS
-    const unsigned long long elapsed = get_clock_gettime_ns() - start;
-    fprintf(stderr, "SWAT LOCKS waitForFinishedKernel %llu\n", elapsed);
-#endif
 
     /*
      * There may be no heap copy back events if we're running a kernel that
@@ -2531,7 +2729,14 @@ static void add_freed_native_buffer(swat_context *ctx, int buffer_id,
     freed->event = event;
     freed->next = NULL;
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&ctx->freed_native_input_buffers_lock);
+#ifdef PROFILE_LOCKS
+    ctx->freed_native_input_buffers_lock_contention += (get_clock_gettime_ns() -
+            start);
+#endif
     ASSERT(perr == 0);
 
     if (ctx->freed_native_input_buffers == NULL) {
@@ -2560,6 +2765,10 @@ JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
     const unsigned long long start = get_clock_gettime_ns();
 #endif
     int perr = pthread_mutex_lock(&ctx->freed_native_input_buffers_lock);
+#ifdef PROFILE_LOCKS
+    ctx->freed_native_input_buffers_lock_contention += (get_clock_gettime_ns() -
+            start);
+#endif
     ASSERT(perr == 0);
 
     while (ctx->freed_native_input_buffers == NULL) {
@@ -2570,12 +2779,11 @@ JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
     native_input_buffer_list_node *released = ctx->freed_native_input_buffers;
     ctx->freed_native_input_buffers = ctx->freed_native_input_buffers->next;
 
+#ifdef PROFILE_LOCKS
+    ctx->freed_native_input_buffers_blocked += (get_clock_gettime_ns() - start);
+#endif
     perr = pthread_mutex_unlock(&ctx->freed_native_input_buffers_lock);
     ASSERT(perr == 0);
-#ifdef PROFILE_LOCKS
-    const unsigned long long elapsed = get_clock_gettime_ns() - start;
-    fprintf(stderr, "SWAT LOCKS waitForFreedNativeBuffer %llu\n", elapsed);
-#endif
 
     int buffer_id = released->id;
     if (released->event) {

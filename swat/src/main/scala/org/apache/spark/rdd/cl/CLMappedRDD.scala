@@ -75,6 +75,10 @@ object CLMappedRDDStorage {
   assert(spark_cores_str != null)
   val spark_cores = spark_cores_str.toInt
 
+  val heapsPerDevice_str = System.getProperty("swat.heaps_per_device")
+  val heapsPerDevice = if (heapsPerDevice_str != null) heapsPerDevice_str.toInt
+        else CLMappedRDDStorage.spark_cores
+
   val swatContextCache : Array[java.util.HashMap[KernelDevicePair, Long]] =
         new Array[java.util.HashMap[KernelDevicePair, Long]](spark_cores)
   val inputBufferCache : Array[java.util.HashMap[String, InputBufferWrapper[_]]] =
@@ -95,7 +99,6 @@ object CLMappedRDDStorage {
  */
 class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
     extends RDD[U](prev) {
-  val heapsPerDevice = CLMappedRDDStorage.spark_cores
   var entryPoint : Entrypoint = null
   var openCL : String = null
 
@@ -179,10 +182,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
    val deviceInitStart = System.currentTimeMillis // PROFILE
     val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
-            threadId, heapsPerDevice, CLMappedRDDStorage.heapSize)
+            threadId, CLMappedRDDStorage.heapsPerDevice,
+            CLMappedRDDStorage.heapSize)
    System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
     val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
-            heapsPerDevice, CLMappedRDDStorage.heapSize)
+            CLMappedRDDStorage.heapsPerDevice, CLMappedRDDStorage.heapSize)
     val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
    RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 

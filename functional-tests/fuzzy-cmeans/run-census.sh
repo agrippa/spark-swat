@@ -22,7 +22,11 @@ if [[ $INPUT_EXISTS != 1 ]]; then
 fi
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19 -Xloggc:/tmp/SWAT.log -verbose:gc" \
 
-spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} \
-        --conf "spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 -Dswat.n_native_input_buffers=2 -Dswat.n_native_output_buffers=2" \
+SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
+              -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 \
+              -Dswat.n_native_input_buffers=2 -Dswat.n_native_output_buffers=2 \
+              -Dswat.heaps_per_device=12"
+
+spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
         --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \
         run $CENTERS $ITERS hdfs://$(hostname):54310/census-data $USE_SWAT
