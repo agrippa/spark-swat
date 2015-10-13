@@ -201,6 +201,12 @@ typedef struct _native_output_buffers {
     int free;
 } native_output_buffers;
 
+typedef struct _kernel_complete_flag {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    int done;
+} kernel_complete_flag;
+
 struct _kernel_context {
     swat_context *ctx;
     device_context *dev_ctx;
@@ -227,6 +233,8 @@ struct _kernel_context {
     int accumulated_arguments_len;
 
     native_output_buffers *out_buffers;
+
+    kernel_complete_flag *done_flag;
 
 #ifdef PROFILE_OPENCL
     event_info *acc_write_events;

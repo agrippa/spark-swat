@@ -389,6 +389,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            assert(filled.id != nextNativeInputBuffer.id)
 
            // Transfer input to device asynchronously
+           if (filled.clBuffersReadyPtr != 0L) {
+               OpenCLBridge.waitOnBufferReady(filled.clBuffersReadyPtr)
+           }
            filled.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
            /*
             * Add a callback to notify the reader thread that a native input
@@ -426,9 +429,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
              inputBuffer.setCurrentNativeBuffers(null)
            }
 
-           OpenCLBridge.run(ctx, dev_ctx, nLoaded,
+           val doneFlag : Long = OpenCLBridge.run(ctx, dev_ctx, nLoaded,
                    CLMappedRDDStorage.cl_local_size, lastArgIndex + 1,
                    heapArgStart)
+           filled.clBuffersReadyPtr = doneFlag
          }
        }
      }

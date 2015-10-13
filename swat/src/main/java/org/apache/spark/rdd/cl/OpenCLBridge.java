@@ -70,9 +70,10 @@ public class OpenCLBridge {
     public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx, int buffer_id);
 
     public static native long waitForFinishedKernel(long ctx, long dev_ctx, int seq_no);
-    public static native void run(long ctx, long dev_ctx,
+    public static native long run(long ctx, long dev_ctx,
             int range, int local_size, int iterArgNum,
             int heapArgStart);
+    public static native void waitOnBufferReady(long kernel_complete);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);

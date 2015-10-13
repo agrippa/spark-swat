@@ -2,6 +2,7 @@ package org.apache.spark.rdd.cl
 
 trait NativeInputBuffers[T] {
   var id : Int = -1
+  var clBuffersReadyPtr : Long = 0L
 
   def releaseNativeArrays()
 

@@ -2419,6 +2419,16 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
         // If need kernel restart
         runImpl(kernel_ctx, NULL);
     } else {
+
+        kernel_complete_flag *done_flag = kernel_ctx->done_flag;
+        int perr = pthread_mutex_lock(&done_flag->lock);
+        ASSERT(perr == 0);
+        done_flag->done = 1;
+        perr = pthread_cond_signal(&done_flag->cond);
+        ASSERT(perr == 0);
+        perr = pthread_mutex_unlock(&done_flag->lock);
+        ASSERT(perr == 0);
+
         copy_kernel_outputs(kernel_ctx, heap_event);
     }
 }
@@ -2565,7 +2575,7 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
     return (jlong)mine;
 }
 
-JNI_JAVA(void, OpenCLBridge, run)
+JNI_JAVA(jlong, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
          jint range, jint local_size_in, jint iterArgNum,
          jint heapArgStart) {
@@ -2611,6 +2621,15 @@ JNI_JAVA(void, OpenCLBridge, run)
     kernel_ctx->accumulated_arguments = context->accumulated_arguments;
     kernel_ctx->accumulated_arguments_len = context->accumulated_arguments_len;
 
+    kernel_complete_flag *done_flag = (kernel_complete_flag *)malloc(sizeof(kernel_complete_flag));
+    CHECK_ALLOC(done_flag);
+    done_flag->done = 0;
+    int perr = pthread_mutex_init(&done_flag->lock, NULL);
+    ASSERT(perr == 0);
+    perr = pthread_cond_init(&done_flag->cond, NULL);
+    ASSERT(perr == 0);
+    kernel_ctx->done_flag = done_flag;
+
     context->accumulated_arguments = (arg_value *)malloc(
             context->accumulated_arguments_capacity * sizeof(arg_value));
     CHECK_ALLOC(context->accumulated_arguments);
@@ -2636,6 +2655,7 @@ JNI_JAVA(void, OpenCLBridge, run)
     // bump_time(dev_ctx->heap_allocator);
 
     EXIT_TRACE("run");
+    return (jlong)done_flag;
 }
 
 JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
@@ -3083,6 +3103,23 @@ JNI_JAVA(jint, OpenCLBridge, getNLoaded)(JNIEnv *jenv, jclass clazz,
         jlong l_kernel_ctx) {
     kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
     return kernel_ctx->n_loaded;
+}
+
+JNI_JAVA(void, OpenCLBridge, waitOnBufferReady)(JNIEnv *jenv, jclass clazz,
+        jlong l_kernel_complete) {
+    kernel_complete_flag *kernel_complete = (kernel_complete_flag *)l_kernel_complete;
+
+    int perr = pthread_mutex_lock(&kernel_complete->lock);
+    ASSERT(perr == 0);
+
+    while (kernel_complete->done == 0) {
+        perr = pthread_cond_wait(&kernel_complete->cond, &kernel_complete->lock);
+        ASSERT(perr == 0);
+    }
+    perr = pthread_mutex_unlock(&kernel_complete->lock);
+    ASSERT(perr == 0);
+
+    free(kernel_complete);
 }
 
 #ifdef __cplusplus
