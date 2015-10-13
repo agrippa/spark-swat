@@ -3,15 +3,14 @@
 #include <math.h>
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef PROFILE
+static volatile unsigned long long acc_init_time = 0ULL;
+static volatile unsigned long long acc_realloc_time = 0ULL;
+static volatile unsigned long long acc_free_time = 0ULL;
+static volatile unsigned long long acc_alloc_time = 0ULL;
 #endif
 
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef PROFILE_LOCKS
+#if defined(PROFILE_LOCKS) || defined(PROFILE)
 unsigned long long get_clock_gettime_ns() {
     struct timespec t ={0,0};
     clock_gettime(CLOCK_MONOTONIC, &t);
@@ -428,6 +427,9 @@ size_t count_free_bytes(cl_allocator *allocator) {
  * if its ref count was just decremented.
  */
 bool free_cl_region(cl_region *to_free, bool try_to_keep) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     ENTER_TRACE("free_cl_region");
 
     lock_alloc(to_free->grandparent);
@@ -575,6 +577,9 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     unlock_alloc(to_free->grandparent);
 
     EXIT_TRACE("free_cl_region");
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_free_time, get_clock_gettime_ns() - start);
+#endif
     return return_value;
 }
 
@@ -583,6 +588,9 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
  */
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         void (*callback)(void *), void *user_data) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     ENTER_TRACE("allocate_cl_region");
     ASSERT(allocator);
 
@@ -901,6 +909,9 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
 #endif
 
     unlock_alloc(alloc);
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_alloc_time, get_clock_gettime_ns() - start);
+#endif
 
     return copy;
 }
@@ -922,6 +933,9 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
  * always at least one live reference.
  */
 bool re_allocate_cl_region(cl_region *target_region, int target_device) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     ENTER_TRACE("re_allocate_cl_region");
 
     lock_alloc(target_region->grandparent);
@@ -935,6 +949,9 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
         free(target_region);
         unlock_alloc(alloc);
         EXIT_TRACE("re_allocate_cl_region");
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_realloc_time, get_clock_gettime_ns() - start);
+#endif
         return false;
     }
 
@@ -992,6 +1009,9 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
 
     EXIT_TRACE("re_allocate_cl_region");
 
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_realloc_time, get_clock_gettime_ns() - start);
+#endif
     return true;
 }
 
@@ -1004,6 +1024,9 @@ cl_allocator *init_allocator(const int device_index)
 #endif
 {
     ENTER_TRACE("init_allocator");
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
 
     unsigned int address_align;
 #ifdef OPENCL_ALLOCATOR
@@ -1130,6 +1153,9 @@ cl_allocator *init_allocator(const int device_index)
     allocator->nallocs = i;
     EXIT_TRACE("init_allocator");
 
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_init_time, get_clock_gettime_ns() - start);
+#endif
     return allocator;
 }
 
@@ -1203,6 +1229,20 @@ unsigned long long get_contention(cl_allocator *allocator) {
 unsigned long long get_contention(cl_allocator *allocator) {
     fprintf(stderr, "ERROR: get_contention : clalloc not compiled with "
             "contention information support (-DPROFILE_LOCKS)\n");
+    exit(1);
+}
+#endif
+
+#ifdef PROFILE
+void print_clalloc_profile() {
+    fprintf(stderr, "clalloc profile: init - %llu ns | alloc - %llu ns | "
+            "realloc - %llu ns | free - %llu ns\n", acc_init_time,
+            acc_alloc_time, acc_realloc_time, acc_free_time);
+}
+#else
+void print_clalloc_profile() {
+    fprintf(stderr, "ERROR: print_profile : clalloc not compiled with profile "
+            "information (-DPROFILE)\n");
     exit(1);
 }
 #endif

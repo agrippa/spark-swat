@@ -452,14 +452,13 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
 static void createHeapContext(heap_context *context, device_context *dev_ctx,
         size_t heap_size) {
     // The heap
-    fprintf(stderr, "free_bytes=%lu\n", count_free_bytes(dev_ctx->heap_allocator));
-    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->heap_allocator, NULL,
+    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->allocator /* dev_ctx->heap_allocator */ , NULL,
             NULL);
     ASSERT(heap);
 
     // free_index
     cl_region *free_index = allocate_cl_region(sizeof(zero),
-            dev_ctx->heap_allocator, NULL, NULL);
+            dev_ctx->allocator /* dev_ctx->heap_allocator */ , NULL, NULL);
     ASSERT(free_index);
 
     cl_int err;
@@ -613,12 +612,13 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 tmp_device_ctxs[global_device_id].heap_cache_blocked = 0ULL;
 #endif
 
-                tmp_device_ctxs[global_device_id].heap_allocator =
-                    init_allocator(curr_dev, global_device_id,
-                            CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                            (n_heaps_per_device + 1) * (67112960 + 4096), ctx, cmd);
+                // tmp_device_ctxs[global_device_id].heap_allocator =
+                //     init_allocator(curr_dev, global_device_id,
+                //             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                //             (n_heaps_per_device + 1) * (67112960 + 4096), ctx, cmd);
                 tmp_device_ctxs[global_device_id].allocator = init_allocator(
-                        curr_dev, global_device_id, CL_MEM_READ_WRITE, 0,
+                        curr_dev, global_device_id, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 0,
+                        // curr_dev, global_device_id, CL_MEM_READ_WRITE, 0,
                         ctx, cmd);
 
                 tmp_device_ctxs[global_device_id].broadcast_cache =
@@ -837,6 +837,10 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
 
     ctx->freed_native_input_buffers = NULL;
     ctx->global_arguments_len = 0;
+
+#ifdef PROFILE_CLALLOC
+    print_clalloc_profile();
+#endif
 
 #ifdef PROFILE_LOCKS
     // Global
@@ -2629,7 +2633,7 @@ JNI_JAVA(void, OpenCLBridge, run)
     context->last_write_event = NULL;
 
     bump_time(dev_ctx->allocator);
-    bump_time(dev_ctx->heap_allocator);
+    // bump_time(dev_ctx->heap_allocator);
 
     EXIT_TRACE("run");
 }

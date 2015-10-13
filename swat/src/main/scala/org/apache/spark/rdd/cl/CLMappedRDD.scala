@@ -382,8 +382,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            /*
             * Transfer overflow from inputBuffer.nativeBuffers/filled to
             * nextNativeInputBuffer.
-            *
-            * TODO does this handle caching?
             */
            inputBuffer.setupNativeBuffersForCopy(-1)
            val filled : NativeInputBuffers[T] = inputBuffer.transferOverflowTo(

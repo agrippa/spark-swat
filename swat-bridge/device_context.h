@@ -84,7 +84,7 @@ typedef struct _device_context {
     unsigned long long program_cache_lock_contention;
 #endif
 
-    cl_allocator *heap_allocator;
+    // cl_allocator *heap_allocator;
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;

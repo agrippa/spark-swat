@@ -177,6 +177,7 @@ extern void print_allocator(cl_allocator *allocator, int lbl);
 extern void bump_time(cl_allocator *allocator);
 extern size_t count_free_bytes(cl_allocator *allocator);
 extern unsigned long long get_contention(cl_allocator *allocator);
+extern void print_clalloc_profile();
 
 #define GET_DEVICE_FOR(my_region) ((my_region)->grandparent->allocator->device_index)
 
