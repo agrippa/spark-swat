@@ -188,7 +188,8 @@ typedef struct _swat_context {
  * The host-side storage of a single heap instance transferred from the device.
  */
 typedef struct _saved_heap {
-    void *h_heap;
+    heap_context *heap_ctx;
+    // void *h_heap;
     size_t size;
 } saved_heap;
 

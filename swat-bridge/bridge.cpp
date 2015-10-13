@@ -486,7 +486,12 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
     context->pinned_h_heap = h_heap;
 
     context->heap_size = heap_size;
-    context->free = 1;
+
+    context->h_heap_in_use = 0;
+    int perr = pthread_mutex_init(&context->h_heap_lock, NULL);
+    ASSERT(perr == 0);
+    perr = pthread_cond_init(&context->h_heap_cond, NULL);
+    ASSERT(perr == 0);
 }
 
 static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
@@ -620,15 +625,27 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                     new map<broadcast_id, cl_region *>();
                 tmp_device_ctxs[global_device_id].program_cache =
                     new map<string, cl_program>();
-                heap_context *heap_cache =
-                    (heap_context *)malloc(n_heaps_per_device *
-                            sizeof(heap_context));
-                CHECK_ALLOC(heap_cache);
+                heap_context *heap_cache_head = NULL;
+                heap_context *heap_cache_tail = NULL;
+
                 for (int h = 0; h < n_heaps_per_device; h++) {
-                    createHeapContext(heap_cache + h,
+                    heap_context *heap_ctx = (heap_context *)malloc(
+                            sizeof(heap_context));
+                    CHECK_ALLOC(heap_ctx);
+                    createHeapContext(heap_ctx,
                             tmp_device_ctxs + global_device_id, heap_size);
+
+                    if (heap_cache_head == NULL) {
+                        heap_cache_head = heap_ctx;
+                    }
+                    if (heap_cache_tail != NULL) {
+                        heap_cache_tail->next = heap_ctx;
+                    }
+                    heap_cache_tail = heap_ctx;
                 }
-                tmp_device_ctxs[global_device_id].heap_cache = heap_cache;
+                heap_cache_tail->next = NULL;
+                tmp_device_ctxs[global_device_id].heap_cache_head = heap_cache_head;
+                tmp_device_ctxs[global_device_id].heap_cache_tail = heap_cache_tail;
                 tmp_device_ctxs[global_device_id].n_heaps = n_heaps_per_device;
 
                 global_device_id++;
@@ -1839,14 +1856,16 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
 }
 
 static heap_context *look_for_free_heap_context(device_context *dev_ctx) {
-    int index = 0;
-    while (index < dev_ctx->n_heaps && !(dev_ctx->heap_cache)[index].free) {
-        index++;
-    }
+    if (dev_ctx->heap_cache_head) {
+        heap_context *result = dev_ctx->heap_cache_head;
+        dev_ctx->heap_cache_head = result->next;
+        result->next = NULL;
 
-    if (index < dev_ctx->n_heaps) {
-        (dev_ctx->heap_cache)[index].free = 0;
-        return dev_ctx->heap_cache + index;
+        if (dev_ctx->heap_cache_head == NULL) {
+            ASSERT(dev_ctx->heap_cache_tail == result);
+            dev_ctx->heap_cache_tail = NULL;
+        }
+        return result;
     } else {
         return NULL;
     }
@@ -1869,7 +1888,6 @@ static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
                 &dev_ctx->heap_cache_lock);
         ASSERT(err == 0);
     }
-    ASSERT(mine->free == 0);
 
 #ifdef PROFILE_LOCKS
     dev_ctx->heap_cache_blocked += (get_clock_gettime_ns() - start);
@@ -2174,7 +2192,16 @@ static void release_device_heap_callback(cl_event event,
 #endif
     ASSERT(err == 0);
 
-    heap_ctx->free = 1;
+    heap_ctx->next = NULL;
+    if (dev_ctx->heap_cache_tail) {
+        ASSERT(dev_ctx->heap_cache_head);
+        dev_ctx->heap_cache_tail->next = heap_ctx;
+        dev_ctx->heap_cache_tail = heap_ctx;
+    } else {
+        ASSERT(dev_ctx->heap_cache_head == NULL);
+        dev_ctx->heap_cache_head = heap_ctx;
+        dev_ctx->heap_cache_tail = heap_ctx;
+    }
 
     err = pthread_cond_signal(&dev_ctx->heap_cache_cond);
     ASSERT(err == 0);
@@ -2343,11 +2370,22 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     const int free_index = *(heap_ctx->pinned_h_free_index);
     const size_t available_bytes =
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
-    void *h_heap = (void *)malloc(available_bytes);
-    ASSERT(h_heap);
+    // void *h_heap = (void *)malloc(available_bytes);
+    // ASSERT(h_heap);
+
+    int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
+    ASSERT(perr == 0);
+    while (heap_ctx->h_heap_in_use) {
+        perr = pthread_cond_wait(&heap_ctx->h_heap_cond, &heap_ctx->h_heap_lock);
+        ASSERT(perr == 0);
+    }
+    heap_ctx->h_heap_in_use = 1;
+    perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
+    ASSERT(perr == 0);
+
     cl_event heap_event;
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
-                0, available_bytes, h_heap, 0, NULL, &heap_event));
+                0, available_bytes, heap_ctx->pinned_h_heap, 0, NULL, &heap_event));
 #ifdef PROFILE_OPENCL
     add_event_to_list(&kernel_ctx->acc_write_events, heap_event, "heap",
             &kernel_ctx->acc_write_events_length,
@@ -2357,7 +2395,8 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     kernel_ctx->heaps = (saved_heap *)realloc(kernel_ctx->heaps,
             (kernel_ctx->n_heap_ctxs + 1) * sizeof(saved_heap));
     CHECK_ALLOC(kernel_ctx->heaps);
-    (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].h_heap = h_heap;
+    (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].heap_ctx = heap_ctx;
+    // (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].h_heap = h_heap;
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].size = available_bytes;
 
     kernel_ctx->heap_copy_back_events = (cl_event *)realloc(
@@ -2405,7 +2444,17 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
     swat_context *ctx = (swat_context *)kernel_ctx->ctx;
 
     for (int i = 0; i < kernel_ctx->n_heap_ctxs; i++) {
-        free((kernel_ctx->heaps)[i].h_heap);
+        heap_context *heap_ctx = (kernel_ctx->heaps)[i].heap_ctx;
+
+        int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
+        ASSERT(perr == 0);
+        heap_ctx->h_heap_in_use = 0;
+        perr = pthread_cond_signal(&heap_ctx->h_heap_cond);
+        ASSERT(perr == 0);
+        perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
+        ASSERT(perr == 0);
+
+        // free((kernel_ctx->heaps)[i].h_heap);
     }
     free(kernel_ctx->heaps);
 
@@ -3018,7 +3067,7 @@ JNI_JAVA(void, OpenCLBridge, fillHeapBuffersFromKernelContext)(JNIEnv *jenv,
     jlong *jvm = (jlong *)jenv->GetPrimitiveArrayCritical(jvmArr, NULL);
     int i = 0;
     for ( ; i < kernel_ctx->n_heap_ctxs; i++) {
-        jvm[i] = (jlong)((kernel_ctx->heaps)[i].h_heap);
+        jvm[i] = (jlong)((kernel_ctx->heaps)[i].heap_ctx->pinned_h_heap);
     }
     for ( ; i < maxHeaps; i++) {
         jvm[i] = 0L;
