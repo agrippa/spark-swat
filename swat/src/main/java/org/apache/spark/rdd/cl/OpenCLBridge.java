@@ -27,12 +27,14 @@ public class OpenCLBridge {
     public static native void resetSwatContext(long ctx);
     public static native void cleanupSwatContext(long ctx, long dev_ctx);
     public static native long getActualDeviceContext(int device_index,
-            int heaps_per_device, int heap_size);
+            int heaps_per_device, int heap_size,
+            double perc_high_performance_buffers);
     public static native void postKernelCleanup(long ctx);
     public static native int getDeviceHintFor(int rdd, int partition,
             int offset, int component);
     public static native int getDeviceToUse(int hint, int host_thread_index,
-            int heaps_per_device, int heap_size);
+            int heaps_per_device, int heap_size,
+            double perc_high_performance_buffers);
     public static native int getDevicePointerSizeInBytes(long dev_ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);
@@ -71,7 +73,6 @@ public class OpenCLBridge {
     public static native void run(long ctx, long dev_ctx,
             int range, int local_size, int iterArgNum,
             int heapArgStart);
-    public static native int checkHeapTop(long heap_ctx);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);

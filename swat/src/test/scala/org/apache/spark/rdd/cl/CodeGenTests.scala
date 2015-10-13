@@ -71,7 +71,7 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024)
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024, 0.2)
     val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     var gotExpectedException = false
     var entryPoint : Entrypoint = null;

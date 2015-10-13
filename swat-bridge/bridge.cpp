@@ -14,6 +14,18 @@
 #define TRACE_MSG(...)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+static unsigned long long get_clock_gettime_ns();
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef PROFILE_OPENCL
+static const unsigned long long app_start_time = get_clock_gettime_ns();
+#endif
+
 static device_context *device_ctxs = NULL;
 static int n_device_ctxs = 0;
 /*
@@ -33,18 +45,17 @@ static int n_virtual_devices = 0;
  */
 static pthread_rwlock_t nloaded_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
 static map<rdd_partition_offset, int> *nloaded_cache;
+#ifdef PROFILE_LOCKS
+static unsigned long long nloaded_cache_lock_contention = 0ULL;
+#endif
 
 /*
  * Cache certain JNI things.
  */
-jclass denseVectorClass;
-jmethodID denseVectorSizeMethod;
-jmethodID denseVectorValuesMethod;
+static jmethodID denseVectorValuesMethod;
 
-jclass sparseVectorClass;
-jmethodID sparseVectorSizeMethod;
-jmethodID sparseVectorValuesMethod;
-jmethodID sparseVectorIndicesMethod;
+static jmethodID sparseVectorValuesMethod;
+static jmethodID sparseVectorIndicesMethod;
 
 const unsigned zero = 0;
 
@@ -195,8 +206,8 @@ void exit_trace(const char *lbl) {
 }
 #endif
 
-#ifdef PROFILE_LOCKS
-unsigned long long get_clock_gettime_ns() {
+#if defined(PROFILE_LOCKS) || defined(PROFILE_OPENCL)
+static unsigned long long get_clock_gettime_ns() {
     struct timespec t ={0,0};
     clock_gettime(CLOCK_MONOTONIC, &t);
     unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
@@ -441,14 +452,25 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
 static void createHeapContext(heap_context *context, device_context *dev_ctx,
         size_t heap_size) {
     // The heap
-    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->allocator, NULL,
+    fprintf(stderr, "free_bytes=%lu\n", count_free_bytes(dev_ctx->heap_allocator));
+    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->heap_allocator, NULL,
             NULL);
     ASSERT(heap);
 
     // free_index
-    cl_region *free_index = allocate_cl_region(sizeof(zero), dev_ctx->allocator,
-            NULL, NULL);
+    cl_region *free_index = allocate_cl_region(sizeof(zero),
+            dev_ctx->heap_allocator, NULL, NULL);
     ASSERT(free_index);
+
+    cl_int err;
+    int *h_free_index = (int *)clEnqueueMapBuffer(dev_ctx->cmd,
+            free_index->sub_mem, CL_TRUE, CL_MAP_WRITE, 0, sizeof(zero), 0,
+            NULL, NULL, &err);
+    CHECK(err);
+
+    void *h_heap = clEnqueueMapBuffer(dev_ctx->cmd, heap->sub_mem, CL_TRUE,
+            CL_MAP_WRITE, 0, heap_size, 0, NULL, NULL, &err);
+    CHECK(err);
 
 #ifdef VERBOSE
     fprintf(stderr, "clalloc: allocating heap of size %lu (offset=%lu size=%lu, "
@@ -460,13 +482,15 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
     context->dev_ctx = dev_ctx;
     context->heap = heap;
     context->free_index = free_index;
+    context->pinned_h_free_index = h_free_index;
+    context->pinned_h_heap = h_heap;
 
     context->heap_size = heap_size;
     context->free = 1;
 }
 
 static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
-        size_t heap_size) {
+        size_t heap_size, double perc_high_performance_buffers) {
     // Try to avoid having to do any locking
     if (device_ctxs != NULL) {
         return;
@@ -486,7 +510,8 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 #endif
     int perr = pthread_mutex_lock(&device_ctxs_lock);
 #ifdef PROFILE_LOCKS
-    device_ctxs_lock_contention += (get_clock_gettime_ns() - start);
+    const unsigned long long elapsed = (get_clock_gettime_ns() - start);
+    device_ctxs_lock_contention += elapsed;
 #endif
     ASSERT(perr == 0);
 
@@ -523,6 +548,14 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                         get_device_pointer_size_in_bytes(curr_dev));
                 free(device_name);
 #endif
+
+                if (get_device_type(curr_dev) == CL_DEVICE_TYPE_CPU) {
+                    // TODO remove this if we want to use CPU devices in the future
+                    memset(tmp_device_ctxs + global_device_id, 0x00, sizeof(device_context));
+                    tmp_device_ctxs[global_device_id].dev = curr_dev;
+                    global_device_id++;
+                    continue;
+                }
 
                 cl_int err;
                 cl_context_properties ctx_props[] = { CL_CONTEXT_PLATFORM,
@@ -575,8 +608,13 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 tmp_device_ctxs[global_device_id].heap_cache_blocked = 0ULL;
 #endif
 
+                tmp_device_ctxs[global_device_id].heap_allocator =
+                    init_allocator(curr_dev, global_device_id,
+                            CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
+                            (n_heaps_per_device + 1) * (67112960 + 4096), ctx, cmd);
                 tmp_device_ctxs[global_device_id].allocator = init_allocator(
-                        curr_dev, global_device_id, ctx, cmd);
+                        curr_dev, global_device_id, CL_MEM_READ_WRITE, 0,
+                        ctx, cmd);
 
                 tmp_device_ctxs[global_device_id].broadcast_cache =
                     new map<broadcast_id, cl_region *>();
@@ -585,6 +623,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 heap_context *heap_cache =
                     (heap_context *)malloc(n_heaps_per_device *
                             sizeof(heap_context));
+                CHECK_ALLOC(heap_cache);
                 for (int h = 0; h < n_heaps_per_device; h++) {
                     createHeapContext(heap_cache + h,
                             tmp_device_ctxs + global_device_id, heap_size);
@@ -639,23 +678,17 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
         ASSERT(curr_virtual_device == n_virtual_devices);
 
         // Get dense vector JNI methods
-        denseVectorClass = jenv->FindClass(
+        jclass denseVectorClass = jenv->FindClass(
                 "org/apache/spark/mllib/linalg/DenseVector");
         CHECK_JNI(denseVectorClass);
-        denseVectorSizeMethod = jenv->GetMethodID(denseVectorClass, "size",
-                "()I");
-        CHECK_JNI(denseVectorSizeMethod);
         denseVectorValuesMethod = jenv->GetMethodID(denseVectorClass, "values",
                 "()[D");
         CHECK_JNI(denseVectorValuesMethod);
 
         // Get sparse vector JNI methods
-        sparseVectorClass = jenv->FindClass(
+        jclass sparseVectorClass = jenv->FindClass(
                 "org/apache/spark/mllib/linalg/SparseVector");
         CHECK_JNI(sparseVectorClass);
-        sparseVectorSizeMethod = jenv->GetMethodID(sparseVectorClass, "size",
-                "()I");
-        CHECK_JNI(sparseVectorSizeMethod);
         sparseVectorValuesMethod = jenv->GetMethodID(sparseVectorClass, "values",
                 "()[D");
         CHECK_JNI(sparseVectorValuesMethod);
@@ -683,9 +716,11 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 
 JNI_JAVA(jint, OpenCLBridge, getDeviceToUse)
         (JNIEnv *jenv, jclass clazz, jint hint, jint host_thread_index,
-         jint n_heaps_per_device, jint heap_size) {
+         jint n_heaps_per_device, jint heap_size,
+         jdouble perc_high_performance_buffers) {
     ENTER_TRACE("getDeviceToUse");
-    populateDeviceContexts(jenv, n_heaps_per_device, heap_size);
+    populateDeviceContexts(jenv, n_heaps_per_device, heap_size,
+            perc_high_performance_buffers);
 
     int result;
     if (hint != -1) {
@@ -736,10 +771,11 @@ JNI_JAVA(jint, OpenCLBridge, getDeviceHintFor)
 }
 
 JNI_JAVA(jlong, OpenCLBridge, getActualDeviceContext)
-        (JNIEnv *jenv, jclass clazz, int device_index, jint n_heaps_per_device,
-         jint heap_size) {
+        (JNIEnv *jenv, jclass clazz, jint device_index, jint n_heaps_per_device,
+         jint heap_size, jdouble perc_high_performance_buffers) {
 
-    populateDeviceContexts(jenv, n_heaps_per_device, heap_size);
+    populateDeviceContexts(jenv, n_heaps_per_device, heap_size,
+            perc_high_performance_buffers);
 
     ASSERT(device_index < n_device_ctxs);
     return (jlong)(device_ctxs + device_index);
@@ -790,6 +826,7 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     unsigned long long local_device_ctxs_lock_contention;
     unsigned long long total_rdd_cache_contention = 0ULL;
     unsigned long long local_rdd_cache_contention[RDD_CACHE_BUCKETS];
+    unsigned long long local_nloaded_cache_lock_contention;
     // SWAT context
     unsigned long long local_kernel_lock_contention;
     unsigned long long local_freed_native_input_buffers_lock_contention;
@@ -803,6 +840,7 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     unsigned long long local_program_cache_lock_contention;
     unsigned long long local_heap_cache_lock_contention;
     unsigned long long local_heap_cache_blocked;
+    unsigned long long local_allocator_contention;
 
     force_pthread_mutex_lock(&device_ctxs_lock);
     local_device_ctxs_lock_contention = device_ctxs_lock_contention;
@@ -850,6 +888,11 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     local_heap_cache_blocked = dev_ctx->heap_cache_blocked;
     force_pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
 
+    local_nloaded_cache_lock_contention =
+        (volatile unsigned long long)nloaded_cache_lock_contention;
+
+    local_allocator_contention = get_contention(dev_ctx->allocator);
+
     fprintf(stderr, "LOCK SUMMARY, device=%d, host thread=%d\n",
             dev_ctx->device_index, ctx->host_thread_index);
     fprintf(stderr, "  device_ctxs_lock_contention                = %llu\n",
@@ -878,6 +921,10 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
             local_heap_cache_lock_contention);
     fprintf(stderr, "  heap_cache_blocked                         = %llu\n",
             local_heap_cache_blocked);
+    fprintf(stderr, "  nloaded_cache_lock_contention              = %llu\n",
+            local_nloaded_cache_lock_contention);
+    fprintf(stderr, "  allocator_contention                       = %llu\n",
+            local_allocator_contention);
 
 #endif
     EXIT_TRACE("cleanupSwatContext");
@@ -902,11 +949,15 @@ JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
     for (int i = 0; i < nPrealloc; i++) {
         native_output_buffers *curr = ctx->out_buffers + i;
         curr->buffers = (void **)malloc(nBuffers * sizeof(void *));
+        CHECK_ALLOC(curr->buffers);
         curr->buffer_sizes = (size_t *)malloc(nBuffers * sizeof(size_t));
+        CHECK_ALLOC(curr->buffer_sizes);
         curr->buffer_arg_indices = (int *)malloc(nBuffers * sizeof(int));
+        CHECK_ALLOC(curr->buffer_arg_indices);
 
         for (int j = 0; j < nBuffers; j++) {
             (curr->buffers)[j] = malloc(buffer_sizes[j]);
+            CHECK_ALLOC((curr->buffers)[j]);
             (curr->buffer_sizes)[j] = buffer_sizes[j];
             (curr->buffer_arg_indices)[j] = buffer_arg_indices[j];
         }
@@ -920,7 +971,8 @@ JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
             JNI_ABORT);
 }
 
-JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz, jlong lctx) {
+JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
+        jlong lctx) {
     swat_context *ctx = (swat_context *)lctx;
 
     ASSERT(ctx->accumulated_arguments_len == 0);
@@ -929,6 +981,9 @@ JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz, jlong
     ASSERT(ctx->global_arguments_capacity > 0);
 
     ctx->last_write_event = NULL;
+#ifdef PROFILE_OPENCL
+    ASSERT(ctx->acc_write_events_length == 0);
+#endif
 
     ctx->freed_native_input_buffers = NULL;
 
@@ -1056,6 +1111,14 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->out_buffers_blocked = 0ULL;
 #endif
 
+#ifdef PROFILE_OPENCL
+    context->acc_write_events_capacity = 20;
+    context->acc_write_events_length = 0;
+    context->acc_write_events = (event_info *)malloc(
+            context->acc_write_events_capacity * sizeof(event_info));
+    CHECK_ALLOC(context->acc_write_events);
+#endif
+
     context->host_thread_index = host_thread_index;
 
     context->accumulated_arguments_capacity = 20;
@@ -1129,6 +1192,29 @@ static cl_region *get_mem(swat_context *context, device_context *dev_ctx,
     return region;
 }
 
+#ifdef PROFILE_OPENCL
+static void add_event_to_list(event_info **list, cl_event event,
+        const char *label, int *list_length, int *list_capacity) {
+    if (*list_capacity == *list_length) {
+        const int new_capacity = *list_capacity * 2;
+        *list = (event_info *)realloc(*list, new_capacity * sizeof(event_info));
+        CHECK_ALLOC(*list);
+        *list_capacity = new_capacity;
+    }
+
+    const int label_length = strlen(label);
+
+    (*list)[*list_length].event = event;
+    char *lbl_copy = (char *)malloc(label_length + 1);
+    CHECK_ALLOC(lbl_copy);
+    memcpy(lbl_copy, label, label_length + 1);
+    (*list)[*list_length].label = lbl_copy;
+    (*list)[*list_length].timestamp = get_clock_gettime_ns();
+
+    *list_length = *list_length + 1;
+}
+#endif
+
 static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
         swat_context *context, device_context *dev_ctx, jlong broadcastId,
         jint rdd, bool persistent, bool blocking) {
@@ -1144,6 +1230,11 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
         CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
                     CL_FALSE, 0, len, host, context->last_write_event ? 1 : 0,
                     context->last_write_event ? &context->last_write_event : NULL, &event));
+#ifdef PROFILE_OPENCL
+        add_event_to_list(&context->acc_write_events, event, "init_write",
+                &context->acc_write_events_length,
+                &context->acc_write_events_capacity);
+#endif
         context->last_write_event = event;
     }
 
@@ -1818,6 +1909,7 @@ static void add_to_global_arguments(arg_value *val, swat_context *ctx) {
         const int new_capacity = ctx->global_arguments_capacity * 2;
         ctx->global_arguments = (arg_value *)realloc(ctx->global_arguments,
                 new_capacity * sizeof(arg_value));
+        CHECK_ALLOC(ctx->global_arguments);
         ctx->global_arguments_capacity = new_capacity;
     }
 
@@ -1957,6 +2049,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     swat_context *ctx = kernel_ctx->ctx;
     heap_context *heap_ctx = NULL;
     cl_region *free_index_mem = NULL;
+    int *pinned_h_free_index = NULL;
 
     // Lock kernel to prevent concurrent changes via clSetKernelArg
 #ifdef PROFILE_LOCKS
@@ -1969,16 +2062,12 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     ASSERT(perr == 0);
 
     if (kernel_ctx->heapStartArgnum >= 0) {
-        /*
-         * Acquire a new heap to use. Right now this assumes this will always
-         * succeed. This may not be true, and we will probably need to implement
-         * a signal/wait mechanism for the heap contexts as well.
-         */
         heap_ctx = acquireHeapImpl(ctx, kernel_ctx->dev_ctx,
                 kernel_ctx->heapStartArgnum);
         kernel_ctx->curr_heap_ctx = heap_ctx;
 
         free_index_mem = heap_ctx->free_index;
+        pinned_h_free_index = heap_ctx->pinned_h_free_index;
 
         CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->heapStartArgnum,
                     sizeof(cl_mem), &heap_ctx->heap->sub_mem));
@@ -2000,11 +2089,17 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 
         // Clear the free index of the acquired heap asynchronously
         cl_event free_index_event;
+        *pinned_h_free_index = 0;
         CHECK(clEnqueueWriteBuffer(kernel_ctx->dev_ctx->cmd,
                     free_index_mem->sub_mem, CL_FALSE, 0,
-                    sizeof(zero), &zero, prev_event ? 1 : 0,
+                    sizeof(zero), pinned_h_free_index, prev_event ? 1 : 0,
                     prev_event ? &prev_event : NULL,
                     &free_index_event));
+#ifdef PROFILE_OPENCL
+        add_event_to_list(&kernel_ctx->acc_write_events, free_index_event, "free_index-in",
+                &kernel_ctx->acc_write_events_length,
+                &kernel_ctx->acc_write_events_capacity);
+#endif
         prev_event = free_index_event;
     }
 
@@ -2029,6 +2124,11 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
                 ctx->kernel, 1, NULL, &kernel_ctx->global_size,
                 &kernel_ctx->local_size, prev_event ? 1 : 0,
                 prev_event ? &prev_event : NULL, &run_event));
+#ifdef PROFILE_OPENCL
+        add_event_to_list(&kernel_ctx->acc_write_events, run_event, "run",
+                &kernel_ctx->acc_write_events_length,
+                &kernel_ctx->acc_write_events_capacity);
+#endif
 
     perr = pthread_mutex_unlock(&ctx->kernel_lock);
     ASSERT(perr == 0);
@@ -2044,8 +2144,13 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         cl_event copy_back_event;
         CHECK(clEnqueueReadBuffer(kernel_ctx->dev_ctx->cmd,
                     free_index_mem->sub_mem, CL_FALSE, 0,
-                    sizeof(heap_ctx->h_free_index), &heap_ctx->h_free_index, 1,
+                    sizeof(zero), pinned_h_free_index, 1,
                     &run_event, &copy_back_event));
+#ifdef PROFILE_OPENCL
+        add_event_to_list(&kernel_ctx->acc_write_events, copy_back_event, "free_index-out",
+                &kernel_ctx->acc_write_events_length,
+                &kernel_ctx->acc_write_events_capacity);
+#endif
 
         CHECK(clSetEventCallback(copy_back_event, CL_COMPLETE,
                     heap_copy_callback, kernel_ctx));
@@ -2107,9 +2212,37 @@ static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
 
 static void finally_done_callback(cl_event event,
         cl_int event_command_exec_status, void *user_data) {
+    ENTER_TRACE("finally_done_callback");
     ASSERT(event_command_exec_status == CL_COMPLETE);
     kernel_context *kernel_ctx = (kernel_context *)user_data;
     swat_context *ctx = kernel_ctx->ctx;
+
+#ifdef PROFILE_OPENCL
+    // Print results
+    fprintf(stderr, "OpenCL PROFILING RESULTS, host thread=%d device=%d\n",
+            ctx->host_thread_index, kernel_ctx->dev_ctx->device_index);
+    for (int i = 0; i < kernel_ctx->acc_write_events_length; i++) {
+        cl_ulong queued, submitted, started, finished;
+        CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,
+                    CL_PROFILING_COMMAND_QUEUED, sizeof(queued), &queued, NULL));
+        CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,
+                    CL_PROFILING_COMMAND_SUBMIT, sizeof(submitted), &submitted,
+                    NULL));
+        CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,
+                    CL_PROFILING_COMMAND_START, sizeof(started), &started,
+                    NULL));
+        CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,
+                    CL_PROFILING_COMMAND_END, sizeof(finished), &finished,
+                    NULL));
+        fprintf(stderr, "  %d: %s : %lu ns total (started = %llu, queued -> submitted %lu ns, "
+                "submitted -> started %lu ns, started -> finished %lu ns)\n",
+                i, (kernel_ctx->acc_write_events)[i].label, finished - queued,
+                (kernel_ctx->acc_write_events)[i].timestamp - app_start_time,
+                submitted - queued, started - submitted, finished - started);
+        free((kernel_ctx->acc_write_events)[i].label);
+    }
+    free(kernel_ctx->acc_write_events);
+#endif
 
     kernel_ctx->next = NULL;
 #ifdef PROFILE_LOCKS
@@ -2136,6 +2269,7 @@ static void finally_done_callback(cl_event event,
 
     perr = pthread_mutex_unlock(&ctx->completed_kernels_lock);
     ASSERT(perr == 0);
+    EXIT_TRACE("finally_done_callback");
 }
 
 static void copy_kernel_outputs(kernel_context *kernel_ctx,
@@ -2174,6 +2308,11 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
         CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
                     0, (out_buffers->buffer_sizes)[i],
                     (out_buffers->buffers)[i], 1, &prev_event, &next_event));
+#ifdef PROFILE_OPENCL
+        add_event_to_list(&kernel_ctx->acc_write_events, next_event, "out",
+                &kernel_ctx->acc_write_events_length,
+                &kernel_ctx->acc_write_events_capacity);
+#endif
         prev_event = next_event;
     }
     kernel_ctx->out_buffers = out_buffers;
@@ -2201,23 +2340,30 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
+    const int free_index = *(heap_ctx->pinned_h_free_index);
     const size_t available_bytes =
-        (heap_ctx->h_free_index > heap_ctx->heap_size ? heap_ctx->heap_size :
-         heap_ctx->h_free_index);
+        (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
     void *h_heap = (void *)malloc(available_bytes);
     ASSERT(h_heap);
     cl_event heap_event;
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
                 0, available_bytes, h_heap, 0, NULL, &heap_event));
+#ifdef PROFILE_OPENCL
+    add_event_to_list(&kernel_ctx->acc_write_events, heap_event, "heap",
+            &kernel_ctx->acc_write_events_length,
+            &kernel_ctx->acc_write_events_capacity);
+#endif
 
     kernel_ctx->heaps = (saved_heap *)realloc(kernel_ctx->heaps,
             (kernel_ctx->n_heap_ctxs + 1) * sizeof(saved_heap));
+    CHECK_ALLOC(kernel_ctx->heaps);
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].h_heap = h_heap;
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].size = available_bytes;
 
     kernel_ctx->heap_copy_back_events = (cl_event *)realloc(
             kernel_ctx->heap_copy_back_events,
             (kernel_ctx->n_heap_ctxs + 1) * sizeof(cl_event));
+    CHECK_ALLOC(kernel_ctx->heap_copy_back_events);
     (kernel_ctx->heap_copy_back_events)[kernel_ctx->n_heap_ctxs] = heap_event;
 
     kernel_ctx->n_heap_ctxs = kernel_ctx->n_heap_ctxs + 1;
@@ -2226,7 +2372,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
                 release_device_heap_callback, heap_ctx));
 
-    if (heap_ctx->h_free_index > heap_ctx->heap_size) {
+    if (free_index > heap_ctx->heap_size) {
         // If need kernel restart
         runImpl(kernel_ctx, NULL);
     } else {
@@ -2308,7 +2454,8 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
     ASSERT(mine);
 
 #ifdef PROFILE_LOCKS
-    ctx->completed_kernels_blocked += (get_clock_gettime_ns() - start);
+    const unsigned long long elapsed = (get_clock_gettime_ns() - start);
+    ctx->completed_kernels_blocked += elapsed;
 #endif
     perr = pthread_mutex_unlock(&ctx->completed_kernels_lock);
     ASSERT(perr == 0);
@@ -2380,11 +2527,11 @@ JNI_JAVA(void, OpenCLBridge, run)
             "range=%d, global_size=%lu, local_size=%lu\n",
             context->host_thread_index, get_device_name(dev_ctx->dev), range,
             global_size, local_size);
+    fprintf(stderr, "On device %d have %lu free bytes\n", dev_ctx->device_index,
+            count_free_bytes(dev_ctx->allocator));
 #ifdef VERY_VERBOSE
     print_allocator(dev_ctx->allocator, context->host_thread_index);
 #endif
-    fprintf(stderr, "On device %d have %lu free bytes\n", dev_ctx->device_index,
-            count_free_bytes(dev_ctx->allocator));
 #endif
 
     /*
@@ -2393,6 +2540,7 @@ JNI_JAVA(void, OpenCLBridge, run)
      * retries requiring multiple heaps.
      */
     kernel_context *kernel_ctx = (kernel_context *)malloc(sizeof(kernel_context));
+    CHECK_ALLOC(kernel_ctx);
     kernel_ctx->ctx = context;
     kernel_ctx->dev_ctx = dev_ctx;
     kernel_ctx->curr_heap_ctx = NULL;
@@ -2412,41 +2560,29 @@ JNI_JAVA(void, OpenCLBridge, run)
 
     context->accumulated_arguments = (arg_value *)malloc(
             context->accumulated_arguments_capacity * sizeof(arg_value));
+    CHECK_ALLOC(context->accumulated_arguments);
     context->accumulated_arguments_len = 0;
 
     context->run_seq_no = context->run_seq_no + 1;
+
+#ifdef PROFILE_OPENCL
+    kernel_ctx->acc_write_events = context->acc_write_events;
+    kernel_ctx->acc_write_events_length = context->acc_write_events_length;
+    kernel_ctx->acc_write_events_capacity = context->acc_write_events_capacity;
+    context->acc_write_events = (event_info *)malloc(
+            context->acc_write_events_capacity * sizeof(event_info));
+    CHECK_ALLOC(context->acc_write_events);
+    context->acc_write_events_length = 0;
+#endif
 
     // Launch the asynchronous processing of this kernel instance
     runImpl(kernel_ctx, context->last_write_event);
     context->last_write_event = NULL;
 
     bump_time(dev_ctx->allocator);
-
-#ifdef PROFILE_OPENCL
-    cl_ulong queued, submitted, started, finished;
-    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_QUEUED,
-                sizeof(queued), &queued, NULL));
-    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_SUBMIT,
-                sizeof(submitted), &submitted, NULL));
-    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_START,
-                sizeof(started), &started, NULL));
-    CHECK(clGetEventProfilingInfo(run_event, CL_PROFILING_COMMAND_END,
-                sizeof(finished), &finished, NULL));
-    fprintf(stderr, "Kernel invocation: %lu ns total on device %d (queued -> "
-            "submitted %lu ns, submitted -> started %lu ns, started -> "
-            "finished %lu ns)\n", finished - queued, dev_ctx->device_index,
-            submitted - queued, started - submitted, finished - started);
-#endif
+    bump_time(dev_ctx->heap_allocator);
 
     EXIT_TRACE("run");
-}
-
-JNI_JAVA(jint, OpenCLBridge, checkHeapTop)(JNIEnv *jenv, jclass clazz,
-        jlong l_heap_ctx) {
-    ENTER_TRACE("checkHeapTop");
-    heap_context *heap_ctx = (heap_context *)l_heap_ctx;
-    EXIT_TRACE("checkHeapTop");
-    return heap_ctx->h_free_index;
 }
 
 JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
@@ -2633,8 +2769,15 @@ JNI_JAVA(void, OpenCLBridge, storeNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
          jint partitionid, jint offsetid, jint n_loaded) {
     assert(rddid >= 0);
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int err = pthread_rwlock_wrlock(&nloaded_cache_lock);
     ASSERT(err == 0);
+#ifdef PROFILE_LOCKS
+    __sync_fetch_and_add(&nloaded_cache_lock_contention, get_clock_gettime_ns() -
+            start);
+#endif
 
     rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
     map<rdd_partition_offset, int>::iterator found = nloaded_cache->find(uuid);
@@ -2668,7 +2811,14 @@ JNI_JAVA(jint, OpenCLBridge, fetchNLoaded)(JNIEnv *jenv, jclass clazz, jint rddi
     assert(rddid >= 0);
     int result;
 
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int err = pthread_rwlock_rdlock(&nloaded_cache_lock);
+#ifdef PROFILE_LOCKS
+    __sync_fetch_and_add(&nloaded_cache_lock_contention, get_clock_gettime_ns() -
+            start);
+#endif
     ASSERT(err == 0);
 
     rdd_partition_offset uuid(rddid, partitionid, offsetid, 0);
@@ -2725,6 +2875,8 @@ static void add_freed_native_buffer(swat_context *ctx, int buffer_id,
     native_input_buffer_list_node *freed =
         (native_input_buffer_list_node *)malloc(
                 sizeof(native_input_buffer_list_node));
+    CHECK_ALLOC(freed);
+
     freed->id = buffer_id;
     freed->event = event;
     freed->next = NULL;

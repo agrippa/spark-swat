@@ -68,6 +68,10 @@ object CLMappedRDDStorage {
   val heapSize_str = System.getProperty("swat.heap_size")
   val heapSize = if (heapSize_str != null) heapSize_str.toInt else 64 * 1024 * 1024
 
+  val percHighPerfBuffers_str = System.getProperty("swat.perc_high_perf_buffers")
+  val percHighPerfBuffers = if (percHighPerfBuffers_str != null)
+        percHighPerfBuffers_str.toDouble else 0.2
+
   val cl_local_size_str = System.getProperty("swat.cl_local_size")
   val cl_local_size = if (cl_local_size_str != null) cl_local_size_str.toInt else 128
 
@@ -183,10 +187,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
    val deviceInitStart = System.currentTimeMillis // PROFILE
     val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
             threadId, CLMappedRDDStorage.heapsPerDevice,
-            CLMappedRDDStorage.heapSize)
+            CLMappedRDDStorage.heapSize, CLMappedRDDStorage.percHighPerfBuffers)
    System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
     val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
-            CLMappedRDDStorage.heapsPerDevice, CLMappedRDDStorage.heapSize)
+            CLMappedRDDStorage.heapsPerDevice, CLMappedRDDStorage.heapSize,
+            CLMappedRDDStorage.percHighPerfBuffers)
     val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
    RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
@@ -320,9 +325,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            inputBuffer.reset
 
            val myOffset : Int = totalNLoaded
-           val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
-               new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
-               else NoCache
+           // val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
+           //     new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
+           //     else NoCache
+           val inputCacheId = NoCache
 
            var nLoaded : Int = -1
            val inputCacheSuccess = if (inputCacheId == NoCache) -1 else

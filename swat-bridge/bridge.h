@@ -112,6 +112,12 @@ typedef struct _native_input_buffer_list_node {
     struct _native_input_buffer_list_node *next;
 } native_input_buffer_list_node;
 
+typedef struct _event_info {
+    unsigned long long timestamp;
+    cl_event event;
+    char *label;
+} event_info;
+
 typedef struct _kernel_context kernel_context;
 typedef struct _native_output_buffers native_output_buffers;
 
@@ -136,6 +142,11 @@ typedef struct _swat_context {
     size_t zeros_capacity;
 
     cl_event last_write_event;
+#ifdef PROFILE_OPENCL
+    event_info *acc_write_events;
+    int acc_write_events_capacity;
+    int acc_write_events_length;
+#endif
 
     native_input_buffer_list_node *freed_native_input_buffers;
     pthread_mutex_t freed_native_input_buffers_lock;
@@ -215,6 +226,12 @@ struct _kernel_context {
     int accumulated_arguments_len;
 
     native_output_buffers *out_buffers;
+
+#ifdef PROFILE_OPENCL
+    event_info *acc_write_events;
+    int acc_write_events_length;
+    int acc_write_events_capacity;
+#endif
 };
 
 

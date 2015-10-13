@@ -11,13 +11,29 @@ extern "C" {
 }
 #endif
 
+#ifdef PROFILE_LOCKS
+unsigned long long get_clock_gettime_ns() {
+    struct timespec t ={0,0};
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
+    return (unsigned long long)t.tv_nsec + s;
+}
+#endif
+
 /*
  * Lock a selected alloc to prevent concurrent access to any of its member
  * regions.
  */
 static void lock_alloc(cl_alloc *alloc) {
     ENTER_TRACE("lock_alloc");
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     int perr = pthread_mutex_lock(&alloc->lock);
+#ifdef PROFILE_LOCKS
+    alloc->contention += (get_clock_gettime_ns() - start);
+#endif
+
     ASSERT(perr == 0);
     EXIT_TRACE("lock_alloc");
 }
@@ -734,6 +750,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
              * TODO what is the purpose of callback?
              */
             if (callback) (*callback)(user_data);
+            fprintf(stderr, "rounded_size=%lu size=%lu\n", rounded_size, size);
             return NULL;
         }
 #ifdef VERBOSE
@@ -979,10 +996,11 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
 }
 
 #ifdef OPENCL_ALLOCATOR
-cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
+cl_allocator *init_allocator(cl_device_id dev, int device_index,
+        cl_mem_flags alloc_flags, size_t limit_size, cl_context ctx,
         cl_command_queue cmd)
 #else
-cl_allocator *init_allocator(int device_index)
+cl_allocator *init_allocator(const int device_index)
 #endif
 {
     ENTER_TRACE("init_allocator");
@@ -994,12 +1012,15 @@ cl_allocator *init_allocator(int device_index)
                 sizeof(global_mem_size), &global_mem_size, NULL));
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_MEM_ALLOC_SIZE,
                 sizeof(max_alloc_size), &max_alloc_size, NULL));
+    if (limit_size != 0 && global_mem_size > limit_size) {
+        global_mem_size = limit_size;
+    }
 
-    int nallocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
+    const int max_n_allocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MEM_BASE_ADDR_ALIGN,
                 sizeof(address_align), &address_align, NULL));
 #else
-    int nallocs = 1;
+    const int max_n_allocs = 1;
     address_align = 8;
     size_t max_alloc_size, global_mem_size;
     CHECK(cudaSetDevice(device_index));
@@ -1008,16 +1029,15 @@ cl_allocator *init_allocator(int device_index)
     max_alloc_size = global_mem_size = props.totalGlobalMem;
 #endif
 
-
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
     CHECK_ALLOC(allocator);
-    allocator->nallocs = nallocs;
-    allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
+    allocator->allocs = (cl_alloc *)malloc(max_n_allocs * sizeof(cl_alloc));
     CHECK_ALLOC(allocator->allocs);
     allocator->address_align = address_align;
     allocator->device_index = device_index;
 
-    for (int i = 0; i < nallocs; i++) {
+    int i = 0;
+    while (i < max_n_allocs) {
         size_t alloc_size = max_alloc_size;
         size_t leftover = global_mem_size - (i * max_alloc_size);
         if (leftover < alloc_size) {
@@ -1031,35 +1051,43 @@ cl_allocator *init_allocator(int device_index)
         cudaError_t err;
         char *mem;
 #endif
-        while (true) {
+        // Keep allocs at least 20MB
+        bool success = false;
+        while (alloc_size > 20 * 1024 * 1024) {
 #ifdef OPENCL_ALLOCATOR
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, NULL,
+            mem = clCreateBuffer(ctx, alloc_flags, alloc_size, NULL,
                     &err);
             CHECK(err);
             err = clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, sizeof(err), &err, 0, NULL, NULL);
             if (err == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
-                ASSERT(i == nallocs - 1);
                 alloc_size -= (20 * 1024 * 1024);
                 CHECK(clReleaseMemObject(mem));
             } else {
                 CHECK(err);
+                success = true;
                 break;
             }
 #else
             err = cudaMalloc((void **)&mem, alloc_size);
             if (err == cudaErrorMemoryAllocation) {
-                ASSERT(i == nallocs - 1);
                 alloc_size -= (20 * 1024 * 1024);
             } else if (err != cudaSuccess) {
                 CHECK(err);
+                success = true;
+                break;
             }
 #endif
         }
+
+        if (!success) break;
 
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
         (allocator->allocs)[i].free_bytes = alloc_size;
         (allocator->allocs)[i].allocator = allocator;
+#ifdef PROFILE_LOCKS
+        (allocator->allocs)[i].contention = 0ULL;
+#endif
 
         int perr = pthread_mutex_init(&(allocator->allocs)[i].lock, NULL);
         ASSERT(perr == 0);
@@ -1096,7 +1124,10 @@ cl_allocator *init_allocator(int device_index)
 
         (allocator->allocs)[i].region_list_head = first_region;
         insert_into_buckets(first_region, allocator->allocs + i, false);
+
+        i++;
     }
+    allocator->nallocs = i;
     EXIT_TRACE("init_allocator");
 
     return allocator;
@@ -1156,3 +1187,22 @@ void bump_time(cl_allocator *allocator) {
     }
     EXIT_TRACE("bump_time");
 }
+
+#ifdef PROFILE_LOCKS
+unsigned long long get_contention(cl_allocator *allocator) {
+    unsigned long long sum = 0ULL;
+    for (int i = 0; i < allocator->nallocs; i++) {
+        cl_alloc *curr = allocator->allocs + i;
+        lock_alloc(curr);
+        sum += curr->contention;
+        unlock_alloc(curr);
+    }
+    return sum;
+}
+#else
+unsigned long long get_contention(cl_allocator *allocator) {
+    fprintf(stderr, "ERROR: get_contention : clalloc not compiled with "
+            "contention information support (-DPROFILE_LOCKS)\n");
+    exit(1);
+}
+#endif

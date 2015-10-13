@@ -37,7 +37,8 @@ class broadcast_id {
         int broadcast;
         /*
          * The component of this buffer we are storing (e.g. multiple buffers
-         * are necessary to represent Tuple2 RDDs
+         * are necessary to represent Tuple2 RDDs, dense vectors, sparse
+         * vectors, etc)
          */
         int component;
 };
@@ -49,7 +50,9 @@ typedef struct _heap_context {
     cl_region *heap;
     cl_region *free_index;
 
-    int h_free_index;
+    void *pinned_h_heap;
+    int *pinned_h_free_index;
+
     unsigned heap_size;
     int free;
 } heap_context;
@@ -60,6 +63,7 @@ typedef struct _device_context {
     cl_context ctx;
     cl_command_queue cmd;
     int device_index;
+    int initialized;
 
     /*
      * Locked for setting args on device (for broadcast cache?) and when
@@ -75,6 +79,7 @@ typedef struct _device_context {
     unsigned long long program_cache_lock_contention;
 #endif
 
+    cl_allocator *heap_allocator;
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;
