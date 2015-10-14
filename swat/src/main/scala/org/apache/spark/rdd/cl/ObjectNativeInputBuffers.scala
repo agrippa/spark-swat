@@ -11,8 +11,9 @@ import com.amd.aparapi.internal.model.ClassModel
 class ObjectNativeInputBuffers[T](val N : Int, val structSize : Int,
         val blockingCopies : Boolean, val constructor : Constructor[_],
         val classModel : ClassModel, val structMemberTypes : Option[Array[Int]],
-        val structMemberOffsets : Option[Array[Long]]) extends NativeInputBuffers[T] {
-  val buffer : Long = OpenCLBridge.nativeMalloc(N * structSize)
+        val structMemberOffsets : Option[Array[Long]], val dev_ctx : Long) extends NativeInputBuffers[T] {
+  val clBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, N * structSize)
+  val buffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clBuffer)
 
   var tocopy : Int = -1
   var iter : Int = 0
@@ -21,15 +22,17 @@ class ObjectNativeInputBuffers[T](val N : Int, val structSize : Int,
   bb.order(ByteOrder.LITTLE_ENDIAN)
 
   override def releaseNativeArrays() {
-    OpenCLBridge.nativeFree(buffer)
+    OpenCLBridge.unpin(buffer, clBuffer, dev_ctx)
+  }
+
+  override def releaseOpenCLArrays() {
+    OpenCLBridge.clFree(clBuffer, dev_ctx)
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       cacheID : CLCacheID, persistent : Boolean) : Int = {
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum, buffer,
-            tocopy * structSize, cacheID.broadcast, cacheID.rdd,
-            cacheID.partition, cacheID.offset, cacheID.component, persistent,
-            blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum, buffer, clBuffer,
+            tocopy * structSize)
     return 1
   }
 

@@ -100,7 +100,6 @@ typedef struct _arg_value {
     int index;
     bool keep; // only set for region type
     bool dont_free; // only set for region type
-    bool clear_arguments; // only set for region type
     size_t len; // only set for region type
     enum arg_type type;
     region_or_scalar val;

@@ -5,12 +5,19 @@ import org.apache.spark.mllib.linalg.Vectors
 
 class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
         val vectorCapacity : Int, val sparseVectorStructSize : Int,
-        val blockingCopies : Boolean, val tiling : Int)
+        val blockingCopies : Boolean, val tiling : Int, val dev_ctx : Long)
         extends NativeInputBuffers[SparseVector] {
-  val valuesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 8)
-  val indicesBuffer : Long = OpenCLBridge.nativeMalloc(vectorElementCapacity * 4)
-  val sizesBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
-  val offsetsBuffer : Long = OpenCLBridge.nativeMalloc(vectorCapacity * 4)
+  val clValuesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorElementCapacity * 8)
+  val valuesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clValuesBuffer)
+
+  val clIndicesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorElementCapacity * 4)
+  val indicesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clValuesBuffer)
+
+  val clSizesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorCapacity * 4)
+  val sizesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clSizesBuffer)
+
+  val clOffsetsBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorCapacity * 4)
+  val offsetsBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clOffsetsBuffer)
 
   var vectorsToCopy : Int = -1
   var elementsToCopy : Int = -1
@@ -22,10 +29,17 @@ class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
   var n_next_buffered : Int = 0
 
   override def releaseNativeArrays() {
-    OpenCLBridge.nativeFree(valuesBuffer)
-    OpenCLBridge.nativeFree(indicesBuffer)
-    OpenCLBridge.nativeFree(sizesBuffer)
-    OpenCLBridge.nativeFree(offsetsBuffer)
+    OpenCLBridge.unpin(valuesBuffer, clValuesBuffer, dev_ctx)
+    OpenCLBridge.unpin(indicesBuffer, clValuesBuffer, dev_ctx)
+    OpenCLBridge.unpin(sizesBuffer, clSizesBuffer, dev_ctx)
+    OpenCLBridge.unpin(offsetsBuffer, clOffsetsBuffer, dev_ctx)
+  }
+
+  override def releaseOpenCLArrays() {
+    OpenCLBridge.clFree(clValuesBuffer, dev_ctx)
+    OpenCLBridge.clFree(clIndicesBuffer, dev_ctx)
+    OpenCLBridge.clFree(clSizesBuffer, dev_ctx)
+    OpenCLBridge.clFree(clOffsetsBuffer, dev_ctx)
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
@@ -35,21 +49,17 @@ class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
             sparseVectorStructSize * vectorCapacity, persistent)
     // indices array, size of int = 4
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 1, indicesBuffer,
-        elementsToCopy * 4, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component, persistent, blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum + 1,
+            indicesBuffer, clIndicesBuffer, elementsToCopy * 4)
     // values array, size of double = 8
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 2, valuesBuffer,
-        elementsToCopy * 8, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component + 1, persistent, blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum + 2, valuesBuffer,
+            clValuesBuffer, elementsToCopy * 8)
     // Sizes of each vector
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 3, sizesBuffer, vectorsToCopy * 4,
-            cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
-            cacheID.component + 2, persistent, blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum + 3, sizesBuffer,
+            clSizesBuffer, vectorsToCopy * 4)
     // Offsets of each vector
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum + 4, offsetsBuffer, vectorsToCopy * 4,
-            cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
-            cacheID.component + 3, persistent, blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum + 4,
+            offsetsBuffer, clOffsetsBuffer, vectorsToCopy * 4)
     // Number of vectors
     OpenCLBridge.setIntArg(ctx, argnum + 5, vectorsToCopy)
     // Tiling

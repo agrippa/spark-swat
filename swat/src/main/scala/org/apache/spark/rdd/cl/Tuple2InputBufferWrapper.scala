@@ -18,13 +18,11 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
-        val isInput : Boolean, val blockingCopies : Boolean,
-        val selfAllocating : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
+        val isInput : Boolean, val blockingCopies : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
 
   def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint,
-          blockingCopies : Boolean, selfAllocating : Boolean) =
-      this(nele, sample, entryPoint, None, None, true, blockingCopies,
-              selfAllocating)
+          blockingCopies : Boolean) =
+      this(nele, sample, entryPoint, None, None, true, blockingCopies)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
@@ -58,17 +56,18 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies, selfAllocating)
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies, selfAllocating)
+          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
   val firstMemberNumArgs = if (firstMemberSize > 0) buffer1.countArgumentsUsed else 1
   val secondMemberNumArgs = if (secondMemberSize > 0) buffer2.countArgumentsUsed else 1
 
   var nativeBuffers : Tuple2NativeInputBuffers[K, V] = null
-  if (selfAllocating) {
-    nativeBuffers = generateNativeInputBuffer().asInstanceOf[Tuple2NativeInputBuffers[K, V]]
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[Tuple2NativeInputBuffers[K, V]]
   }
 
   def getObjFieldOffsets(desc : String, classModel : ClassModel) : Array[Long] = {
@@ -214,16 +213,14 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     buffer1.outOfSpace || buffer2.outOfSpace
   }
 
-  override def generateNativeInputBuffer() : NativeInputBuffers[Tuple2[K, V]] = {
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[Tuple2[K, V]] = {
     new Tuple2NativeInputBuffers(buffer1, buffer2,
             firstMemberSize > 0, secondMemberSize > 0, firstMemberNumArgs,
-            secondMemberNumArgs, isInput, structSize)
+            secondMemberNumArgs, isInput, structSize, dev_ctx)
   }
 
   override def releaseNativeArrays {
-    if (selfAllocating) {
-      nativeBuffers.releaseNativeArrays
-    }
+    nativeBuffers.releaseNativeArrays
   }
 
   override def reset() {

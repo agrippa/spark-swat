@@ -24,13 +24,13 @@ object SparseVectorInputBufferWrapperConfig {
 
 class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
         val vectorCapacity : Int, val tiling : Int, val entryPoint : Entrypoint,
-        val blockingCopies : Boolean, val selfAllocating : Boolean)
+        val blockingCopies : Boolean)
         extends InputBufferWrapper[SparseVector] {
 
   def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
-          blockingCopies : Boolean, selfAllocating : Boolean) = this(
+          blockingCopies : Boolean) = this(
               vectorCapacity * SparseVectorInputBufferWrapperConfig.avgVecLength,
-              vectorCapacity, tiling, entryPoint, blockingCopies, selfAllocating)
+              vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -45,8 +45,9 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
 
   var nativeBuffers : SparseVectorNativeInputBuffers = null
   var bufferPosition : Int = 0
-  if (selfAllocating) {
-    nativeBuffers = generateNativeInputBuffer().asInstanceOf[SparseVectorNativeInputBuffers]
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[SparseVectorNativeInputBuffers]
   }
 
   val overrun : Array[SparseVector] = new Array[SparseVector](tiling)
@@ -130,15 +131,13 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
     haveOverrun
   }
 
-  override def generateNativeInputBuffer() : NativeInputBuffers[SparseVector] = {
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[SparseVector] = {
     new SparseVectorNativeInputBuffers(vectorElementCapacity, vectorCapacity,
-            sparseVectorStructSize, blockingCopies, tiling)
+            sparseVectorStructSize, blockingCopies, tiling, dev_ctx)
   }
 
   override def releaseNativeArrays {
-    if (selfAllocating) {
-      nativeBuffers.releaseNativeArrays
-    }
+    nativeBuffers.releaseNativeArrays
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {

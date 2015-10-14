@@ -54,7 +54,8 @@ trait InputBufferWrapper[T] {
   def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
       entryPoint : Entrypoint, persistent : Boolean) : Int
 
-  def generateNativeInputBuffer() : NativeInputBuffers[T]
+  def selfAllocate(dev_ctx : Long)
+  def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T]
   def getCurrentNativeBuffers() : NativeInputBuffers[T]
   def setCurrentNativeBuffers(set : NativeInputBuffers[T])
 

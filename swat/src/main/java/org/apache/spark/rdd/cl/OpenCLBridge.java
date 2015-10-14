@@ -75,6 +75,13 @@ public class OpenCLBridge {
             int heapArgStart);
     public static native void waitOnBufferReady(long kernel_complete);
 
+    public static native long clMallocImpl(long dev_ctx, long nbytes);
+    public static native void clFree(long clBuffer, long dev_ctx);
+    public static native long pinnedAlloc(long dev_ctx, long region);
+    public static native void unpin(long pinned, long region, long dev_ctx);
+    public static native void setNativePinnedArrayArg(long ctx, long dev_ctx,
+            int index, long pinned, long region, long nbytes);
+
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArgByName(long ctx, int index, Object obj, String name);
@@ -154,15 +161,13 @@ public class OpenCLBridge {
 
     public static native int getCurrentSeqNo(long ctx);
 
-    // public static int createHeap(long ctx, long dev_ctx, int index,
-    //         int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
-    //   final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,
-    //       max_n_buffered);
-    //   if (argsUsed == -1) {
-    //     throw new OpenCLOutOfMemoryException();
-    //   }
-    //   return argsUsed;
-    // }
+    public static long clMalloc(long dev_ctx, int nbytes) throws OpenCLOutOfMemoryException {
+        final long buffer = clMallocImpl(dev_ctx, nbytes);
+        if (buffer == 0L) {
+            throw new OpenCLOutOfMemoryException(nbytes);
+        }
+        return buffer;
+    }
 
     public static void setNativeArrayArg(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,

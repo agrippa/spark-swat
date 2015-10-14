@@ -24,13 +24,13 @@ object DenseVectorInputBufferWrapperConfig {
 
 class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
         val vectorCapacity : Int, val tiling : Int, val entryPoint : Entrypoint,
-        val blockingCopies : Boolean, val selfAllocating : Boolean)
+        val blockingCopies : Boolean)
         extends InputBufferWrapper[DenseVector] {
 
   def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
-          blockingCopies : Boolean, selfAllocating : Boolean) = this(
+          blockingCopies : Boolean) = this(
               vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVecLength,
-              vectorCapacity, tiling, entryPoint, blockingCopies, selfAllocating)
+              vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -45,12 +45,13 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
 
   var nativeBuffers : DenseVectorNativeInputBuffers = null
   var bufferPosition : Int = 0
-  if (selfAllocating) {
-    nativeBuffers = generateNativeInputBuffer().asInstanceOf[DenseVectorNativeInputBuffers]
-  }
 
   val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
   var haveOverrun : Boolean = false
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[DenseVectorNativeInputBuffers]
+  }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[DenseVector] = nativeBuffers
   override def setCurrentNativeBuffers(set : NativeInputBuffers[DenseVector]) {
@@ -130,15 +131,13 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     haveOverrun
   }
 
-  override def generateNativeInputBuffer() : NativeInputBuffers[DenseVector] = {
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[DenseVector] = {
     new DenseVectorNativeInputBuffers(vectorElementCapacity, vectorCapacity,
-            denseVectorStructSize, blockingCopies, tiling)
+            denseVectorStructSize, blockingCopies, tiling, dev_ctx)
   }
 
   override def releaseNativeArrays {
-    if (selfAllocating) {
-      nativeBuffers.releaseNativeArrays
-    }
+    nativeBuffers.releaseNativeArrays
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {

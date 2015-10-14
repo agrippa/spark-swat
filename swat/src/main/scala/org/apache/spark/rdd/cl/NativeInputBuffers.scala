@@ -5,6 +5,7 @@ trait NativeInputBuffers[T] {
   var clBuffersReadyPtr : Long = 0L
 
   def releaseNativeArrays()
+  def releaseOpenCLArrays()
 
   /*
    * For use by LambdaOutputBuffer only when reverting to JVM execution due to

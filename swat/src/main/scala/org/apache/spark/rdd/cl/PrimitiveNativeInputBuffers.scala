@@ -5,8 +5,9 @@ import scala.reflect.ClassTag
 import org.apache.spark.mllib.linalg.DenseVector
 
 class PrimitiveNativeInputBuffers[T : ClassTag](val N : Int, val eleSize : Int,
-    val blockingCopies : Boolean) extends NativeInputBuffers[T] {
-  val buffer : Long = OpenCLBridge.nativeMalloc(N * eleSize)
+    val blockingCopies : Boolean, val dev_ctx : Long) extends NativeInputBuffers[T] {
+  val clBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, N * eleSize)
+  val buffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clBuffer)
 
   var tocopy : Int = -1
   var iter : Int = 0
@@ -17,15 +18,18 @@ class PrimitiveNativeInputBuffers[T : ClassTag](val N : Int, val eleSize : Int,
   val tmpArray : Array[T] = new Array[T](chunking)
 
   override def releaseNativeArrays() {
-    OpenCLBridge.nativeFree(buffer)
+    OpenCLBridge.unpin(buffer, clBuffer, dev_ctx)
+  }
+
+  override def releaseOpenCLArrays() {
+    OpenCLBridge.clFree(clBuffer, dev_ctx)
   }
 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
           cacheID : CLCacheID, persistent : Boolean) : Int = {
     assert(tocopy != -1)
-    OpenCLBridge.setNativeArrayArg(ctx, dev_ctx, argnum, buffer, tocopy * eleSize,
-            cacheID.broadcast, cacheID.rdd, cacheID.partition, cacheID.offset,
-            cacheID.component, persistent, blockingCopies)
+    OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum, buffer, clBuffer,
+            tocopy * eleSize)
     return 1
   }
 

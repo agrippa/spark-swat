@@ -8,16 +8,21 @@ class Tuple2NativeInputBuffers[K : ClassTag, V : ClassTag](
         val buffer1 : InputBufferWrapper[K], val buffer2 : InputBufferWrapper[V],
         val firstMemberUsed : Boolean, val secondMemberUsed : Boolean,
         val firstMemberNumArgs : Int, val secondMemberNumArgs : Int,
-        val isInput : Boolean, val tuple2StructSize : Int)
+        val isInput : Boolean, val tuple2StructSize : Int, val dev_ctx : Long)
         extends NativeInputBuffers[Tuple2[K, V]] {
-  val member0NativeBuffers : NativeInputBuffers[K] = buffer1.generateNativeInputBuffer
-  val member1NativeBuffers : NativeInputBuffers[V] = buffer2.generateNativeInputBuffer
+  val member0NativeBuffers : NativeInputBuffers[K] = buffer1.generateNativeInputBuffer(dev_ctx)
+  val member1NativeBuffers : NativeInputBuffers[V] = buffer2.generateNativeInputBuffer(dev_ctx)
 
   var tocopy : Int = -1
 
   override def releaseNativeArrays() {
     member0NativeBuffers.releaseNativeArrays
     member1NativeBuffers.releaseNativeArrays
+  }
+
+  override def releaseOpenCLArrays() {
+    member0NativeBuffers.releaseOpenCLArrays
+    member1NativeBuffers.releaseOpenCLArrays
   }
 
   override def copyToDevice(startArgnum : Int, ctx : Long, dev_ctx : Long,

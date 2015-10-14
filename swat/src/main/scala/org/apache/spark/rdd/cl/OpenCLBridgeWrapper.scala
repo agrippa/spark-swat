@@ -172,7 +172,8 @@ object OpenCLBridgeWrapper {
               (i) => arg(i).size, 1, argLength) + 1
       val buffer : SparseVectorInputBufferWrapper =
             new SparseVectorInputBufferWrapper(requiredElementCapacity, argLength, 1,
-                    entryPoint, true, true)
+                    entryPoint, true)
+      buffer.selfAllocate(dev_ctx)
       for (i <- 0 until argLength) {
         buffer.append(arg(i))
       }
@@ -205,7 +206,8 @@ object OpenCLBridgeWrapper {
               (i) => arg(i).size, 1, argLength) + 1
       val buffer : DenseVectorInputBufferWrapper =
               new DenseVectorInputBufferWrapper(requiredElementCapacity,
-              argLength, 1, entryPoint, true, true)
+              argLength, 1, entryPoint, true)
+      buffer.selfAllocate(dev_ctx)
       for (i <- 0 until argLength) {
         buffer.append(arg(i).asInstanceOf[DenseVector])
       }
@@ -222,41 +224,41 @@ object OpenCLBridgeWrapper {
           className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorTiling : Int, sparseVectorTiling : Int,
-          blockingCopies : Boolean, selfAllocating : Boolean) :
+          blockingCopies : Boolean) :
           InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
-          new PrimitiveInputBufferWrapper[Int](argLength, blockingCopies, selfAllocating)
+          new PrimitiveInputBufferWrapper[Int](argLength, blockingCopies)
       }
       case "java.lang.Float" => {
-          new PrimitiveInputBufferWrapper[Float](argLength, blockingCopies, selfAllocating)
+          new PrimitiveInputBufferWrapper[Float](argLength, blockingCopies)
       }
       case "java.lang.Double" => {
-          new PrimitiveInputBufferWrapper[Double](argLength, blockingCopies, selfAllocating)
+          new PrimitiveInputBufferWrapper[Double](argLength, blockingCopies)
       }
       case "org.apache.spark.mllib.linalg.DenseVector" => {
           if (denseVectorSizeHandler.isEmpty) {
             new DenseVectorInputBufferWrapper(argLength, denseVectorTiling,
-                    entryPoint, blockingCopies, selfAllocating)
+                    entryPoint, blockingCopies)
           } else {
             new DenseVectorInputBufferWrapper(
                     getMaxDenseElementIndexFor(denseVectorSizeHandler.get,
                         argLength), argLength, denseVectorTiling, entryPoint,
-                        blockingCopies, selfAllocating)
+                        blockingCopies)
           }
       }
       case "org.apache.spark.mllib.linalg.SparseVector" => {
           if (sparseVectorSizeHandler.isEmpty) {
-            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies, selfAllocating)
+            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies)
           } else {
             new SparseVectorInputBufferWrapper(
                     getMaxSparseElementIndexFor(sparseVectorSizeHandler.get,
-                        argLength), argLength, sparseVectorTiling, entryPoint, blockingCopies, selfAllocating)
+                        argLength), argLength, sparseVectorTiling, entryPoint, blockingCopies)
           }
       }
       case _ => {
           new ObjectInputBufferWrapper(argLength, className,
-                  entryPoint, blockingCopies, selfAllocating)
+                  entryPoint, blockingCopies)
       }
     }
     result.asInstanceOf[InputBufferWrapper[T]]
@@ -293,15 +295,18 @@ object OpenCLBridgeWrapper {
             val inputBuffer = new Tuple2InputBufferWrapper(
                     argLength, sample, entryPoint,
                     Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
-                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput, true, true)
+                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput, true)
+            inputBuffer.selfAllocate(dev_ctx)
 
             for (eleIndex <- 0 until argLength) {
               inputBuffer.append(arrOfTuples(eleIndex))
             }
-
+            inputBuffer.flush
             inputBuffer.setupNativeBuffersForCopy(-1)
-            return inputBuffer.nativeBuffers.copyToDevice(startArgnum, ctx,
+            val result = inputBuffer.nativeBuffers.copyToDevice(startArgnum, ctx,
                     dev_ctx, cacheID, true)
+            inputBuffer.releaseNativeArrays
+            return result
           }
         } else {
           val cacheSuccess : Int = RuntimeUtil.tryCacheObject(ctx, dev_ctx,

@@ -226,13 +226,12 @@ static inline void force_pthread_mutex_unlock(pthread_mutex_t *mutex) {
 }
 
 static void add_pending_arg(swat_context *context, int index, bool keep,
-        bool dont_free, bool clear_arguments, enum arg_type type,
+        bool dont_free, enum arg_type type,
         region_or_scalar val) {
 #ifdef VERBOSE
     fprintf(stderr, "add_pending_arg: thread=%d index=%d keep=%s dont_free=%s "
-            "clear_arguments=%s type=%d\n", context->host_thread_index, index,
-            keep ? "true" : "false", dont_free ? "true" : "false",
-            clear_arguments ? "true" : "false", type);
+            "type=%d\n", context->host_thread_index, index,
+            keep ? "true" : "false", dont_free ? "true" : "false", type);
 #endif
 
     if (context->accumulated_arguments_len >= context->accumulated_arguments_capacity) {
@@ -250,38 +249,36 @@ static void add_pending_arg(swat_context *context, int index, bool keep,
     (context->accumulated_arguments)[acc_index].index = index;
     (context->accumulated_arguments)[acc_index].keep = keep;
     (context->accumulated_arguments)[acc_index].dont_free = dont_free;
-    (context->accumulated_arguments)[acc_index].clear_arguments = clear_arguments;
     (context->accumulated_arguments)[acc_index].type = type;
     (context->accumulated_arguments)[acc_index].val = val;
     context->accumulated_arguments_len = context->accumulated_arguments_len + 1;
 }
 
 static void add_pending_region_arg_new(swat_context *context, int index, bool keep,
-        bool dont_free, bool clear_arguments, cl_region *region) {
+        bool dont_free, cl_region *region) {
     region_or_scalar val; val.region = region;
-    add_pending_arg(context, index, keep, dont_free, clear_arguments, REGION,
-            val);
+    add_pending_arg(context, index, keep, dont_free, REGION, val);
 }
 
 static void add_pending_region_arg(swat_context *context, int index, bool keep,
-        bool persistent, cl_region *region) {
+        bool dont_free, cl_region *region) {
     region_or_scalar val; val.region = region;
-    add_pending_arg(context, index, keep, persistent, !persistent, REGION, val);
+    add_pending_arg(context, index, keep, dont_free, REGION, val);
 }
 
 static void add_pending_int_arg(swat_context *context, int index, int in) {
     region_or_scalar val; val.i = in;
-    add_pending_arg(context, index, false, false, false, INT, val);
+    add_pending_arg(context, index, false, false, INT, val);
 }
 
 static void add_pending_float_arg(swat_context *context, int index, float in) {
     region_or_scalar val; val.f = in;
-    add_pending_arg(context, index, false, false, false, FLOAT, val);
+    add_pending_arg(context, index, false, false, FLOAT, val);
 }
 
 static void add_pending_double_arg(swat_context *context, int index, double in) {
     region_or_scalar val; val.d = in;
-    add_pending_arg(context, index, false, false, false, DOUBLE, val);
+    add_pending_arg(context, index, false, false, DOUBLE, val);
 }
 
 /*
@@ -452,7 +449,7 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
 static void createHeapContext(heap_context *context, device_context *dev_ctx,
         size_t heap_size) {
     // The heap
-    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->allocator /* dev_ctx->heap_allocator */ , NULL,
+    cl_region *heap = allocate_cl_region(heap_size, dev_ctx->allocator , NULL,
             NULL);
     ASSERT(heap);
 
@@ -2544,8 +2541,6 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
         arg_value *curr = mine->accumulated_arguments + a;
         if (curr->type == REGION && curr->val.region) {
             cl_region *region = curr->val.region;
-            ASSERT(!curr->dont_free);
-            ASSERT(curr->clear_arguments);
 
             if (allocator) {
                 ASSERT(allocator == region->grandparent->allocator);
@@ -2558,7 +2553,10 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
                     "keep=%s offset=%lu size=%lu\n", region,
                     curr->keep ? "true" : "false", region->offset, region->size);
 #endif
-            free_cl_region(region, curr->keep);
+            // Don't free regions associated with pinned buffers
+            if (!curr->dont_free) {
+                free_cl_region(region, curr->keep);
+            }
         }
     }
     free(mine->accumulated_arguments);
@@ -3120,6 +3118,102 @@ JNI_JAVA(void, OpenCLBridge, waitOnBufferReady)(JNIEnv *jenv, jclass clazz,
     ASSERT(perr == 0);
 
     free(kernel_complete);
+}
+
+JNI_JAVA(jlong, OpenCLBridge, clMallocImpl)(JNIEnv *jenv, jclass clazz,
+        jlong l_dev_ctx, jlong nbytes) {
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+#ifdef VERBOSE
+    fprintf(stderr, "clMallocImpl: nbytes=%ld on device %d\n", nbytes,
+            dev_ctx->device_index);
+#endif
+    cl_region *region = allocate_cl_region(nbytes, dev_ctx->allocator, NULL, NULL);
+#ifdef VERBOSE
+    fprintf(stderr, "clMallocImpl: return region=%p for nbytes=%ld on device "
+            "%d\n", region, nbytes, dev_ctx->device_index);
+#endif
+    return (jlong)region;
+}
+
+JNI_JAVA(void, OpenCLBridge, clFree)(JNIEnv *jenv, jclass clazz, jlong l_region,
+        jlong l_dev_ctx) {
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+    cl_region *region = (cl_region *)l_region;
+#ifdef VERBOSE
+    fprintf(stderr, "clFree: region=%p\n", region);
+#endif
+
+    free_cl_region(region, false);
+}
+
+JNI_JAVA(jlong, OpenCLBridge, pinnedAlloc)(JNIEnv *jenv, jclass clazz,
+        jlong l_dev_ctx, jlong l_region) {
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+    cl_region *region = (cl_region *)l_region;
+#ifdef VERBOSE
+    fprintf(stderr, "pinnedAlloc: region=%p\n", region);
+#endif
+
+    cl_int err;
+    void *pinned = clEnqueueMapBuffer(dev_ctx->cmd,
+            region->sub_mem, CL_TRUE, CL_MAP_WRITE, 0, region->size, 0,
+            NULL, NULL, &err);
+    CHECK(err);
+
+#ifdef VERBOSE
+    fprintf(stderr, "pinnedAlloc: for region=%p returning pinned=%p\n", region,
+            pinned);
+#endif
+
+    return (jlong)pinned;
+}
+
+JNI_JAVA(void, OpenCLBridge, unpin)(JNIEnv *jenv, jclass clazz,
+        jlong pinned_buffer, jlong l_region, jlong l_dev_ctx) {
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
+    void *pinned = (void *)pinned_buffer;
+    cl_region *region = (cl_region *)l_region;
+#ifdef VERBOSE
+    fprintf(stderr, "unpin: pinned_buffer=%p region=%p\n",
+            (void *)pinned_buffer, (void *)l_region);
+#endif
+
+    cl_event event;
+    CHECK(clEnqueueUnmapMemObject(dev_ctx->cmd, region->sub_mem, pinned, 0,
+                NULL, &event));
+    CHECK(clWaitForEvents(1, &event));
+}
+
+JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
+        jclass clazz, jlong lctx, jlong ldev_ctx, jint index,
+        jlong pinned_buffer, jlong l_region, jlong nbytes) {
+    ENTER_TRACE("setNativePinnedArrayArg");
+#ifdef VERBOSE
+    fprintf(stderr, "setNativePinnedArrayArg: index=%d pinned=%p region=%p "
+            "nbytes=%ld\n", index, (void *)pinned_buffer, (void *)l_region,
+            nbytes);
+#endif
+
+    device_context *dev_ctx = (device_context *)ldev_ctx;
+    swat_context *context = (swat_context *)lctx;
+
+    void *pinned = (void *)pinned_buffer;
+    cl_region *region = (cl_region *)l_region;
+
+    add_pending_region_arg(context, index, false, true, region);
+
+    cl_event event;
+    CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
+                CL_FALSE, 0, nbytes, pinned, context->last_write_event ? 1 : 0,
+                context->last_write_event ? &context->last_write_event : NULL, &event));
+#ifdef PROFILE_OPENCL
+    add_event_to_list(&context->acc_write_events, event, "init_write",
+            &context->acc_write_events_length,
+            &context->acc_write_events_capacity);
+#endif
+    context->last_write_event = event;
+
+    EXIT_TRACE("setNativePinnedArrayArg");
 }
 
 #ifdef __cplusplus

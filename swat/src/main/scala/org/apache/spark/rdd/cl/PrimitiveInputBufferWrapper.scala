@@ -15,7 +15,7 @@ import com.amd.aparapi.internal.writer.KernelWriter
 import java.nio.ByteBuffer
 
 class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
-    val blockingCopies : Boolean, val selfAllocating : Boolean)
+    val blockingCopies : Boolean)
     extends InputBufferWrapper[T]{
   val arr : Array[T] = new Array[T](N)
   val eleSize : Int = if (arr.isInstanceOf[Array[Double]]) 8 else 4
@@ -23,8 +23,9 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
   var used : Int = -1
 
   var nativeBuffers : PrimitiveNativeInputBuffers[T] = null
-  if (selfAllocating) {
-    nativeBuffers = generateNativeInputBuffer().asInstanceOf[PrimitiveNativeInputBuffers[T]]
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[PrimitiveNativeInputBuffers[T]]
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
@@ -89,14 +90,12 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
     return oldBuffers
   }
 
-  override def generateNativeInputBuffer() : NativeInputBuffers[T] = {
-    new PrimitiveNativeInputBuffers(N, eleSize, blockingCopies)
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T] = {
+    new PrimitiveNativeInputBuffers(N, eleSize, blockingCopies, dev_ctx)
   }
 
   override def releaseNativeArrays {
-    if (selfAllocating) {
-      nativeBuffers.releaseNativeArrays
-    }
+    nativeBuffers.releaseNativeArrays
   }
 
   override def reset() { }

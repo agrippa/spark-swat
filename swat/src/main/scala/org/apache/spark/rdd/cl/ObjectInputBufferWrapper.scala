@@ -14,8 +14,7 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import java.nio.ByteBuffer
 
 class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
-    val entryPoint : Entrypoint, val blockingCopies : Boolean,
-    val selfAllocating : Boolean) extends InputBufferWrapper[T] {
+    val entryPoint : Entrypoint, val blockingCopies : Boolean) extends InputBufferWrapper[T] {
   val clazz : java.lang.Class[_] = Class.forName(typeName)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -32,8 +31,9 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   bb.order(ByteOrder.LITTLE_ENDIAN)
 
   var nativeBuffers : ObjectNativeInputBuffers[T] = null
-  if (selfAllocating) {
-    nativeBuffers = generateNativeInputBuffer().asInstanceOf[ObjectNativeInputBuffers[T]]
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[ObjectNativeInputBuffers[T]]
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
@@ -69,9 +69,9 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     objCount >= nele
   }
 
-  override def generateNativeInputBuffer() : NativeInputBuffers[T] = {
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T] = {
     new ObjectNativeInputBuffers[T](nele, structSize, blockingCopies,
-            constructor, classModel, structMemberTypes, structMemberOffsets)
+            constructor, classModel, structMemberTypes, structMemberOffsets, dev_ctx)
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {
@@ -106,9 +106,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def releaseNativeArrays {
-    if (selfAllocating) {
-      nativeBuffers.releaseNativeArrays
-    }
+    nativeBuffers.releaseNativeArrays
   }
 
   override def reset() { }

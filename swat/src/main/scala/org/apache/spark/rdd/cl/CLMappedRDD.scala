@@ -211,9 +211,9 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      openCL = entrypointAndKernel._2
 
      if (inputBuffer == null) {
-       inputBuffer = RuntimeUtil.getInputBufferFor(firstSample, CLMappedRDDStorage.N,
+       inputBuffer = RuntimeUtil.getInputBufferForSample(firstSample, CLMappedRDDStorage.N,
                DenseVectorInputBufferWrapperConfig.tiling,
-               SparseVectorInputBufferWrapperConfig.tiling, entryPoint, false, false)
+               SparseVectorInputBufferWrapperConfig.tiling, entryPoint, false)
        CLMappedRDDStorage.inputBufferCache(threadId).put(f.getClass.getName,
                inputBuffer)
        nativeOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
@@ -227,7 +227,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
    }
 
    for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
-     val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer
+     val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer(dev_ctx)
      newBuffer.id = i
 
      initiallyEmptyNativeInputBuffers.add(newBuffer)
@@ -475,6 +475,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
 
          for (buffer <- nativeInputBuffersArray) {
            buffer.releaseNativeArrays
+           buffer.releaseOpenCLArrays
          }
 
          OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
