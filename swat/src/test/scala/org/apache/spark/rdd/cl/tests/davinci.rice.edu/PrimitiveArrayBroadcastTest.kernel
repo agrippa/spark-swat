@@ -25,7 +25,7 @@ static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__ap
 }
 __kernel void run(
       __global int* in0, 
-      __global int* out, __global int* broadcast$1, int N) {
+      __global int* out, __global int* broadcast$1, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1;

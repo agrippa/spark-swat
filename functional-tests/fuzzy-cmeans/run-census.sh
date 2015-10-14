@@ -5,14 +5,15 @@ set -e
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $SCRIPT_DIR/../common.sh
 
-if [[ $# != 3 ]]; then
-    echo usage: run.sh niters ncenters use-swat?
+if [[ $# != 4 ]]; then
+    echo usage: run.sh niters ncenters use-swat? heaps-per-device
     exit 1
 fi
 
 ITERS=$1
 CENTERS=$2
 USE_SWAT=$3
+HEAPS_PER_DEVICE=$4
 
 INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep census-data | wc -l)
 if [[ $INPUT_EXISTS != 1 ]]; then
@@ -25,7 +26,7 @@ fi
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
               -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 \
               -Dswat.n_native_input_buffers=2 -Dswat.n_native_output_buffers=2 \
-              -Dswat.heaps_per_device=4"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE"
 
 spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
         --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \

@@ -11,7 +11,7 @@ class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
   val valuesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clValuesBuffer)
 
   val clIndicesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorElementCapacity * 4)
-  val indicesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clValuesBuffer)
+  val indicesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clIndicesBuffer)
 
   val clSizesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorCapacity * 4)
   val sizesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clSizesBuffer)
@@ -30,7 +30,7 @@ class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
 
   override def releaseNativeArrays() {
     OpenCLBridge.unpin(valuesBuffer, clValuesBuffer, dev_ctx)
-    OpenCLBridge.unpin(indicesBuffer, clValuesBuffer, dev_ctx)
+    OpenCLBridge.unpin(indicesBuffer, clIndicesBuffer, dev_ctx)
     OpenCLBridge.unpin(sizesBuffer, clSizesBuffer, dev_ctx)
     OpenCLBridge.unpin(offsetsBuffer, clOffsetsBuffer, dev_ctx)
   }
