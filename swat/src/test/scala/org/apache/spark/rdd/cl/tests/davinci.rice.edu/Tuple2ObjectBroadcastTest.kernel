@@ -50,8 +50,8 @@ static int org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest$$anon$1__appl
    return(org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, __global int * broadcast$1_1, __global org_apache_spark_mllib_linalg_DenseVector* broadcast$1_2, __global double *broadcast$1_2_values, __global int *broadcast$1_2_sizes, __global int *broadcast$1_2_offsets, int nbroadcast$1_2, int broadcast$1_2_tiling, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
+      __global int* restrict in0, 
+      __global int* restrict out, __global int * restrict broadcast$1_1, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1_2, __global double * restrict broadcast$1_2_values, __global int * restrict broadcast$1_2_sizes, __global int * restrict broadcast$1_2_offsets, int nbroadcast$1_2, int broadcast$1_2_tiling, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1; for (int i = 0; i < broadcast$1__javaArrayLength; i++) { broadcast$1[i]._1 = broadcast$1_1[i]; broadcast$1[i]._2 = broadcast$1_2 + i;  } ;

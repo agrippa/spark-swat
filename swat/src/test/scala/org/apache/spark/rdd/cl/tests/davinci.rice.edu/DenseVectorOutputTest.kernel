@@ -62,8 +62,8 @@ static __global org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_
    });
 }
 __kernel void run(
-      __global int* in0, 
-      __global org_apache_spark_mllib_linalg_DenseVector* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, int N, int iter) {
+      __global int* restrict in0, 
+      __global org_apache_spark_mllib_linalg_DenseVector* restrict out, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;

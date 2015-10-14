@@ -52,8 +52,8 @@ static double org_apache_spark_rdd_cl_tests_DenseVectorBroadcastTest$$anon$1__ap
    return(org_apache_spark_rdd_cl_tests_DenseVectorBroadcastTest$$anon$1__apply$mcDI$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global double* out, __global org_apache_spark_mllib_linalg_DenseVector* broadcast$1, __global double *broadcast$1_values, __global int *broadcast$1_sizes, __global int *broadcast$1_offsets, int nbroadcast$1, int broadcast$1_tiling, int N, int iter) {
+      __global int* restrict in0, 
+      __global double* restrict out, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1, __global double * restrict broadcast$1_values, __global int * restrict broadcast$1_sizes, __global int * restrict broadcast$1_offsets, int nbroadcast$1, int broadcast$1_tiling, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1;

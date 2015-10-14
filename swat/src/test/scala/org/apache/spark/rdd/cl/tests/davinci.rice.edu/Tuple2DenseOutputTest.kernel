@@ -79,8 +79,8 @@ static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *org_ap
    });
 }
 __kernel void run(
-      __global int* in0, 
-      __global int * out_1, __global org_apache_spark_mllib_linalg_DenseVector* out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, int N, int iter) {
+      __global int* restrict in0, 
+      __global int * restrict out_1, __global org_apache_spark_mllib_linalg_DenseVector* restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;

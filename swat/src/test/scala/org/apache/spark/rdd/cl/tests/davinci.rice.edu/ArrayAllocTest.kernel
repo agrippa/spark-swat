@@ -44,8 +44,8 @@ static int org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply(This *thi
    return(org_apache_spark_rdd_cl_tests_ArrayAllocTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, int N, int iter) {
+      __global int* restrict in0, 
+      __global int* restrict out, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;

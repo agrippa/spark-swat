@@ -18,7 +18,7 @@ endif
 
 libclutil.so: ocl_util.cpp ocl_util.h
 	test ! -z "${GXX}" || { echo 'GXX missing, should be defined in SWAT_HOME/build.conf'; exit 1; }
-	${GXX} ${GXX_FLAGS} ${DEFINES} ocl_util.cpp -o libclutil.so ${INCLUDES} ${LIBS} -fPIC --shared
+	${GXX} ${LIBS} ${GXX_FLAGS} ${DEFINES} ocl_util.cpp -o libclutil.so ${INCLUDES} -fPIC --shared
 
 clean:
 	rm -f ${TARGET}

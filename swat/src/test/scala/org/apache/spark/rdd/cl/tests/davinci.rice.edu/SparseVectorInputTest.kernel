@@ -83,8 +83,8 @@ static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInpu
    });
 }
 __kernel void run(
-      __global org_apache_spark_mllib_linalg_SparseVector* in0, __global int *in0_indices, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, int in0_tiling, 
-      __global int * out_1, __global double * out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, int N, int iter) {
+      __global org_apache_spark_mllib_linalg_SparseVector * restrict in0, __global int * restrict in0_indices, __global double * restrict in0_values, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, int in0_tiling, 
+      __global int * restrict out_1, __global double * restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;

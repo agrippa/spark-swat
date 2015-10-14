@@ -24,8 +24,8 @@ static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__ap
    return(org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, __global int* broadcast$1, int N, int iter) {
+      __global int* restrict in0, 
+      __global int* restrict out, __global int* restrict broadcast$1, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1;

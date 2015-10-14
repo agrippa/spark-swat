@@ -48,8 +48,8 @@ static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tes
    return(org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (float)(in + 1), (float)(in + 2), (float)(in + 3)));
 }
 __kernel void run(
-      __global int* in0, 
-      __global org_apache_spark_rdd_cl_tests_Point* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, int N, int iter) {
+      __global int* restrict in0, 
+      __global org_apache_spark_rdd_cl_tests_Point* restrict out, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;

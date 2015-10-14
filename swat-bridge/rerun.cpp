@@ -29,7 +29,7 @@ typedef struct _change_arg_size {
 
 void usage(char **argv) {
     fprintf(stderr, "usage: %s -i file -d device -h -l -p -k kernel-file "
-            "-o index:type -v\n", argv[0]);
+            "-o index:type -v -g global-size -b local-size\n", argv[0]);
 }
 
 // Nanoseconds
@@ -207,13 +207,22 @@ int main(int argc, char **argv) {
     bool print_kernel = false;
     bool verbose = false;
 
+    size_t force_global_size = 0;
+    size_t force_local_size = 0;
+
     int *clears = NULL;
     int nclears = 0;
 
     int c;
     opterr = 0;
-    while ((c = getopt(argc, argv, "i:d:hlpk:o:vc:s:")) != -1) {
+    while ((c = getopt(argc, argv, "i:d:hlpk:o:vc:s:g:b:")) != -1) {
         switch (c) {
+            case 'g':
+                force_global_size = atoi(optarg);
+                break;
+            case 'b':
+                force_local_size = atoi(optarg);
+                break;
             case 'c':
                 clears = (int *)realloc(clears, (nclears + 1) * sizeof(int));
                 clears[nclears] = atoi(optarg);
@@ -285,6 +294,12 @@ int main(int argc, char **argv) {
     size_t global_size, local_size;
     safe_read(fd, &global_size, sizeof(global_size));
     safe_read(fd, &local_size, sizeof(local_size));
+    if (force_global_size > 0) {
+        global_size = force_global_size;
+    }
+    if (force_local_size > 0) {
+        local_size = force_local_size;
+    }
     fprintf(stderr, "global_size=%lu local_size=%lu\n", global_size, local_size);
 
     size_t kernel_src_len;
@@ -433,7 +448,7 @@ int main(int argc, char **argv) {
         }
     }
     CHECK(clFinish(cmd));
-    
+   
     unsigned long long start_time = get_clock_gettime();
     cl_event event;
     CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &global_size, &local_size, 0, NULL,
