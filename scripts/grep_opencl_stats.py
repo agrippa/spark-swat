@@ -53,6 +53,9 @@ for line in fp:
 
 print(pad('LABEL') + pad('AVG TOTAL') + pad('AVG QUEUED') +
       pad('AVG SUBMITTED') + pad('AVG RUN'))
+nlabels = float(len(known_labels))
+
+sums = [0.0, 0.0, 0.0, 0.0]
 for lbl in known_labels:
     infos = labels_info[lbl]
     ninfos = float(len(infos))
@@ -67,8 +70,16 @@ for lbl in known_labels:
         sum_submitted += i.submitted
         sum_run += i.run
 
+    sums[0] += sum_totals
+    sums[1] += sum_queued
+    sums[2] += sum_submitted
+    sums[3] += sum_run
+
     print(pad(lbl) + pad(str(sum_totals / ninfos)) +
           pad(str(sum_queued / ninfos)) + pad(str(sum_submitted / ninfos)) +
           pad(str(sum_run / ninfos)))
+print(pad('') + pad('==========') + pad('==========') + pad('==========') + pad('=========='))
+print(pad('') + pad(str(sums[0] / nlabels)) + pad(str(sums[1] / nlabels)) +
+      pad(str(sums[2] / nlabels)) + pad(str(sums[3] / nlabels)))
 
 fp.close()
