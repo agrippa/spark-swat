@@ -28,13 +28,13 @@ public class OpenCLBridge {
     public static native void cleanupSwatContext(long ctx, long dev_ctx);
     public static native long getActualDeviceContext(int device_index,
             int heaps_per_device, int heap_size,
-            double perc_high_performance_buffers);
+            double perc_high_performance_buffers, boolean createCpuContexts);
     public static native void postKernelCleanup(long ctx);
     public static native int getDeviceHintFor(int rdd, int partition,
             int offset, int component);
     public static native int getDeviceToUse(int hint, int host_thread_index,
             int heaps_per_device, int heap_size,
-            double perc_high_performance_buffers);
+            double perc_high_performance_buffers, boolean createCpuContexts);
     public static native int getDevicePointerSizeInBytes(long dev_ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);

@@ -491,7 +491,8 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
 }
 
 static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
-        size_t heap_size, double perc_high_performance_buffers) {
+        size_t heap_size, double perc_high_performance_buffers,
+        bool createCpuContexts) {
     // Try to avoid having to do any locking
     if (device_ctxs != NULL) {
         return;
@@ -550,7 +551,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 free(device_name);
 #endif
 
-                if (get_device_type(curr_dev) == CL_DEVICE_TYPE_CPU) {
+                if (get_device_type(curr_dev) == CL_DEVICE_TYPE_CPU && !createCpuContexts) {
                     // TODO remove this if we want to use CPU devices in the future
                     memset(tmp_device_ctxs + global_device_id, 0x00, sizeof(device_context));
                     tmp_device_ctxs[global_device_id].dev = curr_dev;
@@ -731,10 +732,10 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 JNI_JAVA(jint, OpenCLBridge, getDeviceToUse)
         (JNIEnv *jenv, jclass clazz, jint hint, jint host_thread_index,
          jint n_heaps_per_device, jint heap_size,
-         jdouble perc_high_performance_buffers) {
+         jdouble perc_high_performance_buffers, jboolean create_cpu_contexts) {
     ENTER_TRACE("getDeviceToUse");
     populateDeviceContexts(jenv, n_heaps_per_device, heap_size,
-            perc_high_performance_buffers);
+            perc_high_performance_buffers, create_cpu_contexts);
 
     int result;
     if (hint != -1) {
@@ -786,10 +787,11 @@ JNI_JAVA(jint, OpenCLBridge, getDeviceHintFor)
 
 JNI_JAVA(jlong, OpenCLBridge, getActualDeviceContext)
         (JNIEnv *jenv, jclass clazz, jint device_index, jint n_heaps_per_device,
-         jint heap_size, jdouble perc_high_performance_buffers) {
+         jint heap_size, jdouble perc_high_performance_buffers,
+         jboolean create_cpu_contexts) {
 
     populateDeviceContexts(jenv, n_heaps_per_device, heap_size,
-            perc_high_performance_buffers);
+            perc_high_performance_buffers, create_cpu_contexts);
 
     ASSERT(device_index < n_device_ctxs);
     return (jlong)(device_ctxs + device_index);

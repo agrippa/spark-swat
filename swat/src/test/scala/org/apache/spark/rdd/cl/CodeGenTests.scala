@@ -54,6 +54,8 @@ object CodeGenTests {
   tests.add(Tuple2DenseOutputTest)
   tests.add(Tuple2BroadcastTest)
   tests.add(Tuple2ObjectBroadcastTest)
+  tests.add(NestedTuple2OutputTest)
+  tests.add(NestedTuple2OutputDenseTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
@@ -71,7 +73,7 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024, 0.2)
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024, 0.2, true)
     val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     var gotExpectedException = false
     var entryPoint : Entrypoint = null;

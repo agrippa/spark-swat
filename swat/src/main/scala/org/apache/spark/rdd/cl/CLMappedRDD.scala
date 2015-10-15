@@ -187,11 +187,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
    val deviceInitStart = System.currentTimeMillis // PROFILE
     val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
             threadId, CLMappedRDDStorage.heapsPerDevice,
-            CLMappedRDDStorage.heapSize, CLMappedRDDStorage.percHighPerfBuffers)
+            CLMappedRDDStorage.heapSize, CLMappedRDDStorage.percHighPerfBuffers,
+            false)
    System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
     val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
             CLMappedRDDStorage.heapsPerDevice, CLMappedRDDStorage.heapSize,
-            CLMappedRDDStorage.percHighPerfBuffers)
+            CLMappedRDDStorage.percHighPerfBuffers, false)
     val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
    RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
