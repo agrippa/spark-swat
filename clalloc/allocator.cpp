@@ -28,7 +28,11 @@ static void lock_alloc(cl_alloc *alloc) {
 #ifdef PROFILE_LOCKS
     const unsigned long long start = get_clock_gettime_ns();
 #endif
-    int perr = pthread_mutex_lock(&alloc->lock);
+    const int perr = pthread_mutex_lock(&alloc->lock);
+    if (perr != 0) {
+        fprintf(stderr, "lock_alloc: perr=%d\n", perr);
+        exit(1);
+    }
 #ifdef PROFILE_LOCKS
     alloc->contention += (get_clock_gettime_ns() - start);
 #endif
@@ -39,8 +43,11 @@ static void lock_alloc(cl_alloc *alloc) {
 
 static void unlock_alloc(cl_alloc *alloc) {
     ENTER_TRACE("unlock_alloc");
-    int perr = pthread_mutex_unlock(&alloc->lock);
-    ASSERT(perr == 0);
+    const int perr = pthread_mutex_unlock(&alloc->lock);
+    if (perr != 0) {
+        fprintf(stderr, "unlock_alloc: perr=%d\n", perr);
+        exit(1);
+    }
     EXIT_TRACE("unlock_alloc");
 }
 
@@ -432,7 +439,8 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 #endif
     ENTER_TRACE("free_cl_region");
 
-    lock_alloc(to_free->grandparent);
+    cl_alloc *to_free_grandparent = to_free->grandparent;
+    lock_alloc(to_free_grandparent);
 
     ASSERT(to_free->refs > 0);
     ASSERT(to_free->sub_mem);
@@ -574,7 +582,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
     bool return_value = (to_free->refs == 0);
 
-    unlock_alloc(to_free->grandparent);
+    unlock_alloc(to_free_grandparent);
 
     EXIT_TRACE("free_cl_region");
 #ifdef PROFILE
@@ -938,14 +946,14 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
 #endif
     ENTER_TRACE("re_allocate_cl_region");
 
-    lock_alloc(target_region->grandparent);
+    cl_alloc *alloc = target_region->grandparent;
+    lock_alloc(alloc);
 
     if (target_region->invalidated) {
 #ifdef VERBOSE
         fprintf(stderr, "Cleaning up target_region=%p because invalidated\n",
                 target_region);
 #endif
-        cl_alloc *alloc = target_region->grandparent;
         free(target_region);
         unlock_alloc(alloc);
         EXIT_TRACE("re_allocate_cl_region");
@@ -1005,7 +1013,7 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     }
     target_region->birth = target_region->grandparent->curr_time;
 
-    unlock_alloc(target_region->grandparent);
+    unlock_alloc(alloc);
 
     EXIT_TRACE("re_allocate_cl_region");
 

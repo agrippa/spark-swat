@@ -567,7 +567,18 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 
                 cl_command_queue_properties props = 0;
 #ifndef __APPLE__
-                props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+                /*
+                 * Need to keep this disabled. If we have N heaps (enabling N
+                 * parallel kernels) and M output buffers where M < N, then
+                 * out-of-order kernel execution can lead to later kernels
+                 * acquiring all output buffers, and earlier kernel coming along
+                 * and blocking trying to acquire an output buffer, while the
+                 * output thread blocks and waits on the earlier kernel ->
+                 * deadlock. In general, this makes it harder to reason about
+                 * the execution order of OpenCL commands and makes it easier to
+                 * get into bad situations.
+                 */
+                // props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
 #endif
 #ifdef PROFILE_OPENCL
                 props |= CL_QUEUE_PROFILING_ENABLE;
@@ -2284,6 +2295,7 @@ static void finally_done_callback(cl_event event,
 #endif
     ASSERT(perr == 0);
 
+    kernel_ctx->next = NULL;
     if (ctx->completed_kernels == NULL) {
         ctx->completed_kernels = kernel_ctx;
     } else {
@@ -2395,19 +2407,9 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
             &kernel_ctx->acc_write_events_capacity);
 #endif
 
-    kernel_ctx->heaps = (saved_heap *)realloc(kernel_ctx->heaps,
-            (kernel_ctx->n_heap_ctxs + 1) * sizeof(saved_heap));
-    CHECK_ALLOC(kernel_ctx->heaps);
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].heap_ctx = heap_ctx;
-    // (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].h_heap = h_heap;
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].size = available_bytes;
-
-    kernel_ctx->heap_copy_back_events = (cl_event *)realloc(
-            kernel_ctx->heap_copy_back_events,
-            (kernel_ctx->n_heap_ctxs + 1) * sizeof(cl_event));
-    CHECK_ALLOC(kernel_ctx->heap_copy_back_events);
     (kernel_ctx->heap_copy_back_events)[kernel_ctx->n_heap_ctxs] = heap_event;
-
     kernel_ctx->n_heap_ctxs = kernel_ctx->n_heap_ctxs + 1;
 
     // Release the device heap once we are finished transferring it out
@@ -2432,7 +2434,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     }
 }
 
-static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no) {
+static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, int tid) {
     kernel_context *prev = NULL;
     kernel_context *curr = ctx->completed_kernels;
     while (curr != NULL && curr->seq_no != seq_no) {
@@ -2466,10 +2468,9 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
         ASSERT(perr == 0);
         perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
         ASSERT(perr == 0);
-
-        // free((kernel_ctx->heaps)[i].h_heap);
     }
     free(kernel_ctx->heaps);
+    free(kernel_ctx->heap_copy_back_events);
 
 #ifdef PROFILE_LOCKS
     const unsigned long long start = get_clock_gettime_ns();
@@ -2488,7 +2489,6 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
     perr = pthread_mutex_unlock(&ctx->out_buffers_lock);
     ASSERT(perr == 0);
 
-    free(kernel_ctx->heap_copy_back_events);
     free(kernel_ctx);
 }
 
@@ -2508,7 +2508,7 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
     ASSERT(perr == 0);
 
     kernel_context *mine = NULL;
-    while ((mine = find_matching_kernel_ctx(ctx, seq_no)) == NULL) {
+    while ((mine = find_matching_kernel_ctx(ctx, seq_no, ctx->host_thread_index)) == NULL) {
         perr = pthread_cond_wait(&ctx->completed_kernels_cond,
                 &ctx->completed_kernels_lock);
         ASSERT(perr == 0);
@@ -2578,7 +2578,7 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
 JNI_JAVA(jlong, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
          jint range, jint local_size_in, jint iterArgNum,
-         jint heapArgStart) {
+         jint heapArgStart, jint maxHeaps) {
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
@@ -2607,8 +2607,8 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     kernel_ctx->ctx = context;
     kernel_ctx->dev_ctx = dev_ctx;
     kernel_ctx->curr_heap_ctx = NULL;
-    kernel_ctx->heaps = NULL;
-    kernel_ctx->heap_copy_back_events = NULL;
+    kernel_ctx->heaps = (saved_heap *)malloc(maxHeaps * sizeof(saved_heap));
+    kernel_ctx->heap_copy_back_events = (cl_event *)malloc(maxHeaps * sizeof(cl_event));
     kernel_ctx->n_heap_ctxs = 0;
     kernel_ctx->heapStartArgnum = heapArgStart;
     kernel_ctx->n_loaded = range;
@@ -2621,13 +2621,16 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     kernel_ctx->accumulated_arguments = context->accumulated_arguments;
     kernel_ctx->accumulated_arguments_len = context->accumulated_arguments_len;
 
-    kernel_complete_flag *done_flag = (kernel_complete_flag *)malloc(sizeof(kernel_complete_flag));
+    kernel_complete_flag *done_flag = (kernel_complete_flag *)malloc(
+            sizeof(kernel_complete_flag));
     CHECK_ALLOC(done_flag);
     done_flag->done = 0;
     int perr = pthread_mutex_init(&done_flag->lock, NULL);
     ASSERT(perr == 0);
     perr = pthread_cond_init(&done_flag->cond, NULL);
     ASSERT(perr == 0);
+    done_flag->host_thread_index = context->host_thread_index;
+    done_flag->seq = context->run_seq_no;
     kernel_ctx->done_flag = done_flag;
 
     context->accumulated_arguments = (arg_value *)malloc(
@@ -2652,7 +2655,6 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     context->last_write_event = NULL;
 
     bump_time(dev_ctx->allocator);
-    // bump_time(dev_ctx->heap_allocator);
 
     EXIT_TRACE("run");
     return (jlong)done_flag;
@@ -3089,6 +3091,8 @@ JNI_JAVA(void, OpenCLBridge, fillHeapBuffersFromKernelContext)(JNIEnv *jenv,
     ASSERT(kernel_ctx->n_heap_ctxs <= maxHeaps);
 
     jlong *jvm = (jlong *)jenv->GetPrimitiveArrayCritical(jvmArr, NULL);
+    ASSERT(jvm);
+
     int i = 0;
     for ( ; i < kernel_ctx->n_heap_ctxs; i++) {
         jvm[i] = (jlong)((kernel_ctx->heaps)[i].heap_ctx->pinned_h_heap);
@@ -3116,6 +3120,7 @@ JNI_JAVA(void, OpenCLBridge, waitOnBufferReady)(JNIEnv *jenv, jclass clazz,
         perr = pthread_cond_wait(&kernel_complete->cond, &kernel_complete->lock);
         ASSERT(perr == 0);
     }
+
     perr = pthread_mutex_unlock(&kernel_complete->lock);
     ASSERT(perr == 0);
 

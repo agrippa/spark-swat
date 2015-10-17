@@ -72,7 +72,7 @@ public class OpenCLBridge {
     public static native long waitForFinishedKernel(long ctx, long dev_ctx, int seq_no);
     public static native long run(long ctx, long dev_ctx,
             int range, int local_size, int iterArgNum,
-            int heapArgStart);
+            int heapArgStart, int maxHeaps);
     public static native void waitOnBufferReady(long kernel_complete);
 
     public static native long clMallocImpl(long dev_ctx, long nbytes);

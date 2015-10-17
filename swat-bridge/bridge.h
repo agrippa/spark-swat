@@ -141,6 +141,7 @@ typedef struct _swat_context {
     size_t zeros_capacity;
 
     cl_event last_write_event;
+    cl_event last_kernel_event;
 #ifdef PROFILE_OPENCL
     event_info *acc_write_events;
     int acc_write_events_capacity;
@@ -204,6 +205,8 @@ typedef struct _kernel_complete_flag {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     int done;
+    int host_thread_index; // for debugging
+    int seq; // for debugging
 } kernel_complete_flag;
 
 struct _kernel_context {

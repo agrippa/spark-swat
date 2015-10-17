@@ -1,9 +1,9 @@
 include ${SWAT_HOME}/build.conf
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE -DPROFILE_OPENCL
-DEFINES=-DBRIDGE_DEBUG
+DEFINES=
 GXX_FLAGS=-O3 -Wall
-# GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all
+# GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all -g -rdynamic
 
 SRC=bridge.cpp common.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
