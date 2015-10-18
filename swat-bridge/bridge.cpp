@@ -2385,8 +2385,6 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     const int free_index = *(heap_ctx->pinned_h_free_index);
     const size_t available_bytes =
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
-    // void *h_heap = (void *)malloc(available_bytes);
-    // ASSERT(h_heap);
 
     int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
     ASSERT(perr == 0);
@@ -2415,6 +2413,8 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     // Release the device heap once we are finished transferring it out
     CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
                 release_device_heap_callback, heap_ctx));
+
+    // fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
 
     if (free_index > heap_ctx->heap_size) {
         // If need kernel restart

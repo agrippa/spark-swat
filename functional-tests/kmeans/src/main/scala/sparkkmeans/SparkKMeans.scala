@@ -114,8 +114,10 @@ object SparkKMeans {
             val dummy = classified.count
             System.err.println("classified count = " + dummy)
             val iterEndTime = System.currentTimeMillis
+            System.err.println("iteration " + (iter + 1) + " : " +
+                    (iterEndTime - iterStartTime) + " ms")
 
-            // System.exit(1)
+            System.exit(1)
 
             val counts = classified.countByKey()
             for (c <- counts) {

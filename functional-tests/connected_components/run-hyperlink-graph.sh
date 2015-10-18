@@ -2,10 +2,15 @@
 
 set -e
 
-if [[ $# != 1 ]]; then
-    echo 'usage: run-hyperlink-graph.sh use-swat?'
+if [[ $# != 4 ]]; then
+    echo 'usage: run-hyperlink-graph.sh use-swat? heaps-per-device n-inputs n-outputs'
     exit 1
 fi
+
+USE_SWAT=$1
+HEAPS_PER_DEVICE=$2
+NINPUTS=$3
+NOUTPUTS=$4
 
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $SCRIPT_DIR/../common.sh
@@ -19,8 +24,13 @@ fi
 
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19" \
 
-spark-submit --class SparkConnectedComponents --jars ${SWAT_JARS} \
-        --conf "spark.executor.extraJavaOptions=-Dswat.input_chunking=100000 -Dswat.cl_local_size=128" \
+SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
+              -Dswat.input_chunking=100000 -Dswat.heap_size=2000000 \
+              -Dswat.n_native_input_buffers=$NINPUTS \
+              -Dswat.n_native_output_buffers=$NOUTPUTS \
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE"
+
+spark-submit --class SparkConnectedComponents --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
         --master spark://localhost:7077 \
         $SCRIPT_DIR/target/sparkconnectedcomponents-0.0.0.jar \
         run $1 hdfs://$(hostname):54310/hyperlink-graph-links 39524212 2
