@@ -2414,7 +2414,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
                 release_device_heap_callback, heap_ctx));
 
-    // fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
+    fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
 
     if (free_index > heap_ctx->heap_size) {
         // If need kernel restart

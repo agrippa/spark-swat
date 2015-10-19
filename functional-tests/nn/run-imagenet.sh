@@ -5,12 +5,13 @@ set -e
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $SCRIPT_DIR/../common.sh
 
-if [[ $# != 1 ]]; then
-    echo 'usage: run.sh use-swat?'
+if [[ $# != 2 ]]; then
+    echo 'usage: run.sh use-swat? iters'
     exit 1
 fi
 
 USE_SWAT=$1
+ITERS=$2
 
 INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep imagenet | wc -l)
 if [[ $INPUT_EXISTS != 1 ]]; then
@@ -30,4 +31,4 @@ spark-submit --class SparkNN --jars ${SWAT_JARS} \
         run $1 $SPARK_DATASETS/imagenet/info \
         hdfs://$(hostname):54310/imagenet/input \
         hdfs://$(hostname):54310/imagenet/correct \
-        1 3.0
+        $ITERS 3.0

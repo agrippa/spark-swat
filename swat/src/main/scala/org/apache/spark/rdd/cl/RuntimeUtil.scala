@@ -1,6 +1,7 @@
 package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
+import scala.io.Source
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.SparseVector
 
@@ -32,7 +33,7 @@ object RuntimeUtil {
   def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
       sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
       lambda : T => U, classModel : ClassModel, methodDescriptor : String,
-      dev_ctx : Long, threadId : Int) : Tuple2[Entrypoint, String] = {
+      dev_ctx : Long, threadId : Int, kernelDir : String) : Tuple2[Entrypoint, String] = {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
@@ -87,6 +88,17 @@ object RuntimeUtil {
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
+
+        val kernelFilename = kernelDir + "/" + lambda.getClass.getName + ".kernel"
+        val handCodedKernel = try {
+            Source.fromFile(kernelFilename).getLines.mkString
+        } catch {
+            case fnf: java.io.FileNotFoundException => null
+            case ex: Exception => throw ex
+        }
+        if (handCodedKernel != null) {
+            openCL = handCodedKernel
+        }
 //         System.err.println(openCL) // PROFILE
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }

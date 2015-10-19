@@ -83,6 +83,9 @@ object CLMappedRDDStorage {
   val heapsPerDevice = if (heapsPerDevice_str != null) heapsPerDevice_str.toInt
         else CLMappedRDDStorage.spark_cores
 
+  val kernelDir_str = System.getProperty("swat.kernels_dir")
+  val kernelDir = if (kernelDir_str != null) kernelDir_str else "/tmp/"
+
   val swatContextCache : java.util.Map[Integer, java.util.HashMap[KernelDevicePair, Long]] =
         new java.util.HashMap[Integer, java.util.HashMap[KernelDevicePair, Long]]()
   val inputBufferCache : java.util.Map[Integer, java.util.HashMap[String, InputBufferWrapper[_]]] =
@@ -221,7 +224,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
      val entrypointAndKernel : Tuple2[Entrypoint, String] =
          RuntimeUtil.getEntrypointAndKernel[T, U](firstSample, sampleOutput,
-         params, f, classModel, descriptor, dev_ctx, threadId)
+         params, f, classModel, descriptor, dev_ctx, threadId,
+         CLMappedRDDStorage.kernelDir)
      entryPoint = entrypointAndKernel._1
      openCL = entrypointAndKernel._2
 

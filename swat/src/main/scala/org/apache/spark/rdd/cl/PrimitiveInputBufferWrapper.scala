@@ -79,7 +79,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
     val leftover = filled - nativeBuffers.tocopy
 
     if (leftover > 0) {
-      System.arraycopy(filled, 0, filled, nativeBuffers.tocopy, leftover)
+      System.arraycopy(arr, 0, arr, nativeBuffers.tocopy, leftover)
     }
     other.tocopy = -1
 
