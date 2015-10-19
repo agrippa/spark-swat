@@ -29,7 +29,7 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
-              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
 spark-submit --class SparkFuzzyCMeans --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
         --master spark://localhost:7077 ${SCRIPT_DIR}/target/sparkfuzzycmeans-0.0.0.jar \

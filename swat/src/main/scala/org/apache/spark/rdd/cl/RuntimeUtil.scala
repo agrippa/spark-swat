@@ -33,7 +33,8 @@ object RuntimeUtil {
   def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
       sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
       lambda : T => U, classModel : ClassModel, methodDescriptor : String,
-      dev_ctx : Long, threadId : Int, kernelDir : String) : Tuple2[Entrypoint, String] = {
+      dev_ctx : Long, threadId : Int, kernelDir : String,
+      printKernel : Boolean) : Tuple2[Entrypoint, String] = {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
@@ -99,7 +100,10 @@ object RuntimeUtil {
         if (handCodedKernel != null) {
             openCL = handCodedKernel
         }
-//         System.err.println(openCL) // PROFILE
+
+        if (printKernel) {
+          System.err.println(openCL)
+        }
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }
 
