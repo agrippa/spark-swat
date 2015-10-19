@@ -34,6 +34,13 @@ object SparkGenetic {
         val input = args(4)
         val useSwat = args(5).toBoolean
 
+        System.err.println("minNClusters=" + minNClusters + " maxNClusters=" +
+                maxNClusters + " populationSize=" + populationSize)
+
+        assert(minNClusters < maxNClusters)
+        assert(iters > 0)
+        assert(populationSize > 0)
+
         val sc = get_spark_context("Spark Genetic")
 
         val rand : java.util.Random = new java.util.Random(1)
