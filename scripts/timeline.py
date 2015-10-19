@@ -13,6 +13,14 @@ class Task:
         self.start = self.start - min_time
 
 
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 colors = [ 'r', 'y', 'b', 'g', 'c', 'm' ]
 
 max_timestamp = 0
@@ -43,6 +51,9 @@ for line in fp:
         continue
 
     if tokens[1] != 'PROF':
+        continue
+
+    if not is_int(tokens[2]):
         continue
 
     tid = int(tokens[2])
