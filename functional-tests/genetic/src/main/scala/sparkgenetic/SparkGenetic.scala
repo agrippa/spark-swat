@@ -42,7 +42,8 @@ object SparkGenetic {
          * Create initial population of candidates of varying sizes by sampling
          * the input space
          */
-        val points : RDD[DenseVector] = sc.objectFile[DenseVector](input).cache
+        val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](input).cache
+        val points : RDD[DenseVector] = if (useSwat) CLWrapper.cl(raw_points) else raw_points
         val candidateSizes : Array[Int] = new Array[Int](populationSize)
         val candidateOffsets : Array[Int] = new Array[Int](populationSize)
         var totalNClusters : Int = 0
@@ -51,9 +52,9 @@ object SparkGenetic {
             candidateOffsets(i) = totalNClusters
             totalNClusters += candidateSizes(i)
         }
-        val populationClusters : Array[DenseVector] = points.takeSample(false,
+        var populationClusters : Array[DenseVector] = points.takeSample(false,
                 totalNClusters, 2)
-        val clusterMembership : Array[Int] = new Array[Int](totalNClusters)
+        var clusterMembership : Array[Int] = new Array[Int](totalNClusters)
         var index = 0
         for (i <- 0 until populationSize) {
             for (j <- 0 until candidateSizes(i)) {
@@ -62,7 +63,9 @@ object SparkGenetic {
             }
         }
 
+        val startTime = System.currentTimeMillis
         for (iter <- 0 until iters) {
+          val iterTime = System.currentTimeMillis
           val broadcastedClusters = sc.broadcast(populationClusters)
           val broadcastedMemberships = sc.broadcast(clusterMembership)
           val broadcastedCandidateSizes = sc.broadcast(candidateSizes)
@@ -72,6 +75,7 @@ object SparkGenetic {
               compute_min_distances_for_all_points_and_candidates(points,
                       broadcastedClusters, broadcastedMemberships,
                       populationSize, totalNClusters, sc)
+
           val fitness : DenseVector = all_distances.reduce((v1, v2) => {
               val arr : Array[Double] = new Array[Double](v1.size)
               var i = 0
@@ -82,9 +86,15 @@ object SparkGenetic {
               Vectors.dense(arr).asInstanceOf[DenseVector]
           })
           val fitnessArr : Array[Double] = fitness.toArray
-          val topTenPercent : Array[Int] = new Array[Int]((populationSize * 0.2).toInt)
-          val nTopTen : Int = topTenPercent.length
-          for (i <- 0 until nTopTen) {
+
+          var nTop : Int = (populationSize * 0.2).toInt
+          if (nTop * nTop < populationSize) {
+            nTop = scala.math.sqrt(populationSize).toInt + 1
+          }
+          assert(nTop * nTop >= populationSize)
+          val topCandidates : Array[Int] = new Array[Int](nTop)
+
+          for (i <- 0 until nTop) {
               var minVal : Double = -1.0
               var minIndex : Int = -1
               for (j <- 0 until fitnessArr.length) {
@@ -95,13 +105,15 @@ object SparkGenetic {
                   }
                 }
               }
-              topTenPercent(i) = minIndex
+              topCandidates(i) = minIndex
               fitnessArr(minIndex) = -1.0
           }
 
+          val broadcastedTopCandidates = sc.broadcast(topCandidates)
+
           val newCandidatesComponents : RDD[Tuple2[Int, NewClusterInfo]] =
-            sc.parallelize((0 until nTopTen * nTopTen)).map((i) =>
-              (i, i / nTopTen, i % nTopTen)).flatMap(id_s1_s2 => {
+            sc.parallelize((0 until nTop * nTop)).map((i) =>
+              (i, broadcastedTopCandidates.value(i / nTop), broadcastedTopCandidates.value(i % nTop))).flatMap(id_s1_s2 => {
                 val id : Int = id_s1_s2._1
                 val s1 : Int = id_s1_s2._2
                 val s2 : Int = id_s1_s2._3
@@ -112,7 +124,7 @@ object SparkGenetic {
                 val s2Size : Int = broadcastedCandidateSizes.value(s2)
                 val minSize : Int = if (s1Size < s2Size) s1Size else s2Size
                 val sizeDiff : Int = if (s1Size > s2Size) s1Size - s2Size else s2Size - s1Size
-                val newSetSize : Int = minSize + rand.nextInt(sizeDiff)
+                val newSetSize : Int = minSize + (if (sizeDiff > 0) rand.nextInt(sizeDiff) else 0)
                 var buffer = new ListBuffer[Tuple2[Int, NewClusterInfo]]()
                 for (i <- 0 until newSetSize) {
                     val c1 : Int = rand.nextInt(s1Size)
@@ -136,12 +148,21 @@ object SparkGenetic {
 
               val arr : Array[Double] = new Array[Double](c1Vec.size)
               var i = 0
-              while (i < 0) {
+              while (i < c1Vec.size) {
                 arr(i) = (c1Vec(i) + c2Vec(i)) / 2.0
                 i += 1
               }
               (id, Vectors.dense(arr).asInstanceOf[DenseVector])
             }).groupByKey().takeSample(false, populationSize, 1)
+
+          totalNClusters = 0
+          for (newCandidate <- newCandidates) {
+            for (cluster <- newCandidate._2) {
+              totalNClusters += 1
+            }
+          }
+          populationClusters = new Array[DenseVector](totalNClusters)
+          clusterMembership = new Array[Int](totalNClusters)
 
           var index = 0
           var candidateIndex = 0
@@ -155,13 +176,30 @@ object SparkGenetic {
             candidateSizes(candidateIndex) = candidateOffsets(candidateIndex) - index
             candidateIndex += 1
           }
-          totalNClusters = index
 
           broadcastedCandidateSizes.unpersist
           broadcastedCandidateOffsets.unpersist
           broadcastedClusters.unpersist
           broadcastedMemberships.unpersist
+          broadcastedTopCandidates.unpersist
+
+          System.err.println("iter time = " + (System.currentTimeMillis -
+                      iterTime))
         }
+
+        var i = 0
+        while (clusterMembership(i) == 0) {
+          val vec : DenseVector = populationClusters(i)
+          System.err.print("vec " + i + " :")
+          for (j <- 0 until 10) {
+              System.err.print(" " + vec(j))
+          }
+          System.err.println()
+          i += 1
+        }
+
+        System.err.println("overall time = " + (System.currentTimeMillis -
+                    startTime))
     }
 
     def compute_min_distances_for_all_points_and_candidates(
@@ -186,6 +224,7 @@ object SparkGenetic {
             i += 1
           }
           arr(currentCandidate) = minDist
+          currentCandidate += 1
         }
         Vectors.dense(arr).asInstanceOf[DenseVector]
       })
