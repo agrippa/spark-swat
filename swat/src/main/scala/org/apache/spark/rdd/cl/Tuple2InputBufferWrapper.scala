@@ -121,7 +121,13 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {
+    /*
+     * limit is used by Tuple2 input buffers to limit the number of buffered
+     * elements used by its children. However, we don't currently have a use
+     * case where Tuple2 itself is limited.
+     */
     assert(limit == -1)
+    assert(nativeBuffers.tocopy == -1)
 
     val tocopy : Int = nBuffered()
 
@@ -202,7 +208,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
     val secondMemberUsed = if (secondMemberSize > 0) buffer2.countArgumentsUsed
         else 1
     if (isInput) firstMemberUsed + secondMemberUsed + 1
-        else firstMemberUsed + secondMemberUsed
+    else firstMemberUsed + secondMemberUsed
   }
 
   override def haveUnprocessedInputs : Boolean = {

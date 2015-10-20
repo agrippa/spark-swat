@@ -303,13 +303,12 @@ object SparkNN {
               val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
                   CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
                   else activations(l - 1)
-              System.err.println("l=" + l + " activationsRdd.count=" + activationsRdd.count)
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
-              val otherActivationsRdd = activations(l)
-              // val otherActivationsRdd = if (useSwat && layerSize > 500)
-              //     CLWrapper.cl(activations(l)) else activations(l)
+
+              val otherActivationsRdd = if (useSwat && layerSize > 500)
+                  CLWrapper.cl(activations(l)) else activations(l)
               zs(l - 1) = otherActivationsRdd.map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2
@@ -367,6 +366,7 @@ object SparkNN {
               (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
           })
 
+
           // printRDD(delta, "Initial delta 2")
 
           /*
@@ -398,7 +398,7 @@ object SparkNN {
               val nextLayerSize = layerDimensionalities(nextLayer)
 
               delta = delta.cache
-              // delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
                   broadcastedWeights)
@@ -427,7 +427,6 @@ object SparkNN {
            * the elements in nabla_w[:nlayers - 1] to weights.
            */
           for (l <- 0 until nlayers - 1) {
-            System.err.println("l=" + l + ", nlayers=" + nlayers + ", " + nabla_b(l + 1).count)
             val collected_delta_b : DenseVector = reduce_sum(nabla_b(l + 1))
             assert(collected_delta_b.size == biases(l).size)
             val newBiases : Array[Double] = new Array[Double](biases(l).size)

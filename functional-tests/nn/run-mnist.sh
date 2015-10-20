@@ -38,15 +38,14 @@ if [[ $INPUT_EXISTS == 0 ]]; then
 fi
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
-              -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 \
+              -Dswat.input_chunking=100000 -Dswat.heap_size=62914560 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
 
 spark-submit --class SparkNN --jars ${SWAT_JARS} \
-        --master spark://localhost:7077 \
-        --conf "spark.executor.extraJavaOptions=-Dswat.input_chunking=10000 -Dswat.cl_local_size=128" \
+        --master spark://localhost:7077 --conf "$SWAT_OPTIONS" \
         ${SWAT_HOME}/functional-tests/nn/target/nn-0.0.0.jar \
         run $USE_SWAT $SPARK_DATA/nn/info \
         hdfs://$(hostname):54310/mnist-converted/input \

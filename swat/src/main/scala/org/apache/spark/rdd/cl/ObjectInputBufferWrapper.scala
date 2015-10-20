@@ -89,7 +89,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     val leftover = objCount - nativeBuffers.tocopy
 
     if (leftover > 0) {
-      System.arraycopy(bb.array, 0, bb.array, nativeBuffers.tocopy * structSize,
+      System.arraycopy(bb.array, nativeBuffers.tocopy * structSize, bb.array, 0,
               leftover * structSize)
     }
     // Update number of elements in each native buffer

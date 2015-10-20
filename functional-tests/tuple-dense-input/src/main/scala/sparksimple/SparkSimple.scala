@@ -83,10 +83,14 @@ object SparkSimple {
             val tokens : Array[String] = line.split(" ")
             assert(tokens.size == 4)
 
-            val arr : Array[Double] = new Array[Double](3)
+            val arr : Array[Double] = new Array[Double](6)
             arr(0) = tokens(1).toDouble
             arr(1) = tokens(2).toDouble
             arr(2) = tokens(3).toDouble
+            arr(3) = tokens(1).toDouble
+            arr(4) = tokens(2).toDouble
+            arr(5) = tokens(3).toDouble
+
             ( tokens(0).toInt, Vectors.dense(arr) ) })
         converted.saveAsObjectFile(outputDir)
     }
