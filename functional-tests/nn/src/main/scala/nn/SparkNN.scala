@@ -62,6 +62,7 @@ object SparkNN {
         val a : DenseVector = d_with_a._2._2
         val layerSize = d.size
         val prevLayerSize = a.size
+
         val new_w : Array[Double] = new Array[Double](layerSize * prevLayerSize)
 
         var i = 0
@@ -129,7 +130,7 @@ object SparkNN {
     }
 
     def feedForwardOneLayer(targetLayer : Int,
-            srcLayer : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
+            srcLayer : RDD[Tuple2[Int, DenseVector]], targetLayerSize : Int,
             prevLayerSize : Int,
             broadcastedWeights : Broadcast[Array[DenseVector]],
             broadcastedBiases : Broadcast[Array[DenseVector]]) :
@@ -138,13 +139,13 @@ object SparkNN {
           val id : Int = pair._1
           val datapoint : DenseVector = pair._2
 
-          val new_arr : Array[Double] = new Array[Double](layerSize)
+          val new_arr : Array[Double] = new Array[Double](targetLayerSize)
           var i = 0
           /*
            * For each neuron in the current layer we are computing the
            * activation for, and for each row in the weights matrix.
            */
-          while (i < layerSize) {
+          while (i < targetLayerSize) {
               var acc = 0.0
               var j = 0
               /*
@@ -280,8 +281,29 @@ object SparkNN {
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
         activations(0) = raw_inputs
-        val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
+
+        val checkSize : Array[Tuple2[Int, DenseVector]] = raw_inputs.takeSample(true, 1, 1)
+        assert(checkSize.size == 1)
+        if (checkSize(0)._2.size != layerDimensionalities(0)) {
+          System.err.println("Mismatch in expected input layer size and " +
+                  "actual layer size. Expected " + layerDimensionalities(0) +
+                  " but got " + checkSize(0)._2.size)
+          System.exit(1)
+        }
+
+        // Generate a fake output here
         val n_training_datapoints = raw_inputs.count
+        val outputLayerSize = layerDimensionalities(layerDimensionalities.size - 1)
+        val fake_output : RDD[Tuple2[Int, DenseVector]] = raw_inputs.map(input => {
+            val rand = new java.util.Random(System.currentTimeMillis)
+            val arr : Array[Double] = new Array[Double](outputLayerSize)
+            for (i <- 0 until outputLayerSize) {
+                arr(i) = rand.nextDouble
+            }
+            (input._1, Vectors.dense(arr).asInstanceOf[DenseVector])
+        })
+        fake_output.saveAsObjectFile(correctDataPath)
+        val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
 
         // val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
         // val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
@@ -326,10 +348,13 @@ object SparkNN {
 
           // printRDD(activations(nlayers - 1), "Final layers")
 
-          // L x M where M is the size of layer l
+          // L x M where M is the size of layer l, L is the number of layers
           val nabla_b : Array[RDD[Tuple2[Int, DenseVector]]] =
               new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
-          // L x M x N where M is the size of layer l and N is the size of layer l + 1
+          /*
+           * L x M x N where M is the size of layer l and N is the size of layer
+           * l + 1, L is the number of layers
+           */
           val nabla_w : Array[RDD[Tuple2[Int, DenseVector]]] =
               new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
 
@@ -338,6 +363,7 @@ object SparkNN {
               val id = joined._1
               val activation : DenseVector = joined._2._1
               val y : DenseVector = joined._2._2
+
               val size : Int = activation.size
 
               var arr : Array[Double] = new Array[Double](size)
@@ -367,6 +393,7 @@ object SparkNN {
           })
 
 
+
           // printRDD(delta, "Initial delta 2")
 
           /*
@@ -375,6 +402,7 @@ object SparkNN {
            */
           nabla_b(nlayers - 1) = delta
           nabla_w(nlayers - 1) = get_nabla_w(delta, activations(nlayers - 2))
+
           l = 2
           while (l < nlayers) {
               /*
@@ -419,6 +447,7 @@ object SparkNN {
               })
               nabla_b(nlayers - l) = delta
               nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer))
+
               l += 1
           }
 
@@ -438,7 +467,9 @@ object SparkNN {
             biases(l) = Vectors.dense(newBiases).asInstanceOf[DenseVector]
 
             val collected_delta_weights : DenseVector = reduce_sum(nabla_w(l + 1))
-            assert(collected_delta_weights.size == weights(l).size)
+            assert(collected_delta_weights.size == weights(l).size,
+                    "expected " + weights(l).size + " but got " +
+                    collected_delta_weights.size)
             val newWeights : Array[Double] = new Array[Double](weights(l).size)
             for (i <- 0 until collected_delta_weights.size) {
               newWeights(i) = weights(l)(i) -

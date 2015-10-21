@@ -13,8 +13,11 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 
 import java.nio.ByteBuffer
 
-class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
-        val nele : Int,
+import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.mllib.linalg.Vectors
+
+class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
@@ -23,6 +26,19 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint,
           blockingCopies : Boolean) =
       this(nele, sample, entryPoint, None, None, true, blockingCopies)
+
+  def getElementVectorLengthHint[T : ClassTag](sample : T) : Int = {
+    if (sample.isInstanceOf[DenseVector]) {
+      sample.asInstanceOf[DenseVector].size
+    } else if (sample.isInstanceOf[SparseVector]) {
+      sample.asInstanceOf[SparseVector].size
+    } else {
+      -1
+    }
+  }
+
+  val firstElementLengthHint = getElementVectorLengthHint[K](sample._1)
+  val secondElementLengthHint = getElementVectorLengthHint[V](sample._2)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
@@ -56,11 +72,11 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          SparseVectorInputBufferWrapperConfig.tiling, firstElementLengthHint, blockingCopies)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
           denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, blockingCopies)
+          SparseVectorInputBufferWrapperConfig.tiling, secondElementLengthHint, blockingCopies)
   val firstMemberNumArgs = if (firstMemberSize > 0) buffer1.countArgumentsUsed else 1
   val secondMemberNumArgs = if (secondMemberSize > 0) buffer2.countArgumentsUsed else 1
 

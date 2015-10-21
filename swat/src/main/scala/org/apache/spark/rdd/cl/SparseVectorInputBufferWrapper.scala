@@ -18,8 +18,6 @@ import org.apache.spark.mllib.linalg.Vectors
 
 object SparseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
-  val avgVecLength_str = System.getProperty("swat.avg_vec_length")
-  val avgVecLength = if (avgVecLength_str == null) 70 else avgVecLength_str.toInt
 }
 
 class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
@@ -27,10 +25,10 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
         val blockingCopies : Boolean)
         extends InputBufferWrapper[SparseVector] {
 
-  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
-          blockingCopies : Boolean) = this(
-              vectorCapacity * SparseVectorInputBufferWrapperConfig.avgVecLength,
-              vectorCapacity, tiling, entryPoint, blockingCopies)
+  // def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+  //         blockingCopies : Boolean) = this(
+  //             vectorCapacity * SparseVectorInputBufferWrapperConfig.avgVecLength,
+  //             vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(

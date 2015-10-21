@@ -116,8 +116,7 @@ object CLMappedRDDStorage {
  * lifetime and accessibility of items inside an instance of these is limited to
  * one thread and one task running on that thread.
  */
-class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
-    extends RDD[U](prev) {
+class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) extends RDD[U](prev) {
   var entryPoint : Entrypoint = null
   var openCL : String = null
 
@@ -235,7 +234,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
      if (inputBuffer == null) {
        inputBuffer = RuntimeUtil.getInputBufferForSample(firstSample, CLMappedRDDStorage.N,
                DenseVectorInputBufferWrapperConfig.tiling,
-               SparseVectorInputBufferWrapperConfig.tiling, entryPoint, false)
+               SparseVectorInputBufferWrapperConfig.tiling,
+               entryPoint, false)
        myInputBufferCache.put(f.getClass.getName, inputBuffer)
 
        nativeOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
@@ -390,7 +390,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](prev: RDD[T], f: T => U)
            totalNLoaded += nLoaded
 
 //            RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-//            System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
+           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
            /*
             * Now that we're done loading from the input stream, fetch the next

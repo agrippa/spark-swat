@@ -18,8 +18,6 @@ import org.apache.spark.mllib.linalg.Vectors
 
 object DenseVectorInputBufferWrapperConfig {
   val tiling : Int = 32
-  val avgVecLength_str = System.getProperty("swat.avg_vec_length")
-  val avgVecLength = if (avgVecLength_str == null) 70 else avgVecLength_str.toInt
 }
 
 class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
@@ -27,10 +25,10 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
         val blockingCopies : Boolean)
         extends InputBufferWrapper[DenseVector] {
 
-  def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
-          blockingCopies : Boolean) = this(
-              vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVecLength,
-              vectorCapacity, tiling, entryPoint, blockingCopies)
+  // def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
+  //         blockingCopies : Boolean) = this(
+  //             vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVecLength,
+  //             vectorCapacity, tiling, entryPoint, blockingCopies)
 
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
@@ -48,6 +46,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
 
   val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
   var haveOverrun : Boolean = false
+
+  var sumVectorLengths : Int = 0 // PROFILE
+  var countVectors : Int = 0 // PROFILE
 
   override def selfAllocate(dev_ctx : Long) {
     nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[DenseVectorNativeInputBuffers]
@@ -101,6 +102,9 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     to_tile(tiled) = obj
     to_tile_sizes(tiled) = obj.size
     tiled += 1
+
+    sumVectorLengths += obj.size
+    countVectors += 1
 
     if (tiled == tiling) {
         flush
@@ -177,6 +181,11 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     // Update the number of elements stored in this input buffer
     buffered = leftoverVectors
     bufferPosition = leftoverElements
+
+    System.err.println("Average vector length = " + // PROFILE
+            (sumVectorLengths.toDouble / countVectors.toDouble)) // PROFILE
+    sumVectorLengths = 0 // PROFILE
+    countVectors = 0 // PROFILE
 
     // Update the current native buffers
     val oldBuffers = nativeBuffers

@@ -224,7 +224,7 @@ object OpenCLBridgeWrapper {
           className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorTiling : Int, sparseVectorTiling : Int,
-          blockingCopies : Boolean) :
+          vectorLengthHint : Int, blockingCopies : Boolean) :
           InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
@@ -238,8 +238,9 @@ object OpenCLBridgeWrapper {
       }
       case "org.apache.spark.mllib.linalg.DenseVector" => {
           if (denseVectorSizeHandler.isEmpty) {
-            new DenseVectorInputBufferWrapper(argLength, denseVectorTiling,
-                    entryPoint, blockingCopies)
+            assert(vectorLengthHint > 0)
+            new DenseVectorInputBufferWrapper(vectorLengthHint * argLength,
+                    argLength, denseVectorTiling, entryPoint, blockingCopies)
           } else {
             new DenseVectorInputBufferWrapper(
                     getMaxDenseElementIndexFor(denseVectorSizeHandler.get,
@@ -249,7 +250,9 @@ object OpenCLBridgeWrapper {
       }
       case "org.apache.spark.mllib.linalg.SparseVector" => {
           if (sparseVectorSizeHandler.isEmpty) {
-            new SparseVectorInputBufferWrapper(argLength, sparseVectorTiling, entryPoint, blockingCopies)
+            assert(vectorLengthHint > 0)
+            new SparseVectorInputBufferWrapper(vectorLengthHint * argLength,
+                    argLength, sparseVectorTiling, entryPoint, blockingCopies)
           } else {
             new SparseVectorInputBufferWrapper(
                     getMaxSparseElementIndexFor(sparseVectorSizeHandler.get,
@@ -295,7 +298,8 @@ object OpenCLBridgeWrapper {
             val inputBuffer = new Tuple2InputBufferWrapper(
                     argLength, sample, entryPoint,
                     Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
-                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size), isInput, true)
+                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size),
+                    isInput, true)
             inputBuffer.selfAllocate(dev_ctx)
 
             for (eleIndex <- 0 until argLength) {

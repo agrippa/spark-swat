@@ -17,7 +17,7 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.input_chunking=100 -Dswat.heap_size=67108864 \
               -Dswat.n_native_input_buffers=3 \
               -Dswat.n_native_output_buffers=3 \
-              -Dswat.heaps_per_device=3 -Dswat.print_kernel=false -Dswat.avg_vec_length=1"
+              -Dswat.heaps_per_device=3 -Dswat.print_kernel=false"
 
 
 spark-submit --class SparkSimple --jars ${SWAT_JARS} \

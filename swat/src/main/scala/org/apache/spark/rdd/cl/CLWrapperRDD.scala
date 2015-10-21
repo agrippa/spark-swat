@@ -8,7 +8,7 @@ import scala.reflect.runtime.universe._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
 
-class CLWrapperRDD[T: ClassTag](prev: RDD[T])
+class CLWrapperRDD[T: ClassTag](val prev: RDD[T])
     extends RDD[T](prev) {
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
