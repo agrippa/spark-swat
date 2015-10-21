@@ -13,7 +13,7 @@ class ObjectNativeInputBuffers[T](val N : Int, val structSize : Int,
         val classModel : ClassModel, val structMemberTypes : Option[Array[Int]],
         val structMemberOffsets : Option[Array[Long]], val dev_ctx : Long) extends NativeInputBuffers[T] {
   val clBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, N * structSize)
-  val buffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clBuffer)
+  val buffer : Long = OpenCLBridge.pin(dev_ctx, clBuffer)
 
   var tocopy : Int = -1
   var iter : Int = 0

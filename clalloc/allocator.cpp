@@ -766,7 +766,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
              * TODO what is the purpose of callback?
              */
             if (callback) (*callback)(user_data);
-            fprintf(stderr, "rounded_size=%lu size=%lu\n", rounded_size, size);
             return NULL;
         }
 #ifdef VERBOSE

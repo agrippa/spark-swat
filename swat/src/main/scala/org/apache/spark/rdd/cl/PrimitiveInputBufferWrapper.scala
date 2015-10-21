@@ -96,10 +96,6 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
     new PrimitiveNativeInputBuffers(N, eleSize, blockingCopies, dev_ctx)
   }
 
-  override def releaseNativeArrays {
-    nativeBuffers.releaseNativeArrays
-  }
-
   override def reset() { }
 
   // Returns # of arguments used

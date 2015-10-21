@@ -1,7 +1,9 @@
 #!/bin/bash
 
+set -e
+
 if [[ $# != 3 ]]; then
-    echo 'usage: get_task_metrics.sh log-file src-file src-line'
+    echo 'usage: get_task_metrics_by_line.sh log-file src-file src-line'
     exit 1
 fi
 

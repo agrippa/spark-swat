@@ -7,7 +7,7 @@ import org.apache.spark.mllib.linalg.DenseVector
 class PrimitiveNativeInputBuffers[T : ClassTag](val N : Int, val eleSize : Int,
     val blockingCopies : Boolean, val dev_ctx : Long) extends NativeInputBuffers[T] {
   val clBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, N * eleSize)
-  val buffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clBuffer)
+  val buffer : Long = OpenCLBridge.pin(dev_ctx, clBuffer)
 
   var tocopy : Int = -1
   var iter : Int = 0

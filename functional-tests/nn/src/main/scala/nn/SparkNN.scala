@@ -322,15 +322,18 @@ object SparkNN {
           while (l < nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
-              val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
-                  CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
-                  else activations(l - 1)
+              // val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
+              //     CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
+              //     else activations(l - 1)
+              val activationsRdd = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1)) else activations(l - 1)
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases).cache
 
-              val otherActivationsRdd = if (useSwat && layerSize > 500)
-                  CLWrapper.cl(activations(l)) else activations(l)
+              // val otherActivationsRdd = if (useSwat && layerSize > 500)
+              //     CLWrapper.cl(activations(l)) else activations(l)
+              // val otherActivationsRdd = if (useSwat) CLWrapper.cl(activations(l)) else activations(l)
+              val otherActivationsRdd = activations(l)
               zs(l - 1) = otherActivationsRdd.map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2
@@ -426,7 +429,7 @@ object SparkNN {
               val nextLayerSize = layerDimensionalities(nextLayer)
 
               delta = delta.cache
-              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
+              // delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
                   broadcastedWeights)

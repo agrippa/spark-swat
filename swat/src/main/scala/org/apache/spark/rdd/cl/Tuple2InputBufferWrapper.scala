@@ -241,10 +241,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
             secondMemberNumArgs, isInput, structSize, dev_ctx)
   }
 
-  override def releaseNativeArrays {
-    nativeBuffers.releaseNativeArrays
-  }
-
   override def reset() {
     buffer1.reset
     buffer2.reset

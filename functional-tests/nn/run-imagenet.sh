@@ -28,7 +28,7 @@ fi
 $HADOOP_HOME/bin/hdfs dfs -rm -r -f /imagenet/correct
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
-              -Dswat.input_chunking=2000 -Dswat.heap_size=20971520 \
+              -Dswat.input_chunking=2000 -Dswat.heap_size=10485760 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"

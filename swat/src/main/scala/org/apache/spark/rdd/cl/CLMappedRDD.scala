@@ -43,6 +43,10 @@ class KernelDevicePair(val kernel : String, val dev_ctx : Long) {
   override def hashCode() : Int = {
     dev_ctx.toInt
   }
+
+  override def toString() : String = {
+    "[" + kernel + "," + dev_ctx + "]"
+  }
 }
 
 /*
@@ -167,9 +171,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     val filledNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]] =
             new java.util.LinkedList[NativeInputBuffers[T]]()
 
-    System.err.println("Thread=" + threadId + " N=" + CLMappedRDDStorage.N +
-            ", cl_local_size=" + CLMappedRDDStorage.cl_local_size +
-            ", spark_cores=" + CLMappedRDDStorage.spark_cores)
+    System.err.println("Thread=" + threadId + " N = " + CLMappedRDDStorage.N +
+            ", cl_local_size = " + CLMappedRDDStorage.cl_local_size +
+            ", spark_cores = " + CLMappedRDDStorage.spark_cores + ", stage = " +
+            context.stageId + ", partition = " + context.partitionId)
     val nested = firstParent[T].iterator(split, context)
 
     val myInputBufferCache : java.util.HashMap[String, InputBufferWrapper[_]] =
@@ -287,6 +292,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
    }
    val ctx : Long = mySwatContextCache.get(kernelDeviceKey)
    OpenCLBridge.resetSwatContext(ctx)
+   System.err.println("For thread " + threadId + " SWAT context cache has " +
+           mySwatContextCache.size + " entries")
 
    try {
      var argnum = outArgNum

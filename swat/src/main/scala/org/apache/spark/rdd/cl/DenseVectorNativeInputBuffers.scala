@@ -8,13 +8,13 @@ class DenseVectorNativeInputBuffers(val vectorElementCapacity : Int,
         val blockingCopies : Boolean, val tiling : Int, val dev_ctx : Long)
         extends NativeInputBuffers[DenseVector] {
   val clValuesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorElementCapacity * 8)
-  val valuesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clValuesBuffer)
+  val valuesBuffer : Long = OpenCLBridge.pin(dev_ctx, clValuesBuffer)
 
   val clSizesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorCapacity * 4)
-  val sizesBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clSizesBuffer)
+  val sizesBuffer : Long = OpenCLBridge.pin(dev_ctx, clSizesBuffer)
 
   val clOffsetsBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorCapacity * 4)
-  val offsetsBuffer : Long = OpenCLBridge.pinnedAlloc(dev_ctx, clOffsetsBuffer)
+  val offsetsBuffer : Long = OpenCLBridge.pin(dev_ctx, clOffsetsBuffer)
 
   var vectorsToCopy : Int = -1
   var elementsToCopy : Int = -1

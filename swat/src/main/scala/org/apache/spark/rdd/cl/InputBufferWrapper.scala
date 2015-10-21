@@ -46,7 +46,6 @@ trait InputBufferWrapper[T] {
    */
   def countArgumentsUsed : Int
 
-  def releaseNativeArrays
   def nBuffered() : Int
   def reset()
 

@@ -181,7 +181,7 @@ object OpenCLBridgeWrapper {
       buffer.setupNativeBuffersForCopy(-1)
       val result = buffer.getCurrentNativeBuffers.copyToDevice(argnum, ctx,
               dev_ctx, cacheID, true)
-      buffer.releaseNativeArrays
+      buffer.nativeBuffers.releaseNativeArrays
       return result
     }
   }
@@ -215,7 +215,7 @@ object OpenCLBridgeWrapper {
       buffer.setupNativeBuffersForCopy(-1)
       val result = buffer.getCurrentNativeBuffers.copyToDevice(argnum, ctx,
               dev_ctx, cacheID, true)
-      buffer.releaseNativeArrays
+      buffer.nativeBuffers.releaseNativeArrays
       return result
     }
   }
@@ -309,7 +309,7 @@ object OpenCLBridgeWrapper {
             inputBuffer.setupNativeBuffersForCopy(-1)
             val result = inputBuffer.nativeBuffers.copyToDevice(startArgnum, ctx,
                     dev_ctx, cacheID, true)
-            inputBuffer.releaseNativeArrays
+            inputBuffer.nativeBuffers.releaseNativeArrays
             return result
           }
         } else {

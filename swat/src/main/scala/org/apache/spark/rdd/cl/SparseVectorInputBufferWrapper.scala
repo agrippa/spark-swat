@@ -134,10 +134,6 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
             sparseVectorStructSize, blockingCopies, tiling, dev_ctx)
   }
 
-  override def releaseNativeArrays {
-    nativeBuffers.releaseNativeArrays
-  }
-
   override def setupNativeBuffersForCopy(limit : Int) {
     val vectorsToCopy = if (limit == -1) buffered else limit
     assert(vectorsToCopy <= buffered)

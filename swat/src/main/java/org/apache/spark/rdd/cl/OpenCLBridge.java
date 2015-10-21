@@ -77,7 +77,7 @@ public class OpenCLBridge {
 
     public static native long clMallocImpl(long dev_ctx, long nbytes);
     public static native void clFree(long clBuffer, long dev_ctx);
-    public static native long pinnedAlloc(long dev_ctx, long region);
+    public static native long pin(long dev_ctx, long region);
     public static native void unpin(long pinned, long region, long dev_ctx);
     public static native void setNativePinnedArrayArg(long ctx, long dev_ctx,
             int index, long pinned, long region, long nbytes);
@@ -96,12 +96,6 @@ public class OpenCLBridge {
             long broadcastId, int rddid, int partitionid, int offsetid,
             int componentid, int ncomponents, boolean persistent);
     public static native void releaseAllPendingRegions(long ctx);
-
-    public static native long nativeMalloc(long nbytes);
-    public static native void nativeFree(long buffer);
-    public static native long nativeRealloc(long buffer, long nbytes);
-    public static native void nativeMemcpy(long dst, int dstOffset, long src,
-            int srcOffset, int nbytes);
 
     public static native int getMaxOffsetOfStridedVectors(int nVectors,
             long sizesBuffer, long offsetsBuffer, int tiling);

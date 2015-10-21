@@ -967,10 +967,12 @@ JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
     swat_context *ctx = (swat_context *)lctx;
     ASSERT(ctx->out_buffers == NULL);
 
+    size_t count_allocs = 0;
     ctx->out_buffers = (native_output_buffers *)malloc(nPrealloc *
             sizeof(native_output_buffers));
     ASSERT(ctx->out_buffers);
     ctx->out_buffers_len = nPrealloc;
+    count_allocs += (nPrealloc * sizeof(native_output_buffers));
 
     int *buffer_sizes = (int *)jenv->GetPrimitiveArrayCritical(bufferSizes, NULL);
     CHECK_JNI(buffer_sizes);
@@ -986,16 +988,23 @@ JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
         curr->buffer_arg_indices = (int *)malloc(nBuffers * sizeof(int));
         CHECK_ALLOC(curr->buffer_arg_indices);
 
+        count_allocs += ((nBuffers * sizeof(void *)) +
+                (nBuffers * sizeof(size_t)) + (nBuffers * sizeof(int)));
+
         for (int j = 0; j < nBuffers; j++) {
             (curr->buffers)[j] = malloc(buffer_sizes[j]);
             CHECK_ALLOC((curr->buffers)[j]);
             (curr->buffer_sizes)[j] = buffer_sizes[j];
             (curr->buffer_arg_indices)[j] = buffer_arg_indices[j];
+
+            count_allocs += buffer_sizes[j];
         }
 
         curr->n_buffers = nBuffers;
         curr->free = 1;
     }
+
+    fprintf(stderr, "For native output buffers, allocating %lu bytes\n", count_allocs);
 
     jenv->ReleasePrimitiveArrayCritical(bufferSizes, buffer_sizes, JNI_ABORT);
     jenv->ReleasePrimitiveArrayCritical(bufferArgIndices, buffer_arg_indices,
@@ -2660,19 +2669,6 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     return (jlong)done_flag;
 }
 
-JNI_JAVA(jlong, OpenCLBridge, nativeRealloc)
-        (JNIEnv *jenv, jclass clazz, jlong old, jlong nbytes) {
-    void *new_ptr = (void *)realloc((void *)old, nbytes);
-    ASSERT(new_ptr);
-#ifdef VERBOSE
-    if (old == NULL) {
-        fprintf(stderr, "nativeRealloc: Allocating %ld bytes, old=%p ptr=%p\n",
-                nbytes, (void *)old, new_ptr);
-    }
-#endif
-    return (jlong)new_ptr;
-}
-
 JNI_JAVA(void, OpenCLBridge, nativeMemcpy)(JNIEnv *jenv, jclass clazz,
         jlong dstBuffer, jint dstOffset, jlong srcBuffer, jint srcOffset, jint nbytes) {
     ENTER_TRACE("nativeMemcpy");
@@ -2681,28 +2677,6 @@ JNI_JAVA(void, OpenCLBridge, nativeMemcpy)(JNIEnv *jenv, jclass clazz,
     memcpy(dst + dstOffset, src + srcOffset, nbytes);
     EXIT_TRACE("nativeMemcpy");
 }
-
-JNI_JAVA(jlong, OpenCLBridge, nativeMalloc)
-        (JNIEnv *jenv, jclass clazz, jlong nbytes) {
-    void *ptr = (void *)malloc(nbytes);
-    CHECK_ALLOC(ptr);
-#ifdef VERBOSE
-    fprintf(stderr, "nativeMalloc: Allocating %ld bytes, ptr=%p\n", nbytes, ptr);
-#endif
-    return (jlong)ptr;
-}
-
-JNI_JAVA(void, OpenCLBridge, nativeFree)
-        (JNIEnv *jenv, jclass clazz, jlong buffer) {
-    void *ptr = (void *)buffer;
-#ifdef VERBOSE
-    fprintf(stderr, "nativeFree: Freeing allocation %p\n", ptr);
-#endif
-    free(ptr);
-}
-
-#define ELE_UNROLLING 16
-#define VECTOR_UNROLLING 2
 
 /*
  * 1.  buffer is the native buffer that we want to serialize 1 or more dense
@@ -3153,14 +3127,15 @@ JNI_JAVA(void, OpenCLBridge, clFree)(JNIEnv *jenv, jclass clazz, jlong l_region,
     free_cl_region(region, false);
 }
 
-JNI_JAVA(jlong, OpenCLBridge, pinnedAlloc)(JNIEnv *jenv, jclass clazz,
+JNI_JAVA(jlong, OpenCLBridge, pin)(JNIEnv *jenv, jclass clazz,
         jlong l_dev_ctx, jlong l_region) {
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_region *region = (cl_region *)l_region;
 #ifdef VERBOSE
-    fprintf(stderr, "pinnedAlloc: region=%p\n", region);
+    fprintf(stderr, "pin: region=%p\n", region);
 #endif
 
+    fprintf(stderr, "pinning region of size %lu\n", region->size);
     cl_int err;
     void *pinned = clEnqueueMapBuffer(dev_ctx->cmd,
             region->sub_mem, CL_TRUE, CL_MAP_WRITE, 0, region->size, 0,
@@ -3168,7 +3143,7 @@ JNI_JAVA(jlong, OpenCLBridge, pinnedAlloc)(JNIEnv *jenv, jclass clazz,
     CHECK(err);
 
 #ifdef VERBOSE
-    fprintf(stderr, "pinnedAlloc: for region=%p returning pinned=%p\n", region,
+    fprintf(stderr, "pin: for region=%p returning pinned=%p\n", region,
             pinned);
 #endif
 
@@ -3185,6 +3160,7 @@ JNI_JAVA(void, OpenCLBridge, unpin)(JNIEnv *jenv, jclass clazz,
             (void *)pinned_buffer, (void *)l_region);
 #endif
 
+    fprintf(stderr, "unpinning region of size %lu\n", region->size);
     cl_event event;
     CHECK(clEnqueueUnmapMemObject(dev_ctx->cmd, region->sub_mem, pinned, 0,
                 NULL, &event));

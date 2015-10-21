@@ -105,10 +105,6 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     return oldBuffers
   }
 
-  override def releaseNativeArrays {
-    nativeBuffers.releaseNativeArrays
-  }
-
   override def reset() { }
 
   // Returns # of arguments used
