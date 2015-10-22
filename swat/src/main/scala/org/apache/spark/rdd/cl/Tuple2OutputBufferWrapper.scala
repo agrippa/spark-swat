@@ -40,9 +40,11 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
           member1OutputBuffer.countArgumentsUsed
   }
 
-  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
-    member0OutputBuffer.fillFrom(kernel_ctx, outArgNum)
-    member1OutputBuffer.fillFrom(kernel_ctx, outArgNum + 1)
+  override def fillFrom(kernel_ctx : Long,
+      nativeOutputBuffers : NativeOutputBuffers[Tuple2[K, V]]) {
+    val tuple2OutputBuffers = nativeOutputBuffers.asInstanceOf[Tuple2NativeOutputBuffers[K, V]]
+    member0OutputBuffer.fillFrom(kernel_ctx, tuple2OutputBuffers.nestedBuffer1)
+    member1OutputBuffer.fillFrom(kernel_ctx, tuple2OutputBuffers.nestedBuffer2)
   }
 
   override def getNativeOutputBufferInfo() : Array[Int] = {
@@ -59,5 +61,12 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     }
 
     return myInfo
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : Tuple2[K, V], entryPoint : Entrypoint) :
+          NativeOutputBuffers[Tuple2[K, V]] = {
+    new Tuple2NativeOutputBuffers(N, outArgNum, dev_ctx, ctx, sampleOutput,
+            entryPoint, member0OutputBuffer, member1OutputBuffer)
   }
 }

@@ -71,7 +71,7 @@ public class OpenCLBridge {
     public static native long waitForFinishedKernel(long ctx, long dev_ctx, int seq_no);
     public static native long run(long ctx, long dev_ctx,
             int range, int local_size, int iterArgNum,
-            int heapArgStart, int maxHeaps);
+            int heapArgStart, int maxHeaps, int nativeOutputBufferId);
     public static native void waitOnBufferReady(long kernel_complete);
     public static native int getOutputBufferIdFromKernelCtx(long kernel_ctx);
 

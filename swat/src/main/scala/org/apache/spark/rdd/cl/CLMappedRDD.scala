@@ -271,21 +271,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
    var lastArgIndex : Int = -1
    var heapTopArgNum : Int = -1
 
-   for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
-     val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer(dev_ctx)
-     newBuffer.id = i
-     initiallyEmptyNativeInputBuffers.add(newBuffer)
-     nativeInputBuffersArray(i) = newBuffer
-   }
-
-   for (i <- 0 until CLMappedRDDStorage.nNativeOutputBuffers) {
-     val newBuffer : NativeOutputBuffers[U] =
-         chunkedOutputBuffer.generateNativeOutputBuffer(dev_ctx, outArgNum)
-     newBuffer.id = i
-     emptiedNativeOutputBuffers.add(newBuffer)
-     nativeOutputBuffersArray(i) = newBuffer
-   }
-
 //    val ctxCreateStart = System.currentTimeMillis // PROFILE
    val mySwatContextCache : java.util.HashMap[KernelDevicePair, Long] =
        CLMappedRDDStorage.getCacheFor(threadId,
@@ -302,6 +287,22 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
    }
    val ctx : Long = mySwatContextCache.get(kernelDeviceKey)
    OpenCLBridge.resetSwatContext(ctx)
+
+   for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
+     val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer(dev_ctx)
+     newBuffer.id = i
+     initiallyEmptyNativeInputBuffers.add(newBuffer)
+     nativeInputBuffersArray(i) = newBuffer
+   }
+
+   for (i <- 0 until CLMappedRDDStorage.nNativeOutputBuffers) {
+     val newBuffer : NativeOutputBuffers[U] =
+         chunkedOutputBuffer.generateNativeOutputBuffer(CLMappedRDDStorage.N,
+                 outArgNum, dev_ctx, ctx, sampleOutput.asInstanceOf[U], entryPoint)
+     newBuffer.id = i
+     emptiedNativeOutputBuffers.add(newBuffer)
+     nativeOutputBuffersArray(i) = newBuffer
+   }
 
    try {
      var argnum = outArgNum + nOutArgs
@@ -499,7 +500,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
                  current_output_buffer_id)
 
          //TODO and create various native output buffer classes
-         chunkedOutputBuffer.fillFrom(curr_kernel_ctx, outArgNum)
+         chunkedOutputBuffer.fillFrom(curr_kernel_ctx, currentNativeOutputBuffer)
 
          outputBuffer = Some(chunkedOutputBuffer)
        }

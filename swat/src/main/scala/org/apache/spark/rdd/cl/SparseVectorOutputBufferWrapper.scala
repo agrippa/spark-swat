@@ -52,16 +52,23 @@ class SparseVectorOutputBufferWrapper(val N : Int, val devicePointerSize : Int,
 
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
+  override def fillFrom(kernel_ctx : Long,
+      nativeOutputBuffers : NativeOutputBuffers[SparseVector]) {
     currSlot = 0
     nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
     assert(nLoaded <= N)
-    outArgBuffer = OpenCLBridge.findNativeArray(kernel_ctx, outArgNum)
+    outArgBuffer = nativeOutputBuffers.asInstanceOf[SparseVectorNativeOutputBuffers].pinnedBuffer
     OpenCLBridge.fillHeapBuffersFromKernelContext(kernel_ctx, buffers,
             maxBuffers)
   }
 
   override def getNativeOutputBufferInfo() : Array[Int] = {
     Array(outArgLength)
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : SparseVector, entryPoint : Entrypoint) :
+          NativeOutputBuffers[SparseVector] = {
+    new SparseVectorNativeOutputBuffers(N, outArgNum, dev_ctx, ctx, entryPoint)
   }
 }

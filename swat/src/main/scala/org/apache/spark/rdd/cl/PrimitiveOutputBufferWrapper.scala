@@ -32,14 +32,22 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int) extends OutputBuff
 
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
+  override def fillFrom(kernel_ctx : Long, nativeOutputBuffers : NativeOutputBuffers[T]) {
+    val actual = nativeOutputBuffers.asInstanceOf[PrimitiveNativeOutputBuffers[T]]
     iter = 0
     nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
     assert(nLoaded <= N)
-    OpenCLBridge.nativeToJVMArray(kernel_ctx, arr, outArgNum, nLoaded * eleSize)
+    OpenCLBridge.pinnedToJVMArray(kernel_ctx, arr, actual.pinnedBuffer,
+            nLoaded * eleSize)
   }
 
   override def getNativeOutputBufferInfo() : Array[Int] = {
     Array(eleSize * N)
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
+          NativeOutputBuffers[T] = {
+    new PrimitiveNativeOutputBuffers(N, outArgNum, dev_ctx, ctx)
   }
 }

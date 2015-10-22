@@ -43,17 +43,25 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     iter < nLoaded
   }
 
-  override def fillFrom(kernel_ctx : Long, outArgNum : Int) {
+  override def fillFrom(kernel_ctx : Long,
+      nativeOutputBuffers : NativeOutputBuffers[T]) {
+    val actual = nativeOutputBuffers.asInstanceOf[ObjectNativeOutputBuffers[T]]
     iter = 0
     bb.clear
     nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
     assert(nLoaded <= N)
-    OpenCLBridge.nativeToJVMArray(kernel_ctx, bb.array, outArgNum, nLoaded * structSize)
+    OpenCLBridge.pinnedToJVMArray(kernel_ctx, bb.array, actual.pinnedBuffer, nLoaded * structSize)
   }
 
   override def countArgumentsUsed() : Int = { 1 }
 
   override def getNativeOutputBufferInfo() : Array[Int] = {
     Array(structSize * N)
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
+          NativeOutputBuffers[T] = {
+    new ObjectNativeOutputBuffers(N, outArgNum, dev_ctx, ctx, entryPoint)
   }
 }

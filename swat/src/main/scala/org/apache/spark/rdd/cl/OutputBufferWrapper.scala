@@ -21,7 +21,11 @@ trait OutputBufferWrapper[T] {
    * Called after we have finished with the output buffer for the current inputs
    * to prepare it for future buffering.
    */
-  def fillFrom(kernel_ctx : Long, outArgNum : Int)
+  def fillFrom(kernel_ctx : Long, nativeOutputBuffers : NativeOutputBuffers[T])
 
   def getNativeOutputBufferInfo() : Array[Int]
+
+  def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
+          NativeOutputBuffers[T]
 }
