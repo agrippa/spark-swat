@@ -17,10 +17,6 @@ class PrimitiveNativeInputBuffers[T : ClassTag](val N : Int, val eleSize : Int,
   var tmpArrayIter : Int = 0
   val tmpArray : Array[T] = new Array[T](chunking)
 
-  override def releaseNativeArrays() {
-    OpenCLBridge.unpin(buffer, clBuffer, dev_ctx)
-  }
-
   override def releaseOpenCLArrays() {
     OpenCLBridge.clFree(clBuffer, dev_ctx)
   }

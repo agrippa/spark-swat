@@ -28,13 +28,6 @@ class SparseVectorNativeInputBuffers(val vectorElementCapacity : Int,
   var next_buffered_iter : Int = 0
   var n_next_buffered : Int = 0
 
-  override def releaseNativeArrays() {
-    OpenCLBridge.unpin(valuesBuffer, clValuesBuffer, dev_ctx)
-    OpenCLBridge.unpin(indicesBuffer, clIndicesBuffer, dev_ctx)
-    OpenCLBridge.unpin(sizesBuffer, clSizesBuffer, dev_ctx)
-    OpenCLBridge.unpin(offsetsBuffer, clOffsetsBuffer, dev_ctx)
-  }
-
   override def releaseOpenCLArrays() {
     OpenCLBridge.clFree(clValuesBuffer, dev_ctx)
     OpenCLBridge.clFree(clIndicesBuffer, dev_ctx)

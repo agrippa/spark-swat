@@ -100,6 +100,7 @@ typedef struct _arg_value {
     int index;
     bool keep; // only set for region type
     bool dont_free; // only set for region type
+    bool copy_out; // only set for region type
     size_t len; // only set for region type
     enum arg_type type;
     region_or_scalar val;
@@ -166,15 +167,6 @@ typedef struct _swat_context {
 #endif
     pthread_cond_t completed_kernels_cond;
 
-    native_output_buffers *out_buffers;
-    int out_buffers_len;
-    pthread_mutex_t out_buffers_lock;
-#ifdef PROFILE_LOCKS
-    unsigned long long out_buffers_lock_contention;
-    unsigned long long out_buffers_blocked;
-#endif
-    pthread_cond_t out_buffers_cond;
-
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
@@ -192,14 +184,6 @@ typedef struct _saved_heap {
     // void *h_heap;
     size_t size;
 } saved_heap;
-
-typedef struct _native_output_buffers {
-    void **buffers;
-    size_t *buffer_sizes;
-    int *buffer_arg_indices;
-    int n_buffers;
-    int free;
-} native_output_buffers;
 
 typedef struct _kernel_complete_flag {
     pthread_mutex_t lock;
@@ -234,7 +218,7 @@ struct _kernel_context {
     arg_value *accumulated_arguments;
     int accumulated_arguments_len;
 
-    native_output_buffers *out_buffers;
+    int output_buffer_id;
 
     kernel_complete_flag *done_flag;
 

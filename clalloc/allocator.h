@@ -131,6 +131,7 @@ typedef struct _cl_alloc {
 #else
     char *mem;
 #endif
+    char *pinned;
     size_t size;
     size_t free_bytes; // purely for diagnostics and error-checking
     cl_bucket buckets[NBUCKETS];
@@ -178,6 +179,7 @@ extern void bump_time(cl_allocator *allocator);
 extern size_t count_free_bytes(cl_allocator *allocator);
 extern unsigned long long get_contention(cl_allocator *allocator);
 extern void print_clalloc_profile();
+extern void *fetch_pinned(cl_region *region);
 
 #define GET_DEVICE_FOR(my_region) ((my_region)->grandparent->allocator->device_index)
 

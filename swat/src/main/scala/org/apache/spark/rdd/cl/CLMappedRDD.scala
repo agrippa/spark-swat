@@ -133,7 +133,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     System.setProperty("com.amd.aparapi.enable.ATHROW", "true");
 
     var inputBuffer : InputBufferWrapper[T] = null
-    var nativeOutputBuffer : OutputBufferWrapper[U] = null
+    var chunkedOutputBuffer : OutputBufferWrapper[U] = null
     var outputBuffer : Option[OutputBufferWrapper[U]] = None
 
 /*
@@ -164,12 +164,20 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     assert(CLMappedRDDStorage.nNativeInputBuffers >= 2)
     val nativeInputBuffersArray : Array[NativeInputBuffers[T]] =
             new Array[NativeInputBuffers[T]](CLMappedRDDStorage.nNativeInputBuffers)
+    val nativeOutputBuffersArray : Array[NativeOutputBuffers[U]] =
+            new Array[NativeOutputBuffers[U]](CLMappedRDDStorage.nNativeOutputBuffers)
     /*
      * Native input buffers that have been filled by the reader thread and are
      * ready to be copied to the device.
      */
     val filledNativeInputBuffers : java.util.LinkedList[NativeInputBuffers[T]] =
             new java.util.LinkedList[NativeInputBuffers[T]]()
+    /*
+     * Native output buffers that have been emptied out by the writer thread and
+     * can be used by a new kernel to store outputs.
+     */
+    val emptiedNativeOutputBuffers : java.util.LinkedList[NativeOutputBuffers[U]] =
+            new java.util.LinkedList[NativeOutputBuffers[U]]()
 
     System.err.println("Thread=" + threadId + " N = " + CLMappedRDDStorage.N +
             ", cl_local_size = " + CLMappedRDDStorage.cl_local_size +
@@ -184,11 +192,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
 
     if (myInputBufferCache.containsKey(f.getClass.getName)) {
       assert(inputBuffer == null)
-      assert(nativeOutputBuffer == null)
+      assert(chunkedOutputBuffer == null)
 
       inputBuffer = myInputBufferCache.get(f.getClass.getName)
           .asInstanceOf[InputBufferWrapper[T]]
-      nativeOutputBuffer = myOutputBufferCache.get(f.getClass.getName)
+      chunkedOutputBuffer = myOutputBufferCache.get(f.getClass.getName)
           .asInstanceOf[OutputBufferWrapper[U]]
     }
 
@@ -243,28 +251,40 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
                entryPoint, false)
        myInputBufferCache.put(f.getClass.getName, inputBuffer)
 
-       nativeOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
+       chunkedOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
                sampleOutput.asInstanceOf[U], CLMappedRDDStorage.N,
                entryPoint, devicePointerSize, CLMappedRDDStorage.heapSize)
        myOutputBufferCache.put(f.getClass.getName,
-               nativeOutputBuffer.asInstanceOf[OutputBufferWrapper[_]])
+               chunkedOutputBuffer.asInstanceOf[OutputBufferWrapper[_]])
      }
 
 //      RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
    }
 
+   val outArgNum : Int = inputBuffer.countArgumentsUsed
+   /*
+    * When used as an output, only Tuple2 uses two arguments. All other types
+    * use one.
+    */
+   val nOutArgs : Int = if (sampleOutput.isInstanceOf[Tuple2[_, _]]) 2 else 1
+   var heapArgStart : Int = -1
+   var lastArgIndex : Int = -1
+   var heapTopArgNum : Int = -1
+
    for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
      val newBuffer : NativeInputBuffers[T] = inputBuffer.generateNativeInputBuffer(dev_ctx)
      newBuffer.id = i
-
      initiallyEmptyNativeInputBuffers.add(newBuffer)
      nativeInputBuffersArray(i) = newBuffer
    }
 
-   val outArgNum : Int = inputBuffer.countArgumentsUsed
-   var heapArgStart : Int = -1
-   var lastArgIndex : Int = -1
-   var heapTopArgNum : Int = -1
+   for (i <- 0 until CLMappedRDDStorage.nNativeOutputBuffers) {
+     val newBuffer : NativeOutputBuffers[U] =
+         chunkedOutputBuffer.generateNativeOutputBuffer(dev_ctx, outArgNum)
+     newBuffer.id = i
+     emptiedNativeOutputBuffers.add(newBuffer)
+     nativeOutputBuffersArray(i) = newBuffer
+   }
 
 //    val ctxCreateStart = System.currentTimeMillis // PROFILE
    val mySwatContextCache : java.util.HashMap[KernelDevicePair, Long] =
@@ -279,33 +299,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
                entryPoint.requiresDoublePragma,
                entryPoint.requiresHeap, CLMappedRDDStorage.N)
      mySwatContextCache.put(kernelDeviceKey, ctx)
-
-     val nativeOutputBufferLengths : Array[Int] = nativeOutputBuffer.getNativeOutputBufferInfo
-     val nativeOutputBufferArgIndices : Array[Int] = new Array[Int](nativeOutputBufferLengths.length)
-     for (i <- 0 until nativeOutputBufferArgIndices.length) {
-       nativeOutputBufferArgIndices(i) = outArgNum + i
-     }
-
-     OpenCLBridge.initNativeOutBuffers(
-             CLMappedRDDStorage.nNativeOutputBuffers, nativeOutputBufferLengths,
-             nativeOutputBufferArgIndices, nativeOutputBufferLengths.length, ctx)
    }
    val ctx : Long = mySwatContextCache.get(kernelDeviceKey)
    OpenCLBridge.resetSwatContext(ctx)
-   System.err.println("For thread " + threadId + " SWAT context cache has " +
-           mySwatContextCache.size + " entries")
 
    try {
-     var argnum = outArgNum
-     /*
-      * When used as an output, only Tuple2 uses two arguments. All other types
-      * use one.
-      */
-     if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
-       argnum += 2
-     } else {
-       argnum += 1
-     }
+     var argnum = outArgNum + nOutArgs
      
      val iter = entryPoint.getReferencedClassModelFields.iterator
      while (iter.hasNext) {
@@ -431,12 +430,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
             */
            OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx, filled.id)
 
-           // Each kernel run has a dedicated output
-           if (OpenCLBridgeWrapper.setUnitializedArrayArg[U](ctx,
-               dev_ctx, outArgNum, CLMappedRDDStorage.N, classTag[U].runtimeClass,
-               entryPoint, sampleOutput.asInstanceOf[U], false) == -1) {
-             throw new OpenCLOutOfMemoryException()
-           }
+           val currentNativeOutputBuffer : NativeOutputBuffers[U] =
+                emptiedNativeOutputBuffers.synchronized {
+                  while (emptiedNativeOutputBuffers.isEmpty) {
+                    emptiedNativeOutputBuffers.wait
+                  }
+                  emptiedNativeOutputBuffers.poll
+                }
+           currentNativeOutputBuffer.addToArgs
 
            if (entryPoint.requiresHeap) {
              // processing_succeeded
@@ -463,7 +464,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
 
            val doneFlag : Long = OpenCLBridge.run(ctx, dev_ctx, nLoaded,
                    CLMappedRDDStorage.cl_local_size, lastArgIndex + 1,
-                   heapArgStart, CLMappedRDDStorage.heapsPerDevice)
+                   heapArgStart, CLMappedRDDStorage.heapsPerDevice,
+                   currentNativeOutputBuffer.id)
            filled.clBuffersReadyPtr = doneFlag
          }
        }
@@ -475,19 +477,31 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
 //      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
 
      var curr_kernel_ctx : Long = 0L
+     var currentNativeOutputBuffer : NativeOutputBuffers[U] = null
      var curr_seq_no : Int = 0
      def next() : U = {
        if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
          if (curr_kernel_ctx > 0L) {
+           assert(currentNativeOutputBuffer != null)
            OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
+           emptiedNativeOutputBuffers.synchronized {
+             emptiedNativeOutputBuffers.add(currentNativeOutputBuffer)
+             emptiedNativeOutputBuffers.notify
+           }
          }
          curr_kernel_ctx = OpenCLBridge.waitForFinishedKernel(ctx, dev_ctx,
                  curr_seq_no)
          curr_seq_no += 1
 
-         nativeOutputBuffer.fillFrom(curr_kernel_ctx, outArgNum)
+         val current_output_buffer_id =
+                 OpenCLBridge.getOutputBufferIdFromKernelCtx(curr_kernel_ctx)
+         currentNativeOutputBuffer = nativeOutputBuffersArray(
+                 current_output_buffer_id)
 
-         outputBuffer = Some(nativeOutputBuffer)
+         //TODO and create various native output buffer classes
+         chunkedOutputBuffer.fillFrom(curr_kernel_ctx, outArgNum)
+
+         outputBuffer = Some(chunkedOutputBuffer)
        }
 
        outputBuffer.get.next
@@ -502,10 +516,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
                curr_seq_no <= lastSeqNo || outputBuffer.get.hasNext)
        if (!haveNext && inputBuffer != null) {
          inputBuffer = null
-         nativeOutputBuffer = null
+         chunkedOutputBuffer = null
 
          for (buffer <- nativeInputBuffersArray) {
-           buffer.releaseNativeArrays
+           buffer.releaseOpenCLArrays
+         }
+         for (buffer <- nativeOutputBuffersArray) {
            buffer.releaseOpenCLArrays
          }
 

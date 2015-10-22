@@ -21,10 +21,6 @@ class ObjectNativeInputBuffers[T](val N : Int, val structSize : Int,
   val bb : ByteBuffer = ByteBuffer.allocate(structSize)
   bb.order(ByteOrder.LITTLE_ENDIAN)
 
-  override def releaseNativeArrays() {
-    OpenCLBridge.unpin(buffer, clBuffer, dev_ctx)
-  }
-
   override def releaseOpenCLArrays() {
     OpenCLBridge.clFree(clBuffer, dev_ctx)
   }

@@ -111,7 +111,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         bool reallocated = (region && re_allocate_cl_region(region, dev_ctx->device_index)); \
         if (reallocated) { \
             TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid); \
-            add_pending_region_arg(context, index, true, persistent, region); \
+            add_pending_region_arg(context, index, true, persistent, false, region); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr) \
@@ -140,7 +140,7 @@ JNI_JAVA(jboolean, OpenCLBridge, set##utype##ArrayArgImpl) \
         if (reallocated) { \
             TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", \
                     rddid, partitionid, offsetid, componentid); \
-            add_pending_region_arg(context, index, true, persistent, region); \
+            add_pending_region_arg(context, index, true, persistent, false, region); \
         } else { \
             void *arr = jenv->GetPrimitiveArrayCritical(arg, &isCopy); \
             CHECK_JNI(arr); \
@@ -226,7 +226,7 @@ static inline void force_pthread_mutex_unlock(pthread_mutex_t *mutex) {
 }
 
 static void add_pending_arg(swat_context *context, int index, bool keep,
-        bool dont_free, enum arg_type type,
+        bool dont_free, bool copy_out, enum arg_type type,
         region_or_scalar val) {
 #ifdef VERBOSE
     fprintf(stderr, "add_pending_arg: thread=%d index=%d keep=%s dont_free=%s "
@@ -249,36 +249,31 @@ static void add_pending_arg(swat_context *context, int index, bool keep,
     (context->accumulated_arguments)[acc_index].index = index;
     (context->accumulated_arguments)[acc_index].keep = keep;
     (context->accumulated_arguments)[acc_index].dont_free = dont_free;
+    (context->accumulated_arguments)[acc_index].copy_out = copy_out;
     (context->accumulated_arguments)[acc_index].type = type;
     (context->accumulated_arguments)[acc_index].val = val;
     context->accumulated_arguments_len = context->accumulated_arguments_len + 1;
 }
 
-static void add_pending_region_arg_new(swat_context *context, int index, bool keep,
-        bool dont_free, cl_region *region) {
-    region_or_scalar val; val.region = region;
-    add_pending_arg(context, index, keep, dont_free, REGION, val);
-}
-
 static void add_pending_region_arg(swat_context *context, int index, bool keep,
-        bool dont_free, cl_region *region) {
+        bool dont_free, bool copy_out, cl_region *region) {
     region_or_scalar val; val.region = region;
-    add_pending_arg(context, index, keep, dont_free, REGION, val);
+    add_pending_arg(context, index, keep, dont_free, copy_out, REGION, val);
 }
 
 static void add_pending_int_arg(swat_context *context, int index, int in) {
     region_or_scalar val; val.i = in;
-    add_pending_arg(context, index, false, false, INT, val);
+    add_pending_arg(context, index, false, false, false, INT, val);
 }
 
 static void add_pending_float_arg(swat_context *context, int index, float in) {
     region_or_scalar val; val.f = in;
-    add_pending_arg(context, index, false, false, FLOAT, val);
+    add_pending_arg(context, index, false, false, false, FLOAT, val);
 }
 
 static void add_pending_double_arg(swat_context *context, int index, double in) {
     region_or_scalar val; val.d = in;
-    add_pending_arg(context, index, false, false, DOUBLE, val);
+    add_pending_arg(context, index, false, false, false, DOUBLE, val);
 }
 
 /*
@@ -458,15 +453,9 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
             dev_ctx->allocator /* dev_ctx->heap_allocator */ , NULL, NULL);
     ASSERT(free_index);
 
-    cl_int err;
-    int *h_free_index = (int *)clEnqueueMapBuffer(dev_ctx->cmd,
-            free_index->sub_mem, CL_TRUE, CL_MAP_WRITE, 0, sizeof(zero), 0,
-            NULL, NULL, &err);
-    CHECK(err);
+    int *h_free_index = (int *)fetch_pinned(free_index);
 
-    void *h_heap = clEnqueueMapBuffer(dev_ctx->cmd, heap->sub_mem, CL_TRUE,
-            CL_MAP_WRITE, 0, heap_size, 0, NULL, NULL, &err);
-    CHECK(err);
+    void *h_heap = fetch_pinned(heap);
 
 #ifdef VERBOSE
     fprintf(stderr, "clalloc: allocating heap of size %lu (offset=%lu size=%lu, "
@@ -864,8 +853,8 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     unsigned long long local_freed_native_input_buffers_blocked;
     unsigned long long local_completed_kernels_lock_contention;
     unsigned long long local_completed_kernels_blocked;
-    unsigned long long local_out_buffers_lock_contention;
-    unsigned long long local_out_buffers_blocked;
+    // unsigned long long local_out_buffers_lock_contention;
+    // unsigned long long local_out_buffers_blocked;
     // Device context
     unsigned long long local_broadcast_lock_contention;
     unsigned long long local_program_cache_lock_contention;
@@ -901,10 +890,10 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     local_completed_kernels_blocked = ctx->completed_kernels_blocked;
     force_pthread_mutex_unlock(&ctx->completed_kernels_lock);
 
-    force_pthread_mutex_lock(&ctx->out_buffers_lock);
-    local_out_buffers_lock_contention = ctx->out_buffers_lock_contention;
-    local_out_buffers_blocked = ctx->out_buffers_blocked;
-    force_pthread_mutex_unlock(&ctx->out_buffers_lock);
+    // force_pthread_mutex_lock(&ctx->out_buffers_lock);
+    // local_out_buffers_lock_contention = ctx->out_buffers_lock_contention;
+    // local_out_buffers_blocked = ctx->out_buffers_blocked;
+    // force_pthread_mutex_unlock(&ctx->out_buffers_lock);
 
     force_pthread_mutex_lock(&dev_ctx->broadcast_lock);
     local_broadcast_lock_contention = dev_ctx->broadcast_lock_contention;
@@ -940,10 +929,10 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
             local_completed_kernels_lock_contention);
     fprintf(stderr, "  completed_kernels_blocked                  = %llu\n",
             local_completed_kernels_blocked);
-    fprintf(stderr, "  out_buffers_lock_contention                = %llu\n",
-            local_out_buffers_lock_contention);
-    fprintf(stderr, "  out_buffers_blocked                        = %llu\n",
-            local_out_buffers_blocked);
+    // fprintf(stderr, "  out_buffers_lock_contention                = %llu\n",
+    //         local_out_buffers_lock_contention);
+    // fprintf(stderr, "  out_buffers_blocked                        = %llu\n",
+    //         local_out_buffers_blocked);
     fprintf(stderr, "  broadcast_lock_contention                  = %llu\n",
             local_broadcast_lock_contention);
     fprintf(stderr, "  program_cache_lock_contention              = %llu\n",
@@ -961,55 +950,46 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     EXIT_TRACE("cleanupSwatContext");
 }
 
-JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
-        jint nPrealloc, jintArray bufferSizes, jintArray bufferArgIndices,
-        jint nBuffers, jlong lctx) {
-    swat_context *ctx = (swat_context *)lctx;
-    ASSERT(ctx->out_buffers == NULL);
-
-    size_t count_allocs = 0;
-    ctx->out_buffers = (native_output_buffers *)malloc(nPrealloc *
-            sizeof(native_output_buffers));
-    ASSERT(ctx->out_buffers);
-    ctx->out_buffers_len = nPrealloc;
-    count_allocs += (nPrealloc * sizeof(native_output_buffers));
-
-    int *buffer_sizes = (int *)jenv->GetPrimitiveArrayCritical(bufferSizes, NULL);
-    CHECK_JNI(buffer_sizes);
-    int *buffer_arg_indices = (int *)jenv->GetPrimitiveArrayCritical(bufferArgIndices, NULL);
-    CHECK_JNI(buffer_arg_indices);
-
-    for (int i = 0; i < nPrealloc; i++) {
-        native_output_buffers *curr = ctx->out_buffers + i;
-        curr->buffers = (void **)malloc(nBuffers * sizeof(void *));
-        CHECK_ALLOC(curr->buffers);
-        curr->buffer_sizes = (size_t *)malloc(nBuffers * sizeof(size_t));
-        CHECK_ALLOC(curr->buffer_sizes);
-        curr->buffer_arg_indices = (int *)malloc(nBuffers * sizeof(int));
-        CHECK_ALLOC(curr->buffer_arg_indices);
-
-        count_allocs += ((nBuffers * sizeof(void *)) +
-                (nBuffers * sizeof(size_t)) + (nBuffers * sizeof(int)));
-
-        for (int j = 0; j < nBuffers; j++) {
-            (curr->buffers)[j] = malloc(buffer_sizes[j]);
-            CHECK_ALLOC((curr->buffers)[j]);
-            (curr->buffer_sizes)[j] = buffer_sizes[j];
-            (curr->buffer_arg_indices)[j] = buffer_arg_indices[j];
-
-            count_allocs += buffer_sizes[j];
-        }
-
-        curr->n_buffers = nBuffers;
-        curr->free = 1;
-    }
-
-    fprintf(stderr, "For native output buffers, allocating %lu bytes\n", count_allocs);
-
-    jenv->ReleasePrimitiveArrayCritical(bufferSizes, buffer_sizes, JNI_ABORT);
-    jenv->ReleasePrimitiveArrayCritical(bufferArgIndices, buffer_arg_indices,
-            JNI_ABORT);
-}
+// JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
+//         jint nPrealloc, jintArray bufferSizes, jintArray bufferArgIndices,
+//         jint nBuffers, jlong lctx) {
+//     swat_context *ctx = (swat_context *)lctx;
+//     ASSERT(ctx->out_buffers == NULL);
+// 
+//     ctx->out_buffers = (native_output_buffers *)malloc(nPrealloc *
+//             sizeof(native_output_buffers));
+//     ASSERT(ctx->out_buffers);
+//     ctx->out_buffers_len = nPrealloc;
+// 
+//     int *buffer_sizes = (int *)jenv->GetPrimitiveArrayCritical(bufferSizes, NULL);
+//     CHECK_JNI(buffer_sizes);
+//     int *buffer_arg_indices = (int *)jenv->GetPrimitiveArrayCritical(bufferArgIndices, NULL);
+//     CHECK_JNI(buffer_arg_indices);
+// 
+//     for (int i = 0; i < nPrealloc; i++) {
+//         native_output_buffers *curr = ctx->out_buffers + i;
+//         curr->buffers = (void **)malloc(nBuffers * sizeof(void *));
+//         CHECK_ALLOC(curr->buffers);
+//         curr->buffer_sizes = (size_t *)malloc(nBuffers * sizeof(size_t));
+//         CHECK_ALLOC(curr->buffer_sizes);
+//         curr->buffer_arg_indices = (int *)malloc(nBuffers * sizeof(int));
+//         CHECK_ALLOC(curr->buffer_arg_indices);
+// 
+//         for (int j = 0; j < nBuffers; j++) {
+//             (curr->buffers)[j] = malloc(buffer_sizes[j]);
+//             CHECK_ALLOC((curr->buffers)[j]);
+//             (curr->buffer_sizes)[j] = buffer_sizes[j];
+//             (curr->buffer_arg_indices)[j] = buffer_arg_indices[j];
+//         }
+// 
+//         curr->n_buffers = nBuffers;
+//         curr->free = 1;
+//     }
+// 
+//     jenv->ReleasePrimitiveArrayCritical(bufferSizes, buffer_sizes, JNI_ABORT);
+//     jenv->ReleasePrimitiveArrayCritical(bufferArgIndices, buffer_arg_indices,
+//             JNI_ABORT);
+// }
 
 JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
         jlong lctx) {
@@ -1031,17 +1011,18 @@ JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
 
     ctx->completed_kernels = NULL;
 
-    ASSERT(ctx->out_buffers_len > 0);
-    ASSERT(ctx->out_buffers);
-    for (int i = 0; i < ctx->out_buffers_len; i++) {
-        (ctx->out_buffers)[i].free = 1;
-    }
+    // ASSERT(ctx->out_buffers_len > 0);
+    // ASSERT(ctx->out_buffers);
+    // for (int i = 0; i < ctx->out_buffers_len; i++) {
+    //     (ctx->out_buffers)[i].free = 1;
+    // }
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         (JNIEnv *jenv, jclass clazz, jstring label, jstring source,
          jlong l_dev_ctx, jint host_thread_index, jboolean requiresDouble,
-         jboolean requiresHeap, jint max_n_buffered) {
+         jboolean requiresHeap, jint max_n_buffered, jintArray outArgSizes,
+         jint outArgStart, jint nOutArgs) {
     ENTER_TRACE("createContext");
     device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_device_id device = dev_ctx->dev;
@@ -1147,8 +1128,8 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     context->freed_native_input_buffers_blocked = 0ULL;
     context->completed_kernels_lock_contention = 0ULL;
     context->completed_kernels_blocked = 0ULL;
-    context->out_buffers_lock_contention = 0ULL;
-    context->out_buffers_blocked = 0ULL;
+    // context->out_buffers_lock_contention = 0ULL;
+    // context->out_buffers_blocked = 0ULL;
 #endif
 
 #ifdef PROFILE_OPENCL
@@ -1182,12 +1163,6 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     perr = pthread_mutex_init(&context->freed_native_input_buffers_lock, NULL);
     ASSERT(perr == 0);
     perr = pthread_cond_init(&context->freed_native_input_buffers_cond, NULL);
-    ASSERT(perr == 0);
-
-    context->out_buffers = NULL;
-    perr = pthread_mutex_init(&context->out_buffers_lock, NULL);
-    ASSERT(perr == 0);
-    perr = pthread_cond_init(&context->out_buffers_cond, NULL);
     ASSERT(perr == 0);
 
     context->completed_kernels = NULL;
@@ -1228,7 +1203,7 @@ static cl_region *get_mem(swat_context *context, device_context *dev_ctx,
 #endif
 
     add_pending_region_arg(context, index, broadcastId >= 0 || rdd >= 0,
-            persistent, region);
+            persistent, false, region);
     return region;
 }
 
@@ -1602,7 +1577,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
 #ifdef VERBOSE
             fprintf(stderr, "caching broadcast %ld %d\n", broadcastId, componentid);
 #endif
-            add_pending_region_arg(context, index, true, persistent, reallocated);
+            add_pending_region_arg(context, index, true, persistent, false, reallocated);
         } else {
             broadcast_id uuid(broadcastId, componentid);
             void *arr = (void *)buffer;
@@ -1623,7 +1598,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setNativeArrayArgImpl)
             fprintf(stderr, "caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
 #endif
-            add_pending_region_arg(context, index, true, persistent, reallocated);
+            add_pending_region_arg(context, index, true, persistent, false, reallocated);
         } else {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
             void *arr = (void *)buffer;
@@ -1669,7 +1644,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
     if (broadcastId >= 0) {
         if (reallocated) {
             TRACE_MSG("caching broadcast %ld %d\n", broadcastId, componentid);
-            add_pending_region_arg(context, index, true, persistent, reallocated);
+            add_pending_region_arg(context, index, true, persistent, false, reallocated);
         } else {
             broadcast_id uuid(broadcastId, componentid);
             void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL);
@@ -1688,7 +1663,7 @@ JNI_JAVA(jboolean, OpenCLBridge, setArrayArgImpl)
         if (reallocated) {
             TRACE_MSG("caching rdd=%d partition=%d offset=%d component=%d\n", rddid,
                     partitionid, offsetid, componentid);
-            add_pending_region_arg(context, index, true, persistent, reallocated);
+            add_pending_region_arg(context, index, true, persistent, false, reallocated);
         } else {
             rdd_partition_offset uuid(rddid, partitionid, offsetid, componentid);
             void *arr = jenv->GetPrimitiveArrayCritical(arg, NULL);
@@ -1756,7 +1731,7 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
                         componentid + c);
 #endif
                 // A cached item should never be persistent
-                add_pending_region_arg(context, index + c, true, persistent, region);
+                add_pending_region_arg(context, index + c, true, persistent, false, region);
             } else {
 #ifdef VERBOSE
                 fprintf(stderr, "%d: failed to try-cache broadcast %ld %d\n",
@@ -1783,7 +1758,7 @@ JNI_JAVA(jboolean, OpenCLBridge, tryCache)
                         "component=%d\n", context->host_thread_index, rddid,
                         partitionid, offsetid, componentid + c);
 #endif
-                add_pending_region_arg(context, index + c, true, persistent, region);
+                add_pending_region_arg(context, index + c, true, persistent, false, region);
             } else {
 #ifdef VERBOSE
                 fprintf(stderr, "%d: failed to try-cache rdd=%d partition=%d "
@@ -1871,7 +1846,7 @@ JNI_JAVA(void, OpenCLBridge, setNullArrayArg)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jint argnum) {
     ENTER_TRACE("setNullArrayArg");
     swat_context *context = (swat_context *)lctx;
-    add_pending_region_arg(context, argnum, false, false, NULL);
+    add_pending_region_arg(context, argnum, false, false, false, NULL);
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a null value\n", argnum);
 #endif
@@ -2233,15 +2208,15 @@ static void release_device_heap_callback(cl_event event,
     ASSERT(err == 0);
 }
 
-static native_output_buffers *look_for_free_out_buffer(swat_context *ctx) {
-    for (int i = 0; i < ctx->out_buffers_len; i++) {
-        if ((ctx->out_buffers)[i].free) {
-            (ctx->out_buffers)[i].free = 0;
-            return ctx->out_buffers + i;
-        }
-    }
-    return NULL;
-}
+// static native_output_buffers *look_for_free_out_buffer(swat_context *ctx) {
+//     for (int i = 0; i < ctx->out_buffers_len; i++) {
+//         if ((ctx->out_buffers)[i].free) {
+//             (ctx->out_buffers)[i].free = 0;
+//             return ctx->out_buffers + i;
+//         }
+//     }
+//     return NULL;
+// }
 
 static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
         int index) {
@@ -2328,45 +2303,28 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
-#ifdef PROFILE_LOCKS
-    const unsigned long long start = get_clock_gettime_ns();
-#endif
-    int perr = pthread_mutex_lock(&ctx->out_buffers_lock);
-#ifdef PROFILE_LOCKS
-    ctx->out_buffers_lock_contention += (get_clock_gettime_ns() - start);
-#endif
-    ASSERT(perr == 0);
+    const int args_len = kernel_ctx->accumulated_arguments_len;
+    for (int i = 0; i < args_len; i++) {
+        arg_value *curr = kernel_ctx->accumulated_arguments + i;
+        /*
+         * TODO in some cases this may be inefficient, as copying out the whole
+         * output array may be unnecessary
+         */
+        if (curr->type == REGION && curr->copy_out) {
+            cl_region *region = curr->val.region;
+            void *pinned = fetch_pinned(region);
 
-    // TODO blocking here is bad... should we just allocate on the fly?
-    native_output_buffers *out_buffers = NULL;
-    while ((out_buffers = look_for_free_out_buffer(ctx)) == NULL) {
-        perr = pthread_cond_wait(&ctx->out_buffers_cond, &ctx->out_buffers_lock);
-        ASSERT(perr == 0);
-    }
-    ASSERT(out_buffers);
-    ASSERT(out_buffers->free == 0);
-
-#ifdef PROFILE_LOCKS
-    ctx->out_buffers_blocked += (get_clock_gettime_ns() - start);
-#endif
-    perr = pthread_mutex_unlock(&ctx->out_buffers_lock);
-    ASSERT(perr == 0);
-
-    for (int i = 0; i < out_buffers->n_buffers; i++) {
-        cl_region *region = find_kernel_specific_argument_for(kernel_ctx,
-                (out_buffers->buffer_arg_indices)[i]);
-        cl_event next_event;
-        CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
-                    0, (out_buffers->buffer_sizes)[i],
-                    (out_buffers->buffers)[i], 1, &prev_event, &next_event));
+            cl_event next_event;
+            CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
+                        0, region->size, pinned, 1, &prev_event, &next_event));
 #ifdef PROFILE_OPENCL
-        add_event_to_list(&kernel_ctx->acc_write_events, next_event, "out",
-                &kernel_ctx->acc_write_events_length,
-                &kernel_ctx->acc_write_events_capacity);
+            add_event_to_list(&kernel_ctx->acc_write_events, next_event, "out",
+                    &kernel_ctx->acc_write_events_length,
+                    &kernel_ctx->acc_write_events_capacity);
 #endif
-        prev_event = next_event;
+            prev_event = next_event;
+        }
     }
-    kernel_ctx->out_buffers = out_buffers;
 
     CHECK(clSetEventCallback(prev_event, CL_COMPLETE, finally_done_callback,
                 kernel_ctx));
@@ -2480,24 +2438,6 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
     }
     free(kernel_ctx->heaps);
     free(kernel_ctx->heap_copy_back_events);
-
-#ifdef PROFILE_LOCKS
-    const unsigned long long start = get_clock_gettime_ns();
-#endif
-    int perr = pthread_mutex_lock(&ctx->out_buffers_lock);
-#ifdef PROFILE_LOCKS
-    ctx->out_buffers_lock_contention += (get_clock_gettime_ns() - start);
-#endif
-    ASSERT(perr == 0);
-
-    kernel_ctx->out_buffers->free = 1;
-
-    perr = pthread_cond_signal(&ctx->out_buffers_cond);
-    ASSERT(perr == 0);
-
-    perr = pthread_mutex_unlock(&ctx->out_buffers_lock);
-    ASSERT(perr == 0);
-
     free(kernel_ctx);
 }
 
@@ -2564,7 +2504,11 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
                     "keep=%s offset=%lu size=%lu\n", region,
                     curr->keep ? "true" : "false", region->offset, region->size);
 #endif
-            // Don't free regions associated with pinned buffers
+            /*
+             * Don't free regions owned by either a native input buffer or
+             * native output buffer. These buffers have a lifetime longer than
+             * this kernel, so we don't want to release them back to clalloc.
+             */
             if (!curr->dont_free) {
                 free_cl_region(region, curr->keep);
             }
@@ -2587,7 +2531,7 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
 JNI_JAVA(jlong, OpenCLBridge, run)
         (JNIEnv *jenv, jclass clazz, jlong lctx, jlong l_dev_ctx,
          jint range, jint local_size_in, jint iterArgNum,
-         jint heapArgStart, jint maxHeaps) {
+         jint heapArgStart, jint maxHeaps, jint outputBufferId) {
     ENTER_TRACE("run");
     swat_context *context = (swat_context *)lctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
@@ -2629,6 +2573,7 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     kernel_ctx->next = NULL;
     kernel_ctx->accumulated_arguments = context->accumulated_arguments;
     kernel_ctx->accumulated_arguments_len = context->accumulated_arguments_len;
+    kernel_ctx->output_buffer_id = outputBufferId;
 
     kernel_complete_flag *done_flag = (kernel_complete_flag *)malloc(
             sizeof(kernel_complete_flag));
@@ -3024,39 +2969,15 @@ JNI_JAVA(jint, OpenCLBridge, getCurrentSeqNo)(JNIEnv *jenv, jclass clazz,
     return ctx->run_seq_no;
 }
 
-JNI_JAVA(void, OpenCLBridge, nativeToJVMArray)(JNIEnv *jenv, jclass clazz,
-        jlong l_kernel_ctx, jobject primitive_arr, jint outArgNum, jint nbytes) {
+JNI_JAVA(void, OpenCLBridge, pinnedToJVMArray)(JNIEnv *jenv, jclass clazz,
+        jlong l_kernel_ctx, jobject primitive_arr, jlong l_pinned, jint nbytes) {
     kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
-    native_output_buffers *out_buffers = kernel_ctx->out_buffers;
-
-    void *native_buffer = NULL;
-    for (int i = 0; i < out_buffers->n_buffers && native_buffer == NULL; i++) {
-        if ((out_buffers->buffer_arg_indices)[i] == outArgNum) {
-            native_buffer = (out_buffers->buffers)[i];
-        }
-    }
-    ASSERT(native_buffer);
+    void *pinned = (void *)l_pinned;
 
     void *jvm_arr = jenv->GetPrimitiveArrayCritical((jarray)primitive_arr, NULL);
     ASSERT(jvm_arr);
-    memcpy(jvm_arr, native_buffer, nbytes);
+    memcpy(jvm_arr, pinned, nbytes);
     jenv->ReleasePrimitiveArrayCritical((jarray)primitive_arr, jvm_arr, 0);
-}
-
-JNI_JAVA(jlong, OpenCLBridge, findNativeArray)(JNIEnv *jenv, jclass clazz,
-        jlong l_kernel_ctx, jint outArgNum) {
-    kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
-    native_output_buffers *out_buffers = kernel_ctx->out_buffers;
-
-    void *native_buffer = NULL;
-    for (int i = 0; i < out_buffers->n_buffers && native_buffer == NULL; i++) {
-        if ((out_buffers->buffer_arg_indices)[i] == outArgNum) {
-            native_buffer = (out_buffers->buffers)[i];
-        }
-    }
-    ASSERT(native_buffer);
-
-    return (jlong)native_buffer;
 }
 
 JNI_JAVA(void, OpenCLBridge, fillHeapBuffersFromKernelContext)(JNIEnv *jenv,
@@ -3135,12 +3056,7 @@ JNI_JAVA(jlong, OpenCLBridge, pin)(JNIEnv *jenv, jclass clazz,
     fprintf(stderr, "pin: region=%p\n", region);
 #endif
 
-    fprintf(stderr, "pinning region of size %lu\n", region->size);
-    cl_int err;
-    void *pinned = clEnqueueMapBuffer(dev_ctx->cmd,
-            region->sub_mem, CL_TRUE, CL_MAP_WRITE, 0, region->size, 0,
-            NULL, NULL, &err);
-    CHECK(err);
+    void *pinned = fetch_pinned(region);
 
 #ifdef VERBOSE
     fprintf(stderr, "pin: for region=%p returning pinned=%p\n", region,
@@ -3148,23 +3064,6 @@ JNI_JAVA(jlong, OpenCLBridge, pin)(JNIEnv *jenv, jclass clazz,
 #endif
 
     return (jlong)pinned;
-}
-
-JNI_JAVA(void, OpenCLBridge, unpin)(JNIEnv *jenv, jclass clazz,
-        jlong pinned_buffer, jlong l_region, jlong l_dev_ctx) {
-    device_context *dev_ctx = (device_context *)l_dev_ctx;
-    void *pinned = (void *)pinned_buffer;
-    cl_region *region = (cl_region *)l_region;
-#ifdef VERBOSE
-    fprintf(stderr, "unpin: pinned_buffer=%p region=%p\n",
-            (void *)pinned_buffer, (void *)l_region);
-#endif
-
-    fprintf(stderr, "unpinning region of size %lu\n", region->size);
-    cl_event event;
-    CHECK(clEnqueueUnmapMemObject(dev_ctx->cmd, region->sub_mem, pinned, 0,
-                NULL, &event));
-    CHECK(clWaitForEvents(1, &event));
 }
 
 JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
@@ -3183,7 +3082,7 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
     void *pinned = (void *)pinned_buffer;
     cl_region *region = (cl_region *)l_region;
 
-    add_pending_region_arg(context, index, false, true, region);
+    add_pending_region_arg(context, index, false, true, false, region);
 
     cl_event event;
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
@@ -3197,6 +3096,22 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
     context->last_write_event = event;
 
     EXIT_TRACE("setNativePinnedArrayArg");
+}
+
+JNI_JAVA(void, OpenCLBridge, setOutArrayArg)(JNIEnv *jenv, jclass clazz,
+        jlong lctx, jlong ldev_ctx, jint index, jlong l_region) {
+    device_context *dev_ctx = (device_context *)ldev_ctx;
+    swat_context *ctx = (swat_context *)lctx;
+    cl_region *region = (cl_region *)l_region;
+
+    add_pending_region_arg(ctx, index, false, true, true, region);
+}
+
+JNI_JAVA(jint, OpenCLBridge, getOutputBufferIdFromKernelCtx)(JNIEnv *jenv,
+        jclass clazz, jlong lkernel_ctx) {
+    kernel_context *kernel_ctx = (kernel_context *)lkernel_ctx;
+    ASSERT(kernel_ctx->output_buffer_id >= 0);
+    return kernel_ctx->output_buffer_id;
 }
 
 #ifdef __cplusplus

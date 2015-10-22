@@ -58,9 +58,8 @@ public class OpenCLBridge {
             long broadcastId, int rddid, int partitionid, int offset,
             int component, boolean persistent);
 
-    public static native void nativeToJVMArray(long kernel_ctx, Object jvmArray,
-            int argIndex, int nbytes);
-    public static native long findNativeArray(long kernel_ctx, int argIndex);
+    public static native void pinnedToJVMArray(long kernel_ctx, Object jvmArray,
+            long pinned, int nbytes);
     public static native void fillHeapBuffersFromKernelContext(long kernel_ctx,
             long[] jvmArr, int maxHeaps);
     public static native int getNLoaded(long kernel_ctx);
@@ -74,13 +73,15 @@ public class OpenCLBridge {
             int range, int local_size, int iterArgNum,
             int heapArgStart, int maxHeaps);
     public static native void waitOnBufferReady(long kernel_complete);
+    public static native int getOutputBufferIdFromKernelCtx(long kernel_ctx);
 
     public static native long clMallocImpl(long dev_ctx, long nbytes);
     public static native void clFree(long clBuffer, long dev_ctx);
     public static native long pin(long dev_ctx, long region);
-    public static native void unpin(long pinned, long region, long dev_ctx);
     public static native void setNativePinnedArrayArg(long ctx, long dev_ctx,
             int index, long pinned, long region, long nbytes);
+    public static native void setOutArrayArg(long ctx, long dev_ctx, int index,
+            long region);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);

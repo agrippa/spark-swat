@@ -15,11 +15,6 @@ class Tuple2NativeInputBuffers[K : ClassTag, V : ClassTag](
 
   var tocopy : Int = -1
 
-  override def releaseNativeArrays() {
-    member0NativeBuffers.releaseNativeArrays
-    member1NativeBuffers.releaseNativeArrays
-  }
-
   override def releaseOpenCLArrays() {
     member0NativeBuffers.releaseOpenCLArrays
     member1NativeBuffers.releaseOpenCLArrays

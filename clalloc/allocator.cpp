@@ -591,6 +591,11 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     return return_value;
 }
 
+void *fetch_pinned(cl_region *region) {
+    cl_alloc *grandparent = region->grandparent;
+    return (void *)grandparent->pinned + region->offset;
+}
+
 /*
  * Fetch a region of the specified size from the specified allocator.
  */
@@ -1111,6 +1116,10 @@ cl_allocator *init_allocator(const int device_index)
 
         if (!success) break;
 
+        void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
+                alloc_size, 0, NULL, NULL, &err);
+        CHECK(err);
+
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
         (allocator->allocs)[i].free_bytes = alloc_size;
@@ -1118,6 +1127,7 @@ cl_allocator *init_allocator(const int device_index)
 #ifdef PROFILE_LOCKS
         (allocator->allocs)[i].contention = 0ULL;
 #endif
+        (allocator->allocs)[i].pinned = (char *)pinned;
 
         int perr = pthread_mutex_init(&(allocator->allocs)[i].lock, NULL);
         ASSERT(perr == 0);
