@@ -229,8 +229,8 @@ static void add_pending_arg(swat_context *context, int index, bool keep,
         bool dont_free, bool copy_out, enum arg_type type,
         region_or_scalar val) {
 #ifdef VERBOSE
-    fprintf(stderr, "add_pending_arg: thread=%d index=%d keep=%s dont_free=%s "
-            "type=%d\n", context->host_thread_index, index,
+    fprintf(stderr, "add_pending_arg: thread=%d ctx=%p index=%d keep=%s "
+            "dont_free=%s type=%d\n", context->host_thread_index, context, index,
             keep ? "true" : "false", dont_free ? "true" : "false", type);
 #endif
 
@@ -474,11 +474,11 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
 
     context->heap_size = heap_size;
 
-    context->h_heap_in_use = 0;
-    int perr = pthread_mutex_init(&context->h_heap_lock, NULL);
-    ASSERT(perr == 0);
-    perr = pthread_cond_init(&context->h_heap_cond, NULL);
-    ASSERT(perr == 0);
+    // context->h_heap_in_use = 0;
+    // int perr = pthread_mutex_init(&context->h_heap_lock, NULL);
+    // ASSERT(perr == 0);
+    // perr = pthread_cond_init(&context->h_heap_cond, NULL);
+    // ASSERT(perr == 0);
 }
 
 static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
@@ -597,10 +597,6 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                         &(tmp_device_ctxs[global_device_id].heap_cache_lock),
                         NULL);
                 ASSERT(perr == 0);
-                // perr = pthread_cond_init(
-                //         &(tmp_device_ctxs[global_device_id].heap_cache_cond),
-                //         NULL);
-                // ASSERT(perr == 0);
 
 #ifdef PROFILE_LOCKS
                 tmp_device_ctxs[global_device_id].broadcast_lock_contention =
@@ -1842,13 +1838,6 @@ static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
         fprintf(stderr, "Had to create new heap on device %d, nheaps = %d\n", dev_ctx->device_index, dev_ctx->n_heaps);
     }
 
-    // heap_context *mine = NULL;
-    // while ((mine = look_for_free_heap_context(dev_ctx)) == NULL) {
-    //     err = pthread_cond_wait(&dev_ctx->heap_cache_cond,
-    //             &dev_ctx->heap_cache_lock);
-    //     ASSERT(err == 0);
-    // }
-
 #ifdef PROFILE_LOCKS
     dev_ctx->heap_cache_blocked += (get_clock_gettime_ns() - start);
 #endif
@@ -1905,8 +1894,9 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             if (region) {
                 cl_mem mem = val->val.region->sub_mem;
 #ifdef VERBOSE
-                fprintf(stderr, "setKernelArgument: thread=%d index=%d "
-                        "mem=%p\n", context->host_thread_index, index, mem);
+                fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
+                        "mem=%p\n", context->host_thread_index, context, index,
+                        mem);
 #endif
 
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(mem),
@@ -1917,8 +1907,9 @@ static void setKernelArgument(arg_value *val, swat_context *context,
 #endif
             } else {
 #ifdef VERBOSE
-                fprintf(stderr, "setKernelArgument: thread=%d index=%d "
-                        "mem=NULL\n", context->host_thread_index, index);
+                fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
+                        "mem=NULL\n", context->host_thread_index, context,
+                        index);
 #endif
                 cl_mem none = 0x0;
                 CHECK(clSetKernelArg(context->kernel, index, sizeof(none), &none));
@@ -1931,8 +1922,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
         case INT:
             const int i = val->val.i;
 #ifdef VERBOSE
-            fprintf(stderr, "setKernelArgument: thread=%d index=%d val=%d\n",
-                    context->host_thread_index, index, i);
+            fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
+                    "val=%d\n", context->host_thread_index, context, index, i);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
 #ifdef BRIDGE_DEBUG
@@ -1943,8 +1934,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
         case FLOAT:
             const float f = val->val.f;
 #ifdef VERBOSE
-            fprintf(stderr, "setKernelArgument: thread=%d index=%d val=%f\n",
-                    context->host_thread_index, index, f);
+            fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
+                    "val=%f\n", context->host_thread_index, context, index, f);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
 #ifdef BRIDGE_DEBUG
@@ -1955,8 +1946,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
         case DOUBLE:
             const double d = val->val.d;
 #ifdef VERBOSE
-            fprintf(stderr, "setKernelArgument: thread=%d index=%d val=%f\n",
-                    context->host_thread_index, index, d);
+            fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
+                    "val=%f\n", context->host_thread_index, context, index, d);
 #endif
             CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
 #ifdef BRIDGE_DEBUG
@@ -2042,15 +2033,16 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 
     if (kernel_ctx->heapStartArgnum >= 0) {
 #ifdef VERBOSE
-        fprintf(stderr, "thread %d waiting for heap on device %d\n",
-                ctx->host_thread_index, dev_ctx->device_index);
+        fprintf(stderr, "thread=%d ctx=%p waiting for heap on device %d\n",
+                ctx->host_thread_index, ctx, dev_ctx->device_index);
 #endif
         heap_ctx = acquireHeapImpl(ctx, kernel_ctx->dev_ctx,
                 kernel_ctx->heapStartArgnum);
         kernel_ctx->curr_heap_ctx = heap_ctx;
 #ifdef VERBOSE
-        fprintf(stderr, "thread %d got heap %u on device %d\n",
-                ctx->host_thread_index, heap_ctx->id, dev_ctx->device_index);
+        fprintf(stderr, "thread=%d ctx=%p got heap %u on device %d\n",
+                ctx->host_thread_index, ctx, heap_ctx->id,
+                dev_ctx->device_index);
 #endif
 
         free_index_mem = heap_ctx->free_index;
@@ -2145,42 +2137,17 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     }
 }
 
-static void release_device_heap_callback(cl_event event,
-        cl_int event_command_exec_status, void *user_data) {
-    ASSERT(event_command_exec_status == CL_COMPLETE);
-    heap_context *heap_ctx = (heap_context *)user_data;
-    device_context *dev_ctx = heap_ctx->dev_ctx;
-
-#ifdef PROFILE_LOCKS
-    const unsigned long long start = get_clock_gettime_ns();
-#endif
-    int err = pthread_mutex_lock(&dev_ctx->heap_cache_lock);
-#ifdef PROFILE_LOCKS
-    dev_ctx->heap_cache_lock_contention += (get_clock_gettime_ns() - start);
-#endif
-    ASSERT(err == 0);
-
-    heap_ctx->next = NULL;
-    if (dev_ctx->heap_cache_tail) {
-        ASSERT(dev_ctx->heap_cache_head);
-        dev_ctx->heap_cache_tail->next = heap_ctx;
-        dev_ctx->heap_cache_tail = heap_ctx;
-    } else {
-        ASSERT(dev_ctx->heap_cache_head == NULL);
-        dev_ctx->heap_cache_head = heap_ctx;
-        dev_ctx->heap_cache_tail = heap_ctx;
-    }
-#ifdef VERBOSE
-    fprintf(stderr, "releasing heap %d on device %d\n", heap_ctx->id,
-            dev_ctx->device_index);
-#endif
-
-    // err = pthread_cond_signal(&dev_ctx->heap_cache_cond);
-    // ASSERT(err == 0);
-
-    err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
-    ASSERT(err == 0);
-}
+// static void release_device_heap_callback(cl_event event,
+//         cl_int event_command_exec_status, void *user_data) {
+//     ASSERT(event_command_exec_status == CL_COMPLETE);
+//     heap_context *heap_ctx = (heap_context *)user_data;
+//     device_context *dev_ctx = heap_ctx->dev_ctx;
+// 
+// 
+// 
+//     err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
+//     ASSERT(err == 0);
+// }
 
 static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
         int index) {
@@ -2205,6 +2172,10 @@ static void finally_done_callback(cl_event event,
     ASSERT(event_command_exec_status == CL_COMPLETE);
     kernel_context *kernel_ctx = (kernel_context *)user_data;
     swat_context *ctx = kernel_ctx->ctx;
+#ifdef VERBOSE
+    fprintf(stderr, "finally_done_callback: thread=%d ctx=%p seq=%d\n",
+            ctx->host_thread_index, ctx, kernel_ctx->seq_no);
+#endif
 
 #ifdef PROFILE_OPENCL
     // Print results
@@ -2267,6 +2238,11 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
+#ifdef VERBOSE
+    fprintf(stderr, "copy_kernel_outputs: thread=%d ctx=%p seq=%d\n",
+            ctx->host_thread_index, ctx, kernel_ctx->seq_no);
+#endif
+
     const int args_len = kernel_ctx->accumulated_arguments_len;
     for (int i = 0; i < args_len; i++) {
         arg_value *curr = kernel_ctx->accumulated_arguments + i;
@@ -2312,20 +2288,32 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     heap_context *heap_ctx = (heap_context *)kernel_ctx->curr_heap_ctx;
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
+#ifdef VERBOSE
+    fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d\n",
+            ctx->host_thread_index, ctx, kernel_ctx->seq_no);
+#endif
 
     const int free_index = *(heap_ctx->pinned_h_free_index);
     const size_t available_bytes =
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
 
-    int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
-    ASSERT(perr == 0);
-    while (heap_ctx->h_heap_in_use) {
-        perr = pthread_cond_wait(&heap_ctx->h_heap_cond, &heap_ctx->h_heap_lock);
-        ASSERT(perr == 0);
-    }
-    heap_ctx->h_heap_in_use = 1;
-    perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
-    ASSERT(perr == 0);
+// #ifdef VERBOSE
+//     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d blocking on "
+//             "h_heap_cond\n", ctx->host_thread_index, ctx, kernel_ctx->seq_no);
+// #endif
+//     int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
+//     ASSERT(perr == 0);
+//     while (heap_ctx->h_heap_in_use) {
+//         perr = pthread_cond_wait(&heap_ctx->h_heap_cond, &heap_ctx->h_heap_lock);
+//         ASSERT(perr == 0);
+//     }
+//     heap_ctx->h_heap_in_use = 1;
+//     perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
+//     ASSERT(perr == 0);
+// #ifdef VERBOSE
+//     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d done blocking "
+//             "on h_heap_cond\n", ctx->host_thread_index, ctx, kernel_ctx->seq_no);
+// #endif
 
     cl_event heap_event;
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
@@ -2342,8 +2330,8 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     kernel_ctx->n_heap_ctxs = kernel_ctx->n_heap_ctxs + 1;
 
     // Release the device heap once we are finished transferring it out
-    CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
-                release_device_heap_callback, heap_ctx));
+    // CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
+    //             release_device_heap_callback, heap_ctx));
 
     fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
 
@@ -2368,9 +2356,20 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
 static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, int tid) {
     kernel_context *prev = NULL;
     kernel_context *curr = ctx->completed_kernels;
+
+#ifdef VERBOSE
+    fprintf(stderr, "find_matching_kernel_ctx: thread=%d ctx=%p looking for "
+            "seq=%d\n", tid, ctx, seq_no);
+    fprintf(stderr, "find_matching_kernel_ctx:   thread=%d ctx=%p curr=%p "
+            "curr->seq_no=%d\n", tid, ctx, curr, curr ? curr->seq_no : -1);
+#endif
     while (curr != NULL && curr->seq_no != seq_no) {
         prev = curr;
         curr = curr->next;
+#ifdef VERBOSE
+        fprintf(stderr, "find_matching_kernel_ctx:   thread=%d ctx=%p curr=%p "
+                "curr->seq_no=%d\n", tid, ctx, curr, curr ? curr->seq_no : -1);
+#endif
     }
 
     // Remove from singly linked list on success
@@ -2387,19 +2386,48 @@ static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, i
 JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
         jlong l_kernel_ctx) {
     kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
-    swat_context *ctx = (swat_context *)kernel_ctx->ctx;
+    swat_context *ctx = kernel_ctx->ctx;
+    device_context *dev_ctx = kernel_ctx->dev_ctx;
+
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
+    int err = pthread_mutex_lock(&dev_ctx->heap_cache_lock);
+#ifdef PROFILE_LOCKS
+    dev_ctx->heap_cache_lock_contention += (get_clock_gettime_ns() - start);
+#endif
+    ASSERT(err == 0);
 
     for (int i = 0; i < kernel_ctx->n_heap_ctxs; i++) {
         heap_context *heap_ctx = (kernel_ctx->heaps)[i].heap_ctx;
 
-        int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
-        ASSERT(perr == 0);
-        heap_ctx->h_heap_in_use = 0;
-        perr = pthread_cond_signal(&heap_ctx->h_heap_cond);
-        ASSERT(perr == 0);
-        perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
-        ASSERT(perr == 0);
+        heap_ctx->next = NULL;
+        if (dev_ctx->heap_cache_tail) {
+            ASSERT(dev_ctx->heap_cache_head);
+            dev_ctx->heap_cache_tail->next = heap_ctx;
+            dev_ctx->heap_cache_tail = heap_ctx;
+        } else {
+            ASSERT(dev_ctx->heap_cache_head == NULL);
+            dev_ctx->heap_cache_head = heap_ctx;
+            dev_ctx->heap_cache_tail = heap_ctx;
+        }
+#ifdef VERBOSE
+        fprintf(stderr, "releasing heap %d on device %d\n", heap_ctx->id,
+                dev_ctx->device_index);
+#endif
+
+        // int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
+        // ASSERT(perr == 0);
+        // heap_ctx->h_heap_in_use = 0;
+        // perr = pthread_cond_signal(&heap_ctx->h_heap_cond);
+        // ASSERT(perr == 0);
+        // perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
+        // ASSERT(perr == 0);
     }
+
+    err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
+    ASSERT(err == 0);
+
     free(kernel_ctx->heaps);
     free(kernel_ctx->heap_copy_back_events);
     free(kernel_ctx);
@@ -2559,8 +2587,9 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     context->run_seq_no = context->run_seq_no + 1;
 
 #ifdef VERBOSE
-    fprintf(stderr, "Thread %d finished setting up kernel context before run\n",
-            context->host_thread_index);
+    fprintf(stderr, "thread=%d ctx=%p finished setting up kernel context for "
+            "seq=%d before run\n", context->host_thread_index, context,
+            kernel_ctx->seq_no);
 #endif
 
 #ifdef PROFILE_OPENCL
@@ -2576,13 +2605,15 @@ JNI_JAVA(jlong, OpenCLBridge, run)
     // Launch the asynchronous processing of this kernel instance
     runImpl(kernel_ctx, context->last_write_event);
 #ifdef VERBOSE
-    fprintf(stderr, "Thread %d completed runImpl\n", context->host_thread_index);
+    fprintf(stderr, "thread=%d ctx=%p completed runImpl for seq=%d\n",
+            context->host_thread_index, context, kernel_ctx->seq_no);
 #endif
     context->last_write_event = NULL;
 
     bump_time(dev_ctx->allocator);
 #ifdef VERBOSE
-    fprintf(stderr, "Thread %d exiting runImpl\n", context->host_thread_index);
+    fprintf(stderr, "thread=%d ctx=%p exiting runImpl\n",
+            context->host_thread_index, context);
 #endif
 
     EXIT_TRACE("run");
@@ -2954,17 +2985,9 @@ JNI_JAVA(void, OpenCLBridge, pinnedToJVMArray)(JNIEnv *jenv, jclass clazz,
 #endif
 
     void *jvm_arr = jenv->GetPrimitiveArrayCritical((jarray)primitive_arr, NULL);
-    fprintf(stderr, "pinnedToJVMArray: thread=%d pinned\n", kernel_ctx->ctx->host_thread_index);
     ASSERT(jvm_arr);
-    fprintf(stderr, "pinnedToJVMArray: thread=%d asserted\n", kernel_ctx->ctx->host_thread_index);
     memcpy(jvm_arr, pinned, nbytes);
-    fprintf(stderr, "pinnedToJVMArray: thread=%d copied\n", kernel_ctx->ctx->host_thread_index);
     jenv->ReleasePrimitiveArrayCritical((jarray)primitive_arr, jvm_arr, 0);
-    fprintf(stderr, "pinnedToJVMArray: thread=%d released\n", kernel_ctx->ctx->host_thread_index);
-#ifdef VERBOSE
-    fprintf(stderr, "pinnedToJVMArray: thread=%d leaving\n",
-            kernel_ctx->ctx->host_thread_index);
-#endif
 }
 
 JNI_JAVA(void, OpenCLBridge, fillHeapBuffersFromKernelContext)(JNIEnv *jenv,

@@ -280,4 +280,27 @@ object RuntimeUtil {
       }
     }
   }
+
+  def getLabelForBufferCache[T, U](f : T => U, firstSample : T, N : Int) : String = {
+    var label : String = f.getClass.getName
+    if (firstSample.isInstanceOf[Tuple2[_, _]]) {
+      val sampledTuple = firstSample.asInstanceOf[Tuple2[_, _]]
+      if (sampledTuple._1.isInstanceOf[DenseVector]) {
+        label = label + "|" + sampledTuple._1.asInstanceOf[DenseVector].size
+      } else if (sampledTuple._1.isInstanceOf[SparseVector]) {
+        label = label + "|" + sampledTuple._1.asInstanceOf[SparseVector].size
+      }
+
+      if (sampledTuple._2.isInstanceOf[DenseVector]) {
+        label = label + "|" + sampledTuple._2.asInstanceOf[DenseVector].size
+      } else if (sampledTuple._2.isInstanceOf[SparseVector]) {
+        label = label + "|" + sampledTuple._2.asInstanceOf[SparseVector].size
+      }
+    } else if (firstSample.isInstanceOf[DenseVector]) {
+      label = label + "|" + firstSample.asInstanceOf[DenseVector].size
+    } else if (firstSample.isInstanceOf[SparseVector]) {
+      label = label + "|" + firstSample.asInstanceOf[SparseVector].size
+    }
+    label + "|" + N
+  }
 }

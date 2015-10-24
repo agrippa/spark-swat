@@ -58,9 +58,9 @@ typedef struct _heap_context {
 
     struct _heap_context *next;
 
-    int h_heap_in_use;
-    pthread_mutex_t h_heap_lock;
-    pthread_cond_t h_heap_cond;
+    // int h_heap_in_use;
+    // pthread_mutex_t h_heap_lock;
+    // pthread_cond_t h_heap_cond;
 } heap_context;
 
 typedef struct _device_context {
@@ -91,11 +91,11 @@ typedef struct _device_context {
     map<string, cl_program> *program_cache;
     map<broadcast_id, cl_region *> *broadcast_cache;
 
+    // List of free heaps
     heap_context *heap_cache_head;
     heap_context *heap_cache_tail;
     pthread_mutex_t heap_cache_lock;
     size_t heap_size;
-    // pthread_cond_t heap_cache_cond;
     int n_heaps;
 #ifdef PROFILE_LOCKS
     unsigned long long heap_cache_lock_contention;

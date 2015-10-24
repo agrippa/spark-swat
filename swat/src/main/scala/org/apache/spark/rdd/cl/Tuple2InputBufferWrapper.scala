@@ -186,7 +186,6 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
   override def aggregateFrom(iter : Iterator[Tuple2[K, V]]) {
     if (firstMemberSize > 0 && secondMemberSize > 0) {
       while (!buffer1.outOfSpace && !buffer2.outOfSpace && iter.hasNext) {
-        System.err.println("Thread " + Thread.currentThread.getName + " buffer1 OOS = " + buffer1.outOfSpace + " buffer2 OOS = " + buffer2.outOfSpace + " iter hasNext " + iter.hasNext)
         val obj : Tuple2[K, V] = iter.next
         buffer1.append(obj._1)
         buffer2.append(obj._2)

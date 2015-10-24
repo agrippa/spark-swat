@@ -223,13 +223,17 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
       CLMappedRDDStorage.outputBufferCache.forThread(threadId)
 
-    if (myInputBufferCache.hasAny(f.getClass.getName)) {
+    val firstSample : T = nested.next
+    val bufferKey : String = RuntimeUtil.getLabelForBufferCache(f, firstSample,
+            CLMappedRDDStorage.N)
+
+    if (myInputBufferCache.hasAny(bufferKey)) {
       assert(inputBuffer == null)
       assert(chunkedOutputBuffer == null)
 
-      inputBuffer = myInputBufferCache.get(f.getClass.getName)
+      inputBuffer = myInputBufferCache.get(bufferKey)
           .asInstanceOf[InputBufferWrapper[T]]
-      chunkedOutputBuffer = myOutputBufferCache.get(f.getClass.getName)
+      chunkedOutputBuffer = myOutputBufferCache.get(bufferKey)
           .asInstanceOf[OutputBufferWrapper[U]]
     }
 
@@ -261,7 +265,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
 //    RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
-   val firstSample : T = nested.next
    var firstBufferOp : Boolean = true
    var sampleOutput : java.lang.Object = None
 
@@ -425,10 +428,11 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
              }
            }
            firstBufferOp = false
+           System.err.println("SWAT PROF " + threadId + " Loaded " + // PROFILE
+                   nLoaded + " at offset " + totalNLoaded) // PROFILE
            totalNLoaded += nLoaded
 
 //            RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-           System.err.println("SWAT PROF " + threadId + " Loaded " + nLoaded) // PROFILE
 
            /*
             * Now that we're done loading from the input stream, fetch the next
@@ -554,7 +558,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
            buffer.releaseOpenCLArrays
          }
 
-         System.err.println("Thread " + threadId + " releasing its context " + ctx)
          OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
          OpenCLBridge.cleanupSwatContext(ctx, dev_ctx)
 
@@ -568,8 +571,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
            CLMappedRDDStorage.inputBufferCache.forThread(threadId)
          val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
            CLMappedRDDStorage.outputBufferCache.forThread(threadId)
-         myInputBufferCache.add(f.getClass.getName, inputBuffer)
-         myOutputBufferCache.add(f.getClass.getName, chunkedOutputBuffer)
+         myInputBufferCache.add(bufferKey, inputBuffer)
+         myOutputBufferCache.add(bufferKey, chunkedOutputBuffer)
          inputBuffer = null
          chunkedOutputBuffer = null
 
