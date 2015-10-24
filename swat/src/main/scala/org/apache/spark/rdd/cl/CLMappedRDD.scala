@@ -248,7 +248,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
     var totalNLoaded = 0
-    val overallStart = System.currentTimeMillis // PROFILE
+//     val overallStart = System.currentTimeMillis // PROFILE
 
     val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
             firstParent[T].id, split.index, totalNLoaded, 0)
@@ -428,8 +428,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
              }
            }
            firstBufferOp = false
-           System.err.println("SWAT PROF " + threadId + " Loaded " + // PROFILE
-                   nLoaded + " at offset " + totalNLoaded) // PROFILE
+//            System.err.println("SWAT PROF " + threadId + " Loaded " + // PROFILE
+//                    nLoaded + " at offset " + totalNLoaded) // PROFILE
            totalNLoaded += nLoaded
 
 //            RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
@@ -576,8 +576,8 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
          inputBuffer = null
          chunkedOutputBuffer = null
 
-         RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-         System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
+//          RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
+//          System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
        }
        haveNext
      }

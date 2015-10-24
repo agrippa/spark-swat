@@ -47,8 +47,8 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
   val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
   var haveOverrun : Boolean = false
 
-  var sumVectorLengths : Int = 0 // PROFILE
-  var countVectors : Int = 0 // PROFILE
+//   var sumVectorLengths : Int = 0 // PROFILE
+//   var countVectors : Int = 0 // PROFILE
 
   override def selfAllocate(dev_ctx : Long) {
     nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[DenseVectorNativeInputBuffers]
@@ -178,10 +178,10 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     buffered = leftoverVectors
     bufferPosition = leftoverElements
 
-    System.err.println("Average vector length = " + // PROFILE
-            (sumVectorLengths.toDouble / countVectors.toDouble)) // PROFILE
-    sumVectorLengths = 0 // PROFILE
-    countVectors = 0 // PROFILE
+//     System.err.println("Average vector length = " + // PROFILE
+//             (sumVectorLengths.toDouble / countVectors.toDouble)) // PROFILE
+//     sumVectorLengths = 0 // PROFILE
+//     countVectors = 0 // PROFILE
 
     // Update the current native buffers
     val oldBuffers = nativeBuffers
