@@ -49,6 +49,43 @@ class KernelDevicePair(val kernel : String, val dev_ctx : Long) {
   }
 }
 
+class PerThreadCache[K, V] {
+  val cache : java.util.HashMap[K, java.util.LinkedList[V]] =
+      new java.util.HashMap[K, java.util.LinkedList[V]]()
+
+  def hasAny(key : K) : Boolean = {
+    cache.containsKey(key) && !cache.get(key).isEmpty
+  }
+
+  def get(key : K) : V = {
+    cache.get(key).poll
+  }
+
+  def add(key : K, value : V) { 
+    if (!cache.containsKey(key)) {
+      cache.put(key, new java.util.LinkedList[V]())
+    }
+    cache.get(key).add(value)
+  }
+}
+
+class GlobalCache[K, V] {
+  val cache : java.util.Map[Integer, PerThreadCache[K, V]] =
+      new java.util.HashMap[Integer, PerThreadCache[K, V]]()
+ 
+  def forThread(threadId : Int) : PerThreadCache[K, V] = {
+    this.synchronized {
+      if (cache.containsKey(threadId)) {
+        cache.get(threadId)
+      } else {
+        val newCache = new PerThreadCache[K, V]()
+        cache.put(threadId, newCache)
+        newCache
+      }
+    }
+  }
+}
+
 /*
  * Shared by all threads within a single node across a whole job, multiple tasks
  * of multiple types from multiple threads may share the data stored here.
@@ -93,26 +130,22 @@ object CLMappedRDDStorage {
   val printKernel_str = System.getProperty("swat.print_kernel")
   val printKernel = if (printKernel_str != null) printKernel_str.toBoolean else false
 
-  val swatContextCache : java.util.Map[Integer, java.util.HashMap[KernelDevicePair, Long]] =
-        new java.util.HashMap[Integer, java.util.HashMap[KernelDevicePair, Long]]()
-  val inputBufferCache : java.util.Map[Integer, java.util.HashMap[String, InputBufferWrapper[_]]] =
-        new java.util.HashMap[Integer, java.util.HashMap[String, InputBufferWrapper[_]]]()
-  val outputBufferCache : java.util.Map[Integer, java.util.HashMap[String, OutputBufferWrapper[_]]] =
-        new java.util.HashMap[Integer, java.util.HashMap[String, OutputBufferWrapper[_]]]()
-
-  def getCacheFor[K, V](threadId : Int,
-      globalCache : java.util.Map[Integer, java.util.HashMap[K, V]]) :
-        java.util.HashMap[K, V] = {
-    globalCache.synchronized {
-      if (globalCache.containsKey(threadId)) {
-        globalCache.get(threadId)
-      } else {
-        val newCache : java.util.HashMap[K, V] = new java.util.HashMap[K, V]()
-        globalCache.put(threadId, newCache)
-        newCache
-      }
-    }
-  }
+  /*
+   * It is possible for a single thread to have two active CLMappedRDDs if they
+   * are chained together. For example, the following code:
+   *
+   *     val rdd1 = CLWrapper.cl(input)
+   *     val rdd2 = CLWrapper.cl(rdd1.map(i => i + 1))
+   *     val rdd3 = rdd2.map(i => 2 * i)
+   *
+   * produces two chained RDDs, both doing their maps on the GPU. However, these
+   * two instances cannot share input buffers, output buffers, or SWAT contexts
+   * despite being in the same thread as they may have concurrently running
+   * kernels and input buffering.
+   */
+  val swatContextCache = new GlobalCache[KernelDevicePair, Long]()
+  val inputBufferCache = new GlobalCache[String, InputBufferWrapper[_]]()
+  val outputBufferCache = new GlobalCache[String, OutputBufferWrapper[_]]()
 }
 
 /*
@@ -185,12 +218,12 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
             context.stageId + ", partition = " + context.partitionId)
     val nested = firstParent[T].iterator(split, context)
 
-    val myInputBufferCache : java.util.HashMap[String, InputBufferWrapper[_]] =
-      CLMappedRDDStorage.getCacheFor(threadId, CLMappedRDDStorage.inputBufferCache)
-    val myOutputBufferCache : java.util.HashMap[String, OutputBufferWrapper[_]] =
-      CLMappedRDDStorage.getCacheFor(threadId, CLMappedRDDStorage.outputBufferCache)
+    val myInputBufferCache : PerThreadCache[String, InputBufferWrapper[_]] =
+      CLMappedRDDStorage.inputBufferCache.forThread(threadId)
+    val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
+      CLMappedRDDStorage.outputBufferCache.forThread(threadId)
 
-    if (myInputBufferCache.containsKey(f.getClass.getName)) {
+    if (myInputBufferCache.hasAny(f.getClass.getName)) {
       assert(inputBuffer == null)
       assert(chunkedOutputBuffer == null)
 
@@ -211,7 +244,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
     var totalNLoaded = 0
-    val overallStart = System.currentTimeMillis
+    val overallStart = System.currentTimeMillis // PROFILE
 
     val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
             firstParent[T].id, split.index, totalNLoaded, 0)
@@ -249,13 +282,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
                DenseVectorInputBufferWrapperConfig.tiling,
                SparseVectorInputBufferWrapperConfig.tiling,
                entryPoint, false)
-       myInputBufferCache.put(f.getClass.getName, inputBuffer)
 
        chunkedOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
                sampleOutput.asInstanceOf[U], CLMappedRDDStorage.N,
                entryPoint, devicePointerSize, CLMappedRDDStorage.heapSize)
-       myOutputBufferCache.put(f.getClass.getName,
-               chunkedOutputBuffer.asInstanceOf[OutputBufferWrapper[_]])
      }
 
 //      RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
@@ -272,20 +302,21 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
    var heapTopArgNum : Int = -1
 
 //    val ctxCreateStart = System.currentTimeMillis // PROFILE
-   val mySwatContextCache : java.util.HashMap[KernelDevicePair, Long] =
-       CLMappedRDDStorage.getCacheFor(threadId,
-               CLMappedRDDStorage.swatContextCache)
+   val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
+       CLMappedRDDStorage.swatContextCache.forThread(threadId)
 
    val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
            f.getClass.getName, dev_ctx)
-   if (!mySwatContextCache.containsKey(kernelDeviceKey)) {
+   if (!mySwatContextCache.hasAny(kernelDeviceKey)) {
      val ctx : Long = OpenCLBridge.createSwatContext(
                f.getClass.getName, openCL, dev_ctx, threadId,
                entryPoint.requiresDoublePragma,
                entryPoint.requiresHeap, CLMappedRDDStorage.N)
-     mySwatContextCache.put(kernelDeviceKey, ctx)
+     System.err.println("Thread " + threadId + " creating context " + ctx)
+     mySwatContextCache.add(kernelDeviceKey, ctx)
    }
    val ctx : Long = mySwatContextCache.get(kernelDeviceKey)
+   System.err.println("Thread " + threadId + " grabbing and resetting context " + ctx)
    OpenCLBridge.resetSwatContext(ctx)
 
    for (i <- 0 until CLMappedRDDStorage.nNativeInputBuffers) {
@@ -341,7 +372,7 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
     */
    OpenCLBridge.setupGlobalArguments(ctx, dev_ctx) 
 
-    val iter = new Iterator[U] {
+    val iter : Iterator[U] = new Iterator[U] {
 
      /* BEGIN READER THREAD */
      var noMoreInputBuffering = false
@@ -499,7 +530,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
          currentNativeOutputBuffer = nativeOutputBuffersArray(
                  current_output_buffer_id)
 
-         //TODO and create various native output buffer classes
          chunkedOutputBuffer.fillFrom(curr_kernel_ctx, currentNativeOutputBuffer)
 
          outputBuffer = Some(chunkedOutputBuffer)
@@ -516,8 +546,6 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
        val haveNext = inputBuffer != null && (lastSeqNo == -1 ||
                curr_seq_no <= lastSeqNo || outputBuffer.get.hasNext)
        if (!haveNext && inputBuffer != null) {
-         inputBuffer = null
-         chunkedOutputBuffer = null
 
          for (buffer <- nativeInputBuffersArray) {
            buffer.releaseOpenCLArrays
@@ -526,10 +554,27 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
            buffer.releaseOpenCLArrays
          }
 
+         System.err.println("Thread " + threadId + " releasing its context " + ctx)
          OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
          OpenCLBridge.cleanupSwatContext(ctx, dev_ctx)
-//          RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-//          System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
+
+         val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
+             CLMappedRDDStorage.swatContextCache.forThread(threadId)
+         val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
+                 f.getClass.getName, dev_ctx)
+         mySwatContextCache.add(kernelDeviceKey, ctx)
+
+         val myInputBufferCache : PerThreadCache[String, InputBufferWrapper[_]] =
+           CLMappedRDDStorage.inputBufferCache.forThread(threadId)
+         val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
+           CLMappedRDDStorage.outputBufferCache.forThread(threadId)
+         myInputBufferCache.add(f.getClass.getName, inputBuffer)
+         myOutputBufferCache.add(f.getClass.getName, chunkedOutputBuffer)
+         inputBuffer = null
+         chunkedOutputBuffer = null
+
+         RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
+         System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
        }
        haveNext
      }

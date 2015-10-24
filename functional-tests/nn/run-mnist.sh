@@ -45,6 +45,13 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
+NUM_EXECUTORS=$(scontrol show hostname | wc -l)
+NUM_EXECUTORS=$(echo $NUM_EXECUTORS - 1 | bc)
+echo $NUM_EXECUTORS executors
+CORES_PER_EXECUTOR=$(cat /proc/cpuinfo | grep processor | wc -l)
+echo $CORES_PER_EXECUTOR cores per executor
+PARTITIONS=$(echo $NUM_EXECUTORS \* $CORES_PER_EXECUTOR \* 2 | bc)
+echo $PARTITIONS total partitions
 
 spark-submit --class SparkNN --jars ${SWAT_JARS} \
         --master spark://localhost:7077 --conf "$SWAT_OPTIONS" \
@@ -52,4 +59,4 @@ spark-submit --class SparkNN --jars ${SWAT_JARS} \
         run $USE_SWAT $SPARK_DATA/nn/info \
         hdfs://$(hostname):54310/mnist-converted/input \
         hdfs://$(hostname):54310/mnist-converted/correct \
-        $ITERS 3.0
+        $ITERS 3.0 $PARTITIONS

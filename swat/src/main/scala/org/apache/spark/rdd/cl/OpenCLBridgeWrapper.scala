@@ -31,10 +31,6 @@ import com.amd.aparapi.internal.model.HardCodedClassModels.DescMatcher
 import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.instruction.InstructionSet.TypeSpec
 
-import java.lang.{Integer => JavaInteger}
-import java.lang.{Float => JavaFloat}
-import java.lang.{Double => JavaDouble}
-
 class ObjectMatcher(sample : Tuple2[_, _]) extends HardCodedClassModelMatcher {
   def checkPreconditions(classModels : java.util.List[HardCodedClassModel]) {
   }
@@ -393,63 +389,17 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def setUnitializedArrayArg[U](ctx : scala.Long, dev_ctx : scala.Long,
-      argnum : Int, N : Int, clazz : java.lang.Class[_],
-      entryPoint : Entrypoint, sampleOutput : U, persistent : Boolean) : Int = {
-    if (clazz.equals(classOf[Double])) {
-      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 8 * N, persistent)) return -1
-      return 1
-    } else if (clazz.equals(classOf[Int])) {
-      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N, persistent)) return -1
-      return 1
-    } else if (clazz.equals(classOf[Float])) {
-      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, 4 * N, persistent)) return -1
-      return 1
-    } else if (clazz.equals(classOf[Tuple2[_, _]])) {
-      val sampleTuple : Tuple2[_, _] = sampleOutput.asInstanceOf[Tuple2[_, _]]
-      val matcher = new DescMatcher(Array(convertClassNameToDesc(
-          sampleTuple._1.getClass.getName), convertClassNameToDesc(
-          sampleTuple._2.getClass.getName)))
-      val c : ClassModel = entryPoint.getHardCodedClassModels.getClassModelFor(
-          "scala.Tuple2", matcher)
-      val structMembers : java.util.ArrayList[FieldNameInfo] = c.getStructMembers
-      assert(structMembers.size == 2)
-
-      val name0 = structMembers.get(0).name
-      val name1 = structMembers.get(1).name
-      assert(name0.equals("_1") || name1.equals("_1"))
-      val size0 = entryPoint.getSizeOf(structMembers.get(0).desc)
-      val size1 = entryPoint.getSizeOf(structMembers.get(1).desc)
-
-      val arrsize0 = if (name0.equals("_1")) (size0 * N) else (size1 * N)
-      val arrsize1 = if (name0.equals("_1")) (size1 * N) else (size0 * N)
-
-      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, arrsize0, persistent) ||
-          !OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum + 1, arrsize1, persistent)) {
-        return -1
-      }
-
-      return 2
-    } else {
-      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-          clazz.getName, new NameMatcher(clazz.getName))
-      val structSize : Int = c.getTotalStructSize
-      val nbytes : Int = structSize * N
-      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum, nbytes, persistent)) {
-        return -1
-      }
-      return 1
-    }
-  }
-
   def getOutputBufferFor[T : ClassTag](sampleOutput : T, N : Int,
-      entryPoint : Entrypoint, devicePointerSize : Int, heapSize : Int) : OutputBufferWrapper[T] = {
+      entryPoint : Entrypoint, devicePointerSize : Int, heapSize : Int) :
+      OutputBufferWrapper[T] = {
     val className : String = sampleOutput.getClass.getName
 
     if (className.equals("org.apache.spark.mllib.linalg.DenseVector")) {
-        new DenseVectorOutputBufferWrapper(N, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
+        new DenseVectorOutputBufferWrapper(N, devicePointerSize, heapSize)
+            .asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("org.apache.spark.mllib.linalg.SparseVector")) {
-        new SparseVectorOutputBufferWrapper(N, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
+        new SparseVectorOutputBufferWrapper(N, devicePointerSize, heapSize)
+            .asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Double")) {
         new PrimitiveOutputBufferWrapper[Double](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.equals("java.lang.Integer")) {
@@ -458,8 +408,8 @@ object OpenCLBridgeWrapper {
         new PrimitiveOutputBufferWrapper[Float](N).asInstanceOf[OutputBufferWrapper[T]]
     } else if (className.startsWith("scala.Tuple2")) {
         new Tuple2OutputBufferWrapper(
-                sampleOutput.asInstanceOf[Tuple2[_, _]], N,
-                entryPoint, devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
+                sampleOutput.asInstanceOf[Tuple2[_, _]], N, entryPoint,
+                devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
     } else {
         new ObjectOutputBufferWrapper[T](className, N,
                 entryPoint).asInstanceOf[OutputBufferWrapper[T]]
@@ -469,16 +419,4 @@ object OpenCLBridgeWrapper {
   def getBroadcastId(obj : java.lang.Object) : Long = {
     return obj.asInstanceOf[Broadcast[_]].id
   }
-
-  /*
-   * Based on StackOverflow question "How can I get the memory location of a
-   * object in java?"
-   */
-  def addressOfContainedArray(wrapper : Array[java.lang.Object],
-          baseWrapperOffset : Long, baseOffset : Long) : Long = {
-    // Get the address of arr as if it were a long field
-    val arrAddress : Long = UnsafeWrapper.getLong(wrapper, baseWrapperOffset)
-    arrAddress + baseOffset
-  }
-
 }

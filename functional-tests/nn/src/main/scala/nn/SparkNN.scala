@@ -184,10 +184,10 @@ object SparkNN {
     // Return the weights and biases of each layer?
     def run_nn(args : Array[String], useSwat : Boolean) :
           Tuple2[Array[DenseVector], Array[DenseVector]] = {
-        if (args.length != 5) {
+        if (args.length != 6) {
             System.err.println("usage: SparkNN run info-file " +
                     "training-data-path training-correct-data-path " +
-                    "niters learning-rate")
+                    "niters learning-rate target-n-partitions")
             return (new Array[DenseVector](0), new Array[DenseVector](0))
         }
         /*
@@ -219,6 +219,7 @@ object SparkNN {
         // Number of iters to train the neural net over
         val iters = args(3).toInt
         val learning_rate = args(4).toDouble
+        val target_n_partitions = args(5).toInt
 
         val sc = get_spark_context("Spark NN");
 
@@ -275,14 +276,16 @@ object SparkNN {
          * Element i in raw_y corresponds to the expected output for element i
          * in raw_inputs.
          */
-        val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath).cache
+        val raw_inputs = sc.objectFile[Tuple2[Int, DenseVector]](trainingDataPath)
 
         // no z for the input layer as its outputs are constant
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
-        activations(0) = raw_inputs
 
-        val checkSize : Array[Tuple2[Int, DenseVector]] = raw_inputs.takeSample(true, 1, 1)
+        // activations(0) = raw_inputs.coalesce(target_n_partitions, false).cache
+        activations(0) = raw_inputs.coalesce(target_n_partitions, false)
+
+        val checkSize : Array[Tuple2[Int, DenseVector]] = activations(0).takeSample(true, 1, 1)
         assert(checkSize.size == 1)
         if (checkSize(0)._2.size != layerDimensionalities(0)) {
           System.err.println("Mismatch in expected input layer size and " +
@@ -292,9 +295,10 @@ object SparkNN {
         }
 
         // Generate a fake output here
-        val n_training_datapoints = raw_inputs.count
+        val n_training_datapoints = activations(0).count
+        System.err.println("# training data points = " + n_training_datapoints)
         val outputLayerSize = layerDimensionalities(layerDimensionalities.size - 1)
-        val fake_output : RDD[Tuple2[Int, DenseVector]] = raw_inputs.map(input => {
+        val fake_output : RDD[Tuple2[Int, DenseVector]] = activations(0).map(input => {
             val rand = new java.util.Random(System.currentTimeMillis)
             val arr : Array[Double] = new Array[Double](outputLayerSize)
             for (i <- 0 until outputLayerSize) {
@@ -326,14 +330,17 @@ object SparkNN {
               //     CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
               //     else activations(l - 1)
               val activationsRdd = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1)) else activations(l - 1)
+              // activations(l) =
+              //   feedForwardOneLayer(l, activationsRdd, layerSize,
+              //           prevLayerSize, broadcastedWeights, broadcastedBiases).cache
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
-                        prevLayerSize, broadcastedWeights, broadcastedBiases).cache
+                        prevLayerSize, broadcastedWeights, broadcastedBiases)
 
               // val otherActivationsRdd = if (useSwat && layerSize > 500)
               //     CLWrapper.cl(activations(l)) else activations(l)
-              // val otherActivationsRdd = if (useSwat) CLWrapper.cl(activations(l)) else activations(l)
-              val otherActivationsRdd = activations(l)
+              val otherActivationsRdd = if (useSwat) CLWrapper.cl(activations(l)) else activations(l)
+              // val otherActivationsRdd = activations(l)
               zs(l - 1) = otherActivationsRdd.map(pair => {
                   val id : Int = pair._1
                   val datapoint : DenseVector = pair._2
@@ -428,7 +435,8 @@ object SparkNN {
               val prevLayerSize = layerDimensionalities(prevLayer)
               val nextLayerSize = layerDimensionalities(nextLayer)
 
-              delta = delta.cache
+              // delta = delta.cache
+              delta = delta
               // delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,

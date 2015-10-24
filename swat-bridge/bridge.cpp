@@ -467,6 +467,8 @@ static void createHeapContext(heap_context *context, device_context *dev_ctx,
     context->dev_ctx = dev_ctx;
     context->heap = heap;
     context->free_index = free_index;
+    context->id = dev_ctx->count_heaps;
+    dev_ctx->count_heaps = dev_ctx->count_heaps + 1;
     context->pinned_h_free_index = h_free_index;
     context->pinned_h_heap = h_heap;
 
@@ -595,10 +597,10 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                         &(tmp_device_ctxs[global_device_id].heap_cache_lock),
                         NULL);
                 ASSERT(perr == 0);
-                perr = pthread_cond_init(
-                        &(tmp_device_ctxs[global_device_id].heap_cache_cond),
-                        NULL);
-                ASSERT(perr == 0);
+                // perr = pthread_cond_init(
+                //         &(tmp_device_ctxs[global_device_id].heap_cache_cond),
+                //         NULL);
+                // ASSERT(perr == 0);
 
 #ifdef PROFILE_LOCKS
                 tmp_device_ctxs[global_device_id].broadcast_lock_contention =
@@ -610,14 +612,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 tmp_device_ctxs[global_device_id].heap_cache_blocked = 0ULL;
 #endif
 
-                // tmp_device_ctxs[global_device_id].heap_allocator =
-                //     init_allocator(curr_dev, global_device_id,
-                //             CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR,
-                //             (n_heaps_per_device + 1) * (67112960 + 4096), ctx, cmd);
                 tmp_device_ctxs[global_device_id].allocator = init_allocator(
-                        curr_dev, global_device_id, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 0,
-                        // curr_dev, global_device_id, CL_MEM_READ_WRITE, 0,
-                        ctx, cmd);
+                        curr_dev, global_device_id,
+                        CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 0, ctx, cmd);
 
                 tmp_device_ctxs[global_device_id].broadcast_cache =
                     new map<broadcast_id, cl_region *>();
@@ -626,6 +623,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 heap_context *heap_cache_head = NULL;
                 heap_context *heap_cache_tail = NULL;
 
+                tmp_device_ctxs[global_device_id].count_heaps = 0;
                 for (int h = 0; h < n_heaps_per_device; h++) {
                     heap_context *heap_ctx = (heap_context *)malloc(
                             sizeof(heap_context));
@@ -645,6 +643,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 tmp_device_ctxs[global_device_id].heap_cache_head = heap_cache_head;
                 tmp_device_ctxs[global_device_id].heap_cache_tail = heap_cache_tail;
                 tmp_device_ctxs[global_device_id].n_heaps = n_heaps_per_device;
+                tmp_device_ctxs[global_device_id].heap_size = heap_size;
 
                 global_device_id++;
 
@@ -929,10 +928,6 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
             local_completed_kernels_lock_contention);
     fprintf(stderr, "  completed_kernels_blocked                  = %llu\n",
             local_completed_kernels_blocked);
-    // fprintf(stderr, "  out_buffers_lock_contention                = %llu\n",
-    //         local_out_buffers_lock_contention);
-    // fprintf(stderr, "  out_buffers_blocked                        = %llu\n",
-    //         local_out_buffers_blocked);
     fprintf(stderr, "  broadcast_lock_contention                  = %llu\n",
             local_broadcast_lock_contention);
     fprintf(stderr, "  program_cache_lock_contention              = %llu\n",
@@ -950,50 +945,10 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     EXIT_TRACE("cleanupSwatContext");
 }
 
-// JNI_JAVA(void, OpenCLBridge, initNativeOutBuffers)(JNIEnv *jenv, jclass clazz,
-//         jint nPrealloc, jintArray bufferSizes, jintArray bufferArgIndices,
-//         jint nBuffers, jlong lctx) {
-//     swat_context *ctx = (swat_context *)lctx;
-//     ASSERT(ctx->out_buffers == NULL);
-// 
-//     ctx->out_buffers = (native_output_buffers *)malloc(nPrealloc *
-//             sizeof(native_output_buffers));
-//     ASSERT(ctx->out_buffers);
-//     ctx->out_buffers_len = nPrealloc;
-// 
-//     int *buffer_sizes = (int *)jenv->GetPrimitiveArrayCritical(bufferSizes, NULL);
-//     CHECK_JNI(buffer_sizes);
-//     int *buffer_arg_indices = (int *)jenv->GetPrimitiveArrayCritical(bufferArgIndices, NULL);
-//     CHECK_JNI(buffer_arg_indices);
-// 
-//     for (int i = 0; i < nPrealloc; i++) {
-//         native_output_buffers *curr = ctx->out_buffers + i;
-//         curr->buffers = (void **)malloc(nBuffers * sizeof(void *));
-//         CHECK_ALLOC(curr->buffers);
-//         curr->buffer_sizes = (size_t *)malloc(nBuffers * sizeof(size_t));
-//         CHECK_ALLOC(curr->buffer_sizes);
-//         curr->buffer_arg_indices = (int *)malloc(nBuffers * sizeof(int));
-//         CHECK_ALLOC(curr->buffer_arg_indices);
-// 
-//         for (int j = 0; j < nBuffers; j++) {
-//             (curr->buffers)[j] = malloc(buffer_sizes[j]);
-//             CHECK_ALLOC((curr->buffers)[j]);
-//             (curr->buffer_sizes)[j] = buffer_sizes[j];
-//             (curr->buffer_arg_indices)[j] = buffer_arg_indices[j];
-//         }
-// 
-//         curr->n_buffers = nBuffers;
-//         curr->free = 1;
-//     }
-// 
-//     jenv->ReleasePrimitiveArrayCritical(bufferSizes, buffer_sizes, JNI_ABORT);
-//     jenv->ReleasePrimitiveArrayCritical(bufferArgIndices, buffer_arg_indices,
-//             JNI_ABORT);
-// }
-
 JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
         jlong lctx) {
     swat_context *ctx = (swat_context *)lctx;
+    fprintf(stderr, "thread = %d ctx = %ld global_arguments_len=%d\n", ctx->host_thread_index, lctx, ctx->global_arguments_len);
 
     ASSERT(ctx->accumulated_arguments_len == 0);
     ASSERT(ctx->accumulated_arguments_capacity > 0);
@@ -1010,12 +965,6 @@ JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
     ctx->run_seq_no = 0;
 
     ctx->completed_kernels = NULL;
-
-    // ASSERT(ctx->out_buffers_len > 0);
-    // ASSERT(ctx->out_buffers);
-    // for (int i = 0; i < ctx->out_buffers_len; i++) {
-    //     (ctx->out_buffers)[i].free = 1;
-    // }
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
@@ -1869,6 +1818,7 @@ static heap_context *look_for_free_heap_context(device_context *dev_ctx) {
     }
 }
 
+// TODO dynamically allocate heaps?
 static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
         int heapStartArgnum) {
 #ifdef PROFILE_LOCKS
@@ -1880,12 +1830,24 @@ static heap_context *acquireHeapImpl(swat_context *ctx, device_context *dev_ctx,
 #endif
     ASSERT(err == 0);
 
-    heap_context *mine = NULL;
-    while ((mine = look_for_free_heap_context(dev_ctx)) == NULL) {
-        err = pthread_cond_wait(&dev_ctx->heap_cache_cond,
-                &dev_ctx->heap_cache_lock);
-        ASSERT(err == 0);
+    heap_context *mine = look_for_free_heap_context(dev_ctx);
+    if (mine == NULL) {
+        mine = (heap_context *)malloc(sizeof(heap_context));
+        CHECK_ALLOC(mine);
+        createHeapContext(mine, dev_ctx, dev_ctx->heap_size);
+
+        ASSERT(dev_ctx->heap_cache_head == NULL);
+        ASSERT(dev_ctx->heap_cache_tail == NULL);
+        dev_ctx->n_heaps += 1;
+        fprintf(stderr, "Had to create new heap on device %d, nheaps = %d\n", dev_ctx->device_index, dev_ctx->n_heaps);
     }
+
+    // heap_context *mine = NULL;
+    // while ((mine = look_for_free_heap_context(dev_ctx)) == NULL) {
+    //     err = pthread_cond_wait(&dev_ctx->heap_cache_cond,
+    //             &dev_ctx->heap_cache_lock);
+    //     ASSERT(err == 0);
+    // }
 
 #ifdef PROFILE_LOCKS
     dev_ctx->heap_cache_blocked += (get_clock_gettime_ns() - start);
@@ -2063,6 +2025,7 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx, cl_event prev_event)
 static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     const int free_index_arg_index = kernel_ctx->heapStartArgnum + 1;
     swat_context *ctx = kernel_ctx->ctx;
+    device_context *dev_ctx = kernel_ctx->dev_ctx;
     heap_context *heap_ctx = NULL;
     cl_region *free_index_mem = NULL;
     int *pinned_h_free_index = NULL;
@@ -2078,9 +2041,17 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     ASSERT(perr == 0);
 
     if (kernel_ctx->heapStartArgnum >= 0) {
+#ifdef VERBOSE
+        fprintf(stderr, "thread %d waiting for heap on device %d\n",
+                ctx->host_thread_index, dev_ctx->device_index);
+#endif
         heap_ctx = acquireHeapImpl(ctx, kernel_ctx->dev_ctx,
                 kernel_ctx->heapStartArgnum);
         kernel_ctx->curr_heap_ctx = heap_ctx;
+#ifdef VERBOSE
+        fprintf(stderr, "thread %d got heap %u on device %d\n",
+                ctx->host_thread_index, heap_ctx->id, dev_ctx->device_index);
+#endif
 
         free_index_mem = heap_ctx->free_index;
         pinned_h_free_index = heap_ctx->pinned_h_free_index;
@@ -2118,7 +2089,6 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #endif
         prev_event = free_index_event;
     }
-
 
     for (int a = 0; a < kernel_ctx->accumulated_arguments_len; a++) {
         arg_value *curr = kernel_ctx->accumulated_arguments + a;
@@ -2200,23 +2170,17 @@ static void release_device_heap_callback(cl_event event,
         dev_ctx->heap_cache_head = heap_ctx;
         dev_ctx->heap_cache_tail = heap_ctx;
     }
+#ifdef VERBOSE
+    fprintf(stderr, "releasing heap %d on device %d\n", heap_ctx->id,
+            dev_ctx->device_index);
+#endif
 
-    err = pthread_cond_signal(&dev_ctx->heap_cache_cond);
-    ASSERT(err == 0);
+    // err = pthread_cond_signal(&dev_ctx->heap_cache_cond);
+    // ASSERT(err == 0);
 
     err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
     ASSERT(err == 0);
 }
-
-// static native_output_buffers *look_for_free_out_buffer(swat_context *ctx) {
-//     for (int i = 0; i < ctx->out_buffers_len; i++) {
-//         if ((ctx->out_buffers)[i].free) {
-//             (ctx->out_buffers)[i].free = 0;
-//             return ctx->out_buffers + i;
-//         }
-//     }
-//     return NULL;
-// }
 
 static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
         int index) {
@@ -2594,6 +2558,11 @@ JNI_JAVA(jlong, OpenCLBridge, run)
 
     context->run_seq_no = context->run_seq_no + 1;
 
+#ifdef VERBOSE
+    fprintf(stderr, "Thread %d finished setting up kernel context before run\n",
+            context->host_thread_index);
+#endif
+
 #ifdef PROFILE_OPENCL
     kernel_ctx->acc_write_events = context->acc_write_events;
     kernel_ctx->acc_write_events_length = context->acc_write_events_length;
@@ -2606,9 +2575,15 @@ JNI_JAVA(jlong, OpenCLBridge, run)
 
     // Launch the asynchronous processing of this kernel instance
     runImpl(kernel_ctx, context->last_write_event);
+#ifdef VERBOSE
+    fprintf(stderr, "Thread %d completed runImpl\n", context->host_thread_index);
+#endif
     context->last_write_event = NULL;
 
     bump_time(dev_ctx->allocator);
+#ifdef VERBOSE
+    fprintf(stderr, "Thread %d exiting runImpl\n", context->host_thread_index);
+#endif
 
     EXIT_TRACE("run");
     return (jlong)done_flag;
@@ -2659,16 +2634,16 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
     int *vectorSizesPtr = (int *)jenv->GetPrimitiveArrayCritical(vectorSizes, NULL);
     CHECK_JNI(vectorSizesPtr);
 
-    for (int i = 0; i < nToSerialize; i++) {
-        const long offset = bufferPosition + i;
-        jobject vector = jenv->GetObjectArrayElement(vectors, i);
+    int nSerialized;
+    for (nSerialized = 0; nSerialized < nToSerialize; nSerialized++) {
+        const long offset = bufferPosition + nSerialized;
+        jobject vector = jenv->GetObjectArrayElement(vectors, nSerialized);
         CHECK_JNI(vector);
 
-        const jint vectorSize = vectorSizesPtr[i];
+        const jint vectorSize = vectorSizesPtr[nSerialized];
         const long lastElement = offset + ((vectorSize - 1) * tiling);
-        if (buffered + i >= vectorCapacity || lastElement >= bufferCapacity) {
-            EXIT_TRACE("serializeStridedDenseVectorsToNativeBuffer");
-            return i;
+        if (buffered + nSerialized >= vectorCapacity || lastElement >= bufferCapacity) {
+            break;
         }
 
         // double[] array backing the dense vector
@@ -2686,14 +2661,14 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
         jenv->ReleasePrimitiveArrayCritical(vectorArray, vectorArrayValues,
                 JNI_ABORT);
 
-        sizes[buffered + i] = vectorSize;
-        offsets[buffered + i] = offset;
+        sizes[buffered + nSerialized] = vectorSize;
+        offsets[buffered + nSerialized] = offset;
     }
 
     jenv->ReleasePrimitiveArrayCritical(vectorSizes, vectorSizesPtr, JNI_ABORT);
 
     EXIT_TRACE("serializeStridedDenseVectorsToNativeBuffer");
-    return nToSerialize;
+    return nSerialized;
 }
 
 JNI_JAVA(jint, OpenCLBridge, serializeStridedSparseVectorsToNativeBuffer)
@@ -2973,11 +2948,23 @@ JNI_JAVA(void, OpenCLBridge, pinnedToJVMArray)(JNIEnv *jenv, jclass clazz,
         jlong l_kernel_ctx, jobject primitive_arr, jlong l_pinned, jint nbytes) {
     kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
     void *pinned = (void *)l_pinned;
+#ifdef VERBOSE
+    fprintf(stderr, "pinnedToJVMArray: thread=%d pinned=%p nbytes=%d\n",
+            kernel_ctx->ctx->host_thread_index, pinned, nbytes);
+#endif
 
     void *jvm_arr = jenv->GetPrimitiveArrayCritical((jarray)primitive_arr, NULL);
+    fprintf(stderr, "pinnedToJVMArray: thread=%d pinned\n", kernel_ctx->ctx->host_thread_index);
     ASSERT(jvm_arr);
+    fprintf(stderr, "pinnedToJVMArray: thread=%d asserted\n", kernel_ctx->ctx->host_thread_index);
     memcpy(jvm_arr, pinned, nbytes);
+    fprintf(stderr, "pinnedToJVMArray: thread=%d copied\n", kernel_ctx->ctx->host_thread_index);
     jenv->ReleasePrimitiveArrayCritical((jarray)primitive_arr, jvm_arr, 0);
+    fprintf(stderr, "pinnedToJVMArray: thread=%d released\n", kernel_ctx->ctx->host_thread_index);
+#ifdef VERBOSE
+    fprintf(stderr, "pinnedToJVMArray: thread=%d leaving\n",
+            kernel_ctx->ctx->host_thread_index);
+#endif
 }
 
 JNI_JAVA(void, OpenCLBridge, fillHeapBuffersFromKernelContext)(JNIEnv *jenv,

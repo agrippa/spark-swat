@@ -21,14 +21,14 @@ import com.amd.aparapi.internal.model.Entrypoint
 
 object RuntimeUtil {
 
-//   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-//       profPrintTotal(lbl, System.currentTimeMillis - startTime, threadId) // PROFILE
-//   } // PROFILE
+  def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
+      profPrintTotal(lbl, System.currentTimeMillis - startTime, threadId) // PROFILE
+  } // PROFILE
 
-//   def profPrintTotal(lbl : String, totalTime : Long, threadId : Int) { // PROFILE
-//       System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-//           totalTime + " ms " + System.currentTimeMillis) // PROFILE
-//   } // PROFILE
+  def profPrintTotal(lbl : String, totalTime : Long, threadId : Int) { // PROFILE
+      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+          totalTime + " ms " + System.currentTimeMillis) // PROFILE
+  } // PROFILE
 
   def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
       sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],

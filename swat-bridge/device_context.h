@@ -49,6 +49,7 @@ typedef struct _heap_context {
     device_context *dev_ctx;
     cl_region *heap;
     cl_region *free_index;
+    unsigned id;
 
     void *pinned_h_heap;
     int *pinned_h_free_index;
@@ -69,6 +70,7 @@ typedef struct _device_context {
     cl_command_queue cmd;
     int device_index;
     int initialized;
+    int count_heaps;
 
     /*
      * Locked for setting args on device (for broadcast cache?) and when
@@ -84,7 +86,6 @@ typedef struct _device_context {
     unsigned long long program_cache_lock_contention;
 #endif
 
-    // cl_allocator *heap_allocator;
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;
@@ -93,7 +94,8 @@ typedef struct _device_context {
     heap_context *heap_cache_head;
     heap_context *heap_cache_tail;
     pthread_mutex_t heap_cache_lock;
-    pthread_cond_t heap_cache_cond;
+    size_t heap_size;
+    // pthread_cond_t heap_cache_cond;
     int n_heaps;
 #ifdef PROFILE_LOCKS
     unsigned long long heap_cache_lock_contention;
