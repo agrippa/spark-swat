@@ -62,6 +62,6 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
           NativeOutputBuffers[T] = {
-    new ObjectNativeOutputBuffers(N, outArgNum, dev_ctx, ctx, entryPoint)
+    new ObjectNativeOutputBuffers(N, outArgNum, dev_ctx, ctx, entryPoint).asInstanceOf[NativeOutputBuffers[T]]
   }
 }

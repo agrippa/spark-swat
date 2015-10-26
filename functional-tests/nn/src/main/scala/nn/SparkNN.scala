@@ -2,14 +2,29 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.cl._
 import Array._
 import scala.math._
 import org.apache.spark.rdd._
+import org.apache.spark.Partitioner
 import java.net._
 
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.Vectors
+
+class IntPartitioner(partitions : Int, nelements : Long) extends Partitioner {
+  val partitionSize : Long = (nelements + partitions - 1) / partitions
+
+  override def getPartition(key : Any) : Int = {
+    val intKey : Int = key.asInstanceOf[Int]
+    (intKey.toLong / partitionSize).toInt
+  }
+
+  override def numPartitions() : Int = {
+    partitions
+  }
+}
 
 object SparkNN {
     def main(args : Array[String]) {
@@ -55,11 +70,14 @@ object SparkNN {
     }
 
     def get_nabla_w(delta : RDD[Tuple2[Int, DenseVector]],
-            activation : RDD[Tuple2[Int, DenseVector]]) : RDD[Tuple2[Int, DenseVector]] = {
-      delta.join(activation).map(d_with_a => {
-        val id = d_with_a._1
-        val d : DenseVector = d_with_a._2._1
-        val a : DenseVector = d_with_a._2._2
+            activation : RDD[Tuple2[Int, DenseVector]], useSwat : Boolean) :
+            RDD[Tuple2[Int, DenseVector]] = {
+      val joined : RDD[Tuple2[Int, Tuple2[DenseVector, DenseVector]]] = delta.join(activation)
+      // val joinedCL = CLWrapper.pairCl[Int, Tuple2[DenseVector, DenseVector]](joined, useSwat)
+      joined.mapValues(d_and_a => {
+        val d = d_and_a._1
+        val a = d_and_a._2
+
         val layerSize = d.size
         val prevLayerSize = a.size
 
@@ -70,17 +88,12 @@ object SparkNN {
           new_w(i) = 0.0
           i += 1
         }
-
         i = 0
-        while (i < layerSize) {
-            var j = 0
-            while (j < prevLayerSize) {
-                new_w(i * prevLayerSize + j)  += (d(i) * a(j))
-                j += 1
-            }
+        while (i < layerSize * prevLayerSize) {
+            new_w(i) += (d(i / prevLayerSize) * a(i % prevLayerSize));
             i += 1
         }
-        (id, Vectors.dense(new_w).asInstanceOf[DenseVector])
+        Vectors.dense(new_w).asInstanceOf[DenseVector]
       })
     }
 
@@ -282,10 +295,7 @@ object SparkNN {
         val zs = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers - 1)
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
 
-        // activations(0) = raw_inputs.coalesce(target_n_partitions, false).cache
-        activations(0) = raw_inputs.coalesce(target_n_partitions, false)
-
-        val checkSize : Array[Tuple2[Int, DenseVector]] = activations(0).takeSample(true, 1, 1)
+        val checkSize : Array[Tuple2[Int, DenseVector]] = raw_inputs.takeSample(true, 1, 1)
         assert(checkSize.size == 1)
         if (checkSize(0)._2.size != layerDimensionalities(0)) {
           System.err.println("Mismatch in expected input layer size and " +
@@ -295,7 +305,13 @@ object SparkNN {
         }
 
         // Generate a fake output here
-        val n_training_datapoints = activations(0).count
+        val n_training_datapoints = raw_inputs.count
+
+        val partitioner : Partitioner = new HashPartitioner(target_n_partitions)
+
+        // activations(0) = raw_inputs.coalesce(target_n_partitions, false).cache
+        activations(0) = raw_inputs.partitionBy(partitioner)
+
         System.err.println("# training data points = " + n_training_datapoints)
         val outputLayerSize = layerDimensionalities(layerDimensionalities.size - 1)
         val fake_output : RDD[Tuple2[Int, DenseVector]] = activations(0).map(input => {
@@ -308,6 +324,7 @@ object SparkNN {
         })
         fake_output.saveAsObjectFile(correctDataPath)
         val y = sc.objectFile[Tuple2[Int, DenseVector]](correctDataPath)
+            .partitionBy(partitioner)
 
         // val testing_data = sc.objectFile[Tuple2[Int, DenseVector]](testingDataPath)
         // val testing_y = sc.objectFile[Tuple2[Int, DenseVector]](testingCorrectDataPath)
@@ -326,19 +343,12 @@ object SparkNN {
           while (l < nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
-              // val activationsRdd = if (useSwat && prevLayerSize * layerSize > 10000)
-              //     CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1))
-              //     else activations(l - 1)
               val activationsRdd = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1)) else activations(l - 1)
-              // activations(l) =
-              //   feedForwardOneLayer(l, activationsRdd, layerSize,
-              //           prevLayerSize, broadcastedWeights, broadcastedBiases).cache
+              // val activationsRdd = activations(l - 1)
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases)
 
-              // val otherActivationsRdd = if (useSwat && layerSize > 500)
-              //     CLWrapper.cl(activations(l)) else activations(l)
               val otherActivationsRdd = if (useSwat) CLWrapper.cl(activations(l)) else activations(l)
               // val otherActivationsRdd = activations(l)
               zs(l - 1) = otherActivationsRdd.map(pair => {
@@ -400,9 +410,7 @@ object SparkNN {
                   i += 1
               }
               (id, Vectors.dense(new_arr).asInstanceOf[DenseVector])
-          })
-
-
+          }).partitionBy(partitioner)
 
           // printRDD(delta, "Initial delta 2")
 
@@ -411,7 +419,7 @@ object SparkNN {
            * layer.
            */
           nabla_b(nlayers - 1) = delta
-          nabla_w(nlayers - 1) = get_nabla_w(delta, activations(nlayers - 2))
+          nabla_w(nlayers - 1) = get_nabla_w(delta, activations(nlayers - 2), useSwat)
 
           l = 2
           while (l < nlayers) {
@@ -436,8 +444,8 @@ object SparkNN {
               val nextLayerSize = layerDimensionalities(nextLayer)
 
               // delta = delta.cache
-              delta = delta
-              // delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
+              // delta = delta
+              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
 
               delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
                   broadcastedWeights)
@@ -457,38 +465,43 @@ object SparkNN {
                 (id, Vectors.dense(prevArr).asInstanceOf[DenseVector])
               })
               nabla_b(nlayers - l) = delta
-              nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer))
+              nabla_w(nlayers - l) = get_nabla_w(delta, activations(prevLayer), useSwat)
 
               l += 1
           }
 
-          /*
-           * Add all of the elements in nabla_b[:nlayers - 1] to biases and all of
-           * the elements in nabla_w[:nlayers - 1] to weights.
-           */
           for (l <- 0 until nlayers - 1) {
-            val collected_delta_b : DenseVector = reduce_sum(nabla_b(l + 1))
-            assert(collected_delta_b.size == biases(l).size)
-            val newBiases : Array[Double] = new Array[Double](biases(l).size)
-            for (i <- 0 until collected_delta_b.size) {
-              newBiases(i) = biases(l)(i) -
-                  ((learning_rate / n_training_datapoints) *
-                  collected_delta_b(i))
-            }
-            biases(l) = Vectors.dense(newBiases).asInstanceOf[DenseVector]
-
-            val collected_delta_weights : DenseVector = reduce_sum(nabla_w(l + 1))
-            assert(collected_delta_weights.size == weights(l).size,
-                    "expected " + weights(l).size + " but got " +
-                    collected_delta_weights.size)
-            val newWeights : Array[Double] = new Array[Double](weights(l).size)
-            for (i <- 0 until collected_delta_weights.size) {
-              newWeights(i) = weights(l)(i) -
-                  ((learning_rate / n_training_datapoints) *
-                  collected_delta_weights(i))
-            }
-            weights(l) = Vectors.dense(newWeights).asInstanceOf[DenseVector]
+              nabla_b(l + 1).count
+              nabla_w(l + 1).count
           }
+
+          // /*
+          //  * Add all of the elements in nabla_b[:nlayers - 1] to biases and all of
+          //  * the elements in nabla_w[:nlayers - 1] to weights.
+          //  */
+          // for (l <- 0 until nlayers - 1) {
+          //   val collected_delta_b : DenseVector = reduce_sum(nabla_b(l + 1))
+          //   assert(collected_delta_b.size == biases(l).size)
+          //   val newBiases : Array[Double] = new Array[Double](biases(l).size)
+          //   for (i <- 0 until collected_delta_b.size) {
+          //     newBiases(i) = biases(l)(i) -
+          //         ((learning_rate / n_training_datapoints) *
+          //         collected_delta_b(i))
+          //   }
+          //   biases(l) = Vectors.dense(newBiases).asInstanceOf[DenseVector]
+
+          //   val collected_delta_weights : DenseVector = reduce_sum(nabla_w(l + 1))
+          //   assert(collected_delta_weights.size == weights(l).size,
+          //           "expected " + weights(l).size + " but got " +
+          //           collected_delta_weights.size)
+          //   val newWeights : Array[Double] = new Array[Double](weights(l).size)
+          //   for (i <- 0 until collected_delta_weights.size) {
+          //     newWeights(i) = weights(l)(i) -
+          //         ((learning_rate / n_training_datapoints) *
+          //         collected_delta_weights(i))
+          //   }
+          //   weights(l) = Vectors.dense(newWeights).asInstanceOf[DenseVector]
+          // }
 
           // var testing_activations = testing_data
 
@@ -556,25 +569,20 @@ object SparkNN {
     }
 
     def convert(args : Array[String]) {
-      if (args.length != 4) {
-        // System.err.println("usage: SparkNN convert training-input " +
-        //         "training-converted training-correct-input " +
-        //         "training-correct-converted testing-input testing-converted " +
-        //         "testing-correct-input testing-correct-converted")
+      if (args.length != 2) {
         System.err.println("usage: SparkNN convert training-input " +
-                "training-converted training-correct-input " +
-                "training-correct-converted")
+                "training-converted")
         System.exit(1)
       }
       val sc = get_spark_context("Spark NN Convert");
 
       val trainingInput = args(0)
       val trainingOutput = args(1)
-      val correctInput = args(2)
-      val correctOutput = args(3)
+      // val correctInput = args(2)
+      // val correctOutput = args(3)
 
       convert_file(trainingInput, trainingOutput, sc)
-      convert_file(correctInput, correctOutput, sc)
+      // convert_file(correctInput, correctOutput, sc)
 
       // val testingInput = args(4)
       // val testingOutput = args(5)

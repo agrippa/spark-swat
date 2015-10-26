@@ -103,8 +103,8 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
     to_tile_sizes(tiled) = obj.size
     tiled += 1
 
-    sumVectorLengths += obj.size
-    countVectors += 1
+//     sumVectorLengths += obj.size // PROFILE
+//     countVectors += 1 // PROFILE
 
     if (tiled == tiling) {
         flush

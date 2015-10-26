@@ -28,24 +28,24 @@ if [[ $INPUT_EXISTS == 0 ]]; then
 #             /mnist/correct/
 
     $HADOOP_HOME/bin/hdfs dfs -rm -f -r /mnist-converted
+    $HADOOP_HOME/bin/hdfs dfs -mkdir /mnist-converted
 
-#     spark-submit --class SparkNN --master spark://localhost:7077 \
-#         --jars ${SWAT_JARS} $SCRIPT_DIR/target/nn-0.0.0.jar convert \
-#         hdfs://$(hostname):54310/mnist/input \
-#         hdfs://$(hostname):54310/mnist-converted/input \
-#         hdfs://$(hostname):54310/mnist/correct \
-#         hdfs://$(hostname):54310/mnist-converted/correct
+    spark-submit --class SparkNN --master spark://localhost:7077 \
+        --jars ${SWAT_JARS} $SCRIPT_DIR/target/nn-0.0.0.jar convert \
+        hdfs://$(hostname):54310/mnist/input \
+        hdfs://$(hostname):54310/mnist-converted/input
 fi
 
 $HADOOP_HOME/bin/hdfs dfs -rm -r -f /mnist/correct
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
-              -Dswat.input_chunking=50000 -Dswat.heap_size=62914560 \
+              -Dswat.input_chunking=2000 -Dswat.heap_size=62914560 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
-              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true"
 
-NUM_EXECUTORS=$(scontrol show hostname | wc -l)
+# NUM_EXECUTORS=$(scontrol show hostname | wc -l)
+NUM_EXECUTORS=3
 NUM_EXECUTORS=$(echo $NUM_EXECUTORS - 1 | bc)
 echo $NUM_EXECUTORS executors
 CORES_PER_EXECUTOR=$(cat /proc/cpuinfo | grep processor | wc -l)

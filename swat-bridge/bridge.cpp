@@ -1403,6 +1403,13 @@ JNI_JAVA(jobject, OpenCLBridge, getVectorValuesFromOutputBuffers)(
     const int slotOffset = slot * structSize;
     char *info = ((char *)infoBuffer) + slotOffset;
 
+#ifdef VERBOSE
+    fprintf(stderr, "getVectorValuesFromOutputBuffers: slot=%d structSize=%d "
+            "offsetOffset=%d offsetSize=%d sizeOffset=%d iterOffset=%d "
+            "isIndices=%s\n", slot, structSize, offsetOffset, offsetSize,
+            sizeOffset, iterOffset, isIndices ? "true" : "false");
+#endif
+
     int offset;
     if (offsetSize == 4) {
         offset = *((int *)(info + offsetOffset));
@@ -1412,7 +1419,13 @@ JNI_JAVA(jobject, OpenCLBridge, getVectorValuesFromOutputBuffers)(
     const int size = *((int *)(info + sizeOffset));
     const int iter = *((int *)(info + iterOffset));
 
+#ifdef VERBOSE
+    fprintf(stderr, "getVectorValuesFromOutputBuffers: offset=%d size=%d "
+            "iter=%d\n", offset, size, iter);
+#endif
+
     long *buffers = (long *)jenv->GetPrimitiveArrayCritical(heapBuffers, NULL);
+    ASSERT(buffers);
     char *heapBuffer = (char *)buffers[iter];
     jenv->ReleasePrimitiveArrayCritical(heapBuffers, buffers, JNI_ABORT);
 
@@ -2297,24 +2310,6 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     const size_t available_bytes =
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
 
-// #ifdef VERBOSE
-//     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d blocking on "
-//             "h_heap_cond\n", ctx->host_thread_index, ctx, kernel_ctx->seq_no);
-// #endif
-//     int perr = pthread_mutex_lock(&heap_ctx->h_heap_lock);
-//     ASSERT(perr == 0);
-//     while (heap_ctx->h_heap_in_use) {
-//         perr = pthread_cond_wait(&heap_ctx->h_heap_cond, &heap_ctx->h_heap_lock);
-//         ASSERT(perr == 0);
-//     }
-//     heap_ctx->h_heap_in_use = 1;
-//     perr = pthread_mutex_unlock(&heap_ctx->h_heap_lock);
-//     ASSERT(perr == 0);
-// #ifdef VERBOSE
-//     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d done blocking "
-//             "on h_heap_cond\n", ctx->host_thread_index, ctx, kernel_ctx->seq_no);
-// #endif
-
     cl_event heap_event;
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
                 0, available_bytes, heap_ctx->pinned_h_heap, 0, NULL, &heap_event));
@@ -2329,11 +2324,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     (kernel_ctx->heap_copy_back_events)[kernel_ctx->n_heap_ctxs] = heap_event;
     kernel_ctx->n_heap_ctxs = kernel_ctx->n_heap_ctxs + 1;
 
-    // Release the device heap once we are finished transferring it out
-    // CHECK(clSetEventCallback(heap_event, CL_COMPLETE,
-    //             release_device_heap_callback, heap_ctx));
-
-    fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
+    // fprintf(stderr, "free_index=%d heap_size=%u\n", free_index, heap_ctx->heap_size);
 
     if (free_index > heap_ctx->heap_size) {
         // If need kernel restart

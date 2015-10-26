@@ -7,10 +7,29 @@ import scala.reflect.runtime.universe._
 
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd._
+import org.apache.spark.Logging
 
-class CLWrapperRDD[T: ClassTag](val prev: RDD[T])
+class CLWrapperPairRDD[K : ClassTag, V : ClassTag](self : RDD[Tuple2[K, V]],
+    useSwat : Boolean) extends Logging with Serializable {
+  def mapValues[U : ClassTag](f : V => U) : RDD[Tuple2[K, U]] = {
+    if (useSwat) {
+      new CLMappedValuesRDD[K, V, U](self, self.context.clean(f))
+    } else {
+      new PairRDDFunctions(self).mapValues(f)
+    }
+  }
+
+  def map[U: ClassTag](f: Tuple2[K, V] => U) : RDD[U] = {
+    if (useSwat) {
+      new CLMappedRDD(self, self.context.clean(f))
+    } else {
+      self.map(f)
+    }
+  }
+}
+
+class CLWrapperRDD[T: ClassTag](val prev: RDD[T], val useSwat : Boolean)
     extends RDD[T](prev) {
-
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) = {
@@ -30,14 +49,22 @@ class CLWrapperRDD[T: ClassTag](val prev: RDD[T])
   }
 
   override def map[U: ClassTag](f: T => U) : RDD[U] = {
-    new CLMappedRDD(prev, sparkContext.clean(f))
+    if (useSwat) {
+      new CLMappedRDD(prev, sparkContext.clean(f))
+    } else {
+      prev.map(f)
+    }
   }
 }
 
 object CLWrapper {
-  val counter : AtomicInteger = new AtomicInteger(0)
+  def cl[T: ClassTag](rdd : RDD[T], useSwat : Boolean = true) :
+      CLWrapperRDD[T] = {
+    new CLWrapperRDD[T](rdd, useSwat)
+  }
 
-  def cl[T: ClassTag](rdd : RDD[T]) : CLWrapperRDD[T] = {
-    new CLWrapperRDD[T](rdd)
+  def pairCl[K : ClassTag, V : ClassTag](rdd : RDD[Tuple2[K, V]],
+      useSwat : Boolean = true) : CLWrapperPairRDD[K, V] = {
+    new CLWrapperPairRDD[K, V](rdd, useSwat)
   }
 }
