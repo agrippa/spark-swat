@@ -12,19 +12,21 @@ import org.apache.spark.Logging
 class CLWrapperPairRDD[K : ClassTag, V : ClassTag](self : RDD[Tuple2[K, V]],
     useSwat : Boolean) extends Logging with Serializable {
   def mapValues[U : ClassTag](f : V => U) : RDD[Tuple2[K, U]] = {
-    if (useSwat) {
-      new CLMappedValuesRDD[K, V, U](self, self.context.clean(f))
-    } else {
-      new PairRDDFunctions(self).mapValues(f)
-    }
+    new CLMappedValuesRDD[K, V, U](self, self.context.clean(f), useSwat)
+    // if (useSwat) {
+    //   new CLMappedValuesRDD[K, V, U](self, self.context.clean(f))
+    // } else {
+    //   new PairRDDFunctions(self).mapValues(f)
+    // }
   }
 
   def map[U: ClassTag](f: Tuple2[K, V] => U) : RDD[U] = {
-    if (useSwat) {
-      new CLMappedRDD(self, self.context.clean(f))
-    } else {
-      self.map(f)
-    }
+    new CLMappedRDD(self, self.context.clean(f), useSwat)
+    // if (useSwat) {
+    //   new CLMappedRDD(self, self.context.clean(f))
+    // } else {
+    //   self.map(f)
+    // }
   }
 }
 
@@ -49,11 +51,12 @@ class CLWrapperRDD[T: ClassTag](val prev: RDD[T], val useSwat : Boolean)
   }
 
   override def map[U: ClassTag](f: T => U) : RDD[U] = {
-    if (useSwat) {
-      new CLMappedRDD(prev, sparkContext.clean(f))
-    } else {
-      prev.map(f)
-    }
+    new CLMappedRDD(prev, sparkContext.clean(f), useSwat)
+    // if (useSwat) {
+    //   new CLMappedRDD(prev, sparkContext.clean(f))
+    // } else {
+    //   prev.map(f)
+    // }
   }
 }
 

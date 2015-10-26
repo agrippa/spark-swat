@@ -29,19 +29,33 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-
 /*
  * A new CLMappedRDD object is created for each partition/task being processed,
  * lifetime and accessibility of items inside an instance of these is limited to
  * one thread and one task running on that thread.
  */
-class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) extends RDD[U](prev) {
+class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
+    val useSwat : Boolean) extends RDD[U](prev) {
+
   override val partitioner = firstParent[T].partitioner
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
     val nested = firstParent[T].iterator(split, context)
+    if (useSwat) {
+      new CLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
+    } else {
+      return new Iterator[U] {
+        def next() : U = {
+          f(nested.next)
+        }
+
+        def hasNext() : Boolean = {
+          nested.hasNext
+        }
+      }
+    }
 /*
     if (threadId % 3 == 0) {
       // Every 2 threads runs on the JVM
@@ -58,6 +72,5 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U) ext
       }
     }
 */
-    new CLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
   }
 }
