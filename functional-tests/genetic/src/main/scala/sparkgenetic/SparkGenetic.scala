@@ -168,6 +168,7 @@ object SparkGenetic {
               totalNClusters += 1
             }
           }
+          System.err.println("totalNClusters = " + totalNClusters)
           populationClusters = new Array[DenseVector](totalNClusters)
           clusterMembership = new Array[Int](totalNClusters)
 
@@ -183,6 +184,7 @@ object SparkGenetic {
             candidateSizes(candidateIndex) = candidateOffsets(candidateIndex) - index
             candidateIndex += 1
           }
+          System.err.println("index = " + index + " candidateIndex = " + candidateIndex);
 
           broadcastedCandidateSizes.unpersist
           broadcastedCandidateOffsets.unpersist

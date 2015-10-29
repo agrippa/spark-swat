@@ -20,7 +20,7 @@ NINPUTS=$7
 NOUTPUTS=$8
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
-              -Dswat.input_chunking=100000 -Dswat.heap_size=83886080 \
+              -Dswat.input_chunking=70000 -Dswat.heap_size=83886080 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
