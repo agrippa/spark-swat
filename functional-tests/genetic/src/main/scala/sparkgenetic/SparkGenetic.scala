@@ -50,7 +50,7 @@ object SparkGenetic {
          * the input space
          */
         val raw_points : RDD[DenseVector] = sc.objectFile[DenseVector](input).cache
-        val points : RDD[DenseVector] = if (useSwat) CLWrapper.cl(raw_points) else raw_points
+        val points : RDD[DenseVector] =  CLWrapper.cl(raw_points, useSwat)
         val candidateSizes : Array[Int] = new Array[Int](populationSize)
         val candidateOffsets : Array[Int] = new Array[Int](populationSize)
         var totalNClusters : Int = 0

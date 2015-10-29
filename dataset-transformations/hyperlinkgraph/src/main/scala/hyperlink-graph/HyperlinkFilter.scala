@@ -8,31 +8,32 @@ import org.apache.spark.rdd._
 import java.net._
 import scala.io.Source
 
-object DocRankGenerator {
+object HyperlinkFilter {
     def main(args : Array[String]) {
-        if (args.length != 2) {
-            println("usage: DocRankGenerator input-dir output-dir")
-            return;
+        if (args.length != 3) {
+            println("usage: HyperlinkFilter input-dir output-dir percent-to-keep")
+                return
         }
 
         val inputDir = args(0)
         val outputDir = args(1)
-        val sc = get_spark_context("Doc Rank Generator");
+        val percentToKeep = args(2).toDouble
+        assert(percentToKeep >= 0.0 && percentToKeep <= 1.0)
+
+        val sc = get_spark_context("Hyperlink Filter");
 
         val input : RDD[Tuple2[Int, Int]] = sc.objectFile(inputDir)
-        val uniqueDocs : RDD[Int] = input.flatMap(p => List(p._1, p._2))
-            .distinct.cache
-        val countDocs = uniqueDocs.count
-        System.err.println("countDocs = " + countDocs)
 
-        val docInfo : RDD[Tuple2[Double, Int]] = uniqueDocs.map(doc => {
-                val rand : java.util.Random = new java.util.Random(
-                    System.currentTimeMillis)
-                val rank : Double = rand.nextDouble * 100.0
-                val nLinks : Int = 100 + (rand.nextInt(40) - 40)
-                (rank, nLinks)
-            })
-        docInfo.saveAsObjectFile(outputDir)
+        val nDocs : Long = input.flatMap(p => List(p._1, p._2)).distinct.count
+        val newNDocs : Int = (nDocs.toDouble * percentToKeep).toInt
+        System.err.println("original = " + nDocs + ", filtered = " + newNDocs)
+
+        val output : RDD[Tuple2[Int, Int]] = input.filter(link => {
+            assert(link._1 >= 0 && link._1 < nDocs)
+            assert(link._2 >= 0 && link._2 < nDocs)
+            link._1 < newNDocs && link._2 < newNDocs
+        })
+        output.saveAsObjectFile(outputDir)
         sc.stop
     }
 

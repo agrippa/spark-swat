@@ -31,7 +31,8 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
-spark-submit --class SparkConnectedComponents --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
+spark-submit --class SparkConnectedComponents --jars ${SWAT_JARS} \
+        --conf "$SWAT_OPTIONS" --conf "spark.executor.memory=37g" \
         --master spark://localhost:7077 \
         $SCRIPT_DIR/target/sparkconnectedcomponents-0.0.0.jar \
         run $USE_SWAT hdfs://$(hostname):54310/hyperlink-graph-links 39524212 $NITERS

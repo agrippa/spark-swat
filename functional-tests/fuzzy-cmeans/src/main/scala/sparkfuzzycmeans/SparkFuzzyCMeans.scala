@@ -81,8 +81,8 @@ object SparkFuzzyCMeans {
         })
         point_cluster_pairs_raw.cache
 
-        val point_cluster_pairs : RDD[Tuple2[Int, DenseVector]] =
-            if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](point_cluster_pairs_raw) else point_cluster_pairs_raw
+        val point_cluster_pairs = CLWrapper.pairCl[Int, DenseVector](
+                point_cluster_pairs_raw, useSwat)
 
         var centers : Array[DenseVector] = new Array[DenseVector](K)
         for (i <- samples.indices) {
@@ -140,9 +140,6 @@ object SparkFuzzyCMeans {
                   }
                   (center_id, Vectors.dense(output_arr).asInstanceOf[DenseVector])
                 })
-            val membershipCount = memberships.count
-            System.err.println("membershipCount = " + membershipCount)
-            System.exit(1)
 
             /*
              * Sum the contributions of all points for all centers.

@@ -944,7 +944,6 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
 JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
         jlong lctx) {
     swat_context *ctx = (swat_context *)lctx;
-    fprintf(stderr, "thread = %d ctx = %ld global_arguments_len=%d\n", ctx->host_thread_index, lctx, ctx->global_arguments_len);
 
     ASSERT(ctx->accumulated_arguments_len == 0);
     ASSERT(ctx->accumulated_arguments_capacity > 0);

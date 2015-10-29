@@ -16,18 +16,18 @@ NOUTPUTS=$4
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $SCRIPT_DIR/../common.sh
 
-INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep hyperlink-graph-links | wc -l)
+INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep hyperlink-links-filtered | wc -l)
 if [[ $INPUT_EXISTS != 1 ]]; then
-    ${HADOOP_HOME}/bin/hdfs dfs -mkdir /hyperlink-graph-links
+    ${HADOOP_HOME}/bin/hdfs dfs -mkdir /hyperlink-links-filtered
     ${HADOOP_HOME}/bin/hdfs dfs -put \
-        $SPARK_DATASETS/hyperlinkgraph/1.normalized/part* /hyperlink-graph-links
+        $SPARK_DATASETS/hyperlinkgraph/3.renormalize/part* /hyperlink-links-filtered
 fi
 
-INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep hyperlink-docs | wc -l)
+INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep docs-filtered | wc -l)
 if [[ $INPUT_EXISTS != 1 ]]; then
-    ${HADOOP_HOME}/bin/hdfs dfs -mkdir /hyperlink-docs
+    ${HADOOP_HOME}/bin/hdfs dfs -mkdir /docs-filtered
     ${HADOOP_HOME}/bin/hdfs dfs -put \
-        $SPARK_DATASETS/hyperlinkgraph/2.doc-ranks/part* /hyperlink-docs
+        $SPARK_DATASETS/hyperlinkgraph/3.docranks_again/part* /docs-filtered
 fi
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
@@ -37,6 +37,7 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
 spark-submit --class SparkPageRank --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
+        --conf "spark.executor.memory=30g" \
         --master spark://localhost:7077 $SCRIPT_DIR/target/sparkpagerank-0.0.0.jar \
-        run $ITERS hdfs://$(hostname):54310/hyperlink-graph-links \
-        hdfs://$(hostname):54310/hyperlink-docs $USE_SWAT
+        run $ITERS hdfs://$(hostname):54310/hyperlink-links-filtered \
+        hdfs://$(hostname):54310/docs-filtered $USE_SWAT

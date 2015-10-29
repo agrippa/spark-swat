@@ -8,10 +8,10 @@ import org.apache.spark.rdd._
 import java.net._
 import scala.io.Source
 
-object HyperlinkGraphNormalizer {
+object HyperlinkRenormalizer {
     def main(args : Array[String]) {
         if (args.length != 2) {
-            println("usage: HyperlinkGraph input-dir output-dir")
+            println("usage: HyperlinkRenormalizer input-dir output-dir")
             return;
         }
 
@@ -20,12 +20,8 @@ object HyperlinkGraphNormalizer {
 
         val sc = get_spark_context("Hyperlink Graph Normalizer");
 
-        val input : RDD[String] = sc.textFile(inputDir)
-        val converted : RDD[Tuple2[Int, Int]] = input.map(line => {
-            val tokens : Array[String] = line.split("\t")
-            (tokens(0).toInt, tokens(1).toInt)
-        })
-        val unique : RDD[Int] = converted.flatMap(p => List(p._1, p._2)).distinct()
+        val input : RDD[Tuple2[Int, Int]] = sc.objectFile(inputDir)
+        val unique : RDD[Int] = input.flatMap(p => List(p._1, p._2)).distinct()
         val pairedWithId : RDD[Tuple2[Int, Long]] = unique.zipWithIndex()
 
         val idArray : Array[Tuple2[Int, Long]] = pairedWithId.collect
@@ -39,7 +35,7 @@ object HyperlinkGraphNormalizer {
 
         val idMapBroadcasted = sc.broadcast(idMap)
 
-        val normalized : RDD[Tuple2[Int, Int]] = converted.map(pair => {
+        val normalized : RDD[Tuple2[Int, Int]] = input.map(pair => {
             (idMapBroadcasted.value.get(pair._1), idMapBroadcasted.value.get(pair._2))
         })
         normalized.saveAsObjectFile(outputDir)

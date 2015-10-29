@@ -293,11 +293,9 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
               f.getClass.getName, openCL, dev_ctx, threadId,
               entryPoint.requiresDoublePragma,
               entryPoint.requiresHeap, CLConfig.N)
-    System.err.println("Thread " + threadId + " creating context " + ctx)
     mySwatContextCache.add(kernelDeviceKey, ctx)
   }
   val ctx : Long = mySwatContextCache.get(kernelDeviceKey)
-  System.err.println("Thread " + threadId + " grabbing and resetting context " + ctx)
   OpenCLBridge.resetSwatContext(ctx)
 
   for (i <- 0 until CLConfig.nNativeInputBuffers) {
