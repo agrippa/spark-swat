@@ -2,8 +2,8 @@
 
 set -e
 
-SPARK_LOG_FILE=$SWAT_HOME/logs/pagerank/spark
-SWAT_LOG_FILE=$SWAT_HOME/logs/pagerank/swat
+SPARK_LOG_FILE=$SWAT_HOME/logs/overall/pagerank/spark
+SWAT_LOG_FILE=$SWAT_HOME/logs/overall/pagerank/swat
 
 echo "" > $SPARK_LOG_FILE
 echo "" > $SWAT_LOG_FILE

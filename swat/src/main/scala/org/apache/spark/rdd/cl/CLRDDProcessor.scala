@@ -191,7 +191,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   val emptiedNativeOutputBuffers : java.util.LinkedList[NativeOutputBuffers[U]] =
           new java.util.LinkedList[NativeOutputBuffers[U]]()
 
-  System.err.println("Thread=" + threadId + " N = " + CLConfig.N +
+  System.err.println("Thread = " + threadId + " N = " + CLConfig.N +
           ", cl_local_size = " + CLConfig.cl_local_size +
           ", spark_cores = " + CLConfig.spark_cores + ", stage = " +
           context.stageId + ", partition = " + context.partitionId)

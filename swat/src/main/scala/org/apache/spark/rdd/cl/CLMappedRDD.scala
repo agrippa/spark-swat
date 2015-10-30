@@ -46,6 +46,10 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
     if (useSwat) {
       new CLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
     } else {
+      val threadId : Int = RuntimeUtil.getThreadID
+      System.err.println("Thread = " + threadId + " running stage = " +
+              context.stageId + ", partition = " + context.partitionId +
+              " on JVM")
       return new Iterator[U] {
         def next() : U = {
           f(nested.next)

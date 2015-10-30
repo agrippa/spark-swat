@@ -1,7 +1,7 @@
 include ${SWAT_HOME}/build.conf
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE -DPROFILE_OPENCL
-DEFINES=-DPROFILE_LOCKS -DPROFILE_OPENCL
+DEFINES=
 GXX_FLAGS=-O3 -Wall
 # GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all -g -rdynamic
 

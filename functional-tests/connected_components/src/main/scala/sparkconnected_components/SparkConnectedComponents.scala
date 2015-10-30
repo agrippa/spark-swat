@@ -65,14 +65,14 @@ object SparkConnectedComponents {
         val inputLinksPath = args(0);
 
         val raw_edges : RDD[Tuple2[Int, Int]] = sc.objectFile[Tuple2[Int, Int]](inputLinksPath).cache
-        val edges = if (useSwat) CLWrapper.cl[(Int, Int)](raw_edges) else raw_edges
+        val edges = CLWrapper.pairCl[Int, Int](raw_edges, useSwat)
 
         var nNodes : Long = -1
         if (args.length > 1) {
             nNodes = args(1).toLong
         } else {
             val countStart = System.currentTimeMillis
-            nNodes = edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
+            nNodes = raw_edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
             val countElapsed = System.currentTimeMillis - countStart
             System.err.println("nNodes=" + nNodes + ", " + countElapsed +
                     " ms to count")
