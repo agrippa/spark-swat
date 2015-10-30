@@ -2149,18 +2149,6 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     }
 }
 
-// static void release_device_heap_callback(cl_event event,
-//         cl_int event_command_exec_status, void *user_data) {
-//     ASSERT(event_command_exec_status == CL_COMPLETE);
-//     heap_context *heap_ctx = (heap_context *)user_data;
-//     device_context *dev_ctx = heap_ctx->dev_ctx;
-// 
-// 
-// 
-//     err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
-//     ASSERT(err == 0);
-// }
-
 static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
         int index) {
     const int args_len = kernel_ctx->accumulated_arguments_len;
@@ -2191,8 +2179,9 @@ static void finally_done_callback(cl_event event,
 
 #ifdef PROFILE_OPENCL
     // Print results
-    fprintf(stderr, "OpenCL PROFILING RESULTS, host thread=%d device=%d\n",
-            ctx->host_thread_index, kernel_ctx->dev_ctx->device_index);
+    fprintf(stderr, "OpenCL PROFILING RESULTS, host thread = %d device = %d "
+            "seq = %d\n", ctx->host_thread_index,
+            kernel_ctx->dev_ctx->device_index, kernel_ctx->seq_no);
     for (int i = 0; i < kernel_ctx->acc_write_events_length; i++) {
         cl_ulong queued, submitted, started, finished;
         CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,

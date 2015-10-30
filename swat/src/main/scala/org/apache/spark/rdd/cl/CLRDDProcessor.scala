@@ -357,7 +357,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
               initiallyEmptyNativeInputBuffers.remove)
 
       while (!done) {
-//         val ioStart = System.currentTimeMillis // PROFILE
+        val ioStart = System.currentTimeMillis // PROFILE
         inputBuffer.reset
 
         val myOffset : Int = totalNLoaded
@@ -402,7 +402,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
 //                 nLoaded + " at offset " + totalNLoaded) // PROFILE
         totalNLoaded += nLoaded
 
-//         RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
+        RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
 
         /*
          * Now that we're done loading from the input stream, fetch the next
@@ -468,6 +468,9 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
           inputBuffer.setCurrentNativeBuffers(null)
         }
 
+        System.err.println("SWAT PROF " + threadId + " Kernel launch @ " + // PROFILE
+            System.currentTimeMillis + " for seq = " + currSeqNo) // PROFILE
+
         val doneFlag : Long = OpenCLBridge.run(ctx, dev_ctx, nLoaded,
                 CLConfig.cl_local_size, lastArgIndex + 1,
                 heapArgStart, CLConfig.heapsPerDevice,
@@ -488,6 +491,8 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   override def next() : U = {
     if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
       if (curr_kernel_ctx > 0L) {
+        System.err.println("SWAT PROF " + threadId + " Finished writing seq = " + // PROFILE
+                (curr_seq_no - 1) + " @ " + System.currentTimeMillis) // PROFILE
         assert(currentNativeOutputBuffer != null)
         OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
         emptiedNativeOutputBuffers.synchronized {
@@ -497,6 +502,8 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       }
       curr_kernel_ctx = OpenCLBridge.waitForFinishedKernel(ctx, dev_ctx,
               curr_seq_no)
+      System.err.println("SWAT PROF " + threadId + " Started writing seq = " + // PROFILE
+              curr_seq_no + " @ " + System.currentTimeMillis) // PROFILE
       curr_seq_no += 1
 
       val current_output_buffer_id =
@@ -520,6 +527,9 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     val haveNext = inputBuffer != null && (lastSeqNo == -1 ||
             curr_seq_no <= lastSeqNo || outputBuffer.get.hasNext)
     if (!haveNext && inputBuffer != null) {
+
+      System.err.println("SWAT PROF " + threadId + " Finished writing seq = " + // PROFILE
+              (curr_seq_no - 1) + " @ " + System.currentTimeMillis) // PROFILE
 
       for (buffer <- nativeInputBuffersArray) {
         buffer.releaseOpenCLArrays
