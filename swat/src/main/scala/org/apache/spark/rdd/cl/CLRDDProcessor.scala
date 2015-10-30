@@ -539,7 +539,8 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       }
 
       OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
-      OpenCLBridge.cleanupSwatContext(ctx, dev_ctx)
+      OpenCLBridge.cleanupSwatContext(ctx, dev_ctx, context.stageId,
+              context.partitionId)
 
       val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
           CLConfig.swatContextCache.forThread(threadId)

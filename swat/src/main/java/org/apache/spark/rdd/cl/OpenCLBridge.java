@@ -25,7 +25,8 @@ public class OpenCLBridge {
             int[] bufferSizes, int[]  bufferArgIndices, int nBuffers, long ctx);
     public static native void cleanupKernelContext(long kernel_ctx);
     public static native void resetSwatContext(long ctx);
-    public static native void cleanupSwatContext(long ctx, long dev_ctx);
+    public static native void cleanupSwatContext(long ctx, long dev_ctx,
+            int partition);
     public static native long getActualDeviceContext(int device_index,
             int heaps_per_device, int heap_size,
             double perc_high_performance_buffers, boolean createCpuContexts);

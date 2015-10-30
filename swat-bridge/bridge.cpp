@@ -797,7 +797,8 @@ JNI_JAVA(jlong, OpenCLBridge, getActualDeviceContext)
  * none will be accessible again.
  */
 JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
-        (JNIEnv *jenv, jclass clazz, jlong l_ctx, jlong l_dev_ctx) {
+        (JNIEnv *jenv, jclass clazz, jlong l_ctx, jlong l_dev_ctx, jint stage,
+         jint partition) {
     ENTER_TRACE("cleanupSwatContext");
     swat_context *ctx = (swat_context *)l_ctx;
     device_context *dev_ctx = (device_context *)l_dev_ctx;
@@ -908,8 +909,9 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
 
     local_allocator_contention = get_contention(dev_ctx->allocator);
 
-    fprintf(stderr, "LOCK SUMMARY, device = %d, host thread = %d\n",
-            dev_ctx->device_index, ctx->host_thread_index);
+    fprintf(stderr, "LOCK SUMMARY, device = %d , host thread = %d , stage = %d "
+            ", partition = %d\n", dev_ctx->device_index, ctx->host_thread_index,
+            stage, partition);
     fprintf(stderr, " %d : device_ctxs_lock_contention                = %llu\n",
             ctx->host_thread_index, local_device_ctxs_lock_contention);
     fprintf(stderr, " %d : rdd_cache_lock_contention                  = %llu\n",
