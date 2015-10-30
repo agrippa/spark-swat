@@ -111,13 +111,6 @@ object SparkKMeans {
                 (closest_center,
                  Vectors.dense(copyOfClosest).asInstanceOf[DenseVector])
             })
-            val dummy = classified.count
-            System.err.println("classified count = " + dummy)
-            val iterEndTime = System.currentTimeMillis
-            System.err.println("iteration " + (iter + 1) + " : " +
-                    (iterEndTime - iterStartTime) + " ms")
-
-            System.exit(1)
 
             val counts = classified.countByKey()
             for (c <- counts) {
@@ -154,7 +147,7 @@ object SparkKMeans {
                 centers(iter._1) = iter._2
             }
 
-            // val iterEndTime = System.currentTimeMillis
+            val iterEndTime = System.currentTimeMillis
 
             System.err.println("iteration " + (iter + 1) + " : " +
                     (iterEndTime - iterStartTime) + " ms")

@@ -2323,7 +2323,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     (kernel_ctx->heap_copy_back_events)[kernel_ctx->n_heap_ctxs] = heap_event;
     kernel_ctx->n_heap_ctxs = kernel_ctx->n_heap_ctxs + 1;
 
-    fprintf(stderr, "free_index=%d heap_size=%u diff=%d\n", free_index, heap_ctx->heap_size, heap_ctx->heap_size - free_index);
+    // fprintf(stderr, "free_index=%d heap_size=%u diff=%d\n", free_index, heap_ctx->heap_size, heap_ctx->heap_size - free_index);
 
     if (free_index > heap_ctx->heap_size) {
         // If need kernel restart
