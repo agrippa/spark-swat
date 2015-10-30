@@ -1251,13 +1251,13 @@ unsigned long long get_contention(cl_allocator *allocator) {
 #endif
 
 #ifdef PROFILE
-void print_clalloc_profile() {
-    fprintf(stderr, "clalloc profile: init - %llu ns | alloc - %llu ns | "
+void print_clalloc_profile(int thread) {
+    fprintf(stderr, "%d : clalloc profile: init - %llu ns | alloc - %llu ns | "
             "realloc - %llu ns | free - %llu ns\n", acc_init_time,
             acc_alloc_time, acc_realloc_time, acc_free_time);
 }
 #else
-void print_clalloc_profile() {
+void print_clalloc_profile(int thread) {
     fprintf(stderr, "ERROR: print_profile : clalloc not compiled with profile "
             "information (-DPROFILE)\n");
     exit(1);

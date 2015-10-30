@@ -908,34 +908,34 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
 
     local_allocator_contention = get_contention(dev_ctx->allocator);
 
-    fprintf(stderr, "LOCK SUMMARY, device=%d, host thread=%d\n",
+    fprintf(stderr, "LOCK SUMMARY, device = %d, host thread = %d\n",
             dev_ctx->device_index, ctx->host_thread_index);
-    fprintf(stderr, "  device_ctxs_lock_contention                = %llu\n",
-            local_device_ctxs_lock_contention);
-    fprintf(stderr, "  rdd_cache_lock_contention                  = %llu\n",
-            total_rdd_cache_contention);
-    fprintf(stderr, "  kernel_lock_contention                     = %llu\n",
-            local_kernel_lock_contention);
-    fprintf(stderr, "  freed_native_input_buffers_lock_contention = %llu\n",
-            local_freed_native_input_buffers_lock_contention);
-    fprintf(stderr, "  freed_native_input_buffers_blocked         = %llu\n",
-            local_freed_native_input_buffers_blocked);
-    fprintf(stderr, "  completed_kernels_lock_contention          = %llu\n",
-            local_completed_kernels_lock_contention);
-    fprintf(stderr, "  completed_kernels_blocked                  = %llu\n",
-            local_completed_kernels_blocked);
-    fprintf(stderr, "  broadcast_lock_contention                  = %llu\n",
-            local_broadcast_lock_contention);
-    fprintf(stderr, "  program_cache_lock_contention              = %llu\n",
-            local_program_cache_lock_contention);
-    fprintf(stderr, "  heap_cache_lock_contention                 = %llu\n",
-            local_heap_cache_lock_contention);
-    fprintf(stderr, "  heap_cache_blocked                         = %llu\n",
-            local_heap_cache_blocked);
-    fprintf(stderr, "  nloaded_cache_lock_contention              = %llu\n",
-            local_nloaded_cache_lock_contention);
-    fprintf(stderr, "  allocator_contention                       = %llu\n",
-            local_allocator_contention);
+    fprintf(stderr, " %d : device_ctxs_lock_contention                = %llu\n",
+            ctx->host_thread_index, local_device_ctxs_lock_contention);
+    fprintf(stderr, " %d : rdd_cache_lock_contention                  = %llu\n",
+            ctx->host_thread_index, total_rdd_cache_contention);
+    fprintf(stderr, " %d : kernel_lock_contention                     = %llu\n",
+            ctx->host_thread_index, local_kernel_lock_contention);
+    fprintf(stderr, " %d : freed_native_input_buffers_lock_contention = %llu\n",
+            ctx->host_thread_index, local_freed_native_input_buffers_lock_contention);
+    fprintf(stderr, " %d : freed_native_input_buffers_blocked         = %llu\n",
+            ctx->host_thread_index, local_freed_native_input_buffers_blocked);
+    fprintf(stderr, " %d : completed_kernels_lock_contention          = %llu\n",
+            ctx->host_thread_index, local_completed_kernels_lock_contention);
+    fprintf(stderr, " %d : completed_kernels_blocked                  = %llu\n",
+            ctx->host_thread_index, local_completed_kernels_blocked);
+    fprintf(stderr, " %d : broadcast_lock_contention                  = %llu\n",
+            ctx->host_thread_index, local_broadcast_lock_contention);
+    fprintf(stderr, " %d : program_cache_lock_contention              = %llu\n",
+            ctx->host_thread_index, local_program_cache_lock_contention);
+    fprintf(stderr, " %d : heap_cache_lock_contention                 = %llu\n",
+            ctx->host_thread_index, local_heap_cache_lock_contention);
+    fprintf(stderr, " %d : heap_cache_blocked                         = %llu\n",
+            ctx->host_thread_index, local_heap_cache_blocked);
+    fprintf(stderr, " %d : nloaded_cache_lock_contention              = %llu\n",
+            ctx->host_thread_index, local_nloaded_cache_lock_contention);
+    fprintf(stderr, " %d : allocator_contention                       = %llu\n",
+            ctx->host_thread_index, local_allocator_contention);
 
 #endif
     EXIT_TRACE("cleanupSwatContext");
@@ -2195,9 +2195,11 @@ static void finally_done_callback(cl_event event,
         CHECK(clGetEventProfilingInfo((kernel_ctx->acc_write_events)[i].event,
                     CL_PROFILING_COMMAND_END, sizeof(finished), &finished,
                     NULL));
-        fprintf(stderr, "  %d: %s : %lu ns total (started = %llu, queued -> submitted %lu ns, "
-                "submitted -> started %lu ns, started -> finished %lu ns)\n",
-                i, (kernel_ctx->acc_write_events)[i].label, finished - queued,
+        fprintf(stderr, "  thread %d : seq %d : %d : %s : %lu ns total "
+                "(started = %llu, queued -> submitted %lu ns, submitted -> "
+                "started %lu ns, started -> finished %lu ns)\n",
+                ctx->host_thread_index, kernel_ctx->seq_no, i,
+                (kernel_ctx->acc_write_events)[i].label, finished - queued,
                 (kernel_ctx->acc_write_events)[i].timestamp - app_start_time,
                 submitted - queued, started - submitted, finished - started);
         free((kernel_ctx->acc_write_events)[i].label);
