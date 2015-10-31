@@ -114,8 +114,8 @@ object SparkNN {
         })._2
     }
 
-    def feedBackward(delta : RDD[Tuple2[Int, DenseVector]], layerSize : Int,
-        nextLayerSize : Int, nextLayer : Int,
+    def feedBackward(delta : CLWrapperPairRDD[Int, DenseVector],
+        layerSize : Int, nextLayerSize : Int, nextLayer : Int,
         broadcastedWeights : Broadcast[Array[DenseVector]]) :
         RDD[Tuple2[Int, DenseVector]] = {
       delta.map(pair => {
@@ -143,7 +143,7 @@ object SparkNN {
     }
 
     def feedForwardOneLayer(targetLayer : Int,
-            srcLayer : RDD[Tuple2[Int, DenseVector]], targetLayerSize : Int,
+            srcLayer : CLWrapperPairRDD[Int, DenseVector], targetLayerSize : Int,
             prevLayerSize : Int,
             broadcastedWeights : Broadcast[Array[DenseVector]],
             broadcastedBiases : Broadcast[Array[DenseVector]]) :
@@ -343,13 +343,13 @@ object SparkNN {
           while (l < nlayers) {
               val prevLayerSize = layerDimensionalities(l - 1)
               val layerSize = layerDimensionalities(l)
-              val activationsRdd = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](activations(l - 1)) else activations(l - 1)
+              val activationsRdd = CLWrapper.pairCl[Int, DenseVector](activations(l - 1), useSwat)
               // val activationsRdd = activations(l - 1)
               activations(l) =
                 feedForwardOneLayer(l, activationsRdd, layerSize,
                         prevLayerSize, broadcastedWeights, broadcastedBiases)
 
-              val otherActivationsRdd = if (useSwat) CLWrapper.cl(activations(l)) else activations(l)
+              val otherActivationsRdd = CLWrapper.pairCl(activations(l), useSwat)
               // val otherActivationsRdd = activations(l)
               zs(l - 1) = otherActivationsRdd.map(pair => {
                   val id : Int = pair._1
@@ -443,12 +443,9 @@ object SparkNN {
               val prevLayerSize = layerDimensionalities(prevLayer)
               val nextLayerSize = layerDimensionalities(nextLayer)
 
-              // delta = delta.cache
-              // delta = delta
-              delta = if (useSwat) CLWrapper.cl[Tuple2[Int, DenseVector]](delta) else delta
-
-              delta = feedBackward(delta, layerSize, nextLayerSize, nextLayer,
-                  broadcastedWeights)
+              delta = feedBackward(
+                  CLWrapper.pairCl[Int, DenseVector](delta, useSwat), layerSize,
+                  nextLayerSize, nextLayer, broadcastedWeights)
               .join(zs(currLayer - 1))
               .map(joined => {
                 val id = joined._1

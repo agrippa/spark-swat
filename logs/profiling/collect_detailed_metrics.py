@@ -37,38 +37,80 @@ class LockInfo:
 
 
 class KernelInfo:
-    def __init__(self, thread, seq, input_time):
+    def __init__(self, thread, seq):
         self.thread = thread
         self.seq = seq
-        self.input_time = input_time
+
+        self.input_start = -1
+        self.input_elapsed = -1
+
+        self.output_start = -1
+        self.output_elapsed = -1
+
         self.kernel_start_time = -1
         self.opencl_events = {}
 
+    def set_input_time(self, start, elapsed):
+        assert self.input_start == -1
+        self.input_start = start
+        self.input_elapsed = elapsed
+
+    def set_output_start(self, start):
+        assert self.output_start == -1
+        self.output_start = start
+
+    def set_output_elapsed(self, end):
+        assert self.output_start != -1 and self.output_elapsed == -1
+        self.output_elapsed = end - self.output_start
+
     def set_kernel_start_time(self, s):
+        assert self.kernel_start_time == -1
         self.kernel_start_time = s
 
     def add_opencl_event(self, thread, seq, index, lbl, total_ns):
         assert self.thread == thread
-        assert self.seq == seq
+        assert self.seq == seq, 'expected ' + str(self.seq) + ' but got ' + str(seq)
         event = OpenCLEvent(index, lbl, total_ns)
         assert index not in self.opencl_events.keys()
         self.opencl_events[index] = event
 
     def complete(self):
+        nevents = len(self.opencl_events)
+        for i in range(nevents):
+            if i not in self.opencl_events.keys():
+                return False
         return self.thread >= 0 and self.seq >= 0 and \
-               self.kernel_start_time != -1
+               self.input_start >= 0 and self.input_elapsed >= 0 and \
+               self.output_start >= 0 and self.output_elapsed >= 0 and \
+               self.kernel_start_time >= 0
 
 
-per_thread_lock_info = {}
+class ThreadKernelInfo:
+    def __init__(self, thread):
+        self.thread = thread
+        self.kernels = {} # map from seq to kernel info
+        self.lock_info = LockInfo(thread)
+
+    def get_kernel_info(self, seq):
+        if not seq is in self.kernels.keys():
+            self.kernels[seq] = KernelInfo(self.thread, seq)
+        return self.kernels[seq]
+
+    def get_lock_info(self):
+        return self.lock_info
+
+
 per_thread_total_time = {}
-per_thread_completed_kernels = {}
-per_thread_kernel = {}
+per_thread_info = {}
 per_thread_seq = {}
 
+def get_thread_info(thread):
+    if thread not in per_thread_info.keys():
+        per_thread_info[thread] = ThreadKernelInfo(thread)
+    return per_thread_info[thread]
+
 def get_lock_info_for_thread(thread):
-    if thread not in per_thread_lock_info.keys():
-        per_thread_lock_info[thread] = LockInfo(thread)
-    return per_thread_lock_info[thread]
+    return get_thread_info(thread).get_lock_info()
 
 def add_total_time(thread, t):
     if thread not in per_thread_total_time:
@@ -103,18 +145,21 @@ for line in fp:
 
         if event == 'Input-I/O':
             curr_seq = incr_and_get_seq(thread)
-            input_time = int(tokens[5])
+            input_start = int(tokens[6])
+            input_elapsed = int(tokens[4])
 
-            kernel_info = KernelInfo(thread, curr_seq, input_time)
-            if thread in per_thread_kernel:
-                assert per_thread_kernel[thread].complete()
-                add_completed_kernel(per_thread_kernel[thread])
+            thread_info = get_thread_info(thread)
+            kernel_info = thread_info.get_kernel_info(curr_seq)
 
-            per_thread_kernel[thread] = kernel_info
+            kernel_info.set_input_time(input_start, input_elapsed)
         elif event == 'Total':
             add_total_time(thread, int(tokens[4]))
         elif event == 'Kernel' and tokens[4] == 'launch':
-            per_thread_kernel[thread].set_kernel_start_time(int(tokens[6]))
+            seq = int(tokens[10])
+            thread_info = get_thread_info(thread)
+            kernel_info = thread_info.get_kernel_info(seq)
+            start_time = int(tokens[6])
+            kernel_info.set_kernel_start_time(start_time)
     elif 'queued -> submitted' in line:
         tokens = line.split()
         thread = int(tokens[1])
@@ -122,12 +167,15 @@ for line in fp:
         index = int(tokens[6])
         lbl = tokens[8]
         total_ns = int(tokens[10])
-        per_thread_kernel[thread].add_opencl_event(thread, seq, index, lbl,
-                                                   total_ns)
+
+        thread_info = get_thread_info(thread)
+        kernel_info = thread_info.get_kernel_info(seq)
+        kernel_info.add_opencl_event(thread, seq, index, lbl, total_ns)
     elif 'LOCK : ' in line:
         tokens = line.split()
         lbl = tokens[4]
         thread = int(tokens[2])
+
         lock_info = get_lock_info_for_thread(thread)
         t = int(tokens[len(tokens) - 1])
         assert lbl in known_lock_lbls

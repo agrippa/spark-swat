@@ -8,6 +8,6 @@ for dir in $(ls); do
                 awk '{ print $4 }' | python ~/mean.py);
         SWAT_MEAN=$(cat $dir/swat |  grep "overall\|Overall" | grep time | \
                 awk '{ print $4 }' | python ~/mean.py);
-        echo $dir $SPARK_MEDIAN $SWAT_MEDIAN $(echo $SPARK_MEDIAN / $SWAT_MEDIAN | bc -l) $(echo $SPARK_MEAN / $SWAT_MEAN | bc -l)
+        echo -e "$dir\t$SPARK_MEDIAN\t$SWAT_MEDIAN\t$(echo $SPARK_MEDIAN / $SWAT_MEDIAN | bc -l)\t$(echo $SPARK_MEAN / $SWAT_MEAN | bc -l)"
     fi
 done
