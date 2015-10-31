@@ -36,7 +36,7 @@ for APP in $(cat $LOG_FILE | grep "Connected to" | awk '{ print $12 }'); do
     UNIQ_STAGES=$(for STAGE in $STAGES; do
                       echo $STAGE
                   done | sort | uniq)
-    FINAL_STAGES=$(for STAGE in $UNIQ_STAGES; do echo ${STAGE:0:${#STAGE}-1}; done)
+    FINAL_STAGES=$(for STAGE in $UNIQ_STAGES; do echo ${STAGE:0:${#STAGE}-1}; done | sort -n)
 
     if [[ -z $EXPECTED_STAGES ]]; then
         EXPECTED_STAGES=$FINAL_STAGES
@@ -52,7 +52,7 @@ done
 
 echo
 echo -e "STAGE\tMEDIAN\tMEAN"
-for STAGE in $EXPECTED_STAGES; do
+for STAGE in $(echo $EXPECTED_STAGES); do
     MEDIAN=$(cat $LOG_FILE | grep Finished | grep "in stage $STAGE.0" | awk '{ print $14 }' | python ~/median.py)
     MEAN=$(cat $LOG_FILE | grep Finished | grep "in stage $STAGE.0" | awk '{ print $14 }' | python ~/mean.py)
     echo -e "$STAGE\t$MEDIAN\t$MEAN"
