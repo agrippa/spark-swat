@@ -46,14 +46,14 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
     val threadId : Int = RuntimeUtil.getThreadID
     if (useSwat) {
       // Every N threads run in JVM
-      // if (threadId % 4 == 0) {
-      //   return new Iterator[U] {
-      //     def next() : U = f(nested.next)
-      //     def hasNext() : Boolean = nested.hasNext
-      //   }
-      // } else {
+      if (threadId % 4 == 0) {
+        return new Iterator[U] {
+          def next() : U = f(nested.next)
+          def hasNext() : Boolean = nested.hasNext
+        }
+      } else {
         new CLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
-      // }
+      }
     } else {
       System.err.println("Thread = " + threadId + " running stage = " +
               context.stageId + ", partition = " + context.partitionId +
