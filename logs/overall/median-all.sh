@@ -1,5 +1,5 @@
 for dir in $(ls); do
-    if [[ $dir != median-all.sh ]]; then
+    if [[ $dir != median-all.sh && $dir != extract_stage_times.sh ]]; then
         SPARK_MEDIAN=$(cat $dir/spark | grep "overall\|Overall" | grep time | \
                 awk '{ print $4 }' | python ~/median.py);
         SWAT_MEDIAN=$(cat $dir/swat |  grep "overall\|Overall" | grep time | \

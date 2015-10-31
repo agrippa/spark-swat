@@ -2,7 +2,7 @@ include ${SWAT_HOME}/build.conf
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
 TARGET=libclalloc.so
-DEFINES=
+DEFINES=-DPROFILE_LOCKS -DPROFILE
 
 ifeq ($(GXX),nvcc)
 GXX_FLAGS=-O3 -Xcompiler '-Wall' -Xcompiler '-fPIC' -DCUDA_ALLOCATOR

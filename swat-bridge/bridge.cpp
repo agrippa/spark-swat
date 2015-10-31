@@ -834,7 +834,7 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     ctx->global_arguments_len = 0;
 
 #ifdef PROFILE_CLALLOC
-    print_clalloc_profile();
+    print_clalloc_profile(ctx->host_thread_index);
 #endif
 
 #ifdef PROFILE_LOCKS

@@ -1253,7 +1253,7 @@ unsigned long long get_contention(cl_allocator *allocator) {
 #ifdef PROFILE
 void print_clalloc_profile(int thread) {
     fprintf(stderr, "%d : clalloc profile: init - %llu ns | alloc - %llu ns | "
-            "realloc - %llu ns | free - %llu ns\n", acc_init_time,
+            "realloc - %llu ns | free - %llu ns\n", thread, acc_init_time,
             acc_alloc_time, acc_realloc_time, acc_free_time);
 }
 #else
