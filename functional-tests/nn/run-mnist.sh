@@ -44,8 +44,7 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=128 \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true"
 
-# NUM_EXECUTORS=$(scontrol show hostname | wc -l)
-NUM_EXECUTORS=3
+NUM_EXECUTORS=$(scontrol show hostname | wc -l)
 NUM_EXECUTORS=$(echo $NUM_EXECUTORS - 1 | bc)
 echo $NUM_EXECUTORS executors
 CORES_PER_EXECUTOR=$(cat /proc/cpuinfo | grep processor | wc -l)

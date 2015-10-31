@@ -912,31 +912,31 @@ JNI_JAVA(void, OpenCLBridge, cleanupSwatContext)
     fprintf(stderr, "LOCK SUMMARY, device = %d , host thread = %d , stage = %d "
             ", partition = %d\n", dev_ctx->device_index, ctx->host_thread_index,
             stage, partition);
-    fprintf(stderr, " %d : device_ctxs_lock_contention                = %llu\n",
+    fprintf(stderr, " LOCK : %d : device_ctxs_lock_contention                = %llu\n",
             ctx->host_thread_index, local_device_ctxs_lock_contention);
-    fprintf(stderr, " %d : rdd_cache_lock_contention                  = %llu\n",
+    fprintf(stderr, " LOCK : %d : rdd_cache_lock_contention                  = %llu\n",
             ctx->host_thread_index, total_rdd_cache_contention);
-    fprintf(stderr, " %d : kernel_lock_contention                     = %llu\n",
+    fprintf(stderr, " LOCK : %d : kernel_lock_contention                     = %llu\n",
             ctx->host_thread_index, local_kernel_lock_contention);
-    fprintf(stderr, " %d : freed_native_input_buffers_lock_contention = %llu\n",
+    fprintf(stderr, " LOCK : %d : freed_native_input_buffers_lock_contention = %llu\n",
             ctx->host_thread_index, local_freed_native_input_buffers_lock_contention);
-    fprintf(stderr, " %d : freed_native_input_buffers_blocked         = %llu\n",
+    fprintf(stderr, " LOCK : %d : freed_native_input_buffers_blocked         = %llu\n",
             ctx->host_thread_index, local_freed_native_input_buffers_blocked);
-    fprintf(stderr, " %d : completed_kernels_lock_contention          = %llu\n",
+    fprintf(stderr, " LOCK : %d : completed_kernels_lock_contention          = %llu\n",
             ctx->host_thread_index, local_completed_kernels_lock_contention);
-    fprintf(stderr, " %d : completed_kernels_blocked                  = %llu\n",
+    fprintf(stderr, " LOCK : %d : completed_kernels_blocked                  = %llu\n",
             ctx->host_thread_index, local_completed_kernels_blocked);
-    fprintf(stderr, " %d : broadcast_lock_contention                  = %llu\n",
+    fprintf(stderr, " LOCK : %d : broadcast_lock_contention                  = %llu\n",
             ctx->host_thread_index, local_broadcast_lock_contention);
-    fprintf(stderr, " %d : program_cache_lock_contention              = %llu\n",
+    fprintf(stderr, " LOCK : %d : program_cache_lock_contention              = %llu\n",
             ctx->host_thread_index, local_program_cache_lock_contention);
-    fprintf(stderr, " %d : heap_cache_lock_contention                 = %llu\n",
+    fprintf(stderr, " LOCK : %d : heap_cache_lock_contention                 = %llu\n",
             ctx->host_thread_index, local_heap_cache_lock_contention);
-    fprintf(stderr, " %d : heap_cache_blocked                         = %llu\n",
+    fprintf(stderr, " LOCK : %d : heap_cache_blocked                         = %llu\n",
             ctx->host_thread_index, local_heap_cache_blocked);
-    fprintf(stderr, " %d : nloaded_cache_lock_contention              = %llu\n",
+    fprintf(stderr, " LOCK : %d : nloaded_cache_lock_contention              = %llu\n",
             ctx->host_thread_index, local_nloaded_cache_lock_contention);
-    fprintf(stderr, " %d : allocator_contention                       = %llu\n",
+    fprintf(stderr, " LOCK : %d : allocator_contention                       = %llu\n",
             ctx->host_thread_index, local_allocator_contention);
 
 #endif
