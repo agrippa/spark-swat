@@ -45,15 +45,15 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
     val nested = firstParent[T].iterator(split, context)
     val threadId : Int = RuntimeUtil.getThreadID
     if (useSwat) {
-      // Every N threads run in JVM
-      if (threadId % 4 == 0) {
-        return new Iterator[U] {
-          def next() : U = f(nested.next)
-          def hasNext() : Boolean = nested.hasNext
-        }
-      } else {
+      // // Every N threads run in JVM
+      // if (threadId % 4 == 0) {
+      //   return new Iterator[U] {
+      //     def next() : U = f(nested.next)
+      //     def hasNext() : Boolean = nested.hasNext
+      //   }
+      // } else {
         new CLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
-      }
+      // }
     } else {
       System.err.println("Thread = " + threadId + " running stage = " +
               context.stageId + ", partition = " + context.partitionId +
@@ -68,21 +68,5 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
         }
       }
     }
-/*
-    if (threadId % 3 == 0) {
-      // Every 2 threads runs on the JVM
-      return new Iterator[U] {
-        val nested = firstParent[T].iterator(split, context)
-
-        def next() : U = {
-          f(nested.next)
-        }
-
-        def hasNext() : Boolean = {
-          nested.hasNext
-        }
-      }
-    }
-*/
   }
 }

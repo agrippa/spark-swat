@@ -2,10 +2,13 @@
 
 set -e
 
+APP=pagerank
+NEXECUTORS=$(cat $SPARK_HOME/conf/slaves | wc -l)
+
 # SPARK_LOG_FILE=$SWAT_HOME/logs/overall/pagerank/spark
 # SWAT_LOG_FILE=$SWAT_HOME/logs/overall/pagerank/swat
-SWAT_LOG_FILE=$SWAT_HOME/logs/balance/pagerank/4/swat
-SPARK_LOG_FILE=$SWAT_HOME/logs/balance/pagerank/4/spark
+SPARK_LOG_FILE=$SWAT_HOME/logs/scalability/$APP/$NEXECUTORS/spark
+SWAT_LOG_FILE=$SWAT_HOME/logs/scalability/$APP/$NEXECUTORS/swat
 
 echo "" > $SPARK_LOG_FILE
 echo "" > $SWAT_LOG_FILE
