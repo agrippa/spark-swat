@@ -91,6 +91,9 @@ class KernelInfo:
                         event.lbl, total_ms, started_ms, queued_to_submitted_ms,
                         submitted_to_started_ms, started_to_finished_ms))
 
+    def get_event_list(self):
+        return self.opencl_events
+
     def str(self):
         return '{ thread=' + str(self.thread) + ', input_start=' + \
                str(self.input_start) + ', input_elapsed=' + \
@@ -119,6 +122,12 @@ class KernelInfo:
 
     def get_input_elapsed(self):
         return self.input_elapsed
+
+    def get_output_start(self):
+        return self.output_start
+
+    def get_output_elapsed(self):
+        return self.output_elapsed
 
     def set_input_time(self, start, elapsed):
         assert self.input_start == -1 and self.input_elapsed == -1
@@ -149,10 +158,8 @@ class KernelInfo:
     def get_nevents(self):
         return len(self.opencl_events)
 
-    def complete(self, expected_n_events):
+    def complete(self):
         nevents = len(self.opencl_events)
-        assert nevents == expected_n_events, 'thread ' + str(self.thread) + \
-                        ', ' + str(self.opencl_events)
         for i in range(nevents):
             if i not in self.opencl_events.keys():
                 return False
@@ -171,20 +178,9 @@ class ThreadKernelInfo:
     def get_kernel_list(self):
         return self.kernels
 
-    def get_nevents(self):
-        expected = self.kernels[0].get_nevents()
-        index = 0
+    def check_all_complete(self):
         for k in self.kernels:
-            assert expected == k.get_nevents(), 'thread ' + str(self.thread) + \
-                   ' expected ' + str(expected) + ' events, but got ' + \
-                   str(k.get_nevents()) + ' on ' + str(index + 1) + '/' + \
-                   str(len(self.kernels))
-            index += 1
-        return expected
-
-    def check_all_complete(self, expected_n_events):
-        for k in self.kernels:
-            assert k.complete(expected_n_events), k.str()
+            assert k.complete(), k.str()
 
     def create_new_kernel(self):
         kernel = KernelInfo(self.thread)
@@ -254,22 +250,15 @@ if len(sys.argv) != 2:
     print('usage: python collect_detailed_metrics.py filename')
     sys.exit(1)
 
-min_timestamp = -1
-max_timestamp = 0
-
 fp = open(sys.argv[1], 'r')
 for line in fp:
     if line.startswith('SWAT PROF') and not line.startswith('SWAT PROF Total loaded'):
         tokens = line.split()
         event = tokens[3]
         thread = int(tokens[2])
-
         if event == 'Input-I/O':
             input_start = int(tokens[6])
             input_elapsed = int(tokens[4])
-
-            if min_timestamp == -1 or min_timestamp > input_start:
-                min_timestamp = input_start
 
             thread_info = get_thread_info(thread)
             kernel_info = thread_info.create_new_kernel()
@@ -287,8 +276,6 @@ for line in fp:
             thread_info.add_output_start(t)
         elif event == 'Finished' and tokens[4] == 'writing':
             t = int(tokens[9])
-            if t > max_timestamp:
-                max_timestamp = t
             thread_info = get_thread_info(thread)
             thread_info.add_output_end(t)
     elif 'queued -> submitted' in line:
@@ -330,12 +317,9 @@ for line in fp:
 
 fp.close()
 
-nevents_per_kernel = get_thread_info(0).get_nevents()
-print(str(nevents_per_kernel) + ' events per kernel')
-
 for thread in per_thread_info.keys():
     thread_info = per_thread_info[thread]
-    thread_info.check_all_complete(nevents_per_kernel)
+    thread_info.check_all_complete()
     for kernel in thread_info.get_kernel_list():
         kernel.normalize_opencl_events()
 
@@ -349,19 +333,60 @@ width = 0.35       # the width of the bars: can also be len(x) sequence
 color_counter = 0
 ind = 0
 
-target_thread = 0
-thread_info = per_thread_info[thread]
+min_timestamp = -1
+max_timestamp = 0
 for kernel in thread_info.get_kernel_list():
-    normalized_read_start = kernel.get_input_start() - min_timestamp
-    read_elapsed = kernel.get_input_elapsed()
+  if min_timestamp == -1 or min_timestamp > kernel.get_input_start():
+      min_timestamp = kernel.get_input_start()
+  write_end = kernel.get_output_start() + kernel.get_output_elapsed()
+  if write_end > max_timestamp:
+      max_timestamp = write_end
 
-    plt.barh(ind, read_elapsed, height=width, left=normalized_read_start,
-             linewidth=1, color=colors[0])
+thread_labels = []
+
+for target_thread in per_thread_info.keys():
+    thread_info = per_thread_info[target_thread]
+    print('Thread ' + str(target_thread) + ', total time = ' +
+          str(per_thread_total_time[target_thread]) + ' ms')
+    print('  ' + str(len(thread_info.get_kernel_list())) + ' kernels')
+    thread_labels.append('T' + str(target_thread) + '-input')
+    thread_labels.append('T' + str(target_thread) + '-output')
+    thread_labels.append('T' + str(target_thread) + '-opencl')
+
+    for kernel in thread_info.get_kernel_list():
+        normalized_read_start = kernel.get_input_start() - min_timestamp
+        read_elapsed = kernel.get_input_elapsed()
+    
+        plt.barh(ind, read_elapsed, height=width, left=normalized_read_start,
+                 linewidth=1, color=colors[0])
+
+    ind = ind + width
+
+    for kernel in thread_info.get_kernel_list():
+        normalized_write_start = kernel.get_output_start() - min_timestamp
+        write_elapsed = kernel.get_output_elapsed()
+
+        plt.barh(ind, write_elapsed, height=width, left=normalized_write_start,
+                 linewidth=1, color=colors[1])
+
+    ind = ind + width
+
+    for kernel in thread_info.get_kernel_list():
+        opencl_start = -1
+        opencl_end = -1
+        for event in kernel.get_event_list():
+            if opencl_start == -1 or event.started_ms < opencl_start:
+                opencl_start = event.started_ms
+            if opencl_end == -1 or event.started_ms + event.total_ms > opencl_end:
+                opencl_end = event.started_ms + event.total_ms
+        plt.barh(ind, opencl_end - opencl_start, height=width,
+                 left=opencl_start - min_timestamp, linewidth=1, color=colors[2])
+
     ind = ind + width
 
 plt.ylabel('Work')
 plt.xlabel('Time')
-plt.yticks(np.arange(0, 1, width) + width/2., ['Read'])
+plt.yticks(np.arange(0, len(per_thread_info) * 3, width) + width/2., thread_labels)
 
 plt.axis([ 0, max_timestamp-min_timestamp, 0, ind ])
 plt.show()
