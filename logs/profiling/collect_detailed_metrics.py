@@ -1,5 +1,6 @@
 #!/usr/bin/python
-
+import numpy as np
+import matplotlib.pyplot as plt
 import os
 import sys
 
@@ -21,10 +22,30 @@ known_lock_lbls = ['device_ctxs_lock_contention',
 
 
 class OpenCLEvent:
-    def __init__(self, index, lbl, total_ns):
+    def __init__(self, index, lbl, total_ns, started_ns, queued_to_submitted_ns,
+                 submitted_to_started_ns, started_to_finished_ns):
         self.index = index
         self.lbl = lbl
         self.total_ns = total_ns
+        self.started_ns = started_ns
+        self.queued_to_submitted_ns = queued_to_submitted_ns
+        self.submitted_to_started_ns = submitted_to_started_ns
+        self.started_to_finished_ns = started_to_finished_ns
+
+    def __str__(self):
+        return '[index=' + str(self.index) + ' ' + lbl + ']'
+
+
+class NormalizedOpenCLEvent:
+    def __init__(self, index, lbl, total_ms, started_ms, queued_to_submitted_ms,
+                 submitted_to_started_ms, started_to_finished_ms):
+        self.index = index
+        self.lbl = lbl
+        self.total_ms = total_ms
+        self.started_ms = started_ms
+        self.queued_to_submitted_ms = queued_to_submitted_ms
+        self.submitted_to_started_ms = submitted_to_started_ms
+        self.started_to_finished_ms = started_to_finished_ms
 
 
 class LockInfo:
@@ -48,6 +69,27 @@ class KernelInfo:
 
         self.kernel_start_time = -1
         self.opencl_events = {}
+        self.normalized_events = {}
+
+    def normalize_opencl_events(self):
+        """
+        self.kernel_start_time is the ms timestamp at which the OpenCL events
+        were initiated. We normalize the OpenCL event timestamps so that the
+        started time for the OpenCL stuff is the same as self.kernel_start_time.
+        """
+        old_events = self.opencl_events
+        self.opencl_events = []
+        for event_index in old_events.keys():
+            event = old_events[event_index]
+            total_ms = float(event.total_ns) / 1000000.0
+            started_ms = self.kernel_start_time
+            queued_to_submitted_ms = float(event.queued_to_submitted_ns) / 1000000.0
+            submitted_to_started_ms = float(event.submitted_to_started_ns) / 1000000.0
+            started_to_finished_ms = float(event.started_to_finished_ns) / 1000000.0
+        
+            self.opencl_events.append(NormalizedOpenCLEvent(event.index,
+                        event.lbl, total_ms, started_ms, queued_to_submitted_ms,
+                        submitted_to_started_ms, started_to_finished_ms))
 
     def str(self):
         return '{ thread=' + str(self.thread) + ', input_start=' + \
@@ -72,6 +114,12 @@ class KernelInfo:
     def has_opencl_event(self, event_index):
         return event_index in self.opencl_events
 
+    def get_input_start(self):
+        return self.input_start
+
+    def get_input_elapsed(self):
+        return self.input_elapsed
+
     def set_input_time(self, start, elapsed):
         assert self.input_start == -1 and self.input_elapsed == -1
         self.input_start = start
@@ -89,9 +137,12 @@ class KernelInfo:
         assert self.kernel_start_time == -1
         self.kernel_start_time = s
 
-    def add_opencl_event(self, thread, index, lbl, total_ns):
+    def add_opencl_event(self, thread, index, lbl, total_ns, started,
+                         queued_to_submitted, submitted_to_started,
+                         started_to_finished):
         assert self.thread == thread
-        event = OpenCLEvent(index, lbl, total_ns)
+        event = OpenCLEvent(index, lbl, total_ns, started, queued_to_submitted,
+                            submitted_to_started, started_to_finished)
         assert index not in self.opencl_events.keys()
         self.opencl_events[index] = event
 
@@ -100,7 +151,8 @@ class KernelInfo:
 
     def complete(self, expected_n_events):
         nevents = len(self.opencl_events)
-        assert nevents == expected_n_events
+        assert nevents == expected_n_events, 'thread ' + str(self.thread) + \
+                        ', ' + str(self.opencl_events)
         for i in range(nevents):
             if i not in self.opencl_events.keys():
                 return False
@@ -115,6 +167,9 @@ class ThreadKernelInfo:
         self.thread = thread
         self.kernels = [] # information on each kernel instance
         self.lock_info = LockInfo(thread)
+
+    def get_kernel_list(self):
+        return self.kernels
 
     def get_nevents(self):
         expected = self.kernels[0].get_nevents()
@@ -164,12 +219,16 @@ class ThreadKernelInfo:
         assert i < len(self.kernels)
         self.kernels[i].set_kernel_start_time(start)
 
-    def add_opencl_event(self, index, lbl, total_ns):
+    def add_opencl_event(self, index, lbl, total_ns, started,
+                         queued_to_submitted, submitted_to_started,
+                         started_to_finished):
         i = 0
         while i < len(self.kernels) and self.kernels[i].has_opencl_event(index):
             i += 1
         assert i < len(self.kernels)
-        self.kernels[i].add_opencl_event(self.thread, index, lbl, total_ns)
+        self.kernels[i].add_opencl_event(self.thread, index, lbl, total_ns, started,
+                         queued_to_submitted, submitted_to_started,
+                         started_to_finished)
 
     def get_lock_info(self):
         return self.lock_info
@@ -195,6 +254,9 @@ if len(sys.argv) != 2:
     print('usage: python collect_detailed_metrics.py filename')
     sys.exit(1)
 
+min_timestamp = -1
+max_timestamp = 0
+
 fp = open(sys.argv[1], 'r')
 for line in fp:
     if line.startswith('SWAT PROF') and not line.startswith('SWAT PROF Total loaded'):
@@ -205,6 +267,9 @@ for line in fp:
         if event == 'Input-I/O':
             input_start = int(tokens[6])
             input_elapsed = int(tokens[4])
+
+            if min_timestamp == -1 or min_timestamp > input_start:
+                min_timestamp = input_start
 
             thread_info = get_thread_info(thread)
             kernel_info = thread_info.create_new_kernel()
@@ -222,18 +287,37 @@ for line in fp:
             thread_info.add_output_start(t)
         elif event == 'Finished' and tokens[4] == 'writing':
             t = int(tokens[9])
+            if t > max_timestamp:
+                max_timestamp = t
             thread_info = get_thread_info(thread)
             thread_info.add_output_end(t)
     elif 'queued -> submitted' in line:
+        # thread 10 : seq 0 : 0 : init_write : 135456 ns total (started = 12173461684, queued -> submitted 27616 ns, submitted -> started 10080 ns, started -> finished 97760 ns)
         tokens = line.split()
         thread = int(tokens[1])
         seq = int(tokens[4])
         index = int(tokens[6])
         lbl = tokens[8]
+
         total_ns = int(tokens[10])
 
+        started_str = tokens[15];
+        started_str = started_str[0:len(started_str) - 1]
+        started = int(started_str)
+
+        queued_to_submitted_str = tokens[19]
+        queued_to_submitted = int(queued_to_submitted_str)
+        
+        submitted_to_started_str = tokens[24]
+        submitted_to_started = int(submitted_to_started_str)
+
+        started_to_finished_str = tokens[29]
+        started_to_finished = int(tokens[29])
+
         thread_info = get_thread_info(thread)
-        thread_info.add_opencl_event(index, lbl, total_ns)
+        thread_info.add_opencl_event(index, lbl, total_ns, started,
+                                     queued_to_submitted, submitted_to_started,
+                                     started_to_finished)
     elif 'LOCK : ' in line:
         tokens = line.split()
         lbl = tokens[4]
@@ -248,4 +332,36 @@ fp.close()
 
 nevents_per_kernel = get_thread_info(0).get_nevents()
 print(str(nevents_per_kernel) + ' events per kernel')
-get_thread_info(0).check_all_complete(nevents_per_kernel)
+
+for thread in per_thread_info.keys():
+    thread_info = per_thread_info[thread]
+    thread_info.check_all_complete(nevents_per_kernel)
+    for kernel in thread_info.get_kernel_list():
+        kernel.normalize_opencl_events()
+
+for thread in per_thread_info.keys():
+    assert thread in per_thread_total_time.keys(), str(thread)
+
+fig = plt.figure(num=0, figsize=(18, 6), dpi=80)
+colors = [ 'r', 'y', 'b', 'g', 'c', 'm' ]
+
+width = 0.35       # the width of the bars: can also be len(x) sequence
+color_counter = 0
+ind = 0
+
+target_thread = 0
+thread_info = per_thread_info[thread]
+for kernel in thread_info.get_kernel_list():
+    normalized_read_start = kernel.get_input_start() - min_timestamp
+    read_elapsed = kernel.get_input_elapsed()
+
+    plt.barh(ind, read_elapsed, height=width, left=normalized_read_start,
+             linewidth=1, color=colors[0])
+    ind = ind + width
+
+plt.ylabel('Work')
+plt.xlabel('Time')
+plt.yticks(np.arange(0, 1, width) + width/2., ['Read'])
+
+plt.axis([ 0, max_timestamp-min_timestamp, 0, ind ])
+plt.show()
