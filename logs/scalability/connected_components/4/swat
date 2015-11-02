@@ -10221,3 +10221,425 @@ Overall time = 242706 ms
 15/11/02 05:14:25 INFO RemoteActorRefProvider$RemotingTerminator: Shutting down remote daemon.
 15/11/02 05:14:25 INFO RemoteActorRefProvider$RemotingTerminator: Remote daemon shut down; proceeding with flushing remote transports.
 Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+15/11/02 11:56:28 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Spark assembly has been built with Hive, including Datanucleus jars on classpath
+Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+15/11/02 11:56:31 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 11:56:31 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 11:56:31 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 11:56:31 INFO Slf4jLogger: Slf4jLogger started
+15/11/02 11:56:31 INFO Remoting: Starting remoting
+15/11/02 11:56:31 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkDriver@gpu-012.davinci.rice.edu:58787]
+15/11/02 11:56:31 INFO Utils: Successfully started service 'sparkDriver' on port 58787.
+15/11/02 11:56:31 INFO SparkEnv: Registering MapOutputTracker
+15/11/02 11:56:31 INFO SparkEnv: Registering BlockManagerMaster
+15/11/02 11:56:31 INFO DiskBlockManager: Created local directory at /tmp/spark-local-20151102115631-95ee
+15/11/02 11:56:31 INFO MemoryStore: MemoryStore started with capacity 3.5 GB
+15/11/02 11:56:32 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/11/02 11:56:32 INFO HttpFileServer: HTTP File server directory is /tmp/spark-3ab1002a-8da6-42a4-a676-b74503cfd6c3
+15/11/02 11:56:32 INFO HttpServer: Starting HTTP Server
+15/11/02 11:56:32 INFO Utils: Successfully started service 'HTTP file server' on port 39718.
+15/11/02 11:56:32 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+15/11/02 11:56:32 INFO SparkUI: Started SparkUI at http://gpu-012.davinci.rice.edu:4040
+15/11/02 11:56:32 INFO SparkContext: Added JAR file:/home/jmg3/spark-swat/swat/target/swat-1.0-SNAPSHOT.jar at http://192.168.110.212:39718/jars/swat-1.0-SNAPSHOT.jar with timestamp 1446486992556
+15/11/02 11:56:32 INFO SparkContext: Added JAR file:/home/jmg3/aparapi/com.amd.aparapi/dist/aparapi.jar at http://192.168.110.212:39718/jars/aparapi.jar with timestamp 1446486992557
+15/11/02 11:56:32 INFO SparkContext: Added JAR file:/home/jmg3/asm-5.0.3/lib/asm-5.0.3.jar at http://192.168.110.212:39718/jars/asm-5.0.3.jar with timestamp 1446486992558
+15/11/02 11:56:32 INFO SparkContext: Added JAR file:/home/jmg3/asm-5.0.3/lib/asm-util-5.0.3.jar at http://192.168.110.212:39718/jars/asm-util-5.0.3.jar with timestamp 1446486992558
+15/11/02 11:56:32 INFO SparkContext: Added JAR file:/home/jmg3/spark-swat/functional-tests/connected_components/target/sparkconnectedcomponents-0.0.0.jar at http://192.168.110.212:39718/jars/sparkconnectedcomponents-0.0.0.jar with timestamp 1446486992559
+15/11/02 11:56:32 INFO AppClient$ClientActor: Connecting to master spark://gpu-012.davinci.rice.edu:7077...
+15/11/02 11:56:32 INFO SparkDeploySchedulerBackend: Connected to Spark cluster with app ID app-20151102115632-0050
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor added: app-20151102115632-0050/0 on worker-20151102041127-gpu-014.davinci.rice.edu-46681 (gpu-014.davinci.rice.edu:46681) with 12 cores
+15/11/02 11:56:32 INFO SparkDeploySchedulerBackend: Granted executor ID app-20151102115632-0050/0 on hostPort gpu-014.davinci.rice.edu:46681 with 12 cores, 37.0 GB RAM
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor added: app-20151102115632-0050/1 on worker-20151102041127-gpu-013.davinci.rice.edu-58963 (gpu-013.davinci.rice.edu:58963) with 12 cores
+15/11/02 11:56:32 INFO SparkDeploySchedulerBackend: Granted executor ID app-20151102115632-0050/1 on hostPort gpu-013.davinci.rice.edu:58963 with 12 cores, 37.0 GB RAM
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor added: app-20151102115632-0050/2 on worker-20151102041127-gpu-015.davinci.rice.edu-54499 (gpu-015.davinci.rice.edu:54499) with 12 cores
+15/11/02 11:56:32 INFO SparkDeploySchedulerBackend: Granted executor ID app-20151102115632-0050/2 on hostPort gpu-015.davinci.rice.edu:54499 with 12 cores, 37.0 GB RAM
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor added: app-20151102115632-0050/3 on worker-20151102041127-gpu-016.davinci.rice.edu-41898 (gpu-016.davinci.rice.edu:41898) with 12 cores
+15/11/02 11:56:32 INFO SparkDeploySchedulerBackend: Granted executor ID app-20151102115632-0050/3 on hostPort gpu-016.davinci.rice.edu:41898 with 12 cores, 37.0 GB RAM
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/0 is now RUNNING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/1 is now RUNNING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/2 is now RUNNING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/3 is now RUNNING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/1 is now LOADING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/3 is now LOADING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/2 is now LOADING
+15/11/02 11:56:32 INFO AppClient$ClientActor: Executor updated: app-20151102115632-0050/0 is now LOADING
+15/11/02 11:56:32 INFO NettyBlockTransferService: Server created on 45067
+15/11/02 11:56:32 INFO BlockManagerMaster: Trying to register BlockManager
+15/11/02 11:56:32 INFO BlockManagerMasterActor: Registering block manager gpu-012.davinci.rice.edu:45067 with 3.5 GB RAM, BlockManagerId(<driver>, gpu-012.davinci.rice.edu, 45067)
+15/11/02 11:56:32 INFO BlockManagerMaster: Registered BlockManager
+15/11/02 11:56:33 INFO SparkDeploySchedulerBackend: SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: 0.0
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(206169) called with curMem=0, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 201.3 KB, free 3.4 GB)
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=206169, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on gpu-012.davinci.rice.edu:45067 (size: 22.2 KB, free: 3.5 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/11/02 11:56:33 INFO SparkContext: Created broadcast 0 from objectFile at SparkConnectedComponents.scala:67
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(158096904) called with curMem=228861, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 150.8 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=158325765, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=162520069, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece1 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece1 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece1
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=166714373, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece2 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece2 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece2
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=170908677, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece3 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece3 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece3
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=175102981, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece4 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece4 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece4
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=179297285, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece5 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece5 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece5
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=183491589, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece6 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece6 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece6
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=187685893, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece7 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece7 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece7
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=191880197, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece8 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece8 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece8
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=196074501, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece9 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece9 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece9
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=200268805, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece10 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece10 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece10
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=204463109, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece11 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece11 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece11
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=208657413, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece12 stored as bytes in memory (estimated size 4.0 MB, free 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece12 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece12
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=212851717, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece13 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece13 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece13
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=217046021, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece14 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece14 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece14
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=221240325, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece15 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece15 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece15
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=225434629, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece16 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece16 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece16
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=229628933, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece17 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece17 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece17
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=233823237, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece18 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece18 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece18
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=238017541, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece19 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece19 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece19
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=242211845, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece20 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece20 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece20
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=246406149, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece21 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece21 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece21
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=250600453, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece22 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece22 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece22
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=254794757, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece23 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece23 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece23
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=258989061, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece24 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece24 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.4 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece24
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=263183365, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece25 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece25 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece25
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=267377669, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece26 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece26 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece26
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=271571973, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece27 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece27 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece27
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=275766277, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece28 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece28 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece28
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=279960581, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece29 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece29 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece29
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=284154885, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece30 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece30 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece30
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=288349189, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece31 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece31 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece31
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=292543493, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece32 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece32 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece32
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=296737797, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece33 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece33 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece33
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=300932101, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece34 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece34 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece34
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=305126405, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece35 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece35 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece35
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=309320709, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece36 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece36 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece36
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=313515013, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece37 stored as bytes in memory (estimated size 4.0 MB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece37 in memory on gpu-012.davinci.rice.edu:45067 (size: 4.0 MB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece37
+15/11/02 11:56:33 INFO MemoryStore: ensureFreeSpace(102808) called with curMem=317709317, maxMem=3704472207
+15/11/02 11:56:33 INFO MemoryStore: Block broadcast_1_piece38 stored as bytes in memory (estimated size 100.4 KB, free 3.2 GB)
+15/11/02 11:56:33 INFO BlockManagerInfo: Added broadcast_1_piece38 in memory on gpu-012.davinci.rice.edu:45067 (size: 100.4 KB, free: 3.3 GB)
+15/11/02 11:56:33 INFO BlockManagerMaster: Updated info of block broadcast_1_piece38
+15/11/02 11:56:33 INFO SparkContext: Created broadcast 1 from broadcast at SparkConnectedComponents.scala:93
+15/11/02 11:56:34 INFO FileInputFormat: Total input paths to process : 173
+15/11/02 11:56:34 INFO NetworkTopology: Adding a new node: /default-rack/192.168.110.214:50010
+15/11/02 11:56:34 INFO NetworkTopology: Adding a new node: /default-rack/192.168.110.216:50010
+15/11/02 11:56:34 INFO NetworkTopology: Adding a new node: /default-rack/192.168.110.213:50010
+15/11/02 11:56:34 INFO NetworkTopology: Adding a new node: /default-rack/192.168.110.215:50010
+15/11/02 11:56:34 INFO SparkContext: Starting job: collect at SparkConnectedComponents.scala:112
+15/11/02 11:56:34 INFO DAGScheduler: Registering RDD 2 (RDD at CLMappedRDD.scala:37)
+15/11/02 11:56:34 INFO DAGScheduler: Got job 0 (collect at SparkConnectedComponents.scala:112) with 345 output partitions (allowLocal=false)
+15/11/02 11:56:34 INFO DAGScheduler: Final stage: Stage 1(collect at SparkConnectedComponents.scala:112)
+15/11/02 11:56:34 INFO DAGScheduler: Parents of final stage: List(Stage 0)
+15/11/02 11:56:34 INFO DAGScheduler: Missing parents: List(Stage 0)
+15/11/02 11:56:34 INFO DAGScheduler: Submitting Stage 0 (CLMappedRDD[2] at RDD at CLMappedRDD.scala:37), which has no missing parents
+15/11/02 11:56:34 INFO MemoryStore: ensureFreeSpace(3648) called with curMem=317812125, maxMem=3704472207
+15/11/02 11:56:34 INFO MemoryStore: Block broadcast_2 stored as values in memory (estimated size 3.6 KB, free 3.2 GB)
+15/11/02 11:56:34 INFO MemoryStore: ensureFreeSpace(2627) called with curMem=317815773, maxMem=3704472207
+15/11/02 11:56:34 INFO MemoryStore: Block broadcast_2_piece0 stored as bytes in memory (estimated size 2.6 KB, free 3.2 GB)
+15/11/02 11:56:34 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on gpu-012.davinci.rice.edu:45067 (size: 2.6 KB, free: 3.3 GB)
+15/11/02 11:56:34 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/11/02 11:56:34 INFO SparkContext: Created broadcast 2 from broadcast at DAGScheduler.scala:838
+15/11/02 11:56:34 INFO DAGScheduler: Submitting 345 missing tasks from Stage 0 (CLMappedRDD[2] at RDD at CLMappedRDD.scala:37)
+15/11/02 11:56:34 INFO TaskSchedulerImpl: Adding task set 0.0 with 345 tasks
+15/11/02 11:56:35 INFO SparkDeploySchedulerBackend: Registered executor: Actor[akka.tcp://sparkExecutor@gpu-016.davinci.rice.edu:50810/user/Executor#-1420010050] with ID 3
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 3.0 in stage 0.0 (TID 3, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 4.0 in stage 0.0 (TID 4, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 5.0 in stage 0.0 (TID 5, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 8.0 in stage 0.0 (TID 6, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 10.0 in stage 0.0 (TID 7, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 12.0 in stage 0.0 (TID 8, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 14.0 in stage 0.0 (TID 9, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 16.0 in stage 0.0 (TID 10, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 18.0 in stage 0.0 (TID 11, gpu-016.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO SparkDeploySchedulerBackend: Registered executor: Actor[akka.tcp://sparkExecutor@gpu-013.davinci.rice.edu:55596/user/Executor#1584778344] with ID 1
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 6.0 in stage 0.0 (TID 12, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 20.0 in stage 0.0 (TID 13, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 22.0 in stage 0.0 (TID 14, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 24.0 in stage 0.0 (TID 15, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 26.0 in stage 0.0 (TID 16, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 30.0 in stage 0.0 (TID 17, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 31.0 in stage 0.0 (TID 18, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 32.0 in stage 0.0 (TID 19, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 34.0 in stage 0.0 (TID 20, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 38.0 in stage 0.0 (TID 21, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 40.0 in stage 0.0 (TID 22, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 42.0 in stage 0.0 (TID 23, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO SparkDeploySchedulerBackend: Registered executor: Actor[akka.tcp://sparkExecutor@gpu-014.davinci.rice.edu:54611/user/Executor#1290558409] with ID 0
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 28.0 in stage 0.0 (TID 24, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 36.0 in stage 0.0 (TID 25, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 43.0 in stage 0.0 (TID 26, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 46.0 in stage 0.0 (TID 27, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 48.0 in stage 0.0 (TID 28, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 50.0 in stage 0.0 (TID 29, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 52.0 in stage 0.0 (TID 30, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 54.0 in stage 0.0 (TID 31, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 56.0 in stage 0.0 (TID 32, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 60.0 in stage 0.0 (TID 33, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 61.0 in stage 0.0 (TID 34, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 63.0 in stage 0.0 (TID 35, gpu-014.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO SparkDeploySchedulerBackend: Registered executor: Actor[akka.tcp://sparkExecutor@gpu-015.davinci.rice.edu:51435/user/Executor#-490879814] with ID 2
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 44.0 in stage 0.0 (TID 36, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 51.0 in stage 0.0 (TID 37, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 58.0 in stage 0.0 (TID 38, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 65.0 in stage 0.0 (TID 39, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 67.0 in stage 0.0 (TID 40, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 69.0 in stage 0.0 (TID 41, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 71.0 in stage 0.0 (TID 42, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 73.0 in stage 0.0 (TID 43, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 74.0 in stage 0.0 (TID 44, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 75.0 in stage 0.0 (TID 45, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 77.0 in stage 0.0 (TID 46, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO TaskSetManager: Starting task 79.0 in stage 0.0 (TID 47, gpu-015.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:35 INFO BlockManagerMasterActor: Registering block manager gpu-016.davinci.rice.edu:33823 with 3.2 GB RAM, BlockManagerId(3, gpu-016.davinci.rice.edu, 33823)
+15/11/02 11:56:35 INFO BlockManagerMasterActor: Registering block manager gpu-013.davinci.rice.edu:44476 with 3.2 GB RAM, BlockManagerId(1, gpu-013.davinci.rice.edu, 44476)
+15/11/02 11:56:35 INFO BlockManagerMasterActor: Registering block manager gpu-014.davinci.rice.edu:42572 with 3.2 GB RAM, BlockManagerId(0, gpu-014.davinci.rice.edu, 42572)
+15/11/02 11:56:35 INFO BlockManagerMasterActor: Registering block manager gpu-015.davinci.rice.edu:51624 with 3.2 GB RAM, BlockManagerId(2, gpu-015.davinci.rice.edu, 51624)
+15/11/02 11:56:35 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on gpu-014.davinci.rice.edu:42572 (size: 2.6 KB, free: 3.2 GB)
+15/11/02 11:56:35 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on gpu-016.davinci.rice.edu:33823 (size: 2.6 KB, free: 3.2 GB)
+15/11/02 11:56:35 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on gpu-015.davinci.rice.edu:51624 (size: 2.6 KB, free: 3.2 GB)
+15/11/02 11:56:35 INFO BlockManagerInfo: Added broadcast_2_piece0 in memory on gpu-013.davinci.rice.edu:44476 (size: 2.6 KB, free: 3.2 GB)
+15/11/02 11:56:36 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on gpu-014.davinci.rice.edu:42572 (size: 22.2 KB, free: 3.2 GB)
+15/11/02 11:56:36 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on gpu-015.davinci.rice.edu:51624 (size: 22.2 KB, free: 3.2 GB)
+15/11/02 11:56:36 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on gpu-013.davinci.rice.edu:44476 (size: 22.2 KB, free: 3.2 GB)
+15/11/02 11:56:36 INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on gpu-016.davinci.rice.edu:33823 (size: 22.2 KB, free: 3.2 GB)
+15/11/02 11:56:43 INFO BlockManagerInfo: Added rdd_1_31 in memory on gpu-013.davinci.rice.edu:44476 (size: 25.4 MB, free: 3.2 GB)
+15/11/02 11:56:45 INFO BlockManagerInfo: Added rdd_1_5 in memory on gpu-016.davinci.rice.edu:33823 (size: 46.4 MB, free: 3.1 GB)
+15/11/02 11:56:46 INFO BlockManagerInfo: Added broadcast_1_piece14 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.2 GB)
+15/11/02 11:56:46 INFO BlockManagerInfo: Added broadcast_1_piece29 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.2 GB)
+15/11/02 11:56:46 INFO BlockManagerInfo: Added broadcast_1_piece24 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.2 GB)
+15/11/02 11:56:46 INFO BlockManagerInfo: Added broadcast_1_piece18 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.2 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece37 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece9 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece6 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece35 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece34 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece12 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece33 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece11 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece2 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece36 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece28 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece5 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece27 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece21 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece3 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece4 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece25 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:47 INFO BlockManagerInfo: Added broadcast_1_piece23 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece17 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece22 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece19 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece32 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece20 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece13 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece15 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece7 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece8 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece1 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece10 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added rdd_1_2 in memory on gpu-016.davinci.rice.edu:33823 (size: 59.7 MB, free: 3.1 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece31 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece26 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece38 in memory on gpu-013.davinci.rice.edu:44476 (size: 100.4 KB, free: 3.0 GB)
+15/11/02 11:56:48 INFO BlockManagerInfo: Added broadcast_1_piece30 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:49 INFO BlockManagerInfo: Added broadcast_1_piece16 in memory on gpu-013.davinci.rice.edu:44476 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:50 INFO TaskSetManager: Starting task 81.0 in stage 0.0 (TID 48, gpu-013.davinci.rice.edu, NODE_LOCAL, 1640 bytes)
+15/11/02 11:56:50 INFO TaskSetManager: Finished task 31.0 in stage 0.0 (TID 18) in 15453 ms on gpu-013.davinci.rice.edu (1/345)
+15/11/02 11:56:52 INFO BlockManagerInfo: Added rdd_1_60 in memory on gpu-014.davinci.rice.edu:42572 (size: 111.5 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece8 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece32 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece33 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece20 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece15 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece7 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece2 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece1 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece4 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece37 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece7 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece23 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece26 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece29 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece12 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece17 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece29 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece3 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece28 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:56 INFO BlockManagerInfo: Added broadcast_1_piece9 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece6 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece30 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece24 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece32 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.1 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece2 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece11 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece36 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece34 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece31 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece1 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece5 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece20 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece34 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece28 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece16 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece21 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece30 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece3 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece27 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece19 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece26 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece33 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece12 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece10 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece35 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece38 in memory on gpu-014.davinci.rice.edu:42572 (size: 100.4 KB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece24 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece13 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece22 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece4 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece17 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece21 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece5 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:57 INFO BlockManagerInfo: Added broadcast_1_piece10 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece15 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece22 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece9 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece16 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece19 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece27 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece18 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece31 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece14 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece18 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece11 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece8 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece25 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece37 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece0 in memory on gpu-014.davinci.rice.edu:42572 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece36 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece13 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece38 in memory on gpu-016.davinci.rice.edu:33823 (size: 100.4 KB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece25 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece6 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 3.0 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece23 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece14 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 2.9 GB)
+15/11/02 11:56:58 INFO BlockManagerInfo: Added broadcast_1_piece35 in memory on gpu-016.davinci.rice.edu:33823 (size: 4.0 MB, free: 2.9 GB)
