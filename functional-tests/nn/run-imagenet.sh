@@ -37,8 +37,8 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
               -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
 
-NUM_EXECUTORS=$(scontrol show hostname | wc -l)
-# NUM_EXECUTORS=3
+# NUM_EXECUTORS=$(scontrol show hostname | wc -l)
+NUM_EXECUTORS=3
 NUM_EXECUTORS=$(echo $NUM_EXECUTORS - 1 | bc)
 echo $NUM_EXECUTORS executors
 CORES_PER_EXECUTOR=$(cat /proc/cpuinfo | grep processor | wc -l)
@@ -49,6 +49,7 @@ echo $PARTITIONS total partitions
 spark-submit --class SparkNN --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
         --conf "spark.driver.maxResultSize=4096M" \
         --conf "spark.storage.memoryFraction=0.1" \
+        --conf "spark.executor.memory=35g" \
         --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/nn/target/nn-0.0.0.jar \
         run $1 $SPARK_DATASETS/imagenet/info \
