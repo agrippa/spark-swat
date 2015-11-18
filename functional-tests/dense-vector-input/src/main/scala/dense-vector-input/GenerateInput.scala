@@ -3,7 +3,8 @@ import java.io._
 object GenerateInput {
     def main(args : Array[String]) {
         if (args.length != 5) {
-            println("usage: GenerateInput output-dir n-output-files n-vectors-per-file avg-vec-length vec-length-range")
+            println("usage: GenerateInput output-dir n-output-files " +
+                    "n-vectors-per-file avg-vec-length vec-length-range")
             return;
         }
 

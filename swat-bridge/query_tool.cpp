@@ -75,9 +75,25 @@ void list_devices() {
             cl_ulong max_alloc_size;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(max_alloc_size), &max_alloc_size, NULL));
 
+            cl_ulong max_constant_size;
+            CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, sizeof(max_constant_size), &max_constant_size, NULL));
+
+            cl_ulong local_mem_size;
+            CHECK(clGetDeviceInfo(dev, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(local_mem_size), &local_mem_size, NULL));
+
+            cl_device_local_mem_type local_type;
+            CHECK(clGetDeviceInfo(dev, CL_DEVICE_LOCAL_MEM_TYPE, sizeof(local_type), &local_type, NULL));
+
+            size_t max_arg_size;
+            CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_PARAMETER_SIZE, sizeof(max_arg_size), &max_arg_size, NULL));
+
             printf("    %d compute units\n", compute_units);
             printf("    %lu bytes of global mem\n", global_mem_size);
             printf("    %lu byte max alloc size\n", max_alloc_size);
+            printf("    %lu byte max constant size\n", max_constant_size);
+            printf("    %lu byte local mem size (really local? %s)\n",
+                    local_mem_size, local_type == CL_LOCAL ? "true" : "false");
+            printf("    %lu byte max arg size\n", max_arg_size);
             printf("    %s\n", device_version);
             printf("    %s\n", device_ext);
 
@@ -88,14 +104,28 @@ void list_devices() {
     free(platforms);
 }
 
+void usage(char **argv) {
+    fprintf(stderr, "usage: %s [-h] [-l]\n", argv[0]);
+    fprintf(stderr, "    -h: Print this usage message\n");
+    fprintf(stderr, "    -l: List device information on all devices\n");
+    exit(1);
+}
+
 int main(int argc, char **argv) {
     int c;
     opterr = 0;
-    while ((c = getopt(argc, argv, "l")) != -1) {
+    if (argc == 1) {
+        // No arguments
+        usage(argv);
+    }
+
+    while ((c = getopt(argc, argv, "hl")) != -1) {
         switch (c) {
             case 'l':
                 list_devices();
                 return (0);
+            case 'h':
+                usage(argv);
         }
     }
 }

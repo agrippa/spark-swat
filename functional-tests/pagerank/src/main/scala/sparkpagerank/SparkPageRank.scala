@@ -1,6 +1,8 @@
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
+import org.apache.spark.HashPartitioner
+import org.apache.spark.Partitioner
 import org.apache.spark.rdd.cl._
 import Array._
 import scala.math._
@@ -57,11 +59,13 @@ object SparkPageRank {
          * The convention used here is that link._1 is the destination node of a
          * link, link._2 is the source node of a link
          */
-        val raw_links : RDD[Tuple2[Int, Int]] = sc.objectFile(inputLinksPath)
-        val links = if (useSwat) CLWrapper.cl[Tuple2[Int, Int]](raw_links) else raw_links
+        val raw_links : RDD[Tuple2[Int, Int]] = sc.objectFile[Tuple2[Int, Int]](
+                inputLinksPath).cache
+        val links = CLWrapper.pairCl[Int, Int](raw_links, useSwat)
 
-        val raw_docs : RDD[(Double, Int)] = sc.objectFile(inputDocsPath)
-        val collected_docs : Array[(Double, Int)] = raw_docs.collect
+        val raw_docs : RDD[Tuple2[Double, Int]] = sc.objectFile(inputDocsPath)
+        val collected_docs : Array[Tuple2[Double, Int]] = raw_docs.collect
+        System.err.println("Processing " + collected_docs.length + " documents")
         val doc_ranks : Array[Double] = new Array[Double](collected_docs.length)
         val doc_link_counts : Array[Int] = new Array[Int](collected_docs.length)
         for (i <- collected_docs.indices) {

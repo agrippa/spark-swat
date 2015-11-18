@@ -1,0 +1,119 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+
+typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
+   __global double*  values;
+   int  size;
+   int  tiling;
+   
+} org_apache_spark_mllib_linalg_DenseVector;
+
+
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector_s{
+   int  _1;
+   __global org_apache_spark_mllib_linalg_DenseVector  * _2;
+   
+} scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector;
+
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_NestedTuple2OutputDenseTest$_s{
+   
+} org_apache_spark_rdd_cl_tests_NestedTuple2OutputDenseTest$;
+
+
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector_s{
+   __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * _2;
+   int  _1;
+   
+} scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector;
+
+typedef struct This_s{
+   __global void *heap;
+   __global uint *free_index;
+   int alloc_failed;
+   unsigned int heap_size;
+   } This;
+
+static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *this, int  one, __global org_apache_spark_mllib_linalg_DenseVector *  two) {
+   this->_1 = one;
+   this->_2 = two;
+   return this;
+}
+
+
+static __global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *this, int  one, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *  two) {
+   this->_1 = one;
+   this->_2 = two;
+   return this;
+}
+
+
+static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this) {
+    return (this->size);
+}
+
+
+static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
+    return (this->values)[this->tiling * index];
+}
+
+static __global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_cl_tests_NestedTuple2OutputDenseTest$$anon$1__apply(This *this, int in){
+
+   return(
+   {
+   
+      __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (3)), &this->alloc_failed);
+      if (this->alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (3); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+       __global double* arr = __alloc0;
+      arr[0]  = 0.0;
+      arr[1]  = 1.0;
+      arr[2]  = 3.0;
+      ;
+      __global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * __alloc1 = (__global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector), &this->alloc_failed);
+      if (this->alloc_failed) { return (0x0); }
+      __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * __alloc2 = (__global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector), &this->alloc_failed);
+      if (this->alloc_failed) { return (0x0); }
+      __global org_apache_spark_mllib_linalg_DenseVector * __alloc3 = (__global org_apache_spark_mllib_linalg_DenseVector *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), &this->alloc_failed);
+      if (this->alloc_failed) { return (0x0); }
+      scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__alloc1, (in + 1), scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__alloc2, (in + 2), ({ __alloc3->values = arr; __alloc3->size = *(((__global long *)__alloc3->values) - 1); ; __alloc3->tiling = 1; __alloc3; })));
+   });
+}
+__kernel void run(
+      __global int* restrict in0, 
+      __global int * restrict out_1, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector* restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   this->heap = heap;
+   this->free_index = free_index;
+   this->heap_size = heap_size;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
+      this->alloc_failed = 0;
+      __global scala_Tuple2_I_scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector* result = org_apache_spark_rdd_cl_tests_NestedTuple2OutputDenseTest$$anon$1__apply(this, in0[i]);
+      if (!this->alloc_failed) {
+         processing_succeeded[i] = 1;
+         out_1[i] = result->_1;
+         
+         result->_2->_2->values = ((__global char *)result->_2->_2->values) - ((__global char *)this->heap);
+         result->_2->_2->tiling = iter;
+         result->_2->_2 = ((__global char *)result->_2->_2) - ((__global char *)this->heap);
+         
+         out_2[i] = *(result->_2);
+      }
+   }
+}

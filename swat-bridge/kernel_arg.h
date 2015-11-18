@@ -49,6 +49,10 @@ class kernel_arg {
         kernel_arg(cl_mem mem, size_t set_size, device_context *ctx) {
             has_val = true;
             val = malloc(set_size);
+            ASSERT(val);
+#ifdef VERBOSE
+            fprintf(stderr, "Transferring out %lu bytes for kernel arg\n", set_size);
+#endif
             CHECK(clEnqueueReadBuffer(ctx->cmd, mem, CL_TRUE, 0, set_size, val,
                         0, NULL, NULL));
 

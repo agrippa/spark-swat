@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #include <map>
 
 #include "ocl_util.h"
@@ -21,9 +22,22 @@ typedef struct _output_arg {
     ARG_TYPE type;
 } output_arg;
 
+typedef struct _change_arg_size {
+    int index;
+    size_t new_size;
+} change_arg_size;
+
 void usage(char **argv) {
     fprintf(stderr, "usage: %s -i file -d device -h -l -p -k kernel-file "
-            "-o index:type -v\n", argv[0]);
+            "-o index:type -v -g global-size -b local-size\n", argv[0]);
+}
+
+// Nanoseconds
+unsigned long long get_clock_gettime() {
+    struct timespec t ={0,0};
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
+    return (unsigned long long)t.tv_nsec + s;
 }
 
 void get_arg_type_index(char *arg, ARG_TYPE *out_type, int *out_index) {
@@ -46,6 +60,26 @@ void get_arg_type_index(char *arg, ARG_TYPE *out_type, int *out_index) {
         fprintf(stderr, "Unsupported type \"%s\"\n", type_str);
         exit(1);
     }
+}
+
+void get_arg_size_change(char *arg, change_arg_size *out) {
+    char *found = strchr(arg, ':');
+    assert(found != NULL);
+
+    *found = '\0';
+    out->index = atoi(arg);
+    out->new_size = atoi(found + 1);
+}
+
+size_t find_matching_arg_size_change(int index, change_arg_size *changes,
+        int nchanges) {
+    for (int i = 0; i < nchanges; i++) {
+        change_arg_size *curr = changes + i;
+        if (curr->index == index) {
+            return curr->new_size;
+        }
+    }
+    return 0;
 }
 
 void list_devices() {
@@ -167,21 +201,38 @@ int main(int argc, char **argv) {
     char *kernel_file = NULL;
     output_arg *output_args = NULL;
     int n_output_args = 0;
+    change_arg_size *size_changes = NULL;
+    int n_size_changes = 0;
     int device = -1;
     bool print_kernel = false;
     bool verbose = false;
+
+    size_t force_global_size = 0;
+    size_t force_local_size = 0;
 
     int *clears = NULL;
     int nclears = 0;
 
     int c;
     opterr = 0;
-    while ((c = getopt(argc, argv, "i:d:hlpk:o:vc:")) != -1) {
+    while ((c = getopt(argc, argv, "i:d:hlpk:o:vc:s:g:b:")) != -1) {
         switch (c) {
+            case 'g':
+                force_global_size = atoi(optarg);
+                break;
+            case 'b':
+                force_local_size = atoi(optarg);
+                break;
             case 'c':
                 clears = (int *)realloc(clears, (nclears + 1) * sizeof(int));
                 clears[nclears] = atoi(optarg);
                 nclears++;
+                break;
+            case 's':
+                size_changes = (change_arg_size *)realloc(size_changes,
+                        (n_size_changes + 1) * sizeof(change_arg_size));
+                get_arg_size_change(optarg, size_changes + n_size_changes);
+                n_size_changes++;
                 break;
             case 'v':
                 verbose = true;
@@ -240,6 +291,17 @@ int main(int argc, char **argv) {
         return (1);
     }
 
+    size_t global_size, local_size;
+    safe_read(fd, &global_size, sizeof(global_size));
+    safe_read(fd, &local_size, sizeof(local_size));
+    if (force_global_size > 0) {
+        global_size = force_global_size;
+    }
+    if (force_local_size > 0) {
+        local_size = force_local_size;
+    }
+    fprintf(stderr, "global_size=%lu local_size=%lu\n", global_size, local_size);
+
     size_t kernel_src_len;
     char *kernel_src;
     safe_read(fd, &kernel_src_len, sizeof(kernel_src_len));
@@ -271,6 +333,7 @@ int main(int argc, char **argv) {
 
     int num_args, i;
     safe_read(fd, &num_args, sizeof(num_args));
+    fprintf(stderr, "num_args = %d\n", num_args);
 
     map<int, kernel_arg *> debug_arguments;
     map<int, cl_mem> arguments;
@@ -345,12 +408,17 @@ int main(int argc, char **argv) {
         int arg_index = i->first;
         kernel_arg *arg = i->second;
         if (arg->get_is_ref()) {
+
+            size_t new_size = find_matching_arg_size_change(arg_index,
+                    size_changes, n_size_changes);
+            size_t size = (new_size == 0 ? arg->get_size() : new_size);
+
             cl_int err;
             cl_mem mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
-                    arg->get_size(), NULL, &err);
+                    size, NULL, &err);
             CHECK(err);
             fprintf(stderr, "Allocating argument %d of size %lu\n", arg_index,
-                    arg->get_size());
+                    size);
 
             assert(arguments.find(arg_index) == arguments.end());
             arguments[arg_index] = mem;
@@ -358,9 +426,10 @@ int main(int argc, char **argv) {
             if (arg->get_val() == NULL) {
                 if (arg->get_clear_to_zero() || want_to_clear(arg_index, clears, nclears)) {
                     fprintf(stderr, "  Memsetting to zeros\n");
-                    void *zeros = malloc(arg->get_size());
-                    memset(zeros, 0x00, arg->get_size());
-                    CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, arg->get_size(), zeros, 0, NULL, NULL));
+                    void *zeros = malloc(size);
+                    memset(zeros, 0x00, size);
+                    CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, size,
+                                zeros, 0, NULL, NULL));
                 }
             } else {
                 assert(!arg->get_clear_to_zero());
@@ -379,13 +448,17 @@ int main(int argc, char **argv) {
         }
     }
     CHECK(clFinish(cmd));
-
+   
+    unsigned long long start_time = get_clock_gettime();
     cl_event event;
-    size_t range = 1024;
-    CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &range, NULL, 0, NULL,
+    CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &global_size, &local_size, 0, NULL,
                 &event));
     CHECK(clWaitForEvents(1, &event));
     CHECK(clFinish(cmd));
+    unsigned long long end_time = get_clock_gettime();
+    unsigned long long elapsed = end_time - start_time;
+    fprintf(stderr, "Kernel took %llu ns (%f us, %f ms, %f s)\n", elapsed,
+            elapsed / 1000.0, elapsed / 1000000.0, elapsed / 1000000000.0);
 
     for (int i = 0; i < n_output_args; i++) {
         output_arg arg = output_args[i];

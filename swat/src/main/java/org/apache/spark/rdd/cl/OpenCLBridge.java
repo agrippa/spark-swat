@@ -20,143 +20,226 @@ public class OpenCLBridge {
 
     public static native long createSwatContext(String label, String _source,
             long dev_ctx, int host_thread_index, boolean requiresDouble,
-            boolean requiresHeap);
-    public static native void cleanupSwatContext(long ctx);
-    public static native long getActualDeviceContext(int device_index);
+            boolean requiresHeap, int max_n_buffered);
+    public static native void initNativeOutBuffers(int nPrealloc,
+            int[] bufferSizes, int[]  bufferArgIndices, int nBuffers, long ctx);
+    public static native void cleanupKernelContext(long kernel_ctx);
+    public static native void resetSwatContext(long ctx);
+    public static native void cleanupSwatContext(long ctx, long dev_ctx,
+            int stage, int partition);
+    public static native long getActualDeviceContext(int device_index,
+            int heaps_per_device, int heap_size,
+            double perc_high_performance_buffers, boolean createCpuContexts);
     public static native void postKernelCleanup(long ctx);
     public static native int getDeviceHintFor(int rdd, int partition,
             int offset, int component);
-    public static native int getDeviceToUse(int hint, int host_thread_index);
+    public static native int getDeviceToUse(int hint, int host_thread_index,
+            int heaps_per_device, int heap_size,
+            double perc_high_performance_buffers, boolean createCpuContexts);
     public static native int getDevicePointerSizeInBytes(long dev_ctx);
 
     public static native void setIntArg(long ctx, int index, int arg);
 
     public static native boolean setIntArrayArgImpl(long ctx, long dev_ctx, int index,
             int[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer, boolean persistent);
     public static native boolean setDoubleArrayArgImpl(long ctx, long dev_ctx,
             int index, double[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer, boolean persistent);
     public static native boolean setFloatArrayArgImpl(long ctx, long dev_ctx,
             int index, float[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer, boolean persistent);
     public static native boolean setByteArrayArgImpl(long ctx, long dev_ctx, int index,
             byte[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component);
+            int partitionid, int offset, int component, long buffer, boolean persistent);
     public static native void setNullArrayArg(long ctx, int index);
     
     public static native boolean setArrayArgImpl(long ctx, long dev_ctx,
             int index, java.lang.Object arg, int argLength, int argEleLength,
             long broadcastId, int rddid, int partitionid, int offset,
-            int component);
+            int component, boolean persistent);
 
-    public static native void fetchIntArrayArg(long ctx, long dev_ctx,
-            int index, int[] arg, int argLength);
-    public static native void fetchDoubleArrayArg(long ctx, long dev_ctx,
-            int index, double[] arg, int argLength);
-    public static native void fetchFloatArrayArg(long ctx, long dev_ctx,
-            int index, float[] arg, int argLength);
-    public static native void fetchByteArrayArg(long ctx, long dev_ctx,
-            int index, byte[] arg, int argLength);
+    public static native void pinnedToJVMArray(long kernel_ctx, Object jvmArray,
+            long pinned, int nbytes);
+    public static native void fillHeapBuffersFromKernelContext(long kernel_ctx,
+            long[] jvmArr, int maxHeaps);
+    public static native int getNLoaded(long kernel_ctx);
 
-    public static native void run(long ctx, long dev_ctx, int range,
-            boolean isWorkSharing);
+    public static native void addFreedNativeBuffer(long ctx, long dev_ctx, int buffer_id);
+    public static native int waitForFreedNativeBuffer(long ctx, long dev_ctx);
+    public static native void enqueueBufferFreeCallback(long ctx, long dev_ctx, int buffer_id);
+
+    public static native long waitForFinishedKernel(long ctx, long dev_ctx, int seq_no);
+    public static native long run(long ctx, long dev_ctx,
+            int range, int local_size, int iterArgNum,
+            int heapArgStart, int maxHeaps, int nativeOutputBufferId);
+    public static native void waitOnBufferReady(long kernel_complete);
+    public static native int getOutputBufferIdFromKernelCtx(long kernel_ctx);
+
+    public static native long clMallocImpl(long dev_ctx, long nbytes);
+    public static native void clFree(long clBuffer, long dev_ctx);
+    public static native long pin(long dev_ctx, long region);
+    public static native void setNativePinnedArrayArg(long ctx, long dev_ctx,
+            int index, long pinned, long region, long nbytes);
+    public static native void setOutArrayArg(long ctx, long dev_ctx, int index,
+            long region);
 
     public static native void setIntArgByName(long ctx, int index, Object obj, String name);
     public static native void setDoubleArgByName(long ctx, int index, Object obj, String name);
     public static native void setFloatArgByName(long ctx, int index, Object obj, String name);
 
     public static native boolean setArgUnitialized(long ctx, long dev_ctx,
-            int index, long size);
+            int index, long size, boolean persistent);
 
-    public static native int createHeapImpl(long ctx, long dev_ctx, int index,
-            int size, int max_n_buffered);
-    public static native void resetHeap(long ctx, long dev_ctx,
-            int starting_argnum);
+    public static native void setupGlobalArguments(long ctx, long dev_ctx);
+    public static native void cleanupArguments(long ctx);
 
     public static native boolean tryCache(long ctx, long dev_ctx, int index,
             long broadcastId, int rddid, int partitionid, int offsetid,
-            int componentid, int ncomponents);
-    public static native void manuallyRelease(long ctx, long dev_ctx,
-            int startingIndexInclusive, int endingIndexExclusive);
+            int componentid, int ncomponents, boolean persistent);
+    public static native void releaseAllPendingRegions(long ctx);
 
-    public static native long nativeMalloc(long nbytes);
-    public static native void nativeFree(long buffer);
+    public static native int getMaxOffsetOfStridedVectors(int nVectors,
+            long sizesBuffer, long offsetsBuffer, int tiling);
+
+    public static native void transferOverflowDenseVectorBuffers(long dstValues,
+            long dstSizes, long dstOffsets, long srcValues, long srcSizes,
+            long srcOffsets, int vectorsUsed, int elementsUsed,
+            int leftoverVectors, int leftoverElements);
+    public static native void transferOverflowSparseVectorBuffers(long dstValues, long dstIndices,
+            long dstSizes, long dstOffsets, long srcValues, long srcIndices, long srcSizes,
+            long srcOffsets, int vectorsUsed, int elementsUsed,
+            int leftoverVectors, int leftoverElements);
+
     public static native int serializeStridedDenseVectorsToNativeBuffer(
-            long buffer, int position, long capacity,
+            long buffer, int position, long capacity, long sizesBuffer,
+            long offsetsBuffer, int buffered, int vectorCapacity,
             org.apache.spark.mllib.linalg.DenseVector[] vectors,
-            int nToSerialize, int tiling);
-    public static native boolean setNativeArrayArg(long ctx, long dev_ctx,
-        int index, long buffer, int len, long broadcast, int rdd,
-        int partition, int offset, int component);
-    public static native void fillFromNativeArray(double[] vectorArr,
-        int vectorSize, int vectorOffset, int tiling, long buffer);
+            int[] vectorSizes, int nToSerialize, int tiling);
+    public static native int serializeStridedSparseVectorsToNativeBuffer(
+            long valuesBuffer, long indicesBuffer, int position, long capacity, long sizesBuffer,
+            long offsetsBuffer, int buffered, int vectorCapacity,
+            org.apache.spark.mllib.linalg.SparseVector[] vectors,
+            int[] vectorSizes, int nToSerialize, int tiling);
 
-    public static int createHeap(long ctx, long dev_ctx, int index,
-            int size, int max_n_buffered) throws OpenCLOutOfMemoryException {
-      final int argsUsed = createHeapImpl(ctx, dev_ctx, index, size,
-          max_n_buffered);
-      if (argsUsed == -1) {
-        throw new OpenCLOutOfMemoryException();
+    public static native boolean setNativeArrayArgImpl(long ctx, long dev_ctx,
+        int index, long buffer, int len, long broadcast, int rdd,
+        int partition, int offset, int component, boolean persistent, boolean blocking);
+
+    public static native Object getVectorValuesFromOutputBuffers(
+            long[] heapBuffers, long infoBuffer, int slot, int structSize,
+            int offsetOffset, int offsetSize, int sizeOffset, int iterOffset,
+            boolean isIndices);
+
+    public static native void deserializeStridedValuesFromNativeArray(
+            Object[] bufferTo, int nToBuffer, long valuesBuffer,
+            long sizesBuffer, long offsetsBuffer, int index, int tiling);
+    public static native void deserializeStridedIndicesFromNativeArray(
+            Object[] bufferTo, int nToBuffer, long indicesBuffer,
+            long sizesBuffer, long offsetsBuffer, int index, int tiling);
+
+    public static native double[] deserializeChunkedValuesFromNativeArray(
+            long buffer, long infoBuffer, int offsetOffset, int sizeOffset,
+            int devicePointerSize);
+    public static native int[] deserializeChunkedIndicesFromNativeArray(
+            long buffer, long infoBuffer, int offsetOffset, int sizeOffset,
+            int devicePointerSize);
+
+    public static native void copyNativeArrayToJVMArray(long nativeBuffer,
+            int nativeOffset, Object arr, int size);
+    public static native void copyJVMArrayToNativeArray(long nativeBuffer,
+            int nativeOffset, Object arr, int arrOffset, int size);
+
+    public static native void storeNLoaded(int rddid, int partitionid,
+            int offsetid, int nloaded);
+    public static native int fetchNLoaded(int rddid, int partitionid,
+            int offsetid);
+
+    public static native int getCurrentSeqNo(long ctx);
+
+    public static long clMalloc(long dev_ctx, int nbytes) throws OpenCLOutOfMemoryException {
+        final long buffer = clMallocImpl(dev_ctx, nbytes);
+        if (buffer == 0L) {
+            throw new OpenCLOutOfMemoryException(nbytes);
+        }
+        return buffer;
+    }
+
+    public static void setNativeArrayArg(long ctx, long dev_ctx,
+        int index, long buffer, int len, long broadcast, int rdd,
+        int partition, int offset, int component, boolean persistent, boolean blocking)
+        throws OpenCLOutOfMemoryException {
+      final boolean success = setNativeArrayArgImpl(ctx, dev_ctx, index, buffer,
+          len, broadcast, rdd, partition, offset, component, persistent, blocking);
+      if (!success) {
+          throw new OpenCLOutOfMemoryException(len);
       }
-      return argsUsed;
     }
 
     public static void setIntArrayArg(long ctx, long dev_ctx, int index,
             int[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer,
+            boolean persistent) throws OpenCLOutOfMemoryException {
         final boolean success = setIntArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer, persistent);
         if (!success) {
-          throw new OpenCLOutOfMemoryException();
+          throw new OpenCLOutOfMemoryException(argLength * 4);
         }
     }
 
     public static void setDoubleArrayArg(long ctx, long dev_ctx,
             int index, double[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer,
+            boolean persistent) throws OpenCLOutOfMemoryException {
         final boolean success = setDoubleArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer, persistent);
         if (!success) {
-          throw new OpenCLOutOfMemoryException();
+          throw new OpenCLOutOfMemoryException(argLength * 8);
         }
     }
 
     public static void setFloatArrayArg(long ctx, long dev_ctx,
             int index, float[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer,
+            boolean persistent) throws OpenCLOutOfMemoryException {
         final boolean success = setFloatArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer, persistent);
         if (!success) {
-          throw new OpenCLOutOfMemoryException();
+          throw new OpenCLOutOfMemoryException(argLength * 4);
         }
     }
 
     public static void setByteArrayArg(long ctx, long dev_ctx, int index,
             byte[] arg, int argLength, long broadcastId, int rddid,
-            int partitionid, int offset, int component) throws OpenCLOutOfMemoryException {
+            int partitionid, int offset, int component, long buffer,
+            boolean persistent) throws OpenCLOutOfMemoryException {
         final boolean success = setByteArrayArgImpl(ctx, dev_ctx, index, arg,
-            argLength, broadcastId, rddid, partitionid, offset, component);
+            argLength, broadcastId, rddid, partitionid, offset, component, buffer, persistent);
         if (!success) {
-            throw new OpenCLOutOfMemoryException();
+            throw new OpenCLOutOfMemoryException(argLength);
         }
     }
 
     public static void setArrayArg(long ctx, long dev_ctx,
             int index, java.lang.Object arg, int argLength, int argEleLength,
             long broadcastId, int rddid, int partitionid, int offset,
-            int component) throws OpenCLOutOfMemoryException {
+            int component, boolean persistent) throws OpenCLOutOfMemoryException {
         final boolean success = setArrayArgImpl(ctx, dev_ctx, index, arg,
             argLength, argEleLength, broadcastId, rddid, partitionid, offset,
-            component);
+            component, persistent);
         if (!success) {
-            throw new OpenCLOutOfMemoryException();
+            throw new OpenCLOutOfMemoryException(argLength * argEleLength);
         }
     }
 
+    /*
+     * Only used for setting values captured in the closure (which can be a
+     * broadcast variable or just a plain old captured array/scalar). So we
+     * always want to persist.
+     */
     public static int setArgByNameAndType(long ctx, long dev_ctx, int index, Object obj,
-            String name, String desc, Entrypoint entryPoint, boolean isBroadcast,
-            ByteBufferCache bbCache) throws OpenCLOutOfMemoryException {
+            String name, String desc, Entrypoint entryPoint,
+            boolean isBroadcast) throws OpenCLOutOfMemoryException {
         final int argsUsed;
         if (desc.equals("I")) {
             setIntArgByName(ctx, index, obj, name);
@@ -195,22 +278,22 @@ public class OpenCLBridge {
             String primitiveType = desc.substring(1);
             if (primitiveType.equals("I")) {
                 setIntArrayArg(ctx, dev_ctx, index, (int[])fieldInstance,
-                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((int[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0, true);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("F")) {
                 setFloatArrayArg(ctx, dev_ctx, index, (float[])fieldInstance,
-                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((float[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0, true);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
-                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0);
+                        ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0, true);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else {
               final String arrayElementTypeName = ClassModel.convert(
                   primitiveType, "", true).trim();
               final int argsUsedForData = OpenCLBridgeWrapper.setObjectTypedArrayArg(ctx,
                       dev_ctx, index, fieldInstance, arrayElementTypeName,
-                      true, entryPoint, new CLCacheID(broadcastId, 0), bbCache);
+                      true, entryPoint, new CLCacheID(broadcastId, 0));
               argsUsed = (lengthUsed ? argsUsedForData + 1 : argsUsedForData);
             }
 
@@ -235,5 +318,12 @@ public class OpenCLBridge {
         }
         throw new RuntimeException("Unable to find default constructor for " +
                 clazz.getName());
+    }
+
+    public static void printStack() {
+        for (StackTraceElement ele : Thread.currentThread().getStackTrace()) {
+            System.err.println(ele.toString());
+        }
+        System.err.println();
     }
 }

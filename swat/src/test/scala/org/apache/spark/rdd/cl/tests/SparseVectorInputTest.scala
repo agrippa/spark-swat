@@ -28,8 +28,7 @@ object SparseVectorInputTest extends CodeGenTest[SparseVector, (Int, Double)] {
     val models = new HardCodedClassModels()
 
     val sparseVectorModel : SparseVectorClassModel =
-            SparseVectorClassModel.create(
-                    SparseVectorInputBufferWrapperConfig.tiling)
+            SparseVectorClassModel.create()
     models.addClassModelFor(classOf[SparseVector], sparseVectorModel)
 
     val outputClassType1Name = CodeGenUtil.cleanClassName("I")

@@ -1,0 +1,965 @@
+Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+15/11/02 02:46:03 INFO CoarseGrainedExecutorBackend: Registered signal handlers for [TERM, HUP, INT]
+15/11/02 02:46:03 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/11/02 02:46:03 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 02:46:03 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 02:46:03 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 02:46:04 INFO Slf4jLogger: Slf4jLogger started
+15/11/02 02:46:04 INFO Remoting: Starting remoting
+15/11/02 02:46:04 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://driverPropsFetcher@gpu-010.davinci.rice.edu:55568]
+15/11/02 02:46:04 INFO Utils: Successfully started service 'driverPropsFetcher' on port 55568.
+15/11/02 02:46:04 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 02:46:04 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 02:46:04 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 02:46:04 INFO RemoteActorRefProvider$RemotingTerminator: Shutting down remote daemon.
+15/11/02 02:46:04 INFO RemoteActorRefProvider$RemotingTerminator: Remote daemon shut down; proceeding with flushing remote transports.
+15/11/02 02:46:04 INFO Slf4jLogger: Slf4jLogger started
+15/11/02 02:46:04 INFO Remoting: Starting remoting
+15/11/02 02:46:04 INFO RemoteActorRefProvider$RemotingTerminator: Remoting shut down.
+15/11/02 02:46:04 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkExecutor@gpu-010.davinci.rice.edu:34935]
+15/11/02 02:46:04 INFO Utils: Successfully started service 'sparkExecutor' on port 34935.
+15/11/02 02:46:04 INFO CoarseGrainedExecutorBackend: Connecting to driver: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809/user/CoarseGrainedScheduler
+15/11/02 02:46:04 INFO WorkerWatcher: Connecting to worker akka.tcp://sparkWorker@gpu-010.davinci.rice.edu:35166/user/Worker
+15/11/02 02:46:04 INFO WorkerWatcher: Successfully connected to akka.tcp://sparkWorker@gpu-010.davinci.rice.edu:35166/user/Worker
+15/11/02 02:46:04 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
+15/11/02 02:46:04 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 02:46:04 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 02:46:04 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 02:46:04 INFO AkkaUtils: Connecting to MapOutputTracker: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809/user/MapOutputTracker
+15/11/02 02:46:04 INFO AkkaUtils: Connecting to BlockManagerMaster: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809/user/BlockManagerMaster
+15/11/02 02:46:04 INFO DiskBlockManager: Created local directory at /tmp/spark-local-20151102024604-6bde
+15/11/02 02:46:04 INFO MemoryStore: MemoryStore started with capacity 3.5 GB
+15/11/02 02:46:05 INFO NettyBlockTransferService: Server created on 40287
+15/11/02 02:46:05 INFO BlockManagerMaster: Trying to register BlockManager
+15/11/02 02:46:05 INFO BlockManagerMaster: Registered BlockManager
+15/11/02 02:46:05 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809/user/HeartbeatReceiver
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 48
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 49
+15/11/02 02:46:05 INFO Executor: Running task 39.0 in stage 0.0 (TID 48)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 50
+15/11/02 02:46:05 INFO Executor: Running task 40.0 in stage 0.0 (TID 49)
+15/11/02 02:46:05 INFO Executor: Running task 53.0 in stage 0.0 (TID 50)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 51
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 52
+15/11/02 02:46:05 INFO Executor: Running task 55.0 in stage 0.0 (TID 51)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 53
+15/11/02 02:46:05 INFO Executor: Running task 56.0 in stage 0.0 (TID 52)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 54
+15/11/02 02:46:05 INFO Executor: Running task 57.0 in stage 0.0 (TID 53)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 55
+15/11/02 02:46:05 INFO Executor: Running task 58.0 in stage 0.0 (TID 54)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 56
+15/11/02 02:46:05 INFO Executor: Running task 68.0 in stage 0.0 (TID 55)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 57
+15/11/02 02:46:05 INFO Executor: Running task 69.0 in stage 0.0 (TID 56)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 58
+15/11/02 02:46:05 INFO Executor: Running task 71.0 in stage 0.0 (TID 57)
+15/11/02 02:46:05 INFO CoarseGrainedExecutorBackend: Got assigned task 59
+15/11/02 02:46:05 INFO Executor: Running task 76.0 in stage 0.0 (TID 58)
+15/11/02 02:46:05 INFO Executor: Running task 77.0 in stage 0.0 (TID 59)
+15/11/02 02:46:05 INFO Executor: Fetching http://192.168.110.204:45906/jars/swat-1.0-SNAPSHOT.jar with timestamp 1446453962207
+15/11/02 02:46:05 INFO Utils: Fetching http://192.168.110.204:45906/jars/swat-1.0-SNAPSHOT.jar to /tmp/fetchFileTemp2935360723907322201.tmp
+15/11/02 02:46:05 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102024602-0026/1/./swat-1.0-SNAPSHOT.jar to class loader
+15/11/02 02:46:05 INFO Executor: Fetching http://192.168.110.204:45906/jars/sparkgenetic-0.0.0.jar with timestamp 1446453962210
+15/11/02 02:46:05 INFO Utils: Fetching http://192.168.110.204:45906/jars/sparkgenetic-0.0.0.jar to /tmp/fetchFileTemp6215686482180038967.tmp
+15/11/02 02:46:05 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102024602-0026/1/./sparkgenetic-0.0.0.jar to class loader
+15/11/02 02:46:05 INFO Executor: Fetching http://192.168.110.204:45906/jars/aparapi.jar with timestamp 1446453962209
+15/11/02 02:46:05 INFO Utils: Fetching http://192.168.110.204:45906/jars/aparapi.jar to /tmp/fetchFileTemp3681669483579482347.tmp
+15/11/02 02:46:05 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102024602-0026/1/./aparapi.jar to class loader
+15/11/02 02:46:05 INFO Executor: Fetching http://192.168.110.204:45906/jars/asm-5.0.3.jar with timestamp 1446453962210
+15/11/02 02:46:05 INFO Utils: Fetching http://192.168.110.204:45906/jars/asm-5.0.3.jar to /tmp/fetchFileTemp3907229712824889825.tmp
+15/11/02 02:46:05 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102024602-0026/1/./asm-5.0.3.jar to class loader
+15/11/02 02:46:05 INFO Executor: Fetching http://192.168.110.204:45906/jars/asm-util-5.0.3.jar with timestamp 1446453962210
+15/11/02 02:46:05 INFO Utils: Fetching http://192.168.110.204:45906/jars/asm-util-5.0.3.jar to /tmp/fetchFileTemp4913254269346585796.tmp
+15/11/02 02:46:05 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102024602-0026/1/./asm-util-5.0.3.jar to class loader
+15/11/02 02:46:05 INFO TorrentBroadcast: Started reading broadcast variable 1
+15/11/02 02:46:05 INFO MemoryStore: ensureFreeSpace(2015) called with curMem=0, maxMem=3704472207
+15/11/02 02:46:05 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 2015.0 B, free 3.5 GB)
+15/11/02 02:46:05 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/11/02 02:46:05 INFO TorrentBroadcast: Reading broadcast variable 1 took 164 ms
+15/11/02 02:46:05 INFO MemoryStore: ensureFreeSpace(2816) called with curMem=2015, maxMem=3704472207
+15/11/02 02:46:05 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 2.8 KB, free 3.5 GB)
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_57 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_77 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_69 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_58 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_56 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_76 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.9:268435456+134217728
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.9:402653184+134217728
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.2:671088640+39355095
+15/11/02 02:46:05 INFO TorrentBroadcast: Started reading broadcast variable 0
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.2:536870912+134217728
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.9:536870912+134217728
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.10:402653184+134217728
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_68 not found, computing it
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_39 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.10:268435456+134217728
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.6:402653184+134217728
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_55 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.9:134217728+134217728
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_71 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.10:671088640+39355095
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_40 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.6:536870912+134217728
+15/11/02 02:46:05 INFO CacheManager: Partition rdd_1_53 not found, computing it
+15/11/02 02:46:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00000.8:671088640+39356775
+15/11/02 02:46:05 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=4831, maxMem=3704472207
+15/11/02 02:46:05 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 3.5 GB)
+15/11/02 02:46:05 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/11/02 02:46:05 INFO TorrentBroadcast: Reading broadcast variable 0 took 35 ms
+15/11/02 02:46:05 INFO MemoryStore: ensureFreeSpace(278567) called with curMem=27523, maxMem=3704472207
+15/11/02 02:46:05 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 272.0 KB, free 3.4 GB)
+15/11/02 02:46:06 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/11/02 02:46:06 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/11/02 02:46:06 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/11/02 02:46:06 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/11/02 02:46:06 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/11/02 02:46:07 INFO MemoryStore: ensureFreeSpace(40848624) called with curMem=306090, maxMem=3704472207
+15/11/02 02:46:07 INFO MemoryStore: Block rdd_1_71 stored as values in memory (estimated size 39.0 MB, free 3.4 GB)
+15/11/02 02:46:07 INFO MemoryStore: ensureFreeSpace(40850424) called with curMem=41154714, maxMem=3704472207
+15/11/02 02:46:07 INFO MemoryStore: Block rdd_1_53 stored as values in memory (estimated size 39.0 MB, free 3.4 GB)
+15/11/02 02:46:07 INFO MemoryStore: ensureFreeSpace(40848624) called with curMem=82005138, maxMem=3704472207
+15/11/02 02:46:07 INFO BlockManagerMaster: Updated info of block rdd_1_71
+15/11/02 02:46:07 INFO MemoryStore: Block rdd_1_77 stored as values in memory (estimated size 39.0 MB, free 3.3 GB)
+15/11/02 02:46:07 INFO BlockManagerMaster: Updated info of block rdd_1_53
+15/11/02 02:46:07 INFO Executor: Finished task 71.0 in stage 0.0 (TID 57). 2341 bytes result sent to driver
+15/11/02 02:46:07 INFO Executor: Finished task 53.0 in stage 0.0 (TID 50). 2341 bytes result sent to driver
+15/11/02 02:46:07 INFO BlockManagerMaster: Updated info of block rdd_1_77
+15/11/02 02:46:07 INFO CoarseGrainedExecutorBackend: Got assigned task 96
+15/11/02 02:46:07 INFO Executor: Running task 95.0 in stage 0.0 (TID 96)
+15/11/02 02:46:07 INFO Executor: Finished task 77.0 in stage 0.0 (TID 59). 2341 bytes result sent to driver
+15/11/02 02:46:07 INFO CoarseGrainedExecutorBackend: Got assigned task 97
+15/11/02 02:46:07 INFO Executor: Running task 105.0 in stage 0.0 (TID 97)
+15/11/02 02:46:07 INFO CacheManager: Partition rdd_1_95 not found, computing it
+15/11/02 02:46:07 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.5:671088640+39355095
+15/11/02 02:46:07 INFO CoarseGrainedExecutorBackend: Got assigned task 98
+15/11/02 02:46:07 INFO Executor: Running task 110.0 in stage 0.0 (TID 98)
+15/11/02 02:46:07 INFO CacheManager: Partition rdd_1_110 not found, computing it
+15/11/02 02:46:07 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.8:268435456+134217728
+15/11/02 02:46:07 INFO CacheManager: Partition rdd_1_105 not found, computing it
+15/11/02 02:46:07 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.7:402653184+134217728
+15/11/02 02:46:07 INFO MemoryStore: ensureFreeSpace(40848624) called with curMem=122853762, maxMem=3704472207
+15/11/02 02:46:07 INFO MemoryStore: Block rdd_1_95 stored as values in memory (estimated size 39.0 MB, free 3.3 GB)
+15/11/02 02:46:07 INFO BlockManagerMaster: Updated info of block rdd_1_95
+15/11/02 02:46:07 INFO Executor: Finished task 95.0 in stage 0.0 (TID 96). 2341 bytes result sent to driver
+15/11/02 02:46:07 INFO CoarseGrainedExecutorBackend: Got assigned task 111
+15/11/02 02:46:07 INFO Executor: Running task 111.0 in stage 0.0 (TID 111)
+15/11/02 02:46:07 INFO CacheManager: Partition rdd_1_111 not found, computing it
+15/11/02 02:46:07 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.8:402653184+134217728
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=163702386, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_58 stored as values in memory (estimated size 132.9 MB, free 3.2 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_58
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=303028410, maxMem=3704472207
+15/11/02 02:46:08 INFO Executor: Finished task 58.0 in stage 0.0 (TID 54). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_40 stored as values in memory (estimated size 132.9 MB, free 3.0 GB)
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=442354434, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_55 stored as values in memory (estimated size 132.9 MB, free 2.9 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_40
+15/11/02 02:46:08 INFO CoarseGrainedExecutorBackend: Got assigned task 112
+15/11/02 02:46:08 INFO Executor: Running task 112.0 in stage 0.0 (TID 112)
+15/11/02 02:46:08 INFO Executor: Finished task 40.0 in stage 0.0 (TID 49). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_55
+15/11/02 02:46:08 INFO Executor: Finished task 55.0 in stage 0.0 (TID 51). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO CacheManager: Partition rdd_1_112 not found, computing it
+15/11/02 02:46:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.8:536870912+134217728
+15/11/02 02:46:08 INFO CoarseGrainedExecutorBackend: Got assigned task 113
+15/11/02 02:46:08 INFO Executor: Running task 114.0 in stage 0.0 (TID 113)
+15/11/02 02:46:08 INFO CoarseGrainedExecutorBackend: Got assigned task 114
+15/11/02 02:46:08 INFO Executor: Running task 119.0 in stage 0.0 (TID 114)
+15/11/02 02:46:08 INFO CacheManager: Partition rdd_1_114 not found, computing it
+15/11/02 02:46:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.9:0+134217728
+15/11/02 02:46:08 INFO CacheManager: Partition rdd_1_119 not found, computing it
+15/11/02 02:46:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/census-data/part-00001.9:671088640+39355095
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=581680458, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_39 stored as values in memory (estimated size 132.9 MB, free 2.8 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_39
+15/11/02 02:46:08 INFO Executor: Finished task 39.0 in stage 0.0 (TID 48). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=721006482, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_57 stored as values in memory (estimated size 132.9 MB, free 2.6 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_57
+15/11/02 02:46:08 INFO Executor: Finished task 57.0 in stage 0.0 (TID 53). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=860332506, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_56 stored as values in memory (estimated size 132.9 MB, free 2.5 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_56
+15/11/02 02:46:08 INFO Executor: Finished task 56.0 in stage 0.0 (TID 52). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=999658530, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_68 stored as values in memory (estimated size 132.9 MB, free 2.4 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_68
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=1138984554, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_69 stored as values in memory (estimated size 132.9 MB, free 2.3 GB)
+15/11/02 02:46:08 INFO Executor: Finished task 68.0 in stage 0.0 (TID 55). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_69
+15/11/02 02:46:08 INFO Executor: Finished task 69.0 in stage 0.0 (TID 56). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=1278310578, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_76 stored as values in memory (estimated size 132.9 MB, free 2.1 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_76
+15/11/02 02:46:08 INFO Executor: Finished task 76.0 in stage 0.0 (TID 58). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(40848624) called with curMem=1417636602, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_119 stored as values in memory (estimated size 39.0 MB, free 2.1 GB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_119
+15/11/02 02:46:08 INFO Executor: Finished task 119.0 in stage 0.0 (TID 114). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=1458485226, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_105 stored as values in memory (estimated size 132.9 MB, free 2009.1 MB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_105
+15/11/02 02:46:08 INFO Executor: Finished task 105.0 in stage 0.0 (TID 97). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=1597811250, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_110 stored as values in memory (estimated size 132.9 MB, free 1876.2 MB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_110
+15/11/02 02:46:08 INFO Executor: Finished task 110.0 in stage 0.0 (TID 98). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=1737137274, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_111 stored as values in memory (estimated size 132.9 MB, free 1743.3 MB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_111
+15/11/02 02:46:08 INFO Executor: Finished task 111.0 in stage 0.0 (TID 111). 2341 bytes result sent to driver
+15/11/02 02:46:08 INFO MemoryStore: ensureFreeSpace(139332024) called with curMem=1876463298, maxMem=3704472207
+15/11/02 02:46:08 INFO MemoryStore: Block rdd_1_114 stored as values in memory (estimated size 132.9 MB, free 1610.4 MB)
+15/11/02 02:46:08 INFO BlockManagerMaster: Updated info of block rdd_1_114
+15/11/02 02:46:08 INFO Executor: Finished task 114.0 in stage 0.0 (TID 113). 2341 bytes result sent to driver
+15/11/02 02:46:09 INFO MemoryStore: ensureFreeSpace(139326024) called with curMem=2015795322, maxMem=3704472207
+15/11/02 02:46:09 INFO MemoryStore: Block rdd_1_112 stored as values in memory (estimated size 132.9 MB, free 1477.6 MB)
+15/11/02 02:46:09 INFO BlockManagerMaster: Updated info of block rdd_1_112
+15/11/02 02:46:09 INFO Executor: Finished task 112.0 in stage 0.0 (TID 112). 2341 bytes result sent to driver
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 121
+15/11/02 02:46:09 INFO Executor: Running task 39.0 in stage 1.0 (TID 121)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 129
+15/11/02 02:46:09 INFO Executor: Running task 40.0 in stage 1.0 (TID 129)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 137
+15/11/02 02:46:09 INFO Executor: Running task 53.0 in stage 1.0 (TID 137)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 145
+15/11/02 02:46:09 INFO Executor: Running task 55.0 in stage 1.0 (TID 145)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 153
+15/11/02 02:46:09 INFO Executor: Running task 56.0 in stage 1.0 (TID 153)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 161
+15/11/02 02:46:09 INFO Executor: Running task 57.0 in stage 1.0 (TID 161)
+15/11/02 02:46:09 INFO TorrentBroadcast: Started reading broadcast variable 2
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 169
+15/11/02 02:46:09 INFO Executor: Running task 58.0 in stage 1.0 (TID 169)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 177
+15/11/02 02:46:09 INFO Executor: Running task 68.0 in stage 1.0 (TID 177)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 185
+15/11/02 02:46:09 INFO Executor: Running task 69.0 in stage 1.0 (TID 185)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 193
+15/11/02 02:46:09 INFO Executor: Running task 71.0 in stage 1.0 (TID 193)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 201
+15/11/02 02:46:09 INFO Executor: Running task 76.0 in stage 1.0 (TID 201)
+15/11/02 02:46:09 INFO CoarseGrainedExecutorBackend: Got assigned task 209
+15/11/02 02:46:09 INFO Executor: Running task 77.0 in stage 1.0 (TID 209)
+15/11/02 02:46:10 INFO MemoryStore: ensureFreeSpace(2457) called with curMem=2155121346, maxMem=3704472207
+15/11/02 02:46:10 INFO MemoryStore: Block broadcast_2_piece0 stored as bytes in memory (estimated size 2.4 KB, free 1477.6 MB)
+15/11/02 02:46:10 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/11/02 02:46:10 INFO TorrentBroadcast: Reading broadcast variable 2 took 47 ms
+15/11/02 02:46:10 INFO MemoryStore: ensureFreeSpace(3408) called with curMem=2155123803, maxMem=3704472207
+15/11/02 02:46:10 INFO MemoryStore: Block broadcast_2 stored as values in memory (estimated size 3.3 KB, free 1477.6 MB)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_39 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_76 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_58 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_56 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_68 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_77 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_71 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_53 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_69 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_40 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_55 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_57 locally
+15/11/02 02:46:10 INFO Executor: Finished task 68.0 in stage 1.0 (TID 177). 39541 bytes result sent to driver
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 221
+15/11/02 02:46:10 INFO Executor: Running task 95.0 in stage 1.0 (TID 221)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_95 locally
+15/11/02 02:46:10 INFO Executor: Finished task 56.0 in stage 1.0 (TID 153). 42356 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 77.0 in stage 1.0 (TID 209). 10281 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 71.0 in stage 1.0 (TID 193). 12531 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 95.0 in stage 1.0 (TID 221). 14781 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 53.0 in stage 1.0 (TID 137). 8028 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 76.0 in stage 1.0 (TID 201). 38978 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 58.0 in stage 1.0 (TID 169). 35601 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 69.0 in stage 1.0 (TID 185). 40666 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 55.0 in stage 1.0 (TID 145). 40666 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 57.0 in stage 1.0 (TID 161). 41231 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 40.0 in stage 1.0 (TID 129). 38978 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 39.0 in stage 1.0 (TID 121). 39541 bytes result sent to driver
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 232
+15/11/02 02:46:10 INFO Executor: Running task 105.0 in stage 1.0 (TID 232)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_105 locally
+15/11/02 02:46:10 INFO Executor: Finished task 105.0 in stage 1.0 (TID 232). 29411 bytes result sent to driver
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 234
+15/11/02 02:46:10 INFO Executor: Running task 110.0 in stage 1.0 (TID 234)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_110 locally
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 235
+15/11/02 02:46:10 INFO Executor: Running task 111.0 in stage 1.0 (TID 235)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_111 locally
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 236
+15/11/02 02:46:10 INFO Executor: Running task 112.0 in stage 1.0 (TID 236)
+15/11/02 02:46:10 INFO Executor: Finished task 110.0 in stage 1.0 (TID 234). 34476 bytes result sent to driver
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_112 locally
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 237
+15/11/02 02:46:10 INFO Executor: Running task 114.0 in stage 1.0 (TID 237)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_114 locally
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 238
+15/11/02 02:46:10 INFO Executor: Running task 119.0 in stage 1.0 (TID 238)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_119 locally
+15/11/02 02:46:10 INFO Executor: Finished task 111.0 in stage 1.0 (TID 235). 43481 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 119.0 in stage 1.0 (TID 238). 9716 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 112.0 in stage 1.0 (TID 236). 44606 bytes result sent to driver
+15/11/02 02:46:10 INFO Executor: Finished task 114.0 in stage 1.0 (TID 237). 32788 bytes result sent to driver
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 242
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 250
+15/11/02 02:46:10 INFO Executor: Running task 39.0 in stage 2.0 (TID 242)
+15/11/02 02:46:10 INFO Executor: Running task 40.0 in stage 2.0 (TID 250)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 258
+15/11/02 02:46:10 INFO Executor: Running task 53.0 in stage 2.0 (TID 258)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 266
+15/11/02 02:46:10 INFO TorrentBroadcast: Started reading broadcast variable 7
+15/11/02 02:46:10 INFO Executor: Running task 55.0 in stage 2.0 (TID 266)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 274
+15/11/02 02:46:10 INFO Executor: Running task 56.0 in stage 2.0 (TID 274)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 282
+15/11/02 02:46:10 INFO Executor: Running task 57.0 in stage 2.0 (TID 282)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 290
+15/11/02 02:46:10 INFO Executor: Running task 58.0 in stage 2.0 (TID 290)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 298
+15/11/02 02:46:10 INFO Executor: Running task 68.0 in stage 2.0 (TID 298)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 306
+15/11/02 02:46:10 INFO Executor: Running task 69.0 in stage 2.0 (TID 306)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 314
+15/11/02 02:46:10 INFO Executor: Running task 71.0 in stage 2.0 (TID 314)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 322
+15/11/02 02:46:10 INFO Executor: Running task 76.0 in stage 2.0 (TID 322)
+15/11/02 02:46:10 INFO CoarseGrainedExecutorBackend: Got assigned task 330
+15/11/02 02:46:10 INFO Executor: Running task 77.0 in stage 2.0 (TID 330)
+15/11/02 02:46:10 INFO MemoryStore: ensureFreeSpace(2385) called with curMem=2155127211, maxMem=3704472207
+15/11/02 02:46:10 INFO MemoryStore: Block broadcast_7_piece0 stored as bytes in memory (estimated size 2.3 KB, free 1477.6 MB)
+15/11/02 02:46:10 INFO BlockManagerMaster: Updated info of block broadcast_7_piece0
+15/11/02 02:46:10 INFO TorrentBroadcast: Reading broadcast variable 7 took 39 ms
+15/11/02 02:46:10 INFO MemoryStore: ensureFreeSpace(3304) called with curMem=2155129596, maxMem=3704472207
+15/11/02 02:46:10 INFO MemoryStore: Block broadcast_7 stored as values in memory (estimated size 3.2 KB, free 1477.6 MB)
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_69 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_39 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_53 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_55 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_76 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_77 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_57 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_56 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_71 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_58 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_40 locally
+15/11/02 02:46:10 INFO BlockManager: Found block rdd_1_68 locally
+Thread = 0 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 76
+Thread = 4 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 71
+Thread = 3 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 55
+Thread = 5 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 58
+Thread = 8 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 69
+Thread = 9 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 53
+Thread = 10 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 57
+Thread = 7 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 56
+Thread = 6 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 39
+Thread = 1 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 40
+Thread = 11 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 77
+Thread = 2 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 68
+15/11/02 02:46:13 INFO TorrentBroadcast: Started reading broadcast variable 4
+15/11/02 02:46:13 INFO MemoryStore: ensureFreeSpace(2216) called with curMem=2155132900, maxMem=3704472207
+15/11/02 02:46:13 INFO MemoryStore: Block broadcast_4_piece0 stored as bytes in memory (estimated size 2.2 KB, free 1477.6 MB)
+15/11/02 02:46:13 INFO BlockManagerMaster: Updated info of block broadcast_4_piece0
+15/11/02 02:46:13 INFO TorrentBroadcast: Reading broadcast variable 4 took 64 ms
+15/11/02 02:46:13 INFO MemoryStore: ensureFreeSpace(25096) called with curMem=2155135116, maxMem=3704472207
+15/11/02 02:46:13 INFO MemoryStore: Block broadcast_4 stored as values in memory (estimated size 24.5 KB, free 1477.5 MB)
+15/11/02 02:46:13 INFO TorrentBroadcast: Started reading broadcast variable 3
+15/11/02 02:46:13 INFO MemoryStore: ensureFreeSpace(875786) called with curMem=2155160212, maxMem=3704472207
+15/11/02 02:46:13 INFO MemoryStore: Block broadcast_3_piece0 stored as bytes in memory (estimated size 855.3 KB, free 1476.7 MB)
+15/11/02 02:46:13 INFO BlockManagerMaster: Updated info of block broadcast_3_piece0
+15/11/02 02:46:13 INFO TorrentBroadcast: Reading broadcast variable 3 took 32 ms
+15/11/02 02:46:13 INFO MemoryStore: ensureFreeSpace(3755456) called with curMem=2156035998, maxMem=3704472207
+15/11/02 02:46:13 INFO MemoryStore: Block broadcast_3 stored as values in memory (estimated size 3.6 MB, free 1473.1 MB)
+SWAT PROF 10 Input-I/O 49 ms 1446453973988
+SWAT PROF 7 Input-I/O 94 ms 1446453973988
+SWAT PROF 10 Kernel launch @ 1446453973989 for seq = 0
+SWAT PROF 7 Kernel launch @ 1446453973989 for seq = 0
+SWAT PROF 1 Input-I/O 99 ms 1446453973992
+SWAT PROF 1 Kernel launch @ 1446453973992 for seq = 0
+SWAT PROF 5 Input-I/O 108 ms 1446453974008
+SWAT PROF 5 Kernel launch @ 1446453974008 for seq = 0
+Had to create new heap on device 1, nheaps = 3
+SWAT PROF 11 Input-I/O 119 ms 1446453974014
+SWAT PROF 11 Kernel launch @ 1446453974014 for seq = 0
+Had to create new heap on device 1, nheaps = 4
+SWAT PROF 9 Input-I/O 130 ms 1446453974024
+SWAT PROF 9 Kernel launch @ 1446453974025 for seq = 0
+Had to create new heap on device 1, nheaps = 5
+SWAT PROF 6 Input-I/O 129 ms 1446453974033
+SWAT PROF 6 Kernel launch @ 1446453974033 for seq = 0
+SWAT PROF 2 Input-I/O 133 ms 1446453974037
+SWAT PROF 3 Input-I/O 143 ms 1446453974037
+SWAT PROF 2 Kernel launch @ 1446453974037 for seq = 0
+SWAT PROF 3 Kernel launch @ 1446453974037 for seq = 0Had to create new heap on device 0, nheaps = 3
+
+Had to create new heap on device 1, nheaps = 6
+SWAT PROF 7 Input-I/O 68 ms 1446453974057
+SWAT PROF 7 Kernel launch @ 1446453974057 for seq = 1
+Had to create new heap on device 1, nheaps = 7
+SWAT PROF 1 Input-I/O 71 ms 1446453974063
+SWAT PROF 8 Input-I/O 150 ms 1446453974069
+SWAT PROF 8 Kernel launch @ 1446453974069 for seq = 0
+Had to create new heap on device 0, nheaps = 4
+SWAT PROF 10 Input-I/O 91 ms 1446453974080
+SWAT PROF 5 Input-I/O 72 ms 1446453974080
+SWAT PROF 10 Kernel launch @ 1446453974080 for seq = 1
+Had to create new heap on device 0, nheaps = 5
+SWAT PROF 0 Input-I/O 163 ms 1446453974082
+SWAT PROF 0 Kernel launch @ 1446453974083 for seq = 0
+Had to create new heap on device 0, nheaps = 6
+SWAT PROF 4 Input-I/O 151 ms 1446453974084
+SWAT PROF 4 Kernel launch @ 1446453974085 for seq = 0
+Had to create new heap on device 0, nheaps = 7
+SWAT PROF 6 Input-I/O 56 ms 1446453974089
+SWAT PROF 2 Input-I/O 56 ms 1446453974093
+SWAT PROF 3 Input-I/O 60 ms 1446453974097
+SWAT PROF 7 Input-I/O 45 ms 1446453974102
+SWAT PROF 8 Input-I/O 53 ms 1446453974123
+SWAT PROF 10 Input-I/O 42 ms 1446453974123
+SWAT PROF 0 Input-I/O 49 ms 1446453974132
+SWAT PROF 6 Kernel launch @ 1446453976661 for seq = 1
+Had to create new heap on device 0, nheaps = 8
+SWAT PROF 1 Kernel launch @ 1446453976661 for seq = 1
+Had to create new heap on device 1, nheaps = 8
+SWAT PROF 6 Input-I/O 39 ms 1446453976700
+SWAT PROF 1 Input-I/O 41 ms 1446453976702
+SWAT PROF 2 Kernel launch @ 1446453979319 for seq = 1
+Had to create new heap on device 0, nheaps = 9
+SWAT PROF 5 Kernel launch @ 1446453979320 for seq = 1
+Had to create new heap on device 1, nheaps = 9
+SWAT PROF 5 Input-I/O 39 ms 1446453979359
+SWAT PROF 2 Input-I/O 40 ms 1446453979360
+SWAT PROF 8 Kernel launch @ 1446453981979 for seq = 1
+Had to create new heap on device 0, nheaps = 10
+SWAT PROF 8 Input-I/O 43 ms 1446453982023
+SWAT PROF 3 Kernel launch @ 1446453987126 for seq = 1
+Had to create new heap on device 1, nheaps = 10
+SWAT PROF 3 Input-I/O 38 ms 1446453987164
+SWAT PROF 0 Kernel launch @ 1446453987287 for seq = 1
+Had to create new heap on device 0, nheaps = 11
+SWAT PROF 0 Input-I/O 41 ms 1446453987329
+SWAT PROF 7 Started writing seq = 0 @ 1446453992448
+SWAT PROF 10 Started writing seq = 0 @ 1446453992536
+SWAT PROF 7 Finished writing seq = 0 @ 1446453992562
+SWAT PROF 7 Kernel launch @ 1446453992562 for seq = 2
+SWAT PROF 7 Input-I/O 12 ms 1446453992574
+SWAT PROF 10 Finished writing seq = 0 @ 1446453992627
+SWAT PROF 10 Kernel launch @ 1446453992627 for seq = 2
+SWAT PROF 10 Input-I/O 13 ms 1446453992640
+SWAT PROF 1 Started writing seq = 0 @ 1446453995117
+SWAT PROF 1 Finished writing seq = 0 @ 1446453995195
+SWAT PROF 1 Kernel launch @ 1446453995195 for seq = 2
+SWAT PROF 6 Started writing seq = 0 @ 1446453995196
+SWAT PROF 1 Input-I/O 13 ms 1446453995208
+SWAT PROF 6 Finished writing seq = 0 @ 1446453995264
+SWAT PROF 6 Kernel launch @ 1446453995264 for seq = 2
+SWAT PROF 6 Input-I/O 12 ms 1446453995276
+SWAT PROF 5 Started writing seq = 0 @ 1446453997777
+SWAT PROF 11 Started writing seq = 0 @ 1446453997797
+SWAT PROF 2 Started writing seq = 0 @ 1446453997857
+SWAT PROF 5 Finished writing seq = 0 @ 1446453997860
+SWAT PROF 5 Kernel launch @ 1446453997861 for seq = 2
+SWAT PROF 5 Input-I/O 13 ms 1446453997874
+SWAT PROF 11 Finished writing seq = 0 @ 1446453997878
+SWAT PROF 11 Total 27359 ms 1446453997879
+SWAT PROF Total loaded = 68081
+15/11/02 02:46:37 INFO Executor: Finished task 77.0 in stage 2.0 (TID 330). 3159 bytes result sent to driver
+15/11/02 02:46:37 INFO CoarseGrainedExecutorBackend: Got assigned task 341
+15/11/02 02:46:37 INFO Executor: Running task 95.0 in stage 2.0 (TID 341)
+15/11/02 02:46:37 INFO BlockManager: Found block rdd_1_95 locally
+Thread = 11 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 95
+SWAT PROF 11 Input-I/O 43 ms 1446453997935
+SWAT PROF 11 Kernel launch @ 1446453997935 for seq = 0
+SWAT PROF 2 Finished writing seq = 0 @ 1446453997952
+SWAT PROF 2 Kernel launch @ 1446453997952 for seq = 2
+SWAT PROF 2 Input-I/O 12 ms 1446453997965
+SWAT PROF 9 Started writing seq = 0 @ 1446454000463
+SWAT PROF 3 Started writing seq = 0 @ 1446454000478
+SWAT PROF 7 Started writing seq = 1 @ 1446454000498
+SWAT PROF 9 Finished writing seq = 0 @ 1446454000532
+SWAT PROF 9 Total 30012 ms 1446454000532
+SWAT PROF Total loaded = 68084
+15/11/02 02:46:40 INFO Executor: Finished task 53.0 in stage 2.0 (TID 258). 3159 bytes result sent to driver
+15/11/02 02:46:40 INFO CoarseGrainedExecutorBackend: Got assigned task 343
+15/11/02 02:46:40 INFO Executor: Running task 105.0 in stage 2.0 (TID 343)
+SWAT PROF 8 Started writing seq = 0 @ 1446454000538
+15/11/02 02:46:40 INFO BlockManager: Found block rdd_1_105 locally
+Thread = 9 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 105
+SWAT PROF 3 Finished writing seq = 0 @ 1446454000562
+SWAT PROF 3 Kernel launch @ 1446454000563 for seq = 2
+SWAT PROF 3 Input-I/O 13 ms 1446454000576
+SWAT PROF 7 Finished writing seq = 1 @ 1446454000582
+SWAT PROF 7 Kernel launch @ 1446454000582 for seq = 3
+SWAT PROF 9 Input-I/O 38 ms 1446454000584
+SWAT PROF 9 Kernel launch @ 1446454000585 for seq = 0
+SWAT PROF 8 Finished writing seq = 0 @ 1446454000613
+SWAT PROF 8 Kernel launch @ 1446454000613 for seq = 2
+SWAT PROF 9 Input-I/O 36 ms 1446454000621
+SWAT PROF 8 Input-I/O 14 ms 1446454000627
+SWAT PROF 1 Started writing seq = 1 @ 1446454003169
+SWAT PROF 4 Started writing seq = 0 @ 1446454003935
+SWAT PROF 0 Started writing seq = 0 @ 1446454003935
+SWAT PROF 10 Started writing seq = 1 @ 1446454003936
+SWAT PROF 1 Finished writing seq = 1 @ 1446454003999
+SWAT PROF 1 Kernel launch @ 1446454004000 for seq = 3
+SWAT PROF 0 Finished writing seq = 0 @ 1446454004027
+SWAT PROF 0 Kernel launch @ 1446454004027 for seq = 2
+SWAT PROF 4 Finished writing seq = 0 @ 1446454004028
+SWAT PROF 4 Total 33508 ms 1446454004028
+SWAT PROF Total loaded = 68081
+15/11/02 02:46:44 INFO Executor: Finished task 71.0 in stage 2.0 (TID 314). 3159 bytes result sent to driver
+SWAT PROF 10 Finished writing seq = 1 @ 1446454004029
+SWAT PROF 10 Kernel launch @ 1446454004029 for seq = 3
+15/11/02 02:46:44 INFO CoarseGrainedExecutorBackend: Got assigned task 351
+15/11/02 02:46:44 INFO Executor: Running task 110.0 in stage 2.0 (TID 351)
+15/11/02 02:46:44 INFO BlockManager: Found block rdd_1_110 locally
+Thread = 4 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 110
+SWAT PROF 0 Input-I/O 13 ms 1446454004040
+SWAT PROF 4 Input-I/O 37 ms 1446454004078
+SWAT PROF 4 Kernel launch @ 1446454004078 for seq = 0
+SWAT PROF 4 Input-I/O 36 ms 1446454004115
+SWAT PROF 5 Started writing seq = 1 @ 1446454005832
+SWAT PROF 5 Finished writing seq = 1 @ 1446454005898
+SWAT PROF 5 Kernel launch @ 1446454005899 for seq = 3
+SWAT PROF 6 Started writing seq = 1 @ 1446454005903
+SWAT PROF 6 Finished writing seq = 1 @ 1446454005954
+SWAT PROF 6 Kernel launch @ 1446454005955 for seq = 3
+SWAT PROF 2 Started writing seq = 1 @ 1446454008563
+SWAT PROF 2 Finished writing seq = 1 @ 1446454008624
+SWAT PROF 2 Kernel launch @ 1446454008625 for seq = 3
+SWAT PROF 3 Started writing seq = 1 @ 1446454011084
+SWAT PROF 3 Finished writing seq = 1 @ 1446454011152
+SWAT PROF 3 Kernel launch @ 1446454011153 for seq = 3
+SWAT PROF 8 Started writing seq = 1 @ 1446454011244
+SWAT PROF 8 Finished writing seq = 1 @ 1446454011307
+SWAT PROF 8 Kernel launch @ 1446454011307 for seq = 3
+SWAT PROF 0 Started writing seq = 1 @ 1446454013905
+SWAT PROF 0 Finished writing seq = 1 @ 1446454013954
+SWAT PROF 0 Kernel launch @ 1446454013954 for seq = 3
+SWAT PROF 9 Kernel launch @ 1446454014599 for seq = 1
+Had to create new heap on device 1, nheaps = 11
+SWAT PROF 9 Input-I/O 37 ms 1446454014636
+SWAT PROF 7 Started writing seq = 2 @ 1446454017275
+SWAT PROF 7 Finished writing seq = 2 @ 1446454017356
+SWAT PROF 4 Kernel launch @ 1446454017422 for seq = 1
+Had to create new heap on device 0, nheaps = 12
+SWAT PROF 4 Input-I/O 36 ms 1446454017458
+SWAT PROF 1 Started writing seq = 2 @ 1446454018156
+SWAT PROF 1 Finished writing seq = 2 @ 1446454018207
+SWAT PROF 5 Started writing seq = 2 @ 1446454019036
+SWAT PROF 11 Started writing seq = 0 @ 1446454019056
+SWAT PROF 5 Finished writing seq = 2 @ 1446454019102
+SWAT PROF 11 Finished writing seq = 0 @ 1446454019118
+SWAT PROF 11 Total 21233 ms 1446454019119
+SWAT PROF Total loaded = 68081
+15/11/02 02:46:59 INFO Executor: Finished task 95.0 in stage 2.0 (TID 341). 3159 bytes result sent to driver
+15/11/02 02:46:59 INFO CoarseGrainedExecutorBackend: Got assigned task 352
+15/11/02 02:46:59 INFO Executor: Running task 111.0 in stage 2.0 (TID 352)
+15/11/02 02:46:59 INFO BlockManager: Found block rdd_1_111 locally
+Thread = 11 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 111
+SWAT PROF 11 Input-I/O 38 ms 1446454019168
+SWAT PROF 11 Kernel launch @ 1446454019168 for seq = 0
+SWAT PROF 11 Input-I/O 37 ms 1446454019206
+SWAT PROF 7 Started writing seq = 3 @ 1446454019936
+SWAT PROF 3 Started writing seq = 2 @ 1446454019936
+SWAT PROF 7 Finished writing seq = 3 @ 1446454019968
+SWAT PROF 7 Total 49448 ms 1446454019968
+SWAT PROF Total loaded = 232210
+15/11/02 02:46:59 INFO Executor: Finished task 56.0 in stage 2.0 (TID 274). 3159 bytes result sent to driver
+15/11/02 02:46:59 INFO CoarseGrainedExecutorBackend: Got assigned task 353
+15/11/02 02:46:59 INFO Executor: Running task 112.0 in stage 2.0 (TID 353)
+15/11/02 02:46:59 INFO BlockManager: Found block rdd_1_112 locally
+Thread = 7 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 112
+SWAT PROF 7 Input-I/O 38 ms 1446454020020
+SWAT PROF 7 Kernel launch @ 1446454020020 for seq = 0
+SWAT PROF 3 Finished writing seq = 2 @ 1446454020030
+SWAT PROF 7 Input-I/O 37 ms 1446454020058
+SWAT PROF 10 Started writing seq = 2 @ 1446454020086
+SWAT PROF 10 Finished writing seq = 2 @ 1446454020146
+SWAT PROF 6 Started writing seq = 2 @ 1446454020967
+SWAT PROF 6 Finished writing seq = 2 @ 1446454021025
+SWAT PROF 2 Started writing seq = 2 @ 1446454021847
+SWAT PROF 2 Finished writing seq = 2 @ 1446454021906
+SWAT PROF 1 Started writing seq = 3 @ 1446454022597
+SWAT PROF 9 Started writing seq = 0 @ 1446454022597
+SWAT PROF 5 Started writing seq = 3 @ 1446454022606
+SWAT PROF 11 Kernel launch @ 1446454022607 for seq = 1
+SWAT PROF 1 Finished writing seq = 3 @ 1446454022620
+SWAT PROF 1 Total 52100 ms 1446454022620
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:02 INFO Executor: Finished task 40.0 in stage 2.0 (TID 250). 3159 bytes result sent to driver
+SWAT PROF 5 Finished writing seq = 3 @ 1446454022624
+SWAT PROF 5 Total 52104 ms 1446454022624
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:02 INFO Executor: Finished task 58.0 in stage 2.0 (TID 290). 3159 bytes result sent to driver
+15/11/02 02:47:02 INFO CoarseGrainedExecutorBackend: Got assigned task 354
+15/11/02 02:47:02 INFO Executor: Running task 114.0 in stage 2.0 (TID 354)
+15/11/02 02:47:02 INFO BlockManager: Found block rdd_1_114 locally
+Thread = 1 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 114
+15/11/02 02:47:02 INFO CoarseGrainedExecutorBackend: Got assigned task 355
+15/11/02 02:47:02 INFO Executor: Running task 119.0 in stage 2.0 (TID 355)
+15/11/02 02:47:02 INFO BlockManager: Found block rdd_1_119 locally
+Thread = 5 N = 70000, cl_local_size = 256, spark_cores = 12, stage = 2, partition = 119
+SWAT PROF 11 Input-I/O 43 ms 1446454022650
+SWAT PROF 9 Finished writing seq = 0 @ 1446454022664
+SWAT PROF 9 Kernel launch @ 1446454022664 for seq = 2
+SWAT PROF 1 Input-I/O 39 ms 1446454022672
+SWAT PROF 1 Kernel launch @ 1446454022672 for seq = 0
+SWAT PROF 5 Input-I/O 40 ms 1446454022676
+SWAT PROF 5 Kernel launch @ 1446454022676 for seq = 0
+SWAT PROF 9 Input-I/O 13 ms 1446454022678
+SWAT PROF 1 Input-I/O 38 ms 1446454022710
+SWAT PROF 8 Started writing seq = 2 @ 1446454022747
+SWAT PROF 8 Finished writing seq = 2 @ 1446454022812
+SWAT PROF 0 Started writing seq = 2 @ 1446454023627
+SWAT PROF 10 Started writing seq = 3 @ 1446454023628
+SWAT PROF 10 Finished writing seq = 3 @ 1446454023654
+SWAT PROF 10 Total 53134 ms 1446454023654
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:03 INFO Executor: Finished task 57.0 in stage 2.0 (TID 282). 3159 bytes result sent to driver
+SWAT PROF 0 Finished writing seq = 2 @ 1446454023689
+SWAT PROF 3 Started writing seq = 3 @ 1446454025257
+SWAT PROF 7 Kernel launch @ 1446454025270 for seq = 1
+SWAT PROF 3 Finished writing seq = 3 @ 1446454025275
+SWAT PROF 3 Total 54756 ms 1446454025276
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:05 INFO Executor: Finished task 55.0 in stage 2.0 (TID 266). 3159 bytes result sent to driver
+SWAT PROF 7 Input-I/O 38 ms 1446454025308
+SWAT PROF 6 Started writing seq = 3 @ 1446454026288
+SWAT PROF 2 Started writing seq = 3 @ 1446454026288
+SWAT PROF 4 Started writing seq = 0 @ 1446454026288
+SWAT PROF 0 Started writing seq = 3 @ 1446454026308
+SWAT PROF 8 Started writing seq = 3 @ 1446454026308
+SWAT PROF 2 Finished writing seq = 3 @ 1446454026320
+SWAT PROF 2 Total 55801 ms 1446454026321
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:06 INFO Executor: Finished task 68.0 in stage 2.0 (TID 298). 3159 bytes result sent to driver
+SWAT PROF 6 Finished writing seq = 3 @ 1446454026322
+SWAT PROF 6 Total 55802 ms 1446454026322
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:06 INFO Executor: Finished task 39.0 in stage 2.0 (TID 242). 3159 bytes result sent to driver
+SWAT PROF 0 Finished writing seq = 3 @ 1446454026336
+SWAT PROF 0 Total 55816 ms 1446454026337
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:06 INFO Executor: Finished task 76.0 in stage 2.0 (TID 322). 3159 bytes result sent to driver
+SWAT PROF 8 Finished writing seq = 3 @ 1446454026338
+SWAT PROF 8 Total 55818 ms 1446454026338
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:06 INFO Executor: Finished task 69.0 in stage 2.0 (TID 306). 3159 bytes result sent to driver
+SWAT PROF 4 Finished writing seq = 0 @ 1446454026361
+SWAT PROF 4 Started writing seq = 1 @ 1446454026361
+SWAT PROF 4 Kernel launch @ 1446454026361 for seq = 2
+SWAT PROF 4 Input-I/O 13 ms 1446454026374
+SWAT PROF 4 Finished writing seq = 1 @ 1446454026420
+SWAT PROF 4 Kernel launch @ 1446454026420 for seq = 3
+SWAT PROF 9 Started writing seq = 1 @ 1446454027938
+SWAT PROF 9 Finished writing seq = 1 @ 1446454027991
+SWAT PROF 9 Kernel launch @ 1446454027992 for seq = 3
+SWAT PROF 4 Started writing seq = 2 @ 1446454029908
+SWAT PROF 4 Finished writing seq = 2 @ 1446454029969
+SWAT PROF 4 Started writing seq = 3 @ 1446454029969
+SWAT PROF 4 Finished writing seq = 3 @ 1446454029989
+SWAT PROF 4 Total 25953 ms 1446454029989
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:09 INFO Executor: Finished task 110.0 in stage 2.0 (TID 351). 3159 bytes result sent to driver
+SWAT PROF 1 Kernel launch @ 1446454033242 for seq = 1
+SWAT PROF 1 Input-I/O 36 ms 1446454033278
+SWAT PROF 11 Started writing seq = 0 @ 1446454038480
+SWAT PROF 11 Finished writing seq = 0 @ 1446454038533
+SWAT PROF 11 Kernel launch @ 1446454038533 for seq = 2
+SWAT PROF 11 Input-I/O 12 ms 1446454038545
+SWAT PROF 7 Started writing seq = 0 @ 1446454041161
+SWAT PROF 7 Finished writing seq = 0 @ 1446454041215
+SWAT PROF 7 Kernel launch @ 1446454041215 for seq = 2
+SWAT PROF 7 Input-I/O 12 ms 1446454041227
+SWAT PROF 11 Started writing seq = 1 @ 1446454042041
+SWAT PROF 9 Started writing seq = 2 @ 1446454042061
+SWAT PROF 11 Finished writing seq = 1 @ 1446454042103
+SWAT PROF 11 Kernel launch @ 1446454042103 for seq = 3
+SWAT PROF 9 Finished writing seq = 2 @ 1446454042115
+SWAT PROF 1 Started writing seq = 0 @ 1446454044721
+SWAT PROF 5 Started writing seq = 0 @ 1446454044741
+SWAT PROF 1 Finished writing seq = 0 @ 1446454044774
+SWAT PROF 1 Kernel launch @ 1446454044774 for seq = 2
+SWAT PROF 1 Input-I/O 13 ms 1446454044787
+SWAT PROF 5 Finished writing seq = 0 @ 1446454044796
+SWAT PROF 5 Total 22165 ms 1446454044796
+SWAT PROF Total loaded = 68081
+15/11/02 02:47:24 INFO Executor: Finished task 119.0 in stage 2.0 (TID 355). 3159 bytes result sent to driver
+SWAT PROF 7 Started writing seq = 1 @ 1446454047402
+SWAT PROF 7 Finished writing seq = 1 @ 1446454047453
+SWAT PROF 7 Kernel launch @ 1446454047454 for seq = 3
+SWAT PROF 9 Started writing seq = 3 @ 1446454050056
+SWAT PROF 9 Finished writing seq = 3 @ 1446454050071
+SWAT PROF 9 Total 49533 ms 1446454050072
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:30 INFO Executor: Finished task 105.0 in stage 2.0 (TID 343). 3159 bytes result sent to driver
+SWAT PROF 1 Started writing seq = 1 @ 1446454050942
+SWAT PROF 1 Finished writing seq = 1 @ 1446454050993
+SWAT PROF 1 Kernel launch @ 1446454050993 for seq = 3
+SWAT PROF 11 Started writing seq = 2 @ 1446454053602
+SWAT PROF 11 Finished writing seq = 2 @ 1446454053656
+SWAT PROF 7 Started writing seq = 2 @ 1446454054483
+SWAT PROF 11 Started writing seq = 3 @ 1446454054503
+SWAT PROF 11 Finished writing seq = 3 @ 1446454054521
+SWAT PROF 11 Total 35396 ms 1446454054521
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:34 INFO Executor: Finished task 111.0 in stage 2.0 (TID 352). 3159 bytes result sent to driver
+SWAT PROF 7 Finished writing seq = 2 @ 1446454054540
+SWAT PROF 1 Started writing seq = 2 @ 1446454055369
+SWAT PROF 7 Started writing seq = 3 @ 1446454055383
+SWAT PROF 7 Finished writing seq = 3 @ 1446454055401
+SWAT PROF 7 Total 35426 ms 1446454055401
+SWAT PROF Total loaded = 232210
+15/11/02 02:47:35 INFO Executor: Finished task 112.0 in stage 2.0 (TID 353). 3159 bytes result sent to driver
+SWAT PROF 1 Finished writing seq = 2 @ 1446454055421
+SWAT PROF 1 Started writing seq = 3 @ 1446454055422
+SWAT PROF 1 Finished writing seq = 3 @ 1446454055436
+SWAT PROF 1 Total 32810 ms 1446454055437
+SWAT PROF Total loaded = 232220
+15/11/02 02:47:35 INFO Executor: Finished task 114.0 in stage 2.0 (TID 354). 3159 bytes result sent to driver
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 364
+15/11/02 02:47:35 INFO Executor: Running task 4.0 in stage 3.0 (TID 364)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 372
+15/11/02 02:47:35 INFO Executor: Running task 12.0 in stage 3.0 (TID 372)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 380
+15/11/02 02:47:35 INFO Executor: Running task 20.0 in stage 3.0 (TID 380)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 388
+15/11/02 02:47:35 INFO Executor: Running task 28.0 in stage 3.0 (TID 388)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 396
+15/11/02 02:47:35 INFO Executor: Running task 36.0 in stage 3.0 (TID 396)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 404
+15/11/02 02:47:35 INFO Executor: Running task 44.0 in stage 3.0 (TID 404)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 412
+15/11/02 02:47:35 INFO Executor: Running task 52.0 in stage 3.0 (TID 412)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 420
+15/11/02 02:47:35 INFO Executor: Running task 60.0 in stage 3.0 (TID 420)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 428
+15/11/02 02:47:35 INFO Executor: Running task 68.0 in stage 3.0 (TID 428)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 436
+15/11/02 02:47:35 INFO Executor: Running task 76.0 in stage 3.0 (TID 436)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 444
+15/11/02 02:47:35 INFO Executor: Running task 84.0 in stage 3.0 (TID 444)
+15/11/02 02:47:35 INFO CoarseGrainedExecutorBackend: Got assigned task 452
+15/11/02 02:47:35 INFO Executor: Running task 92.0 in stage 3.0 (TID 452)
+15/11/02 02:47:35 INFO TorrentBroadcast: Started reading broadcast variable 9
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(2659) called with curMem=2159791454, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_9_piece0 stored as bytes in memory (estimated size 2.6 KB, free 1473.1 MB)
+15/11/02 02:47:35 INFO BlockManagerMaster: Updated info of block broadcast_9_piece0
+15/11/02 02:47:35 INFO TorrentBroadcast: Reading broadcast variable 9 took 25 ms
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(3872) called with curMem=2159794113, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_9 stored as values in memory (estimated size 3.8 KB, free 1473.1 MB)
+15/11/02 02:47:35 INFO TorrentBroadcast: Started reading broadcast variable 8
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(163) called with curMem=2159797985, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_8_piece0 stored as bytes in memory (estimated size 163.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO BlockManagerMaster: Updated info of block broadcast_8_piece0
+15/11/02 02:47:35 INFO TorrentBroadcast: Reading broadcast variable 8 took 9 ms
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(168) called with curMem=2159798148, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_8 stored as values in memory (estimated size 168.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO TorrentBroadcast: Started reading broadcast variable 5
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(332) called with curMem=2159798316, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_5_piece0 stored as bytes in memory (estimated size 332.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO BlockManagerMaster: Updated info of block broadcast_5_piece0
+15/11/02 02:47:35 INFO TorrentBroadcast: Reading broadcast variable 5 took 8 ms
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(616) called with curMem=2159798648, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_5 stored as values in memory (estimated size 616.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO TorrentBroadcast: Started reading broadcast variable 6
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(605) called with curMem=2159799264, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_6_piece0 stored as bytes in memory (estimated size 605.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO BlockManagerMaster: Updated info of block broadcast_6_piece0
+15/11/02 02:47:35 INFO TorrentBroadcast: Reading broadcast variable 6 took 8 ms
+15/11/02 02:47:35 INFO MemoryStore: ensureFreeSpace(616) called with curMem=2159799869, maxMem=3704472207
+15/11/02 02:47:35 INFO MemoryStore: Block broadcast_6 stored as values in memory (estimated size 616.0 B, free 1473.1 MB)
+15/11/02 02:47:35 INFO Executor: Finished task 44.0 in stage 3.0 (TID 404). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 4.0 in stage 3.0 (TID 364). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 36.0 in stage 3.0 (TID 396). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 28.0 in stage 3.0 (TID 388). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 20.0 in stage 3.0 (TID 380). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 68.0 in stage 3.0 (TID 428). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 60.0 in stage 3.0 (TID 420). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 12.0 in stage 3.0 (TID 372). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 76.0 in stage 3.0 (TID 436). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 52.0 in stage 3.0 (TID 412). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 92.0 in stage 3.0 (TID 452). 955 bytes result sent to driver
+15/11/02 02:47:35 INFO Executor: Finished task 84.0 in stage 3.0 (TID 444). 955 bytes result sent to driver
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 457
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 465
+15/11/02 02:47:36 INFO Executor: Running task 1.0 in stage 4.0 (TID 457)
+15/11/02 02:47:36 INFO Executor: Running task 9.0 in stage 4.0 (TID 465)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 473
+15/11/02 02:47:36 INFO Executor: Running task 17.0 in stage 4.0 (TID 473)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 481
+15/11/02 02:47:36 INFO Executor: Running task 25.0 in stage 4.0 (TID 481)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 489
+15/11/02 02:47:36 INFO Executor: Running task 33.0 in stage 4.0 (TID 489)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 497
+15/11/02 02:47:36 INFO Executor: Running task 41.0 in stage 4.0 (TID 497)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 505
+15/11/02 02:47:36 INFO Executor: Running task 49.0 in stage 4.0 (TID 505)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 513
+15/11/02 02:47:36 INFO Executor: Running task 57.0 in stage 4.0 (TID 513)
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Updating epoch to 1 and clearing cache
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 521
+15/11/02 02:47:36 INFO Executor: Running task 65.0 in stage 4.0 (TID 521)
+15/11/02 02:47:36 INFO TorrentBroadcast: Started reading broadcast variable 10
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 529
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 537
+15/11/02 02:47:36 INFO Executor: Running task 73.0 in stage 4.0 (TID 529)
+15/11/02 02:47:36 INFO Executor: Running task 81.0 in stage 4.0 (TID 537)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 545
+15/11/02 02:47:36 INFO Executor: Running task 89.0 in stage 4.0 (TID 545)
+15/11/02 02:47:36 INFO MemoryStore: ensureFreeSpace(1512) called with curMem=2159800485, maxMem=3704472207
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_10_piece0 stored as bytes in memory (estimated size 1512.0 B, free 1473.1 MB)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_10_piece0
+15/11/02 02:47:36 INFO TorrentBroadcast: Reading broadcast variable 10 took 29 ms
+15/11/02 02:47:36 INFO MemoryStore: ensureFreeSpace(2144) called with curMem=2159801997, maxMem=3704472207
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_10 stored as values in memory (estimated size 2.1 KB, free 1473.1 MB)
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Doing the fetch; tracker actor = Actor[akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809/user/MapOutputTracker#280726963]
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 02:47:36 INFO MapOutputTrackerWorker: Got the output locations
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 40 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 40 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 40 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 43 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 47 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 47 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 48 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 48 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 50 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 51 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 52 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 54 ms
+15/11/02 02:47:36 INFO Executor: Finished task 41.0 in stage 4.0 (TID 497). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 73.0 in stage 4.0 (TID 529). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 57.0 in stage 4.0 (TID 513). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 17.0 in stage 4.0 (TID 473). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 9.0 in stage 4.0 (TID 465). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 25.0 in stage 4.0 (TID 481). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 1.0 in stage 4.0 (TID 457). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 89.0 in stage 4.0 (TID 545). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 49.0 in stage 4.0 (TID 505). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 65.0 in stage 4.0 (TID 521). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 81.0 in stage 4.0 (TID 537). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 33.0 in stage 4.0 (TID 489). 877 bytes result sent to driver
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 552
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 560
+15/11/02 02:47:36 INFO Executor: Running task 0.0 in stage 6.0 (TID 552)
+15/11/02 02:47:36 INFO Executor: Running task 8.0 in stage 6.0 (TID 560)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 568
+15/11/02 02:47:36 INFO Executor: Running task 16.0 in stage 6.0 (TID 568)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 576
+15/11/02 02:47:36 INFO Executor: Running task 24.0 in stage 6.0 (TID 576)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 584
+15/11/02 02:47:36 INFO Executor: Running task 32.0 in stage 6.0 (TID 584)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 592
+15/11/02 02:47:36 INFO TorrentBroadcast: Started reading broadcast variable 11
+15/11/02 02:47:36 INFO Executor: Running task 40.0 in stage 6.0 (TID 592)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 600
+15/11/02 02:47:36 INFO Executor: Running task 48.0 in stage 6.0 (TID 600)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 608
+15/11/02 02:47:36 INFO Executor: Running task 56.0 in stage 6.0 (TID 608)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 616
+15/11/02 02:47:36 INFO Executor: Running task 64.0 in stage 6.0 (TID 616)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 624
+15/11/02 02:47:36 INFO Executor: Running task 72.0 in stage 6.0 (TID 624)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 632
+15/11/02 02:47:36 INFO Executor: Running task 80.0 in stage 6.0 (TID 632)
+15/11/02 02:47:36 INFO CoarseGrainedExecutorBackend: Got assigned task 640
+15/11/02 02:47:36 INFO Executor: Running task 88.0 in stage 6.0 (TID 640)
+15/11/02 02:47:36 INFO MemoryStore: ensureFreeSpace(1975) called with curMem=2159804141, maxMem=3704472207
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_11_piece0 stored as bytes in memory (estimated size 1975.0 B, free 1473.1 MB)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_11_piece0
+15/11/02 02:47:36 INFO TorrentBroadcast: Reading broadcast variable 11 took 36 ms
+15/11/02 02:47:36 INFO MemoryStore: ensureFreeSpace(2872) called with curMem=2159806116, maxMem=3704472207
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_11 stored as values in memory (estimated size 2.8 KB, free 1473.1 MB)
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 6 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 6 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 10 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Getting 96 non-empty blocks out of 96 blocks
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 10 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 8 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 11 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 13 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 14 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 17 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 18 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 15 ms
+15/11/02 02:47:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 19 ms
+15/11/02 02:47:36 INFO Executor: Finished task 8.0 in stage 6.0 (TID 560). 53140 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 72.0 in stage 6.0 (TID 624). 54827 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 56.0 in stage 6.0 (TID 608). 27199 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 16.0 in stage 6.0 (TID 568). 27199 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 88.0 in stage 6.0 (TID 640). 28322 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 24.0 in stage 6.0 (TID 576). 26637 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 32.0 in stage 6.0 (TID 584). 835 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 40.0 in stage 6.0 (TID 592). 53704 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 80.0 in stage 6.0 (TID 632). 75712 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 48.0 in stage 6.0 (TID 600). 53140 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 64.0 in stage 6.0 (TID 616). 53704 bytes result sent to driver
+15/11/02 02:47:36 INFO Executor: Finished task 0.0 in stage 6.0 (TID 552). 80768 bytes result sent to driver
+15/11/02 02:47:36 INFO BlockManager: Removing broadcast 5
+15/11/02 02:47:36 INFO BlockManager: Removing broadcast 6
+15/11/02 02:47:36 INFO BlockManager: Removing broadcast 3
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_3_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_5_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_6_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing broadcast 4
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_3_piece0 of size 875786 dropped from memory (free 1545539005)
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_4
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_6_piece0 of size 605 dropped from memory (free 1545539610)
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_5_piece0 of size 332 dropped from memory (free 1545539942)
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_4 of size 25096 dropped from memory (free 1545565038)
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_4_piece0
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_4_piece0 of size 2216 dropped from memory (free 1545567254)
+15/11/02 02:47:36 INFO BlockManager: Removing broadcast 8
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_8
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_8 of size 168 dropped from memory (free 1545567422)
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_8_piece0
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_8_piece0 of size 163 dropped from memory (free 1545567585)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_6_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_6
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_6 of size 616 dropped from memory (free 1545568201)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_5_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_5
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_5 of size 616 dropped from memory (free 1545568817)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_3_piece0
+15/11/02 02:47:36 INFO BlockManager: Removing block broadcast_3
+15/11/02 02:47:36 INFO MemoryStore: Block broadcast_3 of size 3755456 dropped from memory (free 1549324273)
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_4_piece0
+15/11/02 02:47:36 INFO BlockManagerMaster: Updated info of block broadcast_8_piece0
+15/11/02 02:47:37 ERROR CoarseGrainedExecutorBackend: Driver Disassociated [akka.tcp://sparkExecutor@gpu-010.davinci.rice.edu:34935] -> [akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:35809] disassociated! Shutting down.

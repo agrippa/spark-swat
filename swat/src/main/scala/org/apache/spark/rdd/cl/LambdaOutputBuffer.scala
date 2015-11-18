@@ -13,35 +13,37 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
-    acc : InputBufferWrapper[T]) extends OutputBufferWrapper[U] {
-  def next() : U = {
+    val acc : NativeInputBuffers[T], val ctx : Long, val dev_ctx : Long)
+    extends OutputBufferWrapper[U] {
+  var anyLeft = true
+
+  override def next() : U = {
     f(acc.next)
   }
 
-  def hasNext() : Boolean = {
-    acc.hasNext
+  override def hasNext() : Boolean = {
+    if (!acc.hasNext) {
+      anyLeft = false
+      OpenCLBridge.addFreedNativeBuffer(ctx, dev_ctx, acc.id)
+    }
+    anyLeft
   }
 
-  def releaseBuffers(bbCache : ByteBufferCache) {
+  override def countArgumentsUsed() : Int = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  // Returns true if all work on the device is complete
-  def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
+  override def fillFrom(kernel_ctx : Long, nativeOutputBuffers : NativeOutputBuffers[U]) {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def finish(ctx : Long, dev_ctx : Long, outArgNum : Int, nLoaded : Int) {
+  override def getNativeOutputBufferInfo() : Array[Int] = {
     throw new java.lang.UnsupportedOperationException()
   }
 
-  def countArgumentsUsed() : Int = {
-    throw new java.lang.UnsupportedOperationException()
-  }
-
-  def reset() {
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : U, entryPoint : Entrypoint) :
+          NativeOutputBuffers[U] = {
     throw new java.lang.UnsupportedOperationException()
   }
 }

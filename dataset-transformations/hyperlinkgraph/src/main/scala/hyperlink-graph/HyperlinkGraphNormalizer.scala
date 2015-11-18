@@ -17,6 +17,7 @@ object HyperlinkGraphNormalizer {
 
         val inputDir = args(0)
         val outputDir = args(1)
+
         val sc = get_spark_context("Hyperlink Graph Normalizer");
 
         val input : RDD[String] = sc.textFile(inputDir)
@@ -26,10 +27,11 @@ object HyperlinkGraphNormalizer {
         })
         val unique : RDD[Int] = converted.flatMap(p => List(p._1, p._2)).distinct()
         val pairedWithId : RDD[Tuple2[Int, Long]] = unique.zipWithIndex()
-        val nNodes : Long = pairedWithId.count()
-        System.out.println("nNodes = " + nNodes)
 
         val idArray : Array[Tuple2[Int, Long]] = pairedWithId.collect
+        val nNodes : Long = idArray.size
+        System.out.println("nNodes = " + nNodes)
+        // From old document ID to normalized ID
         val idMap : java.util.Map[Int, Int] = new java.util.HashMap[Int, Int]()
         for (pair <- idArray) {
           idMap.put(pair._1, pair._2.toInt)

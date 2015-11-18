@@ -13,7 +13,7 @@ spark-submit --class HyperlinkGraphNormalizer \
         --master spark://localhost:7077 --conf "spark.driver.maxResultSize=4g" \
         --conf "spark.storage.memoryFraction=0.3" \
         ${SWAT_HOME}/dataset-transformations/hyperlinkgraph/target/hyperlink-graph-0.0.0.jar \
-        hdfs://$(hostname):54310/input-links hdfs://$(hostname):54310/normalized-links
+        hdfs://$(hostname):54310/input-links hdfs://$(hostname):54310/normalized-links 1.0
 
 rm -rf $SPARK_DATASETS/hyperlinkgraph/1.normalized
 ${HADOOP_HOME}/bin/hdfs dfs -get /normalized-links $SPARK_DATASETS/hyperlinkgraph/1.normalized

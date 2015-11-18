@@ -37,11 +37,31 @@ class broadcast_id {
         int broadcast;
         /*
          * The component of this buffer we are storing (e.g. multiple buffers
-         * are necessary to represent Tuple2 RDDs
+         * are necessary to represent Tuple2 RDDs, dense vectors, sparse
+         * vectors, etc)
          */
         int component;
 };
 
+typedef struct _device_context device_context;
+
+typedef struct _heap_context {
+    device_context *dev_ctx;
+    cl_region *heap;
+    cl_region *free_index;
+    unsigned id;
+
+    void *pinned_h_heap;
+    int *pinned_h_free_index;
+
+    unsigned heap_size;
+
+    struct _heap_context *next;
+
+    // int h_heap_in_use;
+    // pthread_mutex_t h_heap_lock;
+    // pthread_cond_t h_heap_cond;
+} heap_context;
 
 typedef struct _device_context {
     cl_platform_id platform;
@@ -49,18 +69,38 @@ typedef struct _device_context {
     cl_context ctx;
     cl_command_queue cmd;
     int device_index;
+    int initialized;
+    int count_heaps;
 
     /*
      * Locked for setting args on device (for broadcast cache?) and when
      * building a program for a new device (which should happen infrequently).
      */
-    pthread_rwlock_t broadcast_lock;
+    pthread_mutex_t broadcast_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long broadcast_lock_contention;
+#endif
+
     pthread_mutex_t program_cache_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long program_cache_lock_contention;
+#endif
 
     cl_allocator *allocator;
 
     map<string, cl_program> *program_cache;
     map<broadcast_id, cl_region *> *broadcast_cache;
+
+    // List of free heaps
+    heap_context *heap_cache_head;
+    heap_context *heap_cache_tail;
+    pthread_mutex_t heap_cache_lock;
+    size_t heap_size;
+    int n_heaps;
+#ifdef PROFILE_LOCKS
+    unsigned long long heap_cache_lock_contention;
+    unsigned long long heap_cache_blocked;
+#endif
 } device_context;
 
 #endif

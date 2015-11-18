@@ -64,16 +64,15 @@ object SparkConnectedComponents {
 
         val inputLinksPath = args(0);
 
-        val raw_edges : RDD[(Int, Int)] = sc.objectFile(inputLinksPath)
-        val edges = if (useSwat) CLWrapper.cl[(Int, Int)](raw_edges) else raw_edges
-        edges.cache
+        val raw_edges : RDD[Tuple2[Int, Int]] = sc.objectFile[Tuple2[Int, Int]](inputLinksPath).cache
+        val edges = CLWrapper.pairCl[Int, Int](raw_edges, useSwat)
 
         var nNodes : Long = -1
         if (args.length > 1) {
             nNodes = args(1).toLong
         } else {
             val countStart = System.currentTimeMillis
-            nNodes = edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
+            nNodes = raw_edges.flatMap(pair => List(pair._1, pair._2)).distinct().count()
             val countElapsed = System.currentTimeMillis - countStart
             System.err.println("nNodes=" + nNodes + ", " + countElapsed +
                     " ms to count")
@@ -93,7 +92,7 @@ object SparkConnectedComponents {
           val iterStartTime = System.currentTimeMillis
           val broadcastMembership = sc.broadcast(membership)
 
-          val updates : RDD[(Int, Int)] = edges.map(edge => {
+          val updates : RDD[Tuple2[Int, Int]] = edges.map(edge => {
                 val component_1 = broadcastMembership.value(edge._1)
                 val component_2 = broadcastMembership.value(edge._2)
                 if (component_1 == component_2) {

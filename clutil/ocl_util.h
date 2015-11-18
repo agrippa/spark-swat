@@ -25,7 +25,7 @@
 }
 
 #define CHECK(call) { \
-    cl_int __err = (call); \
+    const cl_int __err = (call); \
     if (__err != CL_SUCCESS) { \
         fprintf(stderr, "OpenCL Error at %s:%d - %d\n", \
                 __FILE__, __LINE__, __err); \
@@ -42,5 +42,6 @@ extern char *get_device_name(cl_device_id device);
 extern const char *get_device_type_str(cl_device_id device);
 extern cl_device_type get_device_type(cl_device_id device);
 extern cl_uint get_total_num_devices();
+extern cl_uint get_device_pointer_size_in_bytes(cl_device_id device);
 
 #endif

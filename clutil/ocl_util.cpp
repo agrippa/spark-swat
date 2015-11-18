@@ -1,4 +1,5 @@
 #include "ocl_util.h"
+#include <assert.h>
 
 cl_uint get_num_opencl_platforms() {
     cl_uint num_platforms;
@@ -35,7 +36,7 @@ cl_uint get_total_num_devices() {
 
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
-    CHECK_ALLOC(platforms)
+    CHECK_ALLOC(platforms);
     CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
@@ -52,7 +53,7 @@ char *get_device_name(cl_device_id device) {
     size_t name_len;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, 0, NULL, &name_len));
     char *device_name = (char *)malloc(name_len + 1);
-    CHECK_ALLOC(device_name)
+    CHECK_ALLOC(device_name);
     CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, name_len, device_name,
                 NULL));
     device_name[name_len] = '\0';
@@ -83,4 +84,13 @@ cl_uint get_num_compute_units(cl_device_id device) {
     CHECK(clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,
                 sizeof(compute_units), &compute_units, NULL));
     return compute_units;
+}
+
+
+cl_uint get_device_pointer_size_in_bytes(cl_device_id device) {
+    cl_uint pointer_size_in_bits;
+    CHECK(clGetDeviceInfo(device, CL_DEVICE_ADDRESS_BITS,
+                sizeof(pointer_size_in_bits), &pointer_size_in_bits, NULL));
+    assert(pointer_size_in_bits % 8 == 0);
+    return pointer_size_in_bits / 8;
 }

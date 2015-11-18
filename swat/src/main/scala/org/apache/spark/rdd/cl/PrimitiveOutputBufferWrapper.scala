@@ -13,13 +13,12 @@ import com.amd.aparapi.internal.model.ClassModel.NameMatcher
 import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
-class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
-    extends OutputBufferWrapper[T] {
+class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int) extends OutputBufferWrapper[T] {
   var nLoaded : Int = -1
   val arr : Array[T] = new Array[T](N)
-  val anyFailed : Array[Int] = new Array[Int](1)
   var iter : Int = 0
   val clazz : java.lang.Class[_] = classTag[T].runtimeClass
+  val eleSize : Int = if (clazz.equals(classOf[Double])) 8 else 4
 
   override def next() : T = {
     val index = iter
@@ -31,34 +30,24 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int)
     iter < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
-      anyFailed(0) == 0
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
-      setNLoaded : Int) {
-    if (clazz.equals(classOf[Double])) {
-      OpenCLBridge.fetchDoubleArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Double]], nLoaded)
-    } else if (clazz.equals(classOf[Int])) {
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Int]], nLoaded)
-    } else if (clazz.equals(classOf[Float])) {
-      OpenCLBridge.fetchFloatArrayArg(ctx, dev_ctx, outArgNum,
-              arr.asInstanceOf[Array[Float]], nLoaded)
-    } else {
-      throw new RuntimeException("Unsupported output primitive type " + clazz.getName)
-    }
-    nLoaded = setNLoaded
-  }
-
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def reset() {
+  override def fillFrom(kernel_ctx : Long, nativeOutputBuffers : NativeOutputBuffers[T]) {
+    val actual = nativeOutputBuffers.asInstanceOf[PrimitiveNativeOutputBuffers[T]]
     iter = 0
-    nLoaded = -1
+    nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
+    assert(nLoaded <= N)
+    OpenCLBridge.pinnedToJVMArray(kernel_ctx, arr, actual.pinnedBuffer,
+            nLoaded * eleSize)
+  }
+
+  override def getNativeOutputBufferInfo() : Array[Int] = {
+    Array(eleSize * N)
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
+          NativeOutputBuffers[T] = {
+    new PrimitiveNativeOutputBuffers(N, outArgNum, dev_ctx, ctx)
   }
 }

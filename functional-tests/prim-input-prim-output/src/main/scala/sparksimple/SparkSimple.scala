@@ -27,7 +27,10 @@ object SparkSimple {
             for (i <- 0 until correct.length) {
                 val a = correct(i)
                 val b = actual(i)
-                assert(a == b)
+                if (a != b) {
+                    System.err.println(i + ": expected=" + a + ", actual=" + b)
+                    System.exit(1)
+                }
             }
             System.err.println("PASSED")
         }
@@ -54,8 +57,14 @@ object SparkSimple {
         val m = 4
         val inputPath = args(0)
         val inputs_raw : RDD[Double] = sc.objectFile[Double](inputPath).cache
+
         val inputs = if (useSwat) CLWrapper.cl[Double](inputs_raw) else inputs_raw
-        val outputs : Array[Double] = inputs.map(v => v * v * m).collect
+        val outputs1 : RDD[Double] = inputs.map(v => v * v * m)
+
+        val outputs1_wrapped : RDD[Double] = if (useSwat) CLWrapper.cl[Double](outputs1) else outputs1
+        val outputs2 : RDD[Double] = outputs1_wrapped.map(v => v + v)
+
+        val outputs : Array[Double] = outputs2.collect
         sc.stop
         outputs
     }

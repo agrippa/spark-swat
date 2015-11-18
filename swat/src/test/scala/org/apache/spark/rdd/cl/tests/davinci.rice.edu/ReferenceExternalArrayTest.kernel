@@ -25,8 +25,8 @@ static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest$$anon$1__app
    return(org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, __global int* arr$1, int arr$1__javaArrayLength, int N) {
+      __global int* restrict in0, 
+      __global int* restrict out, __global int* restrict arr$1, int arr$1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->arr$1 = arr$1;

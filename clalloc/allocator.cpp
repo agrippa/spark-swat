@@ -3,28 +3,57 @@
 #include <math.h>
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef PROFILE
+static volatile unsigned long long acc_init_time = 0ULL;
+static volatile unsigned long long acc_realloc_time = 0ULL;
+static volatile unsigned long long acc_free_time = 0ULL;
+static volatile unsigned long long acc_alloc_time = 0ULL;
 #endif
 
-#ifdef __cplusplus
+#if defined(PROFILE_LOCKS) || defined(PROFILE)
+unsigned long long get_clock_gettime_ns() {
+    struct timespec t ={0,0};
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
+    return (unsigned long long)t.tv_nsec + s;
 }
 #endif
 
+/*
+ * Lock a selected alloc to prevent concurrent access to any of its member
+ * regions.
+ */
 static void lock_alloc(cl_alloc *alloc) {
     ENTER_TRACE("lock_alloc");
-    int perr = pthread_mutex_lock(&alloc->lock);
+#ifdef PROFILE_LOCKS
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
+    const int perr = pthread_mutex_lock(&alloc->lock);
+    if (perr != 0) {
+        fprintf(stderr, "lock_alloc: perr=%d\n", perr);
+        exit(1);
+    }
+#ifdef PROFILE_LOCKS
+    alloc->contention += (get_clock_gettime_ns() - start);
+#endif
+
     ASSERT(perr == 0);
     EXIT_TRACE("lock_alloc");
 }
 
 static void unlock_alloc(cl_alloc *alloc) {
     ENTER_TRACE("unlock_alloc");
-    int perr = pthread_mutex_unlock(&alloc->lock);
-    ASSERT(perr == 0);
+    const int perr = pthread_mutex_unlock(&alloc->lock);
+    if (perr != 0) {
+        fprintf(stderr, "unlock_alloc: perr=%d\n", perr);
+        exit(1);
+    }
     EXIT_TRACE("unlock_alloc");
 }
 
+/*
+ * Insert region to_insert after region target inside of bucket.
+ */
 static void bucket_insert_after(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
     ENTER_TRACE("bucket_insert_after");
@@ -42,6 +71,9 @@ static void bucket_insert_after(cl_region *target, cl_region *to_insert,
     EXIT_TRACE("bucket_insert_after");
 }
 
+/*
+ * Insert region to_insert after region target inside of bucket
+ */
 static void bucket_insert_before(cl_region *target, cl_region *to_insert,
         cl_bucket *bucket) {
     ENTER_TRACE("bucket_insert_before");
@@ -59,21 +91,28 @@ static void bucket_insert_before(cl_region *target, cl_region *to_insert,
     EXIT_TRACE("bucket_insert_before");
 }
 
+/*
+ * Remove the provided region from its parent bucket
+ */
 static void remove_from_bucket(cl_region *region) {
     ENTER_TRACE("remove_from_bucket");
     cl_bucket *bucket = region->parent;
 
     if (bucket->head == region && bucket->tail == region) {
+        // Single element bucket
         bucket->head = bucket->tail = NULL;
     } else if (bucket->head == region) {
+        // Region is first element of bucket, >1 elements
         cl_region *new_head = bucket->head->bucket_next;
         new_head->bucket_prev = NULL;
         bucket->head = new_head;
     } else if (bucket->tail == region) {
+        // Region is last element of bucket, >1 elements
         cl_region *new_tail = bucket->tail->bucket_prev;
         new_tail->bucket_next = NULL;
         bucket->tail = new_tail;
     } else {
+        // General case, interior element in bucket
         cl_region *prev = region->bucket_prev;
         cl_region *next = region->bucket_next;
         next->bucket_prev = prev;
@@ -84,6 +123,10 @@ static void remove_from_bucket(cl_region *region) {
     EXIT_TRACE("remove_from_bucket");
 }
 
+/*
+ * Insert region in the provided bucket, keeping the bucket sorted in ascending
+ * region size order.
+ */
 static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
     ENTER_TRACE("add_to_normal_bucket");
     ASSERT(region->parent == NULL);
@@ -116,6 +159,10 @@ static void add_to_normal_bucket(cl_region *region, cl_bucket *bucket) {
     EXIT_TRACE("add_to_normal_bucket");
 }
 
+/*
+ * Add the provided region to the provided bucket, ordered first by how old this
+ * region is, and then by region size (ascending).
+ */
 static void add_to_keep_bucket(cl_region *region, cl_bucket *bucket) {
     ENTER_TRACE("add_to_keep_bucket");
     ASSERT(region->parent == NULL);
@@ -180,17 +227,29 @@ static void insert_into_buckets_helper(cl_region *region, cl_bucket *buckets,
     EXIT_TRACE("insert_into_buckets_helper");
 }
 
-static void insert_into_buckets(cl_region *region, cl_alloc *alloc, bool try_to_keep) {
+/*
+ * Given a region, a pre-allocated space, and a conditional indicating if we'd
+ * like to try and keep this data persistent on the accelerator, insert the
+ * region into the appropriate free buckets in alloc. This function assumes that
+ * any caller has done the necessary locking of alloc.
+ */
+static void insert_into_buckets(cl_region *region, cl_alloc *alloc,
+        bool try_to_keep) {
     ENTER_TRACE("insert_into_buckets");
     region->keeping = try_to_keep;
     if (try_to_keep) {
-        insert_into_buckets_helper(region, alloc->keep_buckets, &alloc->keep_large_bucket);
+        insert_into_buckets_helper(region, alloc->keep_buckets,
+                &alloc->keep_large_bucket);
     } else {
         insert_into_buckets_helper(region, alloc->buckets, &alloc->large_bucket);
     }
     EXIT_TRACE("insert_into_buckets");
 }
 
+/*
+ * Given a bucket and a region size to search for, return the first region whose
+ * size is >= the target size.
+ */
 static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
     ENTER_TRACE("search_bucket");
     cl_region *result = NULL;
@@ -206,10 +265,10 @@ static cl_region *search_bucket(size_t rounded_size, cl_bucket *bucket) {
 
 static cl_region *copy_cl_region(cl_region *input) {
     cl_region *copy = (cl_region *)malloc(sizeof(cl_region));
-    CHECK_ALLOC(copy)
+    CHECK_ALLOC(copy);
     memcpy(copy, input, sizeof(cl_region));
-    copy->refs = 0;
-    copy->parent = NULL;
+    copy->refs = 0; // no one can reference a newly created region object
+    copy->parent = NULL; // not in a bucket yet
     copy->bucket_next = NULL;
     copy->bucket_prev = NULL;
     copy->keeping = false; // can't be keeping because no one can have a reference
@@ -217,6 +276,11 @@ static cl_region *copy_cl_region(cl_region *input) {
     return copy;
 }
 
+/*
+ * Swap out a given region for an identical copy. input cannot be in any
+ * buckets. If input is marked keeping, then mark it invalidated for the host
+ * program to later discover on re-allocation. Otherwise, free it immediately.
+ */
 static cl_region *swap_out_for_copy(cl_region *input) {
     ASSERT(input->parent == NULL); // not in buckets
     cl_region *copy = copy_cl_region(input);
@@ -229,6 +293,8 @@ static cl_region *swap_out_for_copy(cl_region *input) {
     if (copy->grandparent->region_list_head == input) {
         copy->grandparent->region_list_head = copy;
     }
+
+    ASSERT(input->refs == 0); // not in active use
     if (input->keeping) {
         input->invalidated = true;
     } else {
@@ -284,6 +350,8 @@ static void split(cl_region *target, size_t first_partition_size,
         free(target);
     }
 
+    ASSERT(lower_region->size >= MIN_ALLOC_SIZE);
+    ASSERT(upper_region->size >= MIN_ALLOC_SIZE);
     insert_into_buckets(lower_region, alloc, false);
     insert_into_buckets(upper_region, alloc, false);
 
@@ -306,7 +374,12 @@ static cl_region *split_from_back(cl_region *target, size_t rounded_size) {
     return back;
 }
 
-static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *buckets) {
+/*
+ * Search the provided buckets all belonging to the same alloc (which has
+ * already been locked) for any region which is at least of length rounded_size.
+ */
+static cl_region *find_matching_region_in_alloc(size_t rounded_size,
+        cl_bucket *buckets) {
     cl_region *target_region = NULL;
 
     for (int b = 0; b < NBUCKETS && target_region == NULL; b++) {
@@ -338,14 +411,36 @@ static cl_region *find_matching_region_in_alloc(size_t rounded_size, cl_bucket *
     return target_region;
 }
 
+size_t count_free_bytes(cl_allocator *allocator) {
+    size_t count = 0;
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        lock_alloc(alloc);
+    }
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        count += alloc->free_bytes;
+    }
+    for (int a = 0; a < allocator->nallocs; a++) {
+        cl_alloc *alloc = allocator->allocs + a;
+        unlock_alloc(alloc);
+    }
+    return count;
+}
+
 /*
  * free_cl_region always merges later ranges into earlier ranges, so no need to
- * update region_list_head.
+ * update region_list_head. Returns true if the region was actually freed, false
+ * if its ref count was just decremented.
  */
 bool free_cl_region(cl_region *to_free, bool try_to_keep) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     ENTER_TRACE("free_cl_region");
 
-    lock_alloc(to_free->grandparent);
+    cl_alloc *to_free_grandparent = to_free->grandparent;
+    lock_alloc(to_free_grandparent);
 
     ASSERT(to_free->refs > 0);
     ASSERT(to_free->sub_mem);
@@ -354,6 +449,12 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
     to_free->refs -= 1;
 
     if (to_free->refs == 0) {
+        /*
+         * If there are no longer any refs to this region, we can actually free
+         * up the space for use by other allocations. If this allocation is
+         * marked try_to_keep, then we do our best to keep its contents
+         * persistent in memory for as long as possible.
+         */
         cl_region *next = to_free->next;
         cl_region *prev = to_free->prev;
 #ifdef VERBOSE
@@ -369,12 +470,13 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         }
         print_allocator(to_free->grandparent->allocator, -1);
 #endif
+        // Check links and relations between neighboring regions
         ASSERT(next == NULL || next->prev == to_free);
         ASSERT(prev == NULL || prev->next == to_free);
         ASSERT(next == NULL || next->offset == to_free->offset + to_free->size);
         ASSERT(prev == NULL || to_free->offset == prev->offset + prev->size);
+
         to_free->keeping = try_to_keep;
-        if (!try_to_keep) to_free->birth = 0;
 
 #ifdef VERBOSE
         fprintf(stderr, "Freeing region=%p size=%lu parent free "
@@ -383,13 +485,15 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                 to_free->grandparent->free_bytes + to_free->size);
 #endif
 
+        // Keep metrics on how many bytes are free to help with leak detection
         to_free->grandparent->free_bytes += to_free->size;
 
         if (!try_to_keep && (next && next->refs == 0 && !next->keeping) &&
                 (prev && prev->refs == 0 && !prev->keeping)) {
             /*
              * Merge with next and prev if neither is 1) free, or 2) an
-             * allocation we're trying to hold on to as long as possible.
+             * allocation we're trying to hold on to as long as possible, and
+             * we're not trying to keep this one around either.
              */
 #ifdef VERBOSE
             fprintf(stderr, "Merging prev=(%p offset=%lu size=%lu) and "
@@ -412,6 +516,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             free(next);
             free(to_free);
             remove_from_bucket(prev);
+            ASSERT(prev->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(prev, prev->grandparent, false);
         } else if (!try_to_keep && next && next->refs == 0 && !next->keeping) {
             // Merge with just next
@@ -433,6 +538,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 #endif
             remove_from_bucket(next);
             free(next);
+            ASSERT(to_free->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(to_free, to_free->grandparent, false);
         } else if (!try_to_keep && prev && prev->refs == 0 && !prev->keeping) {
             // Merge with just prev
@@ -455,8 +561,14 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
             prev->sub_mem = NULL;
             free(to_free);
             remove_from_bucket(prev);
+            ASSERT(prev->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(prev, prev->grandparent, false);
         } else {
+            /*
+             * We can't do any merging with next or previous, so just add the
+             * current region to the best matching bucket.
+             */
+            ASSERT(to_free->size >= MIN_ALLOC_SIZE);
             insert_into_buckets(to_free, to_free->grandparent, try_to_keep);
             to_free->keeping = try_to_keep;
         }
@@ -470,81 +582,33 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
     bool return_value = (to_free->refs == 0);
 
-    unlock_alloc(to_free->grandparent);
+    unlock_alloc(to_free_grandparent);
 
     EXIT_TRACE("free_cl_region");
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_free_time, get_clock_gettime_ns() - start);
+#endif
     return return_value;
 }
 
-bool re_allocate_cl_region(cl_region *target_region, int target_device) {
-    ENTER_TRACE("re_allocate_cl_region");
-
-    if (target_region->invalidated) {
-        free(target_region);
-        EXIT_TRACE("re_allocate_cl_region");
-        return false;
-    }
-
-    lock_alloc(target_region->grandparent);
-
-    /*
-     * For now, it is the responsibility of the higher layers to track which
-     * device they are associated with and only re-allocated items on that
-     * device. We simply enforce that restriction here.
-     */
-    ASSERT(GET_DEVICE_FOR(target_region) == target_device);
-
-    /*
-     * keeping may be false if this is a RDD/broadcast that hasn't been freed
-     * yet, in which case it must have some refs. This isn't a strong check.
-     */
-    ASSERT(target_region->keeping || target_region->refs > 0);
-    ASSERT(!target_region->invalidated);
-
-    if (target_region->refs == 0) {
-#ifdef VERBOSE
-        fprintf(stderr, "Before Re-Allocating (%p %lu %lu)\n", target_region,
-                target_region->offset, target_region->size);
-        print_allocator(target_region->grandparent->allocator, -1);
-#endif
-        remove_from_bucket(target_region);
-        ASSERT(target_region->sub_mem);
-        target_region->refs = 1;
-#ifdef VERBOSE
-        fprintf(stderr, "After Re-Allocating (%p %lu %lu)\n", target_region,
-                target_region->offset, target_region->size);
-        print_allocator(target_region->grandparent->allocator, -1);
-#endif
-
-#ifdef VERBOSE
-        fprintf(stderr, "Re-allocating region=%p size=%lu parent free "
-                "bytes=%lu->%lu\n", target_region, target_region->size,
-                target_region->grandparent->free_bytes,
-                target_region->grandparent->free_bytes - target_region->size);
-#endif
-        target_region->grandparent->free_bytes -= target_region->size;
-    } else {
-        target_region->refs += 1;
-    }
-    target_region->birth = target_region->grandparent->curr_time;
-
-    unlock_alloc(target_region->grandparent);
-
-    EXIT_TRACE("re_allocate_cl_region");
-
-    return true;
+void *fetch_pinned(cl_region *region) {
+    cl_alloc *grandparent = region->grandparent;
+    return (void *)grandparent->pinned + region->offset;
 }
 
+/*
+ * Fetch a region of the specified size from the specified allocator.
+ */
 cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         void (*callback)(void *), void *user_data) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
     ENTER_TRACE("allocate_cl_region");
     ASSERT(allocator);
-    ASSERT(size > 0);
 
-    // size_t rounded_size = size;
     size_t rounded_size = size + (allocator->address_align -
             (size % allocator->address_align));
-    // size_t rounded_size = pow(2, ceil(log(size)/log(2)));
 
 #ifdef VERBOSE
     fprintf(stderr, "Allocating %lu (actual=%lu) bytes, allocator state "
@@ -623,8 +687,8 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
     if (target_region == NULL) {
         /*
          * All allocation attempts failed, seems like we need to merge some free
-         * keep regions with some free non-keep regions (either that or memory
-         * is so segmented that this allocation is doomed).
+         * keep regions (either that or memory is so segmented by actively used
+         * allocations that this allocation is doomed).
          */
         cl_region *best_candidate = NULL;
         int best_candidate_successors = -1;
@@ -636,31 +700,40 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
 
             cl_region *curr = alloc->region_list_head;
 
+            /*
+             * Iterate over this whole alloc in address order, through next and
+             * prev (rather than bucket_next and bucket_prev).
+             */
             while (curr) {
+
+                // Skip if not free
+                if (curr->refs > 0) {
+                    curr = curr->next;
+                    continue;
+                }
+
+                /*
+                 * Starting at curr, try to see if we can accumulate together
+                 * enough free regions to satisfy this memory allocation.
+                 */
                 size_t acc_bytes = curr->size;
                 long youngest = curr->birth;
                 int count_successors = 0;
                 cl_region *succ = curr->next;
 
-                if (curr->refs > 0) { // not free
-                    curr = curr->next;
-                    continue;
-                }
-
 #ifdef VERBOSE
-                fprintf(stderr, "  Starting search from (%p offset=%lu size=%lu)\n",
-                        curr, curr->offset, curr->size);
+                fprintf(stderr, "  Starting search from (%p offset=%lu "
+                        "size=%lu)\n", curr, curr->offset, curr->size);
 #endif
-
                 while (succ && succ->refs == 0 && acc_bytes < size) {
                     acc_bytes += succ->size;
-                    youngest = (succ->birth > youngest ? succ->birth : youngest);
                     count_successors++;
+                    youngest = (succ->birth > youngest ? succ->birth : youngest);
                     succ = succ->next;
                 }
 
                 /*
-                 * Look for the group with the oldest, youngest member
+                 * Look for the group with the oldest young member
                  */
                 if (acc_bytes >= size && (best_candidate == NULL ||
                             youngest < best_candidate_birth)) {
@@ -669,7 +742,17 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
                     best_candidate_birth = youngest;
                 }
 
-                curr = curr->next;
+                if (succ && succ->refs > 0) {
+                    /*
+                     * As a simple optimization, if we've run into an allocated
+                     * region before satisfying this allocation we know that
+                     * traversing the other regions between curr and succ is
+                     * pointless, so just skip past this barrier.
+                     */
+                    curr = succ->next;
+                } else {
+                    curr = curr->next;
+                }
             }
 
             if (best_candidate) {
@@ -680,6 +763,13 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         }
 
         if (best_candidate == NULL) {
+            /*
+             * If every attempt we make fails to successfully allocate data,
+             * call the user provided call back with the user provided data to
+             * notify the host program and return NULL.
+             *
+             * TODO what is the purpose of callback?
+             */
             if (callback) (*callback)(user_data);
             return NULL;
         }
@@ -693,7 +783,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         }
 #endif
         cl_region *new_region = (cl_region *)malloc(sizeof(cl_region));
-        CHECK_ALLOC(new_region)
+        CHECK_ALLOC(new_region);
         memcpy(new_region, best_candidate, sizeof(cl_region));
 
         cl_region *succ = best_candidate->next;
@@ -720,7 +810,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
             remove_from_bucket(succ);
             /*
              * keeping is set in free_cl_region when an item is finally freed, so
-             * we know it must be set to the actual value here because we are
+             * we know it must be set to the correct value here because we are
              * only dealing with freed objects.
              */
             if (succ->keeping) {
@@ -752,12 +842,13 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         new_region->bucket_next = NULL;
         new_region->bucket_prev = NULL;
         new_region->parent = NULL;
+        ASSERT(new_region->size >= MIN_ALLOC_SIZE);
         insert_into_buckets(new_region, new_region->grandparent, false);
 
         if (best_candidate->keeping) {
-            best_candidate->invalidated = true;
             best_candidate->next = NULL;
             best_candidate->prev = NULL;
+            best_candidate->invalidated = true;
         } else {
             free(best_candidate);
         }
@@ -788,8 +879,12 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
      */
     cl_alloc *alloc = target_region->grandparent;
     remove_from_bucket(target_region);
-    ASSERT(target_region->refs == 0 && target_region->refs == 0);
+    ASSERT(target_region->refs == 0);
 
+    /*
+     * Swap out for a completely new object to ensure that every allocation
+     * retrieves new state, keeps a more consistent model.
+     */
     cl_region *copy = swap_out_for_copy(target_region);
     copy->refs = 1;
     if (copy->sub_mem == NULL) {
@@ -816,7 +911,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
     copy->grandparent->free_bytes -= copy->size;
 
     EXIT_TRACE("allocate_cl_region");
-
 #ifdef VERBOSE
     if (copy) {
         fprintf(stderr, "After trying to allocate %lu bytes, copy=(%p "
@@ -827,18 +921,124 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
 #endif
 
     unlock_alloc(alloc);
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_alloc_time, get_clock_gettime_ns() - start);
+#endif
 
     return copy;
 }
 
+/*
+ * re_allocate_cl_region is intended only for use with allocations that have
+ * been marked as keeping, i.e. things that the allocator will do its best to
+ * keep persistent on the device even if no one actively has a handle to it.
+ *
+ * However, it will also work for regions that are allocated and shared among
+ * multiple entities as long as at least one is always holding it. However, if
+ * this is the use case and all entities release their handle, then another
+ * comes along and tries to re-allocate through a stale handle, this method will
+ * fail.
+ *
+ * Therefore, if you want to use re_allocate_cl_region to deduplicate read-only
+ * data you must either 1) ensure that freeing these regions always sets
+ * try_to_keep (which may lead to memory fragmentation), or 2) ensure there is
+ * always at least one live reference.
+ */
+bool re_allocate_cl_region(cl_region *target_region, int target_device) {
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
+    ENTER_TRACE("re_allocate_cl_region");
+
+    cl_alloc *alloc = target_region->grandparent;
+    lock_alloc(alloc);
+
+    if (target_region->invalidated) {
+#ifdef VERBOSE
+        fprintf(stderr, "Cleaning up target_region=%p because invalidated\n",
+                target_region);
+#endif
+        free(target_region);
+        unlock_alloc(alloc);
+        EXIT_TRACE("re_allocate_cl_region");
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_realloc_time, get_clock_gettime_ns() - start);
+#endif
+        return false;
+    }
+
+#ifdef VERBOSE
+    fprintf(stderr, "re_allocate_cl_region: target_region=%p target_device=%d "
+            "target_region->keeping=%d target_region->refs=%d "
+            "target_region->invalidated=%d GET_DEVICE_FOR(target_region)=%d\n",
+            target_region, target_device, target_region->keeping,
+            target_region->refs, target_region->invalidated,
+            GET_DEVICE_FOR(target_region));
+#endif
+
+    /*
+     * For now, it is the responsibility of the higher layers to track which
+     * device they are associated with and only re-allocated items on that
+     * device. We simply enforce that restriction here.
+     */
+    ASSERT(GET_DEVICE_FOR(target_region) == target_device);
+
+    /*
+     * keeping may be false if this is a RDD/broadcast that hasn't been freed
+     * yet, in which case it must have some refs. This isn't a strong check.
+     */
+    ASSERT(target_region->keeping || target_region->refs > 0);
+    ASSERT(!target_region->invalidated);
+
+    if (target_region->refs == 0) {
+#ifdef VERBOSE
+        fprintf(stderr, "Before Re-Allocating (%p %lu %lu)\n", target_region,
+                target_region->offset, target_region->size);
+        print_allocator(target_region->grandparent->allocator, -1);
+#endif
+        remove_from_bucket(target_region);
+        ASSERT(target_region->sub_mem);
+        target_region->refs = 1;
+#ifdef VERBOSE
+        fprintf(stderr, "After Re-Allocating (%p %lu %lu)\n", target_region,
+                target_region->offset, target_region->size);
+        print_allocator(target_region->grandparent->allocator, -1);
+#endif
+
+#ifdef VERBOSE
+        fprintf(stderr, "Re-allocating region=%p size=%lu parent free "
+                "bytes=%lu->%lu\n", target_region, target_region->size,
+                target_region->grandparent->free_bytes,
+                target_region->grandparent->free_bytes - target_region->size);
+#endif
+        target_region->grandparent->free_bytes -= target_region->size;
+    } else {
+        target_region->refs += 1;
+    }
+    target_region->birth = target_region->grandparent->curr_time;
+
+    unlock_alloc(alloc);
+
+    EXIT_TRACE("re_allocate_cl_region");
+
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_realloc_time, get_clock_gettime_ns() - start);
+#endif
+    return true;
+}
+
 #ifdef OPENCL_ALLOCATOR
-cl_allocator *init_allocator(cl_device_id dev, int device_index, cl_context ctx,
+cl_allocator *init_allocator(cl_device_id dev, int device_index,
+        cl_mem_flags alloc_flags, size_t limit_size, cl_context ctx,
         cl_command_queue cmd)
 #else
-cl_allocator *init_allocator(int device_index)
+cl_allocator *init_allocator(const int device_index)
 #endif
 {
     ENTER_TRACE("init_allocator");
+#ifdef PROFILE
+    const unsigned long long start = get_clock_gettime_ns();
+#endif
 
     unsigned int address_align;
 #ifdef OPENCL_ALLOCATOR
@@ -847,12 +1047,15 @@ cl_allocator *init_allocator(int device_index)
                 sizeof(global_mem_size), &global_mem_size, NULL));
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MAX_MEM_ALLOC_SIZE,
                 sizeof(max_alloc_size), &max_alloc_size, NULL));
+    if (limit_size != 0 && global_mem_size > limit_size) {
+        global_mem_size = limit_size;
+    }
 
-    int nallocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
+    const int max_n_allocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MEM_BASE_ADDR_ALIGN,
                 sizeof(address_align), &address_align, NULL));
 #else
-    int nallocs = 1;
+    const int max_n_allocs = 1;
     address_align = 8;
     size_t max_alloc_size, global_mem_size;
     CHECK(cudaSetDevice(device_index));
@@ -861,16 +1064,15 @@ cl_allocator *init_allocator(int device_index)
     max_alloc_size = global_mem_size = props.totalGlobalMem;
 #endif
 
-
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
-    CHECK_ALLOC(allocator)
-    allocator->nallocs = nallocs;
-    allocator->allocs = (cl_alloc *)malloc(nallocs * sizeof(cl_alloc));
-    CHECK_ALLOC(allocator->allocs)
+    CHECK_ALLOC(allocator);
+    allocator->allocs = (cl_alloc *)malloc(max_n_allocs * sizeof(cl_alloc));
+    CHECK_ALLOC(allocator->allocs);
     allocator->address_align = address_align;
     allocator->device_index = device_index;
 
-    for (int i = 0; i < nallocs; i++) {
+    int i = 0;
+    while (i < max_n_allocs) {
         size_t alloc_size = max_alloc_size;
         size_t leftover = global_mem_size - (i * max_alloc_size);
         if (leftover < alloc_size) {
@@ -884,41 +1086,54 @@ cl_allocator *init_allocator(int device_index)
         cudaError_t err;
         char *mem;
 #endif
-        while (true) {
+        // Keep allocs at least 20MB
+        bool success = false;
+        while (alloc_size > 20 * 1024 * 1024) {
 #ifdef OPENCL_ALLOCATOR
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, alloc_size, NULL,
+            mem = clCreateBuffer(ctx, alloc_flags, alloc_size, NULL,
                     &err);
             CHECK(err);
             err = clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, sizeof(err), &err, 0, NULL, NULL);
             if (err == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
-                ASSERT(i == nallocs - 1);
                 alloc_size -= (20 * 1024 * 1024);
                 CHECK(clReleaseMemObject(mem));
             } else {
                 CHECK(err);
+                success = true;
                 break;
             }
 #else
             err = cudaMalloc((void **)&mem, alloc_size);
             if (err == cudaErrorMemoryAllocation) {
-                ASSERT(i == nallocs - 1);
                 alloc_size -= (20 * 1024 * 1024);
             } else if (err != cudaSuccess) {
                 CHECK(err);
+                success = true;
+                break;
             }
 #endif
         }
+
+        if (!success) break;
+
+        void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
+                alloc_size, 0, NULL, NULL, &err);
+        CHECK(err);
 
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
         (allocator->allocs)[i].free_bytes = alloc_size;
         (allocator->allocs)[i].allocator = allocator;
+#ifdef PROFILE_LOCKS
+        (allocator->allocs)[i].contention = 0ULL;
+#endif
+        (allocator->allocs)[i].pinned = (char *)pinned;
 
         int perr = pthread_mutex_init(&(allocator->allocs)[i].lock, NULL);
         ASSERT(perr == 0);
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
-        CHECK_ALLOC(first_region)
+        CHECK_ALLOC(first_region);
         first_region->sub_mem = NULL;
         first_region->offset = 0;
         first_region->size = alloc_size;
@@ -949,9 +1164,15 @@ cl_allocator *init_allocator(int device_index)
 
         (allocator->allocs)[i].region_list_head = first_region;
         insert_into_buckets(first_region, allocator->allocs + i, false);
+
+        i++;
     }
+    allocator->nallocs = i;
     EXIT_TRACE("init_allocator");
 
+#ifdef PROFILE
+    __sync_fetch_and_add(&acc_init_time, get_clock_gettime_ns() - start);
+#endif
     return allocator;
 }
 
@@ -1009,3 +1230,36 @@ void bump_time(cl_allocator *allocator) {
     }
     EXIT_TRACE("bump_time");
 }
+
+#ifdef PROFILE_LOCKS
+unsigned long long get_contention(cl_allocator *allocator) {
+    unsigned long long sum = 0ULL;
+    for (int i = 0; i < allocator->nallocs; i++) {
+        cl_alloc *curr = allocator->allocs + i;
+        lock_alloc(curr);
+        sum += curr->contention;
+        unlock_alloc(curr);
+    }
+    return sum;
+}
+#else
+unsigned long long get_contention(cl_allocator *allocator) {
+    fprintf(stderr, "ERROR: get_contention : clalloc not compiled with "
+            "contention information support (-DPROFILE_LOCKS)\n");
+    exit(1);
+}
+#endif
+
+#ifdef PROFILE
+void print_clalloc_profile(int thread) {
+    fprintf(stderr, "%d : clalloc profile: init - %llu ns | alloc - %llu ns | "
+            "realloc - %llu ns | free - %llu ns\n", thread, acc_init_time,
+            acc_alloc_time, acc_realloc_time, acc_free_time);
+}
+#else
+void print_clalloc_profile(int thread) {
+    fprintf(stderr, "ERROR: print_profile : clalloc not compiled with profile "
+            "information (-DPROFILE)\n");
+    exit(1);
+}
+#endif

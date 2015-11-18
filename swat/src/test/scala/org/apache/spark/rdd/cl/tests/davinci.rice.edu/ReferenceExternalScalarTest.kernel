@@ -24,8 +24,8 @@ static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest$$anon$1__ap
    return(org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, int v$1, int N) {
+      __global int* restrict in0, 
+      __global int* restrict out, int v$1, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->v$1 = v$1;

@@ -14,7 +14,7 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import java.nio.ByteBuffer
 
 class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
-    val entryPoint : Entrypoint) extends InputBufferWrapper[T] {
+    val entryPoint : Entrypoint, val blockingCopies : Boolean) extends InputBufferWrapper[T] {
   val clazz : java.lang.Class[_] = Class.forName(typeName)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -24,58 +24,97 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   val structMemberOffsets : Option[Array[Long]] = if (classModel == null) None else
       Some(classModel.getStructMemberOffsets)
   val structSize = classModel.getTotalStructSize
-  val bb : ByteBuffer = ByteBuffer.allocate(classModel.getTotalStructSize * nele)
+
+  var objCount : Int = 0
+
+  val bb : ByteBuffer = ByteBuffer.allocate(nele * structSize)
   bb.order(ByteOrder.LITTLE_ENDIAN)
 
-  var iter : Int = 0
-  var objCount : Int = 0
+  var nativeBuffers : ObjectNativeInputBuffers[T] = null
+
+  override def selfAllocate(dev_ctx : Long) {
+    nativeBuffers = generateNativeInputBuffer(dev_ctx).asInstanceOf[ObjectNativeInputBuffers[T]]
+  }
+
+  override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[T]) {
+    nativeBuffers = set.asInstanceOf[ObjectNativeInputBuffers[T]]
+  }
 
   override def flush() { }
 
   override def append(obj : Any) {
-    OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object], classModel, bb)
+    OpenCLBridgeWrapper.writeObjectToStream(obj.asInstanceOf[java.lang.Object],
+        classModel, bb)
     objCount += 1
   }
 
-  override def aggregateFrom(iter : Iterator[T]) : Int = {
-    val startPosition = bb.position
-    while (bb.position < bb.capacity && iter.hasNext) {
-      OpenCLBridgeWrapper.writeObjectToStream(
-              iter.next.asInstanceOf[java.lang.Object], classModel, bb)
-      objCount += 1
+  override def aggregateFrom(iter : Iterator[T]) {
+    while (objCount < nele && iter.hasNext) {
+      append(iter.next)
     }
-    (bb.position - startPosition) / structSize
   }
 
   override def nBuffered() : Int = {
     objCount
   }
 
-  override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheID : CLCacheID) : Int = {
-    OpenCLBridge.setByteArrayArg(ctx, dev_ctx, argnum, bb.array,
-        bb.position, cacheID.broadcast, cacheID.rdd, cacheID.partition,
-        cacheID.offset, cacheID.component)
-    bb.clear
-    return 1
-  }
-
-  override def hasNext() : Boolean = {
-    iter < objCount
-  }
-
-  override def next() : T = {
-    val new_obj : T = constructor.newInstance().asInstanceOf[T]
-    bb.position(iter * structSize)
-    OpenCLBridgeWrapper.readObjectFromStream(new_obj, classModel, bb,
-            structMemberTypes.get, structMemberOffsets.get)
-    iter += 1
-    new_obj
-  }
+  override def countArgumentsUsed : Int = { 1 }
 
   override def haveUnprocessedInputs : Boolean = {
-    false
+    objCount > 0
   }
 
-  override def releaseNativeArrays { }
+  override def outOfSpace : Boolean = {
+    objCount >= nele
+  }
+
+  override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T] = {
+    new ObjectNativeInputBuffers[T](nele, structSize, blockingCopies,
+            constructor, classModel, structMemberTypes, structMemberOffsets, dev_ctx)
+  }
+
+  override def setupNativeBuffersForCopy(limit : Int) {
+    val tocopy = if (limit == -1) objCount else limit
+    OpenCLBridge.copyJVMArrayToNativeArray(nativeBuffers.buffer, 0, bb.array, 0,
+            tocopy * structSize)
+    nativeBuffers.tocopy = tocopy
+  }
+
+  override def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+      NativeInputBuffers[T] = {
+    assert(nativeBuffers.tocopy != -1)
+    val other : ObjectNativeInputBuffers[T] =
+        otherAbstract.asInstanceOf[ObjectNativeInputBuffers[T]]
+    val leftover = objCount - nativeBuffers.tocopy
+
+    if (leftover > 0) {
+      System.arraycopy(bb.array, nativeBuffers.tocopy * structSize, bb.array, 0,
+              leftover * structSize)
+    }
+    // Update number of elements in each native buffer
+    other.tocopy = -1
+
+    // Update the number of elements stored in this input buffer
+    objCount = leftover
+    bb.position(leftover * structSize)
+
+    // Update the current native buffers
+    val oldBuffers = nativeBuffers
+    nativeBuffers = other
+    return oldBuffers
+  }
+
+  override def reset() { }
+
+  // Returns # of arguments used
+  override def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entrypoint : Entrypoint, persistent : Boolean) : Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, 0, id.broadcast, id.rdd,
+        id.partition, id.offset, id.component, 1, persistent)) {
+      return 1
+    } else {
+      return -1
+    }
+  }
 }

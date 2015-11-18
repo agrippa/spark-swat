@@ -16,6 +16,7 @@ typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVecto
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
    __global double*  values;
    int  size;
+   int  tiling;
    
 } org_apache_spark_mllib_linalg_DenseVector;
 
@@ -29,7 +30,7 @@ static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_s
 
 
 static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[32 * index];
+    return (this->values)[this->tiling * index];
 }
 
 static double org_apache_spark_rdd_cl_tests_DenseVectorBroadcastTest$$anon$1__apply$mcDI$sp(This *this, int in){
@@ -51,14 +52,15 @@ static double org_apache_spark_rdd_cl_tests_DenseVectorBroadcastTest$$anon$1__ap
    return(org_apache_spark_rdd_cl_tests_DenseVectorBroadcastTest$$anon$1__apply$mcDI$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global double* out, __global org_apache_spark_mllib_linalg_DenseVector* broadcast$1, __global double *broadcast$1_values, __global int *broadcast$1_sizes, __global int *broadcast$1_offsets, int nbroadcast$1, int N) {
+      __global int* restrict in0, 
+      __global double* restrict out, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1, __global double * restrict broadcast$1_values, __global int * restrict broadcast$1_sizes, __global int * restrict broadcast$1_offsets, int nbroadcast$1, int broadcast$1_tiling, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->broadcast$1 = broadcast$1;
    for (int j = 0; j < nbroadcast$1; j++) {
       (this->broadcast$1)[j].values = broadcast$1_values + broadcast$1_offsets[j];
       (this->broadcast$1)[j].size = broadcast$1_sizes[j];
+      (this->broadcast$1)[j].tiling = broadcast$1_tiling;
    }
 ;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {

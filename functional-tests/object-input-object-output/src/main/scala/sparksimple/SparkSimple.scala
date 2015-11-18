@@ -32,11 +32,30 @@ object SparkSimple {
             val actual : Array[Point] = run_simple(args.slice(1, args.length), true)
             assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
+                var err = false
                 val a = correct(i)
                 val b = actual(i)
-                assert(a.x == b.x)
-                assert(a.y == b.y)
-                assert(a.z == b.z)
+
+                if (a.x != b.x) {
+                  System.err.println("Mismatch on x in element " + i +
+                        ", expected " + a.x + " but got " + b.x)
+                  err = true
+                }
+                if (a.y != b.y) {
+                  System.err.println("Mismatch on y in element " + i +
+                        ", expected " + a.y + " but got " + b.y)
+                  err = true
+                }
+                if (a.z != b.z) {
+                  System.err.println("Mismatch on z in element " + i +
+                        ", expected " + a.z + " but got " + b.z)
+                  err = true
+                }
+
+                if (err) {
+                  System.err.println("FAILED")
+                  System.exit(1)
+                }
             }
             System.err.println("PASSED")
         }
@@ -69,12 +88,10 @@ object SparkSimple {
         val inputPath = args(0)
         val inputs_raw : RDD[Point] = sc.objectFile[Point](inputPath).cache
         val inputs = if (useSwat) CLWrapper.cl[Point](inputs_raw) else inputs_raw
-        val outputs : RDD[Point] = inputs.map(v =>
-                new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z))
-        val outputs2 : Array[Point] = outputs.map(v =>
-                new Point(2 * v.x, 3 * v.y, 4 * v.z)).collect
+        val outputs : Array[Point] = inputs.map(v =>
+                new Point(v.x * v.y * v.z * m * arr(1).y, v.y, v.z)).collect
         sc.stop
-        outputs2
+        outputs
     }
 
     def convert(args : Array[String]) {

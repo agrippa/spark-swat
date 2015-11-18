@@ -3,6 +3,7 @@ package org.apache.spark.rdd.cl
 import scala.reflect.ClassTag
 import scala.reflect._
 
+import java.nio.ByteOrder
 import java.nio.ByteBuffer
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -14,9 +15,9 @@ import com.amd.aparapi.internal.model.ClassModel.FieldDescriptor
 import com.amd.aparapi.internal.util.UnsafeWrapper
 
 class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
-    val N : Int, entryPoint : Entrypoint) extends OutputBufferWrapper[T] {
+    val N : Int, val entryPoint : Entrypoint)
+    extends OutputBufferWrapper[T] {
   var iter : Int = 0
-  val anyFailed : Array[Int] = new Array[Int](1)
   val clazz : java.lang.Class[_] = Class.forName(className)
   val constructor = OpenCLBridge.getDefaultConstructor(clazz)
   val classModel : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
@@ -27,6 +28,7 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
       Some(classModel.getStructMemberOffsets)
   val structSize : Int = classModel.getTotalStructSize
   val bb : ByteBuffer = ByteBuffer.allocate(structSize * N)
+  bb.order(ByteOrder.LITTLE_ENDIAN)
   var nLoaded : Int = -1
 
   override def next() : T = {
@@ -41,24 +43,25 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
     iter < nLoaded
   }
 
-  override def kernelAttemptCallback(nLoaded : Int, anyFailedArgNum : Int,
-          processingSucceededArgnum : Int, outArgNum : Int, heapArgStart : Int,
-          heapSize : Int, ctx : Long, dev_ctx : Long, devicePointerSize : Int) : Boolean = {
-      OpenCLBridge.fetchIntArrayArg(ctx, dev_ctx, anyFailedArgNum, anyFailed, 1)
-      anyFailed(0) == 0
-  }
-
-  override def finish(ctx : Long, dev_ctx : Long, outArgNum : Int,
-      setNLoaded : Int) {
-    OpenCLBridge.fetchByteArrayArg(ctx, dev_ctx, outArgNum, bb.array,
-            structSize * nLoaded)
-    nLoaded = setNLoaded
+  override def fillFrom(kernel_ctx : Long,
+      nativeOutputBuffers : NativeOutputBuffers[T]) {
+    val actual = nativeOutputBuffers.asInstanceOf[ObjectNativeOutputBuffers[T]]
+    iter = 0
+    bb.clear
+    nLoaded = OpenCLBridge.getNLoaded(kernel_ctx)
+    assert(nLoaded <= N)
+    OpenCLBridge.pinnedToJVMArray(kernel_ctx, bb.array, actual.pinnedBuffer, nLoaded * structSize)
   }
 
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def reset() {
-    iter = 0
-    nLoaded = -1
+  override def getNativeOutputBufferInfo() : Array[Int] = {
+    Array(structSize * N)
+  }
+
+  override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
+          ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
+          NativeOutputBuffers[T] = {
+    new ObjectNativeOutputBuffers(N, outArgNum, dev_ctx, ctx, entryPoint).asInstanceOf[NativeOutputBuffers[T]]
   }
 }

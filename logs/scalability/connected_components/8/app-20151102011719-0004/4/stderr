@@ -1,0 +1,924 @@
+Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+15/11/02 01:17:20 INFO CoarseGrainedExecutorBackend: Registered signal handlers for [TERM, HUP, INT]
+15/11/02 01:17:20 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/11/02 01:17:20 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 01:17:20 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 01:17:20 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 01:17:21 INFO Slf4jLogger: Slf4jLogger started
+15/11/02 01:17:21 INFO Remoting: Starting remoting
+15/11/02 01:17:21 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://driverPropsFetcher@gpu-008.davinci.rice.edu:53309]
+15/11/02 01:17:21 INFO Utils: Successfully started service 'driverPropsFetcher' on port 53309.
+15/11/02 01:17:21 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 01:17:21 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 01:17:21 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 01:17:21 INFO RemoteActorRefProvider$RemotingTerminator: Shutting down remote daemon.
+15/11/02 01:17:21 INFO RemoteActorRefProvider$RemotingTerminator: Remote daemon shut down; proceeding with flushing remote transports.
+15/11/02 01:17:21 INFO Slf4jLogger: Slf4jLogger started
+15/11/02 01:17:21 INFO Remoting: Starting remoting
+15/11/02 01:17:21 INFO RemoteActorRefProvider$RemotingTerminator: Remoting shut down.
+15/11/02 01:17:21 INFO Remoting: Remoting started; listening on addresses :[akka.tcp://sparkExecutor@gpu-008.davinci.rice.edu:49675]
+15/11/02 01:17:21 INFO Utils: Successfully started service 'sparkExecutor' on port 49675.
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Connecting to driver: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:45597/user/CoarseGrainedScheduler
+15/11/02 01:17:21 INFO WorkerWatcher: Connecting to worker akka.tcp://sparkWorker@gpu-008.davinci.rice.edu:42069/user/Worker
+15/11/02 01:17:21 INFO WorkerWatcher: Successfully connected to akka.tcp://sparkWorker@gpu-008.davinci.rice.edu:42069/user/Worker
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
+15/11/02 01:17:21 INFO SecurityManager: Changing view acls to: jmg3
+15/11/02 01:17:21 INFO SecurityManager: Changing modify acls to: jmg3
+15/11/02 01:17:21 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users with view permissions: Set(jmg3); users with modify permissions: Set(jmg3)
+15/11/02 01:17:21 INFO AkkaUtils: Connecting to MapOutputTracker: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:45597/user/MapOutputTracker
+15/11/02 01:17:21 INFO AkkaUtils: Connecting to BlockManagerMaster: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:45597/user/BlockManagerMaster
+15/11/02 01:17:21 INFO DiskBlockManager: Created local directory at /tmp/spark-local-20151102011721-494f
+15/11/02 01:17:21 INFO MemoryStore: MemoryStore started with capacity 3.2 GB
+15/11/02 01:17:21 INFO NettyBlockTransferService: Server created on 45733
+15/11/02 01:17:21 INFO BlockManagerMaster: Trying to register BlockManager
+15/11/02 01:17:21 INFO BlockManagerMaster: Registered BlockManager
+15/11/02 01:17:21 INFO AkkaUtils: Connecting to HeartbeatReceiver: akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:45597/user/HeartbeatReceiver
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 0
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 1
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 2
+15/11/02 01:17:21 INFO Executor: Running task 1.0 in stage 0.0 (TID 0)
+15/11/02 01:17:21 INFO Executor: Running task 3.0 in stage 0.0 (TID 1)
+15/11/02 01:17:21 INFO Executor: Running task 5.0 in stage 0.0 (TID 2)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 3
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 4
+15/11/02 01:17:21 INFO Executor: Running task 8.0 in stage 0.0 (TID 3)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 5
+15/11/02 01:17:21 INFO Executor: Running task 12.0 in stage 0.0 (TID 4)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 6
+15/11/02 01:17:21 INFO Executor: Running task 14.0 in stage 0.0 (TID 5)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 7
+15/11/02 01:17:21 INFO Executor: Running task 16.0 in stage 0.0 (TID 6)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 8
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 9
+15/11/02 01:17:21 INFO Executor: Running task 26.0 in stage 0.0 (TID 7)
+15/11/02 01:17:21 INFO Executor: Running task 38.0 in stage 0.0 (TID 8)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 10
+15/11/02 01:17:21 INFO Executor: Running task 40.0 in stage 0.0 (TID 9)
+15/11/02 01:17:21 INFO CoarseGrainedExecutorBackend: Got assigned task 11
+15/11/02 01:17:21 INFO Executor: Running task 48.0 in stage 0.0 (TID 10)
+15/11/02 01:17:22 INFO Executor: Running task 52.0 in stage 0.0 (TID 11)
+15/11/02 01:17:22 INFO Executor: Fetching http://192.168.110.204:51337/jars/aparapi.jar with timestamp 1446448639072
+15/11/02 01:17:22 INFO Utils: Fetching http://192.168.110.204:51337/jars/aparapi.jar to /tmp/fetchFileTemp3450652806780197398.tmp
+15/11/02 01:17:22 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102011719-0004/4/./aparapi.jar to class loader
+15/11/02 01:17:22 INFO Executor: Fetching http://192.168.110.204:51337/jars/sparkconnectedcomponents-0.0.0.jar with timestamp 1446448639073
+15/11/02 01:17:22 INFO Utils: Fetching http://192.168.110.204:51337/jars/sparkconnectedcomponents-0.0.0.jar to /tmp/fetchFileTemp3372265245488039603.tmp
+15/11/02 01:17:22 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102011719-0004/4/./sparkconnectedcomponents-0.0.0.jar to class loader
+15/11/02 01:17:22 INFO Executor: Fetching http://192.168.110.204:51337/jars/swat-1.0-SNAPSHOT.jar with timestamp 1446448639070
+15/11/02 01:17:22 INFO Utils: Fetching http://192.168.110.204:51337/jars/swat-1.0-SNAPSHOT.jar to /tmp/fetchFileTemp47326668265390284.tmp
+15/11/02 01:17:22 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102011719-0004/4/./swat-1.0-SNAPSHOT.jar to class loader
+15/11/02 01:17:22 INFO Executor: Fetching http://192.168.110.204:51337/jars/asm-util-5.0.3.jar with timestamp 1446448639073
+15/11/02 01:17:22 INFO Utils: Fetching http://192.168.110.204:51337/jars/asm-util-5.0.3.jar to /tmp/fetchFileTemp1112534408519331695.tmp
+15/11/02 01:17:22 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102011719-0004/4/./asm-util-5.0.3.jar to class loader
+15/11/02 01:17:22 INFO Executor: Fetching http://192.168.110.204:51337/jars/asm-5.0.3.jar with timestamp 1446448639073
+15/11/02 01:17:22 INFO Utils: Fetching http://192.168.110.204:51337/jars/asm-5.0.3.jar to /tmp/fetchFileTemp1703856197954501672.tmp
+15/11/02 01:17:22 INFO Executor: Adding file:/dascratch/jmg3/spark-work/app-20151102011719-0004/4/./asm-5.0.3.jar to class loader
+15/11/02 01:17:22 INFO TorrentBroadcast: Started reading broadcast variable 2
+15/11/02 01:17:22 INFO MemoryStore: ensureFreeSpace(2630) called with curMem=0, maxMem=3426641510
+15/11/02 01:17:22 INFO MemoryStore: Block broadcast_2_piece0 stored as bytes in memory (estimated size 2.6 KB, free 3.2 GB)
+15/11/02 01:17:22 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/11/02 01:17:22 INFO TorrentBroadcast: Reading broadcast variable 2 took 229 ms
+15/11/02 01:17:22 INFO MemoryStore: ensureFreeSpace(3648) called with curMem=2630, maxMem=3426641510
+15/11/02 01:17:22 INFO MemoryStore: Block broadcast_2 stored as values in memory (estimated size 3.6 KB, free 3.2 GB)
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_12 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_52 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_1 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_5 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_38 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_26 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_3 not found, computing it
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_14 not found, computing it
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00001:0+134217728
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00006:0+134217728
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00012:0+134217728
+15/11/02 01:17:22 INFO TorrentBroadcast: Started reading broadcast variable 0
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00025:0+134217728
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00005:0+134217728
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00001:268435456+33754915
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00018:0+134217728
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_8 not found, computing it
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00000:134217728+134217728
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00003:0+134217728
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_40 not found, computing it
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00019:0+134217728
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_48 not found, computing it
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00023:0+134217728
+15/11/02 01:17:22 INFO CacheManager: Partition rdd_1_16 not found, computing it
+15/11/02 01:17:22 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00007:0+134217728
+15/11/02 01:17:22 INFO MemoryStore: ensureFreeSpace(22692) called with curMem=6278, maxMem=3426641510
+15/11/02 01:17:22 INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 22.2 KB, free 3.2 GB)
+15/11/02 01:17:22 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/11/02 01:17:22 INFO TorrentBroadcast: Reading broadcast variable 0 took 28 ms
+15/11/02 01:17:22 INFO MemoryStore: ensureFreeSpace(278567) called with curMem=28970, maxMem=3426641510
+15/11/02 01:17:22 INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 272.0 KB, free 3.2 GB)
+15/11/02 01:17:23 INFO deprecation: mapred.tip.id is deprecated. Instead, use mapreduce.task.id
+15/11/02 01:17:23 INFO deprecation: mapred.task.id is deprecated. Instead, use mapreduce.task.attempt.id
+15/11/02 01:17:23 INFO deprecation: mapred.task.is.map is deprecated. Instead, use mapreduce.task.ismap
+15/11/02 01:17:23 INFO deprecation: mapred.task.partition is deprecated. Instead, use mapreduce.task.partition
+15/11/02 01:17:23 INFO deprecation: mapred.job.id is deprecated. Instead, use mapreduce.job.id
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(48674712) called with curMem=307537, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block rdd_1_5 stored as values in memory (estimated size 46.4 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block rdd_1_5
+Thread = 2 running stage = 0, partition = 5 on JVM
+15/11/02 01:17:26 INFO TorrentBroadcast: Started reading broadcast variable 1
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(102808) called with curMem=48982249, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece38 stored as bytes in memory (estimated size 100.4 KB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece38
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=49085057, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece35 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece35
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=53279361, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece8 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece8
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=57473665, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece14 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece14
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=61667969, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece13 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece13
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=65862273, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece3 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece3
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=70056577, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece6 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece6
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=74250881, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece25 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece25
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=78445185, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece2 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece2
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=82639489, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece31 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece31
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=86833793, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece16 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece16
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=91028097, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece5 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece5
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=95222401, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece20 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:26 INFO BlockManagerMaster: Updated info of block broadcast_1_piece20
+15/11/02 01:17:26 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=99416705, maxMem=3426641510
+15/11/02 01:17:26 INFO MemoryStore: Block broadcast_1_piece28 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece28
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=103611009, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece15 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece15
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=107805313, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece1 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece1
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=111999617, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece19 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece19
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=116193921, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece12 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece12
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=120388225, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece21 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece21
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=124582529, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece34 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece34
+15/11/02 01:17:27 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=128776833, maxMem=3426641510
+15/11/02 01:17:27 INFO MemoryStore: Block broadcast_1_piece18 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:27 INFO BlockManagerMaster: Updated info of block broadcast_1_piece18
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=132971137, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece27 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece27
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=137165441, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece9 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece9
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=141359745, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece37 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece37
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=145554049, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece30 stored as bytes in memory (estimated size 4.0 MB, free 3.1 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece30
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=149748353, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece4 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece4
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=153942657, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece33 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece33
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=158136961, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece32 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece32
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=162331265, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece11 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece11
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=166525569, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece22 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece22
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=170719873, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece29 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece29
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=174914177, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece23 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece23
+15/11/02 01:17:28 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=179108481, maxMem=3426641510
+15/11/02 01:17:28 INFO MemoryStore: Block broadcast_1_piece0 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:28 INFO BlockManagerMaster: Updated info of block broadcast_1_piece0
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=183302785, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece7 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece7
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=187497089, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece36 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece36
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=191691393, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece17 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece17
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=195885697, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece10 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece10
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=200080001, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece26 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece26
+15/11/02 01:17:29 INFO MemoryStore: ensureFreeSpace(4194304) called with curMem=204274305, maxMem=3426641510
+15/11/02 01:17:29 INFO MemoryStore: Block broadcast_1_piece24 stored as bytes in memory (estimated size 4.0 MB, free 3.0 GB)
+15/11/02 01:17:29 INFO BlockManagerMaster: Updated info of block broadcast_1_piece24
+15/11/02 01:17:29 INFO TorrentBroadcast: Reading broadcast variable 1 took 3171 ms
+15/11/02 01:17:30 INFO MemoryStore: ensureFreeSpace(158096904) called with curMem=208468609, maxMem=3426641510
+15/11/02 01:17:30 INFO MemoryStore: Block broadcast_1 stored as values in memory (estimated size 150.8 MB, free 2.8 GB)
+15/11/02 01:17:31 INFO Executor: Finished task 5.0 in stage 0.0 (TID 2). 2837 bytes result sent to driver
+15/11/02 01:17:31 INFO CoarseGrainedExecutorBackend: Got assigned task 96
+15/11/02 01:17:31 INFO Executor: Running task 112.0 in stage 0.0 (TID 96)
+15/11/02 01:17:31 INFO CacheManager: Partition rdd_1_112 not found, computing it
+15/11/02 01:17:31 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00055:134217728+113261519
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=366565513, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_16 stored as values in memory (estimated size 184.6 MB, free 2.7 GB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_16
+Thread = 6 running stage = 0, partition = 16 on JVM
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=560117857, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_48 stored as values in memory (estimated size 184.6 MB, free 2.5 GB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_48
+Thread = 10 running stage = 0, partition = 48 on JVM
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=753670201, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_40 stored as values in memory (estimated size 184.6 MB, free 2.3 GB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_40
+Thread = 9 running stage = 0, partition = 40 on JVM
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=947222545, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_8 stored as values in memory (estimated size 184.6 MB, free 2.1 GB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_8
+Thread = 3 running stage = 0, partition = 8 on JVM
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=1140774889, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_38 stored as values in memory (estimated size 184.6 MB, free 1995.4 MB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_38
+Thread = 8 running stage = 0, partition = 38 on JVM
+15/11/02 01:17:33 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=1334327233, maxMem=3426641510
+15/11/02 01:17:33 INFO MemoryStore: Block rdd_1_3 stored as values in memory (estimated size 184.6 MB, free 1810.8 MB)
+15/11/02 01:17:33 INFO BlockManagerMaster: Updated info of block rdd_1_3
+Thread = 1 running stage = 0, partition = 3 on JVM
+15/11/02 01:17:34 INFO Executor: Finished task 8.0 in stage 0.0 (TID 3). 2837 bytes result sent to driver
+15/11/02 01:17:34 INFO CoarseGrainedExecutorBackend: Got assigned task 101
+15/11/02 01:17:34 INFO Executor: Running task 127.0 in stage 0.0 (TID 101)
+15/11/02 01:17:34 INFO CacheManager: Partition rdd_1_127 not found, computing it
+15/11/02 01:17:34 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00063:0+134217728
+15/11/02 01:17:34 INFO Executor: Finished task 16.0 in stage 0.0 (TID 6). 2837 bytes result sent to driver
+15/11/02 01:17:34 INFO CoarseGrainedExecutorBackend: Got assigned task 102
+15/11/02 01:17:34 INFO Executor: Running task 133.0 in stage 0.0 (TID 102)
+15/11/02 01:17:34 INFO CacheManager: Partition rdd_1_133 not found, computing it
+15/11/02 01:17:34 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00066:134217728+112517685
+15/11/02 01:17:35 INFO Executor: Finished task 40.0 in stage 0.0 (TID 9). 2837 bytes result sent to driver
+15/11/02 01:17:35 INFO CoarseGrainedExecutorBackend: Got assigned task 107
+15/11/02 01:17:35 INFO Executor: Running task 134.0 in stage 0.0 (TID 107)
+15/11/02 01:17:35 INFO CacheManager: Partition rdd_1_134 not found, computing it
+15/11/02 01:17:35 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00067:0+134217728
+15/11/02 01:17:35 INFO Executor: Finished task 38.0 in stage 0.0 (TID 8). 2837 bytes result sent to driver
+15/11/02 01:17:35 INFO CoarseGrainedExecutorBackend: Got assigned task 108
+15/11/02 01:17:35 INFO Executor: Running task 141.0 in stage 0.0 (TID 108)
+15/11/02 01:17:35 INFO CacheManager: Partition rdd_1_141 not found, computing it
+15/11/02 01:17:35 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00070:134217728+112596873
+15/11/02 01:17:35 INFO Executor: Finished task 48.0 in stage 0.0 (TID 10). 2837 bytes result sent to driver
+15/11/02 01:17:35 INFO CoarseGrainedExecutorBackend: Got assigned task 109
+15/11/02 01:17:35 INFO Executor: Running task 146.0 in stage 0.0 (TID 109)
+15/11/02 01:17:35 INFO CacheManager: Partition rdd_1_146 not found, computing it
+15/11/02 01:17:35 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00073:0+134217728
+15/11/02 01:17:35 INFO Executor: Finished task 3.0 in stage 0.0 (TID 1). 2837 bytes result sent to driver
+15/11/02 01:17:35 INFO CoarseGrainedExecutorBackend: Got assigned task 110
+15/11/02 01:17:35 INFO Executor: Running task 149.0 in stage 0.0 (TID 110)
+15/11/02 01:17:35 INFO CacheManager: Partition rdd_1_149 not found, computing it
+15/11/02 01:17:35 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00074:134217728+112312645
+15/11/02 01:17:41 WARN MemoryStore: Not enough space to cache rdd_1_14 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:41 INFO MemoryStore: Memory use = 1457.1 MB (blocks) + 1805.7 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 5 running stage = 0, partition = 14 on JVM
+15/11/02 01:17:42 WARN MemoryStore: Not enough space to cache rdd_1_141 in memory! (computed 60.0 MB so far)
+15/11/02 01:17:42 INFO MemoryStore: Memory use = 1457.1 MB (blocks) + 1805.7 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 8 running stage = 0, partition = 141 on JVM
+15/11/02 01:17:42 WARN MemoryStore: Not enough space to cache rdd_1_112 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:42 INFO MemoryStore: Memory use = 1457.1 MB (blocks) + 1805.7 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 2 running stage = 0, partition = 112 on JVM
+15/11/02 01:17:42 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=1527879577, maxMem=3426641510
+15/11/02 01:17:42 INFO MemoryStore: Block rdd_1_134 stored as values in memory (estimated size 184.6 MB, free 1626.2 MB)
+15/11/02 01:17:42 INFO BlockManagerMaster: Updated info of block rdd_1_134
+Thread = 9 running stage = 0, partition = 134 on JVM
+15/11/02 01:17:42 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=1721431921, maxMem=3426641510
+15/11/02 01:17:42 INFO MemoryStore: Block rdd_1_146 stored as values in memory (estimated size 184.6 MB, free 1441.6 MB)
+15/11/02 01:17:42 INFO BlockManagerMaster: Updated info of block rdd_1_146
+Thread = 10 running stage = 0, partition = 146 on JVM
+15/11/02 01:17:44 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=1914984265, maxMem=3426641510
+15/11/02 01:17:44 INFO MemoryStore: Block rdd_1_52 stored as values in memory (estimated size 184.6 MB, free 1257.0 MB)
+15/11/02 01:17:44 INFO BlockManagerMaster: Updated info of block rdd_1_52
+Thread = 11 running stage = 0, partition = 52 on JVM
+15/11/02 01:17:44 INFO Executor: Finished task 134.0 in stage 0.0 (TID 107). 3000 bytes result sent to driver
+15/11/02 01:17:44 INFO CoarseGrainedExecutorBackend: Got assigned task 166
+15/11/02 01:17:44 INFO Executor: Running task 203.0 in stage 0.0 (TID 166)
+15/11/02 01:17:44 INFO CacheManager: Partition rdd_1_203 not found, computing it
+15/11/02 01:17:44 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00101:134217728+100732891
+15/11/02 01:17:44 INFO Executor: Finished task 112.0 in stage 0.0 (TID 96). 2480 bytes result sent to driver
+15/11/02 01:17:44 INFO CoarseGrainedExecutorBackend: Got assigned task 169
+15/11/02 01:17:44 INFO Executor: Running task 205.0 in stage 0.0 (TID 169)
+15/11/02 01:17:44 INFO CacheManager: Partition rdd_1_205 not found, computing it
+15/11/02 01:17:44 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00102:134217728+116907969
+15/11/02 01:17:45 INFO Executor: Finished task 52.0 in stage 0.0 (TID 11). 3000 bytes result sent to driver
+15/11/02 01:17:45 INFO CoarseGrainedExecutorBackend: Got assigned task 170
+15/11/02 01:17:45 INFO Executor: Running task 206.0 in stage 0.0 (TID 170)
+15/11/02 01:17:45 INFO CacheManager: Partition rdd_1_206 not found, computing it
+15/11/02 01:17:45 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00103:0+134217728
+15/11/02 01:17:45 INFO Executor: Finished task 146.0 in stage 0.0 (TID 109). 3000 bytes result sent to driver
+15/11/02 01:17:45 INFO CoarseGrainedExecutorBackend: Got assigned task 172
+15/11/02 01:17:45 INFO Executor: Running task 208.0 in stage 0.0 (TID 172)
+15/11/02 01:17:45 INFO CacheManager: Partition rdd_1_208 not found, computing it
+15/11/02 01:17:45 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00104:0+134217728
+15/11/02 01:17:45 WARN MemoryStore: Not enough space to cache rdd_1_203 in memory! (computed 33.8 MB so far)
+15/11/02 01:17:45 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1251.6 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 9 running stage = 0, partition = 203 on JVM
+15/11/02 01:17:45 WARN MemoryStore: Not enough space to cache rdd_1_208 in memory! (computed 15.0 MB so far)
+15/11/02 01:17:45 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 10 running stage = 0, partition = 208 on JVM
+15/11/02 01:17:45 WARN MemoryStore: Not enough space to cache rdd_1_206 in memory! (computed 22.5 MB so far)
+15/11/02 01:17:45 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 11 running stage = 0, partition = 206 on JVM
+15/11/02 01:17:46 WARN MemoryStore: Not enough space to cache rdd_1_205 in memory! (computed 33.8 MB so far)
+15/11/02 01:17:46 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 2 running stage = 0, partition = 205 on JVM
+15/11/02 01:17:48 WARN MemoryStore: Not enough space to cache rdd_1_133 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:48 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 6 running stage = 0, partition = 133 on JVM
+15/11/02 01:17:48 WARN MemoryStore: Not enough space to cache rdd_1_149 in memory! (computed 90.0 MB so far)
+15/11/02 01:17:48 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 1 running stage = 0, partition = 149 on JVM
+15/11/02 01:17:48 WARN MemoryStore: Not enough space to cache rdd_1_127 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:48 INFO MemoryStore: Memory use = 2010.9 MB (blocks) + 1255.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 3 running stage = 0, partition = 127 on JVM
+15/11/02 01:17:49 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=2108536609, maxMem=3426641510
+15/11/02 01:17:49 INFO MemoryStore: Block rdd_1_12 stored as values in memory (estimated size 184.6 MB, free 1072.5 MB)
+15/11/02 01:17:49 INFO BlockManagerMaster: Updated info of block rdd_1_12
+Thread = 4 running stage = 0, partition = 12 on JVM
+15/11/02 01:17:50 INFO MemoryStore: ensureFreeSpace(193549464) called with curMem=2302088953, maxMem=3426641510
+15/11/02 01:17:50 INFO MemoryStore: Block rdd_1_1 stored as values in memory (estimated size 184.6 MB, free 887.9 MB)
+15/11/02 01:17:50 INFO BlockManagerMaster: Updated info of block rdd_1_1
+Thread = 0 running stage = 0, partition = 1 on JVM
+15/11/02 01:17:50 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=2495638417, maxMem=3426641510
+15/11/02 01:17:50 INFO MemoryStore: Block rdd_1_26 stored as values in memory (estimated size 184.6 MB, free 703.3 MB)
+15/11/02 01:17:50 INFO BlockManagerMaster: Updated info of block rdd_1_26
+Thread = 7 running stage = 0, partition = 26 on JVM
+15/11/02 01:17:51 INFO Executor: Finished task 12.0 in stage 0.0 (TID 4). 3000 bytes result sent to driver
+15/11/02 01:17:51 INFO CoarseGrainedExecutorBackend: Got assigned task 207
+15/11/02 01:17:51 INFO Executor: Running task 241.0 in stage 0.0 (TID 207)
+15/11/02 01:17:51 INFO CacheManager: Partition rdd_1_241 not found, computing it
+15/11/02 01:17:51 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00120:134217728+111564651
+15/11/02 01:17:51 INFO Executor: Finished task 1.0 in stage 0.0 (TID 0). 3000 bytes result sent to driver
+15/11/02 01:17:51 INFO CoarseGrainedExecutorBackend: Got assigned task 214
+15/11/02 01:17:51 INFO Executor: Running task 244.0 in stage 0.0 (TID 214)
+15/11/02 01:17:51 INFO CacheManager: Partition rdd_1_244 not found, computing it
+15/11/02 01:17:51 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00122:0+134217728
+15/11/02 01:17:51 INFO Executor: Finished task 203.0 in stage 0.0 (TID 166). 2480 bytes result sent to driver
+15/11/02 01:17:51 INFO CoarseGrainedExecutorBackend: Got assigned task 216
+15/11/02 01:17:51 INFO Executor: Running task 245.0 in stage 0.0 (TID 216)
+15/11/02 01:17:51 INFO CacheManager: Partition rdd_1_245 not found, computing it
+15/11/02 01:17:51 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00122:134217728+112595235
+15/11/02 01:17:51 INFO Executor: Finished task 14.0 in stage 0.0 (TID 5). 2480 bytes result sent to driver
+15/11/02 01:17:51 INFO CoarseGrainedExecutorBackend: Got assigned task 218
+15/11/02 01:17:51 INFO Executor: Running task 252.0 in stage 0.0 (TID 218)
+15/11/02 01:17:51 INFO CacheManager: Partition rdd_1_252 not found, computing it
+15/11/02 01:17:51 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00126:0+134217728
+15/11/02 01:17:52 INFO Executor: Finished task 133.0 in stage 0.0 (TID 102). 2480 bytes result sent to driver
+15/11/02 01:17:52 INFO CoarseGrainedExecutorBackend: Got assigned task 221
+15/11/02 01:17:52 INFO Executor: Running task 256.0 in stage 0.0 (TID 221)
+15/11/02 01:17:52 INFO CacheManager: Partition rdd_1_256 not found, computing it
+15/11/02 01:17:52 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00128:0+134217728
+15/11/02 01:17:52 INFO Executor: Finished task 26.0 in stage 0.0 (TID 7). 3000 bytes result sent to driver
+15/11/02 01:17:52 INFO CoarseGrainedExecutorBackend: Got assigned task 227
+15/11/02 01:17:52 INFO Executor: Running task 259.0 in stage 0.0 (TID 227)
+15/11/02 01:17:52 INFO CacheManager: Partition rdd_1_259 not found, computing it
+15/11/02 01:17:52 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00129:134217728+113261929
+15/11/02 01:17:53 INFO Executor: Finished task 205.0 in stage 0.0 (TID 169). 2480 bytes result sent to driver
+15/11/02 01:17:53 INFO CoarseGrainedExecutorBackend: Got assigned task 229
+15/11/02 01:17:53 INFO Executor: Running task 262.0 in stage 0.0 (TID 229)
+15/11/02 01:17:53 INFO CacheManager: Partition rdd_1_262 not found, computing it
+15/11/02 01:17:53 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00131:0+134217728
+15/11/02 01:17:53 INFO Executor: Finished task 141.0 in stage 0.0 (TID 108). 2480 bytes result sent to driver
+15/11/02 01:17:53 INFO CoarseGrainedExecutorBackend: Got assigned task 235
+15/11/02 01:17:53 INFO Executor: Running task 269.0 in stage 0.0 (TID 235)
+15/11/02 01:17:53 INFO CacheManager: Partition rdd_1_269 not found, computing it
+15/11/02 01:17:53 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00134:134217728+112865185
+15/11/02 01:17:54 INFO Executor: Finished task 149.0 in stage 0.0 (TID 110). 2480 bytes result sent to driver
+15/11/02 01:17:54 INFO CoarseGrainedExecutorBackend: Got assigned task 238
+15/11/02 01:17:54 INFO Executor: Running task 274.0 in stage 0.0 (TID 238)
+15/11/02 01:17:54 INFO CacheManager: Partition rdd_1_274 not found, computing it
+15/11/02 01:17:54 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00137:0+134217728
+15/11/02 01:17:54 INFO Executor: Finished task 208.0 in stage 0.0 (TID 172). 2480 bytes result sent to driver
+15/11/02 01:17:54 INFO CoarseGrainedExecutorBackend: Got assigned task 239
+15/11/02 01:17:54 INFO Executor: Running task 276.0 in stage 0.0 (TID 239)
+15/11/02 01:17:54 INFO CacheManager: Partition rdd_1_276 not found, computing it
+15/11/02 01:17:54 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00138:0+134217728
+15/11/02 01:17:54 INFO Executor: Finished task 127.0 in stage 0.0 (TID 101). 2480 bytes result sent to driver
+15/11/02 01:17:54 INFO CoarseGrainedExecutorBackend: Got assigned task 241
+15/11/02 01:17:54 INFO Executor: Running task 279.0 in stage 0.0 (TID 241)
+15/11/02 01:17:54 INFO CacheManager: Partition rdd_1_279 not found, computing it
+15/11/02 01:17:54 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00139:134217728+106375375
+15/11/02 01:17:55 INFO Executor: Finished task 206.0 in stage 0.0 (TID 170). 2480 bytes result sent to driver
+15/11/02 01:17:55 INFO CoarseGrainedExecutorBackend: Got assigned task 242
+15/11/02 01:17:55 INFO Executor: Running task 280.0 in stage 0.0 (TID 242)
+15/11/02 01:17:55 INFO CacheManager: Partition rdd_1_280 not found, computing it
+15/11/02 01:17:55 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00140:0+134217728
+15/11/02 01:17:55 WARN MemoryStore: Not enough space to cache rdd_1_241 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:55 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 670.9 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 4 running stage = 0, partition = 241 on JVM
+15/11/02 01:17:55 WARN MemoryStore: Not enough space to cache rdd_1_269 in memory! (computed 60.0 MB so far)
+15/11/02 01:17:55 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 696.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 8 running stage = 0, partition = 269 on JVM
+15/11/02 01:17:55 WARN MemoryStore: Not enough space to cache rdd_1_274 in memory! (computed 15.0 MB so far)
+15/11/02 01:17:55 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 696.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 1 running stage = 0, partition = 274 on JVM
+15/11/02 01:17:55 WARN MemoryStore: Not enough space to cache rdd_1_244 in memory! (computed 60.0 MB so far)
+15/11/02 01:17:55 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 0 running stage = 0, partition = 244 on JVM
+15/11/02 01:17:55 WARN MemoryStore: Not enough space to cache rdd_1_256 in memory! (computed 60.0 MB so far)
+15/11/02 01:17:55 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 6 running stage = 0, partition = 256 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_280 in memory! (computed 5.6 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 11 running stage = 0, partition = 280 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_245 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 9 running stage = 0, partition = 245 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_279 in memory! (computed 33.8 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 3 running stage = 0, partition = 279 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_259 in memory! (computed 8.5 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 7 running stage = 0, partition = 259 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_276 in memory! (computed 60.0 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 10 running stage = 0, partition = 276 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_252 in memory! (computed 135.0 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 5 running stage = 0, partition = 252 on JVM
+15/11/02 01:17:56 WARN MemoryStore: Not enough space to cache rdd_1_262 in memory! (computed 33.8 MB so far)
+15/11/02 01:17:56 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 701.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 2 running stage = 0, partition = 262 on JVM
+15/11/02 01:17:58 INFO Executor: Finished task 241.0 in stage 0.0 (TID 207). 2317 bytes result sent to driver
+15/11/02 01:17:58 INFO CoarseGrainedExecutorBackend: Got assigned task 261
+15/11/02 01:17:58 INFO Executor: Running task 285.0 in stage 0.0 (TID 261)
+15/11/02 01:17:58 INFO CacheManager: Partition rdd_1_285 not found, computing it
+15/11/02 01:17:58 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00142:134217728+112220009
+15/11/02 01:17:58 INFO Executor: Finished task 245.0 in stage 0.0 (TID 216). 2317 bytes result sent to driver
+15/11/02 01:17:58 INFO CoarseGrainedExecutorBackend: Got assigned task 264
+15/11/02 01:17:58 INFO Executor: Running task 293.0 in stage 0.0 (TID 264)
+15/11/02 01:17:58 INFO CacheManager: Partition rdd_1_293 not found, computing it
+15/11/02 01:17:58 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00146:134217728+110324757
+15/11/02 01:17:59 INFO Executor: Finished task 252.0 in stage 0.0 (TID 218). 2317 bytes result sent to driver
+15/11/02 01:17:59 INFO CoarseGrainedExecutorBackend: Got assigned task 278
+15/11/02 01:17:59 INFO Executor: Running task 310.0 in stage 0.0 (TID 278)
+15/11/02 01:17:59 INFO CacheManager: Partition rdd_1_310 not found, computing it
+15/11/02 01:17:59 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00155:0+45391107
+15/11/02 01:18:00 INFO Executor: Finished task 269.0 in stage 0.0 (TID 235). 2480 bytes result sent to driver
+15/11/02 01:18:00 INFO CoarseGrainedExecutorBackend: Got assigned task 286
+15/11/02 01:18:00 INFO Executor: Running task 313.0 in stage 0.0 (TID 286)
+15/11/02 01:18:00 INFO CacheManager: Partition rdd_1_313 not found, computing it
+15/11/02 01:18:00 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00157:0+134217728
+15/11/02 01:18:01 INFO Executor: Finished task 279.0 in stage 0.0 (TID 241). 2480 bytes result sent to driver
+15/11/02 01:18:01 INFO CoarseGrainedExecutorBackend: Got assigned task 289
+15/11/02 01:18:01 INFO Executor: Running task 320.0 in stage 0.0 (TID 289)
+15/11/02 01:18:01 INFO CacheManager: Partition rdd_1_320 not found, computing it
+15/11/02 01:18:01 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00160:134217728+110195915
+15/11/02 01:18:02 INFO Executor: Finished task 276.0 in stage 0.0 (TID 239). 2480 bytes result sent to driver
+15/11/02 01:18:02 INFO CoarseGrainedExecutorBackend: Got assigned task 293
+15/11/02 01:18:02 INFO Executor: Running task 325.0 in stage 0.0 (TID 293)
+15/11/02 01:18:02 INFO CacheManager: Partition rdd_1_325 not found, computing it
+15/11/02 01:18:02 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00163:0+134217728
+15/11/02 01:18:02 INFO MemoryStore: ensureFreeSpace(65456520) called with curMem=2689190761, maxMem=3426641510
+15/11/02 01:18:02 INFO MemoryStore: Block rdd_1_310 stored as values in memory (estimated size 62.4 MB, free 640.9 MB)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block rdd_1_310
+Thread = 5 running stage = 0, partition = 310 on JVM
+15/11/02 01:18:02 INFO MemoryStore: ensureFreeSpace(42195204) called with curMem=2754647281, maxMem=3426641510
+15/11/02 01:18:02 INFO MemoryStore: 6 blocks selected for dropping
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_2_piece0 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_2_piece0 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_2_piece0 of size 2630 dropped from memory (free 671996859)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_0_piece0 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_0_piece0 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_0_piece0 of size 22692 dropped from memory (free 672019551)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_0_piece0
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_1_piece15 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_1_piece15 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_1_piece15 of size 4194304 dropped from memory (free 676213855)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_1_piece15
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_1_piece31 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_1_piece31 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_1_piece31 of size 4194304 dropped from memory (free 680408159)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_1_piece31
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_1_piece34 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_1_piece34 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_1_piece34 of size 4194304 dropped from memory (free 684602463)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_1_piece34
+15/11/02 01:18:02 INFO BlockManager: Dropping block broadcast_1_piece27 from memory
+15/11/02 01:18:02 INFO BlockManager: Writing block broadcast_1_piece27 to disk
+15/11/02 01:18:02 INFO MemoryStore: Block broadcast_1_piece27 of size 4194304 dropped from memory (free 688796767)
+15/11/02 01:18:02 INFO BlockManagerMaster: Updated info of block broadcast_1_piece27
+15/11/02 01:18:02 INFO MemoryStore: ensureFreeSpace(911377) called with curMem=2737844743, maxMem=3426641510
+15/11/02 01:18:02 WARN MemoryStore: Not enough space to cache rdd_1_293 in memory! (computed 135.0 MB so far)
+15/11/02 01:18:02 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 652.7 MB (scratch space shared across 11 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 9 running stage = 0, partition = 293 on JVM
+15/11/02 01:18:02 INFO MemoryStore: ensureFreeSpace(911377) called with curMem=2737844743, maxMem=3426641510
+15/11/02 01:18:02 WARN MemoryStore: Not enough space to cache rdd_1_325 in memory! (computed 15.0 MB so far)
+15/11/02 01:18:02 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 652.7 MB (scratch space shared across 11 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 10 running stage = 0, partition = 325 on JVM
+15/11/02 01:18:02 INFO Executor: Finished task 310.0 in stage 0.0 (TID 278). 3000 bytes result sent to driver
+15/11/02 01:18:02 INFO CoarseGrainedExecutorBackend: Got assigned task 299
+15/11/02 01:18:02 INFO Executor: Running task 329.0 in stage 0.0 (TID 299)
+15/11/02 01:18:02 INFO CacheManager: Partition rdd_1_329 not found, computing it
+15/11/02 01:18:02 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00165:0+134217728
+15/11/02 01:18:03 WARN MemoryStore: Not enough space to cache rdd_1_329 in memory! (computed 3.8 MB so far)
+15/11/02 01:18:03 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 656.1 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 5 running stage = 0, partition = 329 on JVM
+15/11/02 01:18:03 WARN MemoryStore: Not enough space to cache rdd_1_320 in memory! (computed 60.0 MB so far)
+15/11/02 01:18:03 INFO MemoryStore: Memory use = 2.5 GB (blocks) + 656.1 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 3 running stage = 0, partition = 320 on JVM
+15/11/02 01:18:03 INFO MemoryStore: ensureFreeSpace(161825400) called with curMem=2737844743, maxMem=3426641510
+15/11/02 01:18:03 INFO MemoryStore: Block rdd_1_285 stored as values in memory (estimated size 154.3 MB, free 502.6 MB)
+15/11/02 01:18:03 INFO BlockManagerMaster: Updated info of block rdd_1_285
+Thread = 4 running stage = 0, partition = 285 on JVM
+15/11/02 01:18:04 INFO Executor: Finished task 256.0 in stage 0.0 (TID 221). 2480 bytes result sent to driver
+15/11/02 01:18:04 INFO CoarseGrainedExecutorBackend: Got assigned task 307
+15/11/02 01:18:04 INFO Executor: Running task 335.0 in stage 0.0 (TID 307)
+15/11/02 01:18:04 INFO CacheManager: Partition rdd_1_335 not found, computing it
+15/11/02 01:18:04 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00168:0+134217728
+15/11/02 01:18:05 INFO Executor: Finished task 285.0 in stage 0.0 (TID 261). 3000 bytes result sent to driver
+15/11/02 01:18:05 INFO CoarseGrainedExecutorBackend: Got assigned task 309
+15/11/02 01:18:05 INFO Executor: Running task 340.0 in stage 0.0 (TID 309)
+15/11/02 01:18:05 INFO CacheManager: Partition rdd_1_340 not found, computing it
+15/11/02 01:18:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00170:134217728+108371291
+15/11/02 01:18:05 INFO Executor: Finished task 293.0 in stage 0.0 (TID 264). 2480 bytes result sent to driver
+15/11/02 01:18:05 INFO CoarseGrainedExecutorBackend: Got assigned task 310
+15/11/02 01:18:05 INFO Executor: Running task 344.0 in stage 0.0 (TID 310)
+15/11/02 01:18:05 INFO CacheManager: Partition rdd_1_344 not found, computing it
+15/11/02 01:18:05 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00172:134217728+116700711
+15/11/02 01:18:05 INFO Executor: Finished task 244.0 in stage 0.0 (TID 214). 2480 bytes result sent to driver
+15/11/02 01:18:07 INFO MemoryStore: ensureFreeSpace(193552344) called with curMem=2899670143, maxMem=3426641510
+15/11/02 01:18:07 INFO MemoryStore: Block rdd_1_313 stored as values in memory (estimated size 184.6 MB, free 318.0 MB)
+15/11/02 01:18:07 INFO BlockManagerMaster: Updated info of block rdd_1_313
+Thread = 8 running stage = 0, partition = 313 on JVM
+15/11/02 01:18:07 INFO Executor: Finished task 320.0 in stage 0.0 (TID 289). 2317 bytes result sent to driver
+15/11/02 01:18:08 INFO Executor: Finished task 313.0 in stage 0.0 (TID 286). 3310 bytes result sent to driver
+15/11/02 01:18:08 INFO CoarseGrainedExecutorBackend: Got assigned task 320
+15/11/02 01:18:08 INFO Executor: Running task 25.0 in stage 0.0 (TID 320)
+15/11/02 01:18:08 INFO CoarseGrainedExecutorBackend: Got assigned task 321
+15/11/02 01:18:08 INFO Executor: Running task 27.0 in stage 0.0 (TID 321)
+15/11/02 01:18:08 INFO CoarseGrainedExecutorBackend: Got assigned task 322
+15/11/02 01:18:08 INFO Executor: Running task 29.0 in stage 0.0 (TID 322)
+15/11/02 01:18:08 INFO CacheManager: Partition rdd_1_27 not found, computing it
+15/11/02 01:18:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00012:134217728+139413849
+15/11/02 01:18:08 INFO CacheManager: Partition rdd_1_25 not found, computing it
+15/11/02 01:18:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00011:134217728+140578753
+15/11/02 01:18:08 INFO CacheManager: Partition rdd_1_29 not found, computing it
+15/11/02 01:18:08 INFO HadoopRDD: Input split: hdfs://gpu-004.davinci.rice.edu:54310/hyperlink-graph-links/part-00013:134217728+138743469
+15/11/02 01:18:10 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:10 INFO MemoryStore: Will not store rdd_1_29 as it would require dropping another block from the same RDD
+15/11/02 01:18:10 WARN MemoryStore: Not enough space to cache rdd_1_29 in memory! (computed 5.6 MB so far)
+15/11/02 01:18:10 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 0 running stage = 0, partition = 29 on JVM
+15/11/02 01:18:10 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:10 INFO MemoryStore: Will not store rdd_1_27 as it would require dropping another block from the same RDD
+15/11/02 01:18:10 WARN MemoryStore: Not enough space to cache rdd_1_27 in memory! (computed 60.0 MB so far)
+15/11/02 01:18:10 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 3 running stage = 0, partition = 27 on JVM
+15/11/02 01:18:10 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:10 INFO MemoryStore: Will not store rdd_1_344 as it would require dropping another block from the same RDD
+15/11/02 01:18:10 WARN MemoryStore: Not enough space to cache rdd_1_344 in memory! (computed 33.8 MB so far)
+15/11/02 01:18:10 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 9 running stage = 0, partition = 344 on JVM
+15/11/02 01:18:10 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:10 INFO MemoryStore: Will not store rdd_1_25 as it would require dropping another block from the same RDD
+15/11/02 01:18:10 WARN MemoryStore: Not enough space to cache rdd_1_25 in memory! (computed 8.5 MB so far)
+15/11/02 01:18:10 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 8 running stage = 0, partition = 25 on JVM
+15/11/02 01:18:11 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:11 INFO MemoryStore: Will not store rdd_1_335 as it would require dropping another block from the same RDD
+15/11/02 01:18:11 WARN MemoryStore: Not enough space to cache rdd_1_335 in memory! (computed 90.0 MB so far)
+15/11/02 01:18:11 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 6 running stage = 0, partition = 335 on JVM
+15/11/02 01:18:12 INFO MemoryStore: ensureFreeSpace(354215581) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:12 INFO MemoryStore: Will not store rdd_1_340 as it would require dropping another block from the same RDD
+15/11/02 01:18:12 WARN MemoryStore: Not enough space to cache rdd_1_340 in memory! (computed 60.0 MB so far)
+15/11/02 01:18:12 INFO MemoryStore: Memory use = 2.9 GB (blocks) + 315.8 MB (scratch space shared across 12 thread(s)) = 3.2 GB. Storage limit = 3.2 GB.
+Thread = 4 running stage = 0, partition = 340 on JVM
+15/11/02 01:18:20 INFO Executor: Finished task 259.0 in stage 0.0 (TID 227). 2480 bytes result sent to driver
+15/11/02 01:18:20 INFO Executor: Finished task 262.0 in stage 0.0 (TID 229). 2480 bytes result sent to driver
+15/11/02 01:18:20 INFO Executor: Finished task 329.0 in stage 0.0 (TID 299). 2480 bytes result sent to driver
+15/11/02 01:18:22 INFO Executor: Finished task 325.0 in stage 0.0 (TID 293). 2480 bytes result sent to driver
+15/11/02 01:18:22 INFO Executor: Finished task 280.0 in stage 0.0 (TID 242). 2480 bytes result sent to driver
+15/11/02 01:18:22 INFO Executor: Finished task 274.0 in stage 0.0 (TID 238). 2480 bytes result sent to driver
+15/11/02 01:18:23 INFO Executor: Finished task 27.0 in stage 0.0 (TID 321). 2480 bytes result sent to driver
+15/11/02 01:18:23 INFO Executor: Finished task 340.0 in stage 0.0 (TID 309). 2480 bytes result sent to driver
+15/11/02 01:18:24 INFO Executor: Finished task 335.0 in stage 0.0 (TID 307). 2480 bytes result sent to driver
+15/11/02 01:18:30 INFO Executor: Finished task 344.0 in stage 0.0 (TID 310). 2480 bytes result sent to driver
+15/11/02 01:18:30 INFO Executor: Finished task 25.0 in stage 0.0 (TID 320). 2480 bytes result sent to driver
+15/11/02 01:18:30 INFO Executor: Finished task 29.0 in stage 0.0 (TID 322). 2480 bytes result sent to driver
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 351
+15/11/02 01:18:32 INFO Executor: Running task 6.0 in stage 1.0 (TID 351)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 359
+15/11/02 01:18:32 INFO Executor: Running task 14.0 in stage 1.0 (TID 359)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 367
+15/11/02 01:18:32 INFO Executor: Running task 22.0 in stage 1.0 (TID 367)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 375
+15/11/02 01:18:32 INFO Executor: Running task 30.0 in stage 1.0 (TID 375)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 383
+15/11/02 01:18:32 INFO Executor: Running task 38.0 in stage 1.0 (TID 383)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 391
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 399
+15/11/02 01:18:32 INFO Executor: Running task 46.0 in stage 1.0 (TID 391)
+15/11/02 01:18:32 INFO Executor: Running task 54.0 in stage 1.0 (TID 399)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 407
+15/11/02 01:18:32 INFO Executor: Running task 62.0 in stage 1.0 (TID 407)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 415
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Updating epoch to 1 and clearing cache
+15/11/02 01:18:32 INFO Executor: Running task 70.0 in stage 1.0 (TID 415)
+15/11/02 01:18:32 INFO TorrentBroadcast: Started reading broadcast variable 3
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 423
+15/11/02 01:18:32 INFO Executor: Running task 78.0 in stage 1.0 (TID 423)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 431
+15/11/02 01:18:32 INFO Executor: Running task 86.0 in stage 1.0 (TID 431)
+15/11/02 01:18:32 INFO CoarseGrainedExecutorBackend: Got assigned task 439
+15/11/02 01:18:32 INFO Executor: Running task 94.0 in stage 1.0 (TID 439)
+15/11/02 01:18:32 INFO MemoryStore: ensureFreeSpace(1529) called with curMem=3093222487, maxMem=3426641510
+15/11/02 01:18:32 INFO MemoryStore: Block broadcast_3_piece0 stored as bytes in memory (estimated size 1529.0 B, free 318.0 MB)
+15/11/02 01:18:32 INFO BlockManagerMaster: Updated info of block broadcast_3_piece0
+15/11/02 01:18:32 INFO TorrentBroadcast: Reading broadcast variable 3 took 18 ms
+15/11/02 01:18:32 INFO MemoryStore: ensureFreeSpace(2120) called with curMem=3093224016, maxMem=3426641510
+15/11/02 01:18:32 INFO MemoryStore: Block broadcast_3 stored as values in memory (estimated size 2.1 KB, free 318.0 MB)
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Doing the fetch; tracker actor = Actor[akka.tcp://sparkDriver@gpu-004.davinci.rice.edu:45597/user/MapOutputTracker#1126896274]
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Don't have map outputs for shuffle 0, fetching them
+15/11/02 01:18:32 INFO MapOutputTrackerWorker: Got the output locations
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 57 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 58 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 56 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 59 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 61 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 59 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 64 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 58 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 66 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 69 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 71 ms
+15/11/02 01:18:32 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 71 ms
+15/11/02 01:18:34 INFO Executor: Finished task 78.0 in stage 1.0 (TID 423). 2419342 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 94.0 in stage 1.0 (TID 439). 2422079 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 38.0 in stage 1.0 (TID 383). 2415349 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 14.0 in stage 1.0 (TID 359). 2418932 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 22.0 in stage 1.0 (TID 367). 2427510 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 54.0 in stage 1.0 (TID 399). 2423324 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 46.0 in stage 1.0 (TID 391). 2417340 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 70.0 in stage 1.0 (TID 415). 2420673 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 30.0 in stage 1.0 (TID 375). 2419446 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 6.0 in stage 1.0 (TID 351). 2425035 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 62.0 in stage 1.0 (TID 407). 2422690 bytes result sent to driver
+15/11/02 01:18:34 INFO Executor: Finished task 86.0 in stage 1.0 (TID 431). 2424838 bytes result sent to driver
+15/11/02 01:18:34 INFO CoarseGrainedExecutorBackend: Got assigned task 448
+15/11/02 01:18:34 INFO Executor: Running task 103.0 in stage 1.0 (TID 448)
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 8 ms
+15/11/02 01:18:34 INFO CoarseGrainedExecutorBackend: Got assigned task 450
+15/11/02 01:18:34 INFO Executor: Running task 105.0 in stage 1.0 (TID 450)
+15/11/02 01:18:34 INFO CoarseGrainedExecutorBackend: Got assigned task 452
+15/11/02 01:18:34 INFO Executor: Running task 107.0 in stage 1.0 (TID 452)
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 8 ms
+15/11/02 01:18:34 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 11 ms
+15/11/02 01:18:35 INFO CoarseGrainedExecutorBackend: Got assigned task 455
+15/11/02 01:18:35 INFO Executor: Running task 110.0 in stage 1.0 (TID 455)
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 7 ms
+15/11/02 01:18:35 INFO CoarseGrainedExecutorBackend: Got assigned task 457
+15/11/02 01:18:35 INFO Executor: Running task 112.0 in stage 1.0 (TID 457)
+15/11/02 01:18:35 INFO CoarseGrainedExecutorBackend: Got assigned task 459
+15/11/02 01:18:35 INFO Executor: Running task 114.0 in stage 1.0 (TID 459)
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 6 ms
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 5 ms
+15/11/02 01:18:35 INFO Executor: Finished task 103.0 in stage 1.0 (TID 448). 2421832 bytes result sent to driver
+15/11/02 01:18:35 INFO Executor: Finished task 107.0 in stage 1.0 (TID 452). 2418619 bytes result sent to driver
+15/11/02 01:18:35 INFO Executor: Finished task 105.0 in stage 1.0 (TID 450). 2416017 bytes result sent to driver
+15/11/02 01:18:35 INFO Executor: Finished task 110.0 in stage 1.0 (TID 455). 2417025 bytes result sent to driver
+15/11/02 01:18:35 INFO CoarseGrainedExecutorBackend: Got assigned task 461
+15/11/02 01:18:35 INFO Executor: Running task 116.0 in stage 1.0 (TID 461)
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:35 INFO Executor: Finished task 114.0 in stage 1.0 (TID 459). 2421619 bytes result sent to driver
+15/11/02 01:18:35 INFO Executor: Finished task 112.0 in stage 1.0 (TID 457). 2424567 bytes result sent to driver
+15/11/02 01:18:35 INFO CoarseGrainedExecutorBackend: Got assigned task 465
+15/11/02 01:18:35 INFO Executor: Running task 120.0 in stage 1.0 (TID 465)
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:35 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:36 INFO CoarseGrainedExecutorBackend: Got assigned task 467
+15/11/02 01:18:36 INFO Executor: Running task 122.0 in stage 1.0 (TID 467)
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:36 INFO Executor: Finished task 116.0 in stage 1.0 (TID 461). 2416493 bytes result sent to driver
+15/11/02 01:18:36 INFO Executor: Finished task 120.0 in stage 1.0 (TID 465). 2423296 bytes result sent to driver
+15/11/02 01:18:36 INFO CoarseGrainedExecutorBackend: Got assigned task 470
+15/11/02 01:18:36 INFO CoarseGrainedExecutorBackend: Got assigned task 473
+15/11/02 01:18:36 INFO Executor: Running task 125.0 in stage 1.0 (TID 470)
+15/11/02 01:18:36 INFO Executor: Running task 128.0 in stage 1.0 (TID 473)
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:36 INFO CoarseGrainedExecutorBackend: Got assigned task 477
+15/11/02 01:18:36 INFO Executor: Running task 132.0 in stage 1.0 (TID 477)
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:36 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:36 INFO Executor: Finished task 122.0 in stage 1.0 (TID 467). 2419633 bytes result sent to driver
+15/11/02 01:18:36 INFO Executor: Finished task 128.0 in stage 1.0 (TID 473). 2418489 bytes result sent to driver
+15/11/02 01:18:36 INFO Executor: Finished task 125.0 in stage 1.0 (TID 470). 2414408 bytes result sent to driver
+15/11/02 01:18:37 INFO Executor: Finished task 132.0 in stage 1.0 (TID 477). 2422862 bytes result sent to driver
+15/11/02 01:18:38 INFO CoarseGrainedExecutorBackend: Got assigned task 493
+15/11/02 01:18:38 INFO Executor: Running task 148.0 in stage 1.0 (TID 493)
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:38 INFO CoarseGrainedExecutorBackend: Got assigned task 495
+15/11/02 01:18:38 INFO Executor: Running task 150.0 in stage 1.0 (TID 495)
+15/11/02 01:18:38 INFO CoarseGrainedExecutorBackend: Got assigned task 497
+15/11/02 01:18:38 INFO Executor: Running task 152.0 in stage 1.0 (TID 497)
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 5 ms
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:38 INFO Executor: Finished task 148.0 in stage 1.0 (TID 493). 2416999 bytes result sent to driver
+15/11/02 01:18:38 INFO Executor: Finished task 150.0 in stage 1.0 (TID 495). 2419701 bytes result sent to driver
+15/11/02 01:18:38 INFO Executor: Finished task 152.0 in stage 1.0 (TID 497). 2420845 bytes result sent to driver
+15/11/02 01:18:38 INFO BlockManager: Removing broadcast 2
+15/11/02 01:18:38 INFO BlockManager: Removing block broadcast_2
+15/11/02 01:18:38 INFO MemoryStore: Block broadcast_2 of size 3648 dropped from memory (free 333419022)
+15/11/02 01:18:38 INFO BlockManager: Removing block broadcast_2_piece0
+15/11/02 01:18:38 INFO CoarseGrainedExecutorBackend: Got assigned task 499
+15/11/02 01:18:38 INFO Executor: Running task 154.0 in stage 1.0 (TID 499)
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:38 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 5 ms
+15/11/02 01:18:39 INFO BlockManagerMaster: Updated info of block broadcast_2_piece0
+15/11/02 01:18:39 INFO CoarseGrainedExecutorBackend: Got assigned task 503
+15/11/02 01:18:39 INFO Executor: Running task 158.0 in stage 1.0 (TID 503)
+15/11/02 01:18:39 INFO CoarseGrainedExecutorBackend: Got assigned task 504
+15/11/02 01:18:39 INFO Executor: Running task 159.0 in stage 1.0 (TID 504)
+15/11/02 01:18:39 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:39 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:39 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 5 ms
+15/11/02 01:18:39 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 5 ms
+15/11/02 01:18:39 INFO Executor: Finished task 154.0 in stage 1.0 (TID 499). 2415760 bytes result sent to driver
+15/11/02 01:18:39 INFO Executor: Finished task 158.0 in stage 1.0 (TID 503). 2419566 bytes result sent to driver
+15/11/02 01:18:39 INFO Executor: Finished task 159.0 in stage 1.0 (TID 504). 2417559 bytes result sent to driver
+15/11/02 01:18:40 INFO CoarseGrainedExecutorBackend: Got assigned task 521
+15/11/02 01:18:40 INFO CoarseGrainedExecutorBackend: Got assigned task 522
+15/11/02 01:18:40 INFO Executor: Running task 176.0 in stage 1.0 (TID 521)
+15/11/02 01:18:40 INFO Executor: Running task 177.0 in stage 1.0 (TID 522)
+15/11/02 01:18:40 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:40 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:40 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:40 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 4 ms
+15/11/02 01:18:40 INFO Executor: Finished task 177.0 in stage 1.0 (TID 522). 2418070 bytes result sent to driver
+15/11/02 01:18:40 INFO Executor: Finished task 176.0 in stage 1.0 (TID 521). 2417476 bytes result sent to driver
+15/11/02 01:18:41 INFO CoarseGrainedExecutorBackend: Got assigned task 539
+15/11/02 01:18:41 INFO Executor: Running task 194.0 in stage 1.0 (TID 539)
+15/11/02 01:18:41 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:41 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 3 ms
+15/11/02 01:18:41 INFO CoarseGrainedExecutorBackend: Got assigned task 544
+15/11/02 01:18:41 INFO Executor: Running task 199.0 in stage 1.0 (TID 544)
+15/11/02 01:18:41 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:41 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 3 ms
+15/11/02 01:18:42 INFO CoarseGrainedExecutorBackend: Got assigned task 547
+15/11/02 01:18:42 INFO Executor: Running task 202.0 in stage 1.0 (TID 547)
+15/11/02 01:18:42 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:42 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:42 INFO Executor: Finished task 194.0 in stage 1.0 (TID 539). 2422079 bytes result sent to driver
+15/11/02 01:18:42 INFO CoarseGrainedExecutorBackend: Got assigned task 554
+15/11/02 01:18:42 INFO Executor: Running task 209.0 in stage 1.0 (TID 554)
+15/11/02 01:18:42 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:42 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:43 INFO Executor: Finished task 199.0 in stage 1.0 (TID 544). 2424578 bytes result sent to driver
+15/11/02 01:18:43 INFO Executor: Finished task 202.0 in stage 1.0 (TID 547). 2421994 bytes result sent to driver
+15/11/02 01:18:43 INFO Executor: Finished task 209.0 in stage 1.0 (TID 554). 2418853 bytes result sent to driver
+15/11/02 01:18:44 INFO CoarseGrainedExecutorBackend: Got assigned task 575
+15/11/02 01:18:44 INFO Executor: Running task 230.0 in stage 1.0 (TID 575)
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:44 INFO CoarseGrainedExecutorBackend: Got assigned task 578
+15/11/02 01:18:44 INFO Executor: Running task 233.0 in stage 1.0 (TID 578)
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:44 INFO Executor: Finished task 230.0 in stage 1.0 (TID 575). 2422321 bytes result sent to driver
+15/11/02 01:18:44 INFO CoarseGrainedExecutorBackend: Got assigned task 583
+15/11/02 01:18:44 INFO Executor: Running task 238.0 in stage 1.0 (TID 583)
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:44 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 3 ms
+15/11/02 01:18:44 INFO Executor: Finished task 233.0 in stage 1.0 (TID 578). 2429932 bytes result sent to driver
+15/11/02 01:18:45 INFO Executor: Finished task 238.0 in stage 1.0 (TID 583). 2421864 bytes result sent to driver
+15/11/02 01:18:45 INFO CoarseGrainedExecutorBackend: Got assigned task 595
+15/11/02 01:18:45 INFO Executor: Running task 250.0 in stage 1.0 (TID 595)
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:45 INFO CoarseGrainedExecutorBackend: Got assigned task 598
+15/11/02 01:18:45 INFO Executor: Running task 253.0 in stage 1.0 (TID 598)
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:45 INFO CoarseGrainedExecutorBackend: Got assigned task 599
+15/11/02 01:18:45 INFO Executor: Running task 254.0 in stage 1.0 (TID 599)
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:45 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:46 INFO Executor: Finished task 250.0 in stage 1.0 (TID 595). 2426295 bytes result sent to driver
+15/11/02 01:18:46 INFO Executor: Finished task 253.0 in stage 1.0 (TID 598). 2422638 bytes result sent to driver
+15/11/02 01:18:46 INFO Executor: Finished task 254.0 in stage 1.0 (TID 599). 2419389 bytes result sent to driver
+15/11/02 01:18:46 INFO CoarseGrainedExecutorBackend: Got assigned task 616
+15/11/02 01:18:46 INFO Executor: Running task 271.0 in stage 1.0 (TID 616)
+15/11/02 01:18:46 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:46 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:47 INFO CoarseGrainedExecutorBackend: Got assigned task 617
+15/11/02 01:18:47 INFO Executor: Running task 272.0 in stage 1.0 (TID 617)
+15/11/02 01:18:47 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:47 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:47 INFO Executor: Finished task 271.0 in stage 1.0 (TID 616). 2417288 bytes result sent to driver
+15/11/02 01:18:47 INFO Executor: Finished task 272.0 in stage 1.0 (TID 617). 2419768 bytes result sent to driver
+15/11/02 01:18:49 INFO CoarseGrainedExecutorBackend: Got assigned task 634
+15/11/02 01:18:49 INFO Executor: Running task 289.0 in stage 1.0 (TID 634)
+15/11/02 01:18:49 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:49 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:50 INFO CoarseGrainedExecutorBackend: Got assigned task 645
+15/11/02 01:18:50 INFO CoarseGrainedExecutorBackend: Got assigned task 646
+15/11/02 01:18:50 INFO Executor: Running task 300.0 in stage 1.0 (TID 645)
+15/11/02 01:18:50 INFO Executor: Running task 301.0 in stage 1.0 (TID 646)
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:50 INFO CoarseGrainedExecutorBackend: Got assigned task 654
+15/11/02 01:18:50 INFO Executor: Running task 309.0 in stage 1.0 (TID 654)
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:50 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 3 ms
+15/11/02 01:18:51 INFO Executor: Finished task 289.0 in stage 1.0 (TID 634). 2420683 bytes result sent to driver
+15/11/02 01:18:51 INFO Executor: Finished task 300.0 in stage 1.0 (TID 645). 2422893 bytes result sent to driver
+15/11/02 01:18:51 INFO Executor: Finished task 301.0 in stage 1.0 (TID 646). 2421349 bytes result sent to driver
+15/11/02 01:18:51 INFO Executor: Finished task 309.0 in stage 1.0 (TID 654). 2424614 bytes result sent to driver
+15/11/02 01:18:52 INFO CoarseGrainedExecutorBackend: Got assigned task 671
+15/11/02 01:18:52 INFO Executor: Running task 326.0 in stage 1.0 (TID 671)
+15/11/02 01:18:52 INFO CoarseGrainedExecutorBackend: Got assigned task 673
+15/11/02 01:18:52 INFO Executor: Running task 328.0 in stage 1.0 (TID 673)
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:52 INFO CoarseGrainedExecutorBackend: Got assigned task 678
+15/11/02 01:18:52 INFO Executor: Running task 333.0 in stage 1.0 (TID 678)
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Getting 345 non-empty blocks out of 345 blocks
+15/11/02 01:18:52 INFO ShuffleBlockFetcherIterator: Started 7 remote fetches in 2 ms
+15/11/02 01:18:52 INFO Executor: Finished task 328.0 in stage 1.0 (TID 673). 2417361 bytes result sent to driver
+15/11/02 01:18:52 INFO Executor: Finished task 326.0 in stage 1.0 (TID 671). 2419810 bytes result sent to driver
+15/11/02 01:18:53 INFO Executor: Finished task 333.0 in stage 1.0 (TID 678). 2424021 bytes result sent to driver
+15/11/02 01:19:08 INFO BlockManager: Removing broadcast 3
+15/11/02 01:19:08 INFO BlockManager: Removing block broadcast_3_piece0
+15/11/02 01:19:08 INFO MemoryStore: Block broadcast_3_piece0 of size 1529 dropped from memory (free 333420551)
+15/11/02 01:19:08 INFO BlockManagerMaster: Updated info of block broadcast_3_piece0
+15/11/02 01:19:08 INFO BlockManager: Removing block broadcast_3
+15/11/02 01:19:08 INFO MemoryStore: Block broadcast_3 of size 2120 dropped from memory (free 333422671)
+15/11/02 01:19:13 INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
+15/11/02 01:19:13 INFO MemoryStore: MemoryStore cleared
+15/11/02 01:19:13 INFO BlockManager: BlockManager stopped
+15/11/02 01:19:13 INFO RemoteActorRefProvider$RemotingTerminator: Shutting down remote daemon.
+15/11/02 01:19:13 INFO RemoteActorRefProvider$RemotingTerminator: Remote daemon shut down; proceeding with flushing remote transports.
+15/11/02 01:19:13 INFO RemoteActorRefProvider$RemotingTerminator: Remoting shut down.

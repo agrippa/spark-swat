@@ -20,8 +20,12 @@ object DocRankGenerator {
         val sc = get_spark_context("Doc Rank Generator");
 
         val input : RDD[Tuple2[Int, Int]] = sc.objectFile(inputDir)
-        val docInfo : RDD[Tuple2[Double, Int]] = input
-            .flatMap(p => List(p._1, p._2)).distinct().map(doc => {
+        val uniqueDocs : RDD[Int] = input.flatMap(p => List(p._1, p._2))
+            .distinct.cache
+        val countDocs = uniqueDocs.count
+        System.err.println("countDocs = " + countDocs)
+
+        val docInfo : RDD[Tuple2[Double, Int]] = uniqueDocs.map(doc => {
                 val rand : java.util.Random = new java.util.Random(
                     System.currentTimeMillis)
                 val rank : Double = rand.nextDouble * 100.0

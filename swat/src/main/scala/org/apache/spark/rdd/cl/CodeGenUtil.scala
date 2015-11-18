@@ -73,7 +73,7 @@ object CodeGenUtil {
         getClassForDescriptor(returnType), "out", DIRECTION.OUT)
   }
 
-  def cleanClassName(className : String) : String = {
+  def cleanClassName(className : String, objectMangling : Boolean = true) : String = {
     if (className.length() == 1) {
       // Primitive descriptor
       return className
@@ -84,7 +84,11 @@ object CodeGenUtil {
     } else if (className.equals("java.lang.Double")) {
       return "D"
     } else {
-      return "L" + className + ";"
+      if (objectMangling) {
+        return "L" + className + ";"
+      } else {
+        return className
+      }
     }
   }
 
@@ -92,10 +96,6 @@ object CodeGenUtil {
     assert(dev_ctx != -1L)
     val config : java.util.Map[String, String] = new java.util.HashMap[String, String]()
 
-    config.put(Entrypoint.denseVectorTilingConfig, Integer.toString(
-                DenseVectorInputBufferWrapperConfig.tiling))
-    config.put(Entrypoint.sparseVectorTilingConfig, Integer.toString(
-                SparseVectorInputBufferWrapperConfig.tiling))
     config.put(Entrypoint.clDevicePointerSize, Integer.toString(
                 OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)))
 
@@ -103,16 +103,14 @@ object CodeGenUtil {
   }
 
   def createHardCodedDenseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
-    val denseVectorClassModel : DenseVectorClassModel =
-        DenseVectorClassModel.create(DenseVectorInputBufferWrapperConfig.tiling)
+    val denseVectorClassModel : DenseVectorClassModel = DenseVectorClassModel.create()
     hardCodedClassModels.addClassModelFor(
             Class.forName("org.apache.spark.mllib.linalg.DenseVector"),
             denseVectorClassModel)
   }
   
   def createHardCodedSparseVectorClassModel(hardCodedClassModels : HardCodedClassModels) {
-    val sparseVectorClassModel : SparseVectorClassModel =
-        SparseVectorClassModel.create(SparseVectorInputBufferWrapperConfig.tiling)
+    val sparseVectorClassModel : SparseVectorClassModel = SparseVectorClassModel.create()
     hardCodedClassModels.addClassModelFor(
             Class.forName("org.apache.spark.mllib.linalg.SparseVector"),
             sparseVectorClassModel)

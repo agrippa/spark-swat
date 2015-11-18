@@ -1,6 +1,7 @@
 package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
+import scala.io.Source
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.SparseVector
 
@@ -21,19 +22,23 @@ import com.amd.aparapi.internal.model.Entrypoint
 object RuntimeUtil {
 
   def profPrint(lbl : String, startTime : Long, threadId : Int) { // PROFILE
-      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
-          (System.currentTimeMillis - startTime) + " ms") // PROFILE
+      profPrintTotal(lbl, System.currentTimeMillis - startTime, threadId) // PROFILE
   } // PROFILE
 
+  def profPrintTotal(lbl : String, totalTime : Long, threadId : Int) { // PROFILE
+      System.err.println("SWAT PROF " + threadId + " " + lbl + " " + // PROFILE
+          totalTime + " ms " + System.currentTimeMillis) // PROFILE
+  } // PROFILE
 
-  def getEntrypointAndKernel[T: ClassTag, U: ClassTag](firstSample : T,
+  def getEntrypointAndKernel[T: ClassTag, U](firstSample : T,
       sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
       lambda : T => U, classModel : ClassModel, methodDescriptor : String,
-      dev_ctx : Long, threadId : Int) : Tuple2[Entrypoint, String] = {
+      dev_ctx : Long, threadId : Int, kernelDir : String,
+      printKernel : Boolean) : Tuple2[Entrypoint, String] = {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
-    val startClassGeneration = System.currentTimeMillis // PROFILE
+//     val startClassGeneration = System.currentTimeMillis // PROFILE
 
     val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
     if (firstSample.isInstanceOf[Tuple2[_, _]]) {
@@ -56,39 +61,53 @@ object RuntimeUtil {
       }
     }
 
-    profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
-    val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
+//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
 
     val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
             lambda.getClass.getName)
     EntrypointCache.cache.synchronized {
       if (EntrypointCache.cache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached entrypoint") // PROFILE
         entryPoint = EntrypointCache.cache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
+//         System.err.println("Thread " + threadId + " generating entrypoint") // PROFILE
         entryPoint = classModel.getEntrypoint("apply", methodDescriptor,
             lambda, params, hardCodedClassModels,
             CodeGenUtil.createCodeGenConfig(dev_ctx))
         EntrypointCache.cache.put(entrypointKey, entryPoint)
       }
 
-      profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
-      val startKernelGeneration = System.currentTimeMillis // PROFILE
+//       profPrint("EntrypointGeneration", startEntrypointGeneration, threadId) // PROFILE
+//       val startKernelGeneration = System.currentTimeMillis // PROFILE
 
       if (EntrypointCache.kernelCache.containsKey(entrypointKey)) {
-        System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " using cached kernel") // PROFILE
         openCL = EntrypointCache.kernelCache.get(entrypointKey)
       } else {
-        System.err.println("Thread " + threadId + " generating kernel") // PROFILE
+//         System.err.println("Thread " + threadId + " generating kernel") // PROFILE
         val writerAndKernel = KernelWriter.writeToString(
             entryPoint, params)
         openCL = writerAndKernel.kernel
-        // System.err.println(openCL)
+
+        val kernelFilename = kernelDir + "/" + lambda.getClass.getName + ".kernel"
+        val handCodedKernel = try {
+            Source.fromFile(kernelFilename).getLines.mkString
+        } catch {
+            case fnf: java.io.FileNotFoundException => null
+            case ex: Exception => throw ex
+        }
+        if (handCodedKernel != null) {
+            openCL = handCodedKernel
+        }
+
+        if (printKernel) {
+          System.err.println(openCL)
+        }
         EntrypointCache.kernelCache.put(entrypointKey, openCL)
       }
 
-      profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
+//       profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
     }
     (entryPoint, openCL)
   }
@@ -102,70 +121,82 @@ object RuntimeUtil {
     Integer.parseInt(threadName.substring(threadNamePrefix.length))
   }
 
-  def getInputBufferFor[T : ClassTag](firstSample : T, N : Int,
-      entryPoint : Entrypoint) : InputBufferWrapper[T] = {
+  def getInputBufferForSample[T : ClassTag](firstSample : T, N : Int,
+      denseVectorTiling : Int, sparseVectorTiling : Int,
+      entryPoint : Entrypoint, blockingCopies : Boolean) : InputBufferWrapper[T] = {
     if (firstSample.isInstanceOf[Double] ||
         firstSample.isInstanceOf[Int] ||
         firstSample.isInstanceOf[Float]) {
-      new PrimitiveInputBufferWrapper(N)
+      new PrimitiveInputBufferWrapper(N, blockingCopies)
     } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       new Tuple2InputBufferWrapper(N,
               firstSample.asInstanceOf[Tuple2[_, _]],
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+              entryPoint, blockingCopies).asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[DenseVector]) {
-      new DenseVectorInputBufferWrapper(N,
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+      new DenseVectorInputBufferWrapper(
+              N * firstSample.asInstanceOf[DenseVector].size, N,
+              denseVectorTiling, entryPoint, blockingCopies)
+          .asInstanceOf[InputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[SparseVector]) {
-      new SparseVectorInputBufferWrapper(N,
-              entryPoint).asInstanceOf[InputBufferWrapper[T]]
+      new SparseVectorInputBufferWrapper(
+              N * firstSample.asInstanceOf[SparseVector].size, N,
+              sparseVectorTiling, entryPoint, blockingCopies)
+          .asInstanceOf[InputBufferWrapper[T]]
     } else {
       new ObjectInputBufferWrapper(N,
-              firstSample.getClass.getName, entryPoint)
+              firstSample.getClass.getName, entryPoint, blockingCopies)
     }
   }
 
   def tryCacheDenseVector(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nVectors : Int, tiling : Int,
+      entryPoint : Entrypoint, persistent : Boolean) : Int = {
 
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
-        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3)) {
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 3, persistent)) {
       // Array of structs for each item
       val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
           KernelWriter.DENSEVECTOR_CLASSNAME,
           new NameMatcher(KernelWriter.DENSEVECTOR_CLASSNAME))
       OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-              c.getTotalStructSize * nVectors)
+              c.getTotalStructSize * nVectors, persistent)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, argnum + 4, nVectors)
-      return 5
-    } else {
-      return -1
-    }
-  }
-
-  def tryCacheSparseVector(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nVectors : Int, entryPoint : Entrypoint) : Int = {
-    if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
-        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 4)) {
-      // Array of structs for each item
-      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
-          KernelWriter.SPARSEVECTOR_CLASSNAME,
-          new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
-      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-              c.getTotalStructSize * nVectors)
-      // Number of vectors
-      OpenCLBridge.setIntArg(ctx, argnum + 5, nVectors)
+      // Tiling
+      OpenCLBridge.setIntArg(ctx, argnum + 5, tiling)
       return 6
     } else {
       return -1
     }
   }
 
+  def tryCacheSparseVector(ctx : Long, dev_ctx : Long, argnum : Int,
+      cacheID : CLCacheID, nVectors : Int, tiling : Int, entryPoint : Entrypoint,
+      persistent : Boolean) : Int = {
+    if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum + 1, cacheID.broadcast,
+        cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component, 4,
+        persistent)) {
+      // Array of structs for each item
+      val c : ClassModel = entryPoint.getModelFromObjectArrayFieldsClasses(
+          KernelWriter.SPARSEVECTOR_CLASSNAME,
+          new NameMatcher(KernelWriter.SPARSEVECTOR_CLASSNAME))
+      OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
+              c.getTotalStructSize * nVectors, persistent)
+      // Number of vectors
+      OpenCLBridge.setIntArg(ctx, argnum + 5, nVectors)
+      // Tiling
+      OpenCLBridge.setIntArg(ctx, argnum + 6, tiling)
+      return 7
+    } else {
+      return -1
+    }
+  }
+
   def tryCacheObject(ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID) : Int = {
+      cacheID : CLCacheID, persistent : Boolean) : Int = {
     if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
         cacheID.rdd, cacheID.partition, cacheID.offset, cacheID.component,
-        1)) {
+        1, persistent)) {
       return 1
     } else {
       return -1
@@ -174,7 +205,8 @@ object RuntimeUtil {
 
   def tryCacheTuple(ctx : Long, dev_ctx : Long, startArgnum : Int,
           cacheID : CLCacheID, nLoaded : Int, sample : Tuple2[_, _],
-          entryPoint : Entrypoint) : Int = {
+          denseVectorTiling : Int, sparseVectorTiling : Int,
+          entryPoint : Entrypoint, persistent : Boolean) : Int = {
     val firstMemberClassName : String = sample._1.getClass.getName
     val secondMemberClassName : String = sample._2.getClass.getName
     var used = 0
@@ -184,7 +216,8 @@ object RuntimeUtil {
 
     if (firstMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(firstMemberClassName, ctx, dev_ctx,
-                startArgnum, cacheID, nLoaded, entryPoint)
+                startArgnum, cacheID, nLoaded, denseVectorTiling,
+                sparseVectorTiling, entryPoint, persistent)
         if (cacheSuccess == -1) {
           return -1
         }
@@ -197,9 +230,10 @@ object RuntimeUtil {
 
     if (secondMemberSize > 0) {
         val cacheSuccess = tryCacheHelper(secondMemberClassName, ctx, dev_ctx,
-                startArgnum + used, cacheID, nLoaded, entryPoint)
+                startArgnum + used, cacheID, nLoaded, denseVectorTiling,
+                sparseVectorTiling, entryPoint, persistent)
         if (cacheSuccess == -1) {
-          OpenCLBridge.manuallyRelease(ctx, dev_ctx, startArgnum, used)
+          OpenCLBridge.releaseAllPendingRegions(ctx)
           return -1
         }
         used = used + cacheSuccess
@@ -212,17 +246,19 @@ object RuntimeUtil {
       entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
           new ObjectMatcher(sample))
     OpenCLBridge.setArgUnitialized(ctx, dev_ctx, startArgnum + used,
-            tuple2ClassModel.getTotalStructSize * nLoaded)
+            tuple2ClassModel.getTotalStructSize * nLoaded, persistent)
     return used + 1
   }
 
   def tryCacheHelper(desc : String, ctx : Long, dev_ctx : Long, argnum : Int,
-      cacheID : CLCacheID, nLoaded : Int, entryPoint : Entrypoint) : Int = {
+      cacheID : CLCacheID, nLoaded : Int, denseVectorTiling : Int,
+      sparseVectorTiling : Int, entryPoint : Entrypoint, persistent : Boolean) :
+      Int = {
     desc match {
       case "I" | "F" | "D" => {
         if (OpenCLBridge.tryCache(ctx, dev_ctx, argnum, cacheID.broadcast,
                     cacheID.rdd, cacheID.partition, cacheID.offset,
-                    cacheID.component, 1)) {
+                    cacheID.component, 1, persistent)) {
           return 1
         } else {
           return -1
@@ -230,18 +266,41 @@ object RuntimeUtil {
       }
       case KernelWriter.DENSEVECTOR_CLASSNAME => {
         return tryCacheDenseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
-                entryPoint)
+                denseVectorTiling, entryPoint, persistent)
       }
       case KernelWriter.SPARSEVECTOR_CLASSNAME => {
         return tryCacheSparseVector(ctx, dev_ctx, argnum, cacheID, nLoaded,
-                entryPoint)
+                sparseVectorTiling, entryPoint, persistent)
       }
       case "scala.Tuple2" => {
         throw new UnsupportedOperationException()
       }
       case _ => {
-        return tryCacheObject(ctx, dev_ctx, argnum, cacheID)
+        return tryCacheObject(ctx, dev_ctx, argnum, cacheID, persistent)
       }
     }
+  }
+
+  def getLabelForBufferCache[T, U](f : T => U, firstSample : T, N : Int) : String = {
+    var label : String = f.getClass.getName
+    if (firstSample.isInstanceOf[Tuple2[_, _]]) {
+      val sampledTuple = firstSample.asInstanceOf[Tuple2[_, _]]
+      if (sampledTuple._1.isInstanceOf[DenseVector]) {
+        label = label + "|" + sampledTuple._1.asInstanceOf[DenseVector].size
+      } else if (sampledTuple._1.isInstanceOf[SparseVector]) {
+        label = label + "|" + sampledTuple._1.asInstanceOf[SparseVector].size
+      }
+
+      if (sampledTuple._2.isInstanceOf[DenseVector]) {
+        label = label + "|" + sampledTuple._2.asInstanceOf[DenseVector].size
+      } else if (sampledTuple._2.isInstanceOf[SparseVector]) {
+        label = label + "|" + sampledTuple._2.asInstanceOf[SparseVector].size
+      }
+    } else if (firstSample.isInstanceOf[DenseVector]) {
+      label = label + "|" + firstSample.asInstanceOf[DenseVector].size
+    } else if (firstSample.isInstanceOf[SparseVector]) {
+      label = label + "|" + firstSample.asInstanceOf[SparseVector].size
+    }
+    label + "|" + N
   }
 }

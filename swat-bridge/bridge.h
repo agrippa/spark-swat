@@ -65,6 +65,9 @@ class rdd_partition_offset {
 
             return component < other.component;
         }
+
+        int get_partition() { return index; }
+
     private:
         // The RDD this buffer is a member of
         int rdd;
@@ -79,17 +82,152 @@ class rdd_partition_offset {
         int component;
 };
 
+enum arg_type {
+    REGION,
+    INT,
+    FLOAT,
+    DOUBLE
+};
+
+typedef union _region_or_scalar {
+    cl_region *region;
+    int i;
+    float f;
+    double d;
+} region_or_scalar;
+
+typedef struct _arg_value {
+    int index;
+    bool keep; // only set for region type
+    bool dont_free; // only set for region type
+    bool copy_out; // only set for region type
+    size_t len; // only set for region type
+    enum arg_type type;
+    region_or_scalar val;
+} arg_value;
+
+typedef struct _native_input_buffer_list_node {
+    int id;
+    cl_event event;
+    struct _native_input_buffer_list_node *next;
+} native_input_buffer_list_node;
+
+typedef struct _event_info {
+    unsigned long long timestamp;
+    cl_event event;
+    char *label;
+} event_info;
+
+typedef struct _kernel_context kernel_context;
+typedef struct _native_output_buffers native_output_buffers;
+
 typedef struct _swat_context {
     cl_kernel kernel;
+    pthread_mutex_t kernel_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long kernel_lock_contention;
+#endif
+
     int host_thread_index;
 
-    map<int, pair<cl_region *, bool> > *arguments;
+    arg_value *accumulated_arguments;
+    int accumulated_arguments_len;
+    int accumulated_arguments_capacity;
+
+    arg_value *global_arguments;
+    int global_arguments_len;
+    int global_arguments_capacity;
+
+    void *zeros;
+    size_t zeros_capacity;
+
+    cl_event last_write_event;
+    cl_event last_kernel_event;
+#ifdef PROFILE_OPENCL
+    event_info *acc_write_events;
+    int acc_write_events_capacity;
+    int acc_write_events_length;
+#endif
+
+    native_input_buffer_list_node *freed_native_input_buffers;
+    pthread_mutex_t freed_native_input_buffers_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long freed_native_input_buffers_lock_contention;
+    unsigned long long freed_native_input_buffers_blocked;
+#endif
+    pthread_cond_t freed_native_input_buffers_cond;
+
+    unsigned run_seq_no;
+
+    kernel_context *completed_kernels;
+    pthread_mutex_t completed_kernels_lock;
+#ifdef PROFILE_LOCKS
+    unsigned long long completed_kernels_lock_contention;
+    unsigned long long completed_kernels_blocked;
+#endif
+    pthread_cond_t completed_kernels_cond;
+
 #ifdef BRIDGE_DEBUG
     map<int, kernel_arg *> *debug_arguments;
     char *kernel_src;
     size_t kernel_src_len;
+    int dump_index;
 #endif
 
 } swat_context;
+
+/*
+ * The host-side storage of a single heap instance transferred from the device.
+ */
+typedef struct _saved_heap {
+    heap_context *heap_ctx;
+    // void *h_heap;
+    size_t size;
+} saved_heap;
+
+typedef struct _kernel_complete_flag {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    int done;
+    int host_thread_index; // for debugging
+    int seq; // for debugging
+} kernel_complete_flag;
+
+struct _kernel_context {
+    swat_context *ctx;
+    device_context *dev_ctx;
+
+    heap_context *curr_heap_ctx;
+    saved_heap *heaps;
+    cl_event *heap_copy_back_events;
+    int n_heap_ctxs;
+    int heapStartArgnum;
+
+    size_t n_loaded;
+    size_t local_size;
+    size_t global_size;
+
+    unsigned seq_no;
+
+    unsigned iter;
+    int iterArgNum;
+
+    kernel_context *next;
+
+    // The set of arguments that are specific to this kernel instance
+    arg_value *accumulated_arguments;
+    int accumulated_arguments_len;
+
+    int output_buffer_id;
+
+    kernel_complete_flag *done_flag;
+
+#ifdef PROFILE_OPENCL
+    event_info *acc_write_events;
+    int acc_write_events_length;
+    int acc_write_events_capacity;
+#endif
+};
+
 
 #endif

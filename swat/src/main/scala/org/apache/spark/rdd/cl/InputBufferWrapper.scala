@@ -1,19 +1,30 @@
 package org.apache.spark.rdd.cl
 
+import com.amd.aparapi.internal.model.Entrypoint
+
+/*
+ * The interface presetnted by all input buffers. Input buffers aggregate input
+ * items from the input stream of a particular partition and prepare them for
+ * one of two modes of execution. You can access an input buffer through its
+ * next/hasNext API, using it just like an iterator. This case is used when an
+ * OOM error during kernel setup prevents OpenCL execution, forcing us to revert
+ * to JVM execution. An input buffer can also be used to copy to an OpenCL
+ * device in preparation for launching a parallel kernel on its contents.
+ */
 trait InputBufferWrapper[T] {
+
+  // Add a single object to the input buffer
   def append(obj : Any)
-  def aggregateFrom(iter : Iterator[T]) : Int
-
-  def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
-      cacheId : CLCacheID) : Int
-  def flush()
-
   /*
-   * For use by LambdaOutputBuffer only when reverting to JVM execution due to
-   * OOM errors on the accelerator.
+   * Add many objects from the provided iterator, may use append behind the
+   * scenes. The number of objects added is limited by the number of objects
+   * accessible through iter and the available space to store them in this input
+   * buffer.
    */
-  def hasNext() : Boolean
-  def next() : T
+  def aggregateFrom(iter : Iterator[T])
+
+  // Ensure as many stored items as possible are serialized
+  def flush()
 
   /*
    * Used to check if an input buffer has read items from the parent partition
@@ -24,6 +35,31 @@ trait InputBufferWrapper[T] {
    */
   def haveUnprocessedInputs : Boolean
 
-  def releaseNativeArrays
+  /*
+   * Returns true when an input buffer has been filled to the point where it can
+   * accept no more elements.
+   */
+  def outOfSpace : Boolean
+
+  /*
+   * Return the number of kernel arguments this type of input buffer will use.
+   */
+  def countArgumentsUsed : Int
+
   def nBuffered() : Int
+  def reset()
+
+  // Returns # of arguments used
+  def tryCache(id : CLCacheID, ctx : Long, dev_ctx : Long,
+      entryPoint : Entrypoint, persistent : Boolean) : Int
+
+  def selfAllocate(dev_ctx : Long)
+  def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T]
+  def getCurrentNativeBuffers() : NativeInputBuffers[T]
+  def setCurrentNativeBuffers(set : NativeInputBuffers[T])
+
+  // Must be called prior to transferOverflowTo
+  def setupNativeBuffersForCopy(limit : Int)
+  def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+      NativeInputBuffers[T]
 }
