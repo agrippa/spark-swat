@@ -593,7 +593,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
 
 void *fetch_pinned(cl_region *region) {
     cl_alloc *grandparent = region->grandparent;
-    return (void *)grandparent->pinned + region->offset;
+    return (void *)(grandparent->pinned + region->offset);
 }
 
 /*

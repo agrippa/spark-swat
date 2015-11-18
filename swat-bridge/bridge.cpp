@@ -1903,7 +1903,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
     const int index = val->index;
 
     switch (val->type) {
-        case REGION:
+        case REGION: {
             cl_region *region = val->val.region;
             if (region) {
                 cl_mem mem = val->val.region->sub_mem;
@@ -1933,7 +1933,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
 #endif
             }
             break;
-        case INT:
+        }
+        case INT: {
             const int i = val->val.i;
 #ifdef VERBOSE
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
@@ -1945,7 +1946,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
                         sizeof(i), false, false);
 #endif
             break;
-        case FLOAT:
+        }
+        case FLOAT: {
             const float f = val->val.f;
 #ifdef VERBOSE
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
@@ -1957,7 +1959,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
                         sizeof(f), false, false);
 #endif
             break;
-        case DOUBLE:
+        }
+        case DOUBLE: {
             const double d = val->val.d;
 #ifdef VERBOSE
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
@@ -1969,6 +1972,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
                         sizeof(d), false, false);
 #endif
             break;
+        }
         default:
             fprintf(stderr, "setKernelArgument: Unexpected type\n");
             exit(1);
