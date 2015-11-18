@@ -7,7 +7,9 @@ GXX_FLAGS=-O3 -Wall
 SRC=bridge.cpp common.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CLUTIL_HOME} -I${CLALLOC_HOME} \
-         -I/System/Library/Frameworks/OpenCL.framework/Versions/Current/Headers
+         -I/System/Library/Frameworks/OpenCL.framework/Versions/Current/Headers \
+         -I${CL_HOME}/include
+LIBS=-L${CL_HOME}/lib
 TARGET=libbridge.so
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
@@ -21,15 +23,15 @@ all: ${TARGET} rerun query_tool
 
 ${TARGET}: ${SRC}
 	test ! -z "${GXX}" || { echo 'GXX missing, should be defined in SWAT_HOME/build.conf'; exit 1; }
-	${GXX} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} -fPIC --shared \
+	${GXX} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} ${LIBS} -fPIC --shared \
 		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil ${GXX_FLAGS}
 
 rerun: rerun.cpp common.cpp
-	${GXX} ${DEFINES} ${INCLUDES} rerun.cpp common.cpp -o rerun \
+	${GXX} ${DEFINES} ${INCLUDES} ${LIBS} rerun.cpp common.cpp -o rerun \
 		 -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS}
 
 query_tool: query_tool.cpp
-	${GXX} query_tool.cpp -o query_tool -L${CLUTIL_HOME} -lclutil ${INCLUDES} ${GXX_FLAGS}
+	${GXX} ${INCLUDES} ${LIBS} query_tool.cpp -o query_tool -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS}
 
 clean:
 	rm -f ${TARGET} rerun
