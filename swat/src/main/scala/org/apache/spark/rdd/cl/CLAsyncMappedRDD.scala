@@ -67,56 +67,48 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
         }
       }
     } else {
-      val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
-              firstParent[T].id, split.index, 0, 0)
+      val evaluator = (lambda : Function0[U]) => lambda()
+      val nestedWrapper : Iterator[Function0[U]] = new Iterator[Function0[U]] {
+        val outputStream = new AsyncOutputStream[U] {
+          var newLambda : Option[Function0[U]] = None
 
-//      val deviceInitStart = System.currentTimeMillis // PROFILE
-      val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
-              threadId, CLConfig.heapsPerDevice,
-              CLConfig.heapSize, CLConfig.percHighPerfBuffers,
-              false)
-//      System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
-      val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
-              CLConfig.heapsPerDevice, CLConfig.heapSize,
-              CLConfig.percHighPerfBuffers, false)
-      val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
-//      RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
-
-      val outStream : AsyncOutputStream[U] = new OpenCLAsyncOutputStream[U](
-              multiOutput, dev_ctx, threadId)
-
-      val runner : Runnable = new Runnable {
-        override def run() {
-          for (v <- nested) {
-            try {
-              f(v, outStream)
-            } catch {
-              case suspend : SuspendException => ;
-              case e : Exception => throw e
-            }
+          override def spawn(l : () => U) {
+            assert(newLambda.isEmpty)
+            newLambda = Some(l)
+            throw new SuspendException
           }
 
-          outStream.finish
-        }
-      }
-      val thread : Thread = new Thread(runner)
-      thread.start
+          override def finish() {
+            throw new UnsupportedOperationException
+          }
 
-      new Iterator[U] {
-        var nex : Option[U] = outStream.pop
+          override def pop() : Option[U] = {
+            throw new UnsupportedOperationException
+          }
+        }
+
+        override def next() : Function0[U] = {
+          var caughtException : Boolean = false
+          try {
+            f(nested.next, outputStream)
+          } catch {
+            case s: SuspendException =>caughtException = true
+            case e: Throwable => throw e
+          }
+          assert(caughtException)
+
+          val result = outputStream.newLambda.get
+          outputStream.newLambda = None
+          result
+        }
 
         override def hasNext() : Boolean = {
-          !nex.isEmpty
-        }
-
-        override def next() : U = {
-          if (nex.isEmpty) throw new RuntimeException("next called when none left")
-
-          val n : U = nex.get
-          nex = outStream.pop
-          n
+          nested.hasNext
         }
       }
+
+      return new CLRDDProcessor(nestedWrapper, evaluator, context,
+              firstParent[T].id, split.index)
     }
   }
 }

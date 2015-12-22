@@ -322,7 +322,7 @@ object RuntimeUtil {
     }
   }
 
-  def getLabelForBufferCache[T, U](f : T => U, firstSample : T, N : Int) : String = {
+  def getLabelForBufferCache[T, U](f : Any, firstSample : T, N : Int) : String = {
     var label : String = f.getClass.getName
     if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       val sampledTuple = firstSample.asInstanceOf[Tuple2[_, _]]
