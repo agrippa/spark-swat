@@ -61,8 +61,9 @@ object SparkSimple {
         val inputs = CLWrapper.cl[Double](inputs_raw, useSwat)
 
         val outputs1 : RDD[Double] = inputs.mapAsync(
-                (v: Double, stream: AsyncOutputStream[Double]) =>
-                 stream.spawn(() => v * v))
+                (v: Double, stream: AsyncOutputStream[Double]) => {
+                  stream.spawn(() => v)
+                })
 
         val outputs : Array[Double] = outputs1.collect
         sc.stop

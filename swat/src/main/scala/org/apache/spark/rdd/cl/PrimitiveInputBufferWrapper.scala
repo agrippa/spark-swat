@@ -29,7 +29,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
-  override def setCurrentNativeBuffers(set : NativeInputBuffers[T]) {
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[_]) {
     nativeBuffers = set.asInstanceOf[PrimitiveNativeInputBuffers[T]]
   }
 
@@ -71,7 +71,7 @@ class PrimitiveInputBufferWrapper[T: ClassTag](val N : Int,
     nativeBuffers.tocopy = tocopy
   }
 
-  override def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+  override def transferOverflowTo(otherAbstract : NativeInputBuffers[_]) :
       NativeInputBuffers[T] = {
     // setupNativeBuffersForCopy must have been called beforehand
     assert(nativeBuffers.tocopy != -1)

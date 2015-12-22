@@ -52,7 +52,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   var haveOverrun : Boolean = false
 
   override def getCurrentNativeBuffers : NativeInputBuffers[SparseVector] = nativeBuffers
-  override def setCurrentNativeBuffers(set : NativeInputBuffers[SparseVector]) {
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[_]) {
     nativeBuffers = set.asInstanceOf[SparseVectorNativeInputBuffers]
   }
 
@@ -146,7 +146,7 @@ class SparseVectorInputBufferWrapper (val vectorElementCapacity : Int,
   }
 
   override def transferOverflowTo(
-          otherAbstract : NativeInputBuffers[SparseVector]) :
+          otherAbstract : NativeInputBuffers[_]) :
           NativeInputBuffers[SparseVector] = {
     // setupNativeBuffersForCopy must have been called beforehand
     assert(nativeBuffers.vectorsToCopy != -1 && nativeBuffers.elementsToCopy != -1)

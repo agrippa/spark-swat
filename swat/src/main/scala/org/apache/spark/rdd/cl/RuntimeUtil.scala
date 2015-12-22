@@ -163,10 +163,12 @@ object RuntimeUtil {
   def getInputBufferForSample[T : ClassTag](firstSample : T, N : Int,
       denseVectorTiling : Int, sparseVectorTiling : Int,
       entryPoint : Entrypoint, blockingCopies : Boolean) : InputBufferWrapper[T] = {
-    if (firstSample.isInstanceOf[Double] ||
-        firstSample.isInstanceOf[Int] ||
-        firstSample.isInstanceOf[Float]) {
-      new PrimitiveInputBufferWrapper(N, blockingCopies)
+    if (firstSample.isInstanceOf[Double]) {
+      new PrimitiveInputBufferWrapper[Double](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
+    } else if (firstSample.isInstanceOf[Int]) {
+      new PrimitiveInputBufferWrapper[Int](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
+    } else if (firstSample.isInstanceOf[Float]) {
+      new PrimitiveInputBufferWrapper[Float](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       new Tuple2InputBufferWrapper(N,
               firstSample.asInstanceOf[Tuple2[_, _]],

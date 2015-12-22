@@ -2259,6 +2259,13 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
             cl_region *region = curr->val.region;
             void *pinned = fetch_pinned(region);
 
+#ifdef VERBOSE
+            fprintf(stderr, "copy_kernel_outputs: thread=%d ctx=%p seq=%d "
+                    "region=%p region->mem=%p pinned=%p index=%d size=%lu\n",
+                    ctx->host_thread_index, ctx, kernel_ctx->seq_no, region,
+                    region->sub_mem, pinned, curr->index, region->size);
+#endif
+
             cl_event next_event;
             CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
                         0, region->size, pinned, 1, &prev_event, &next_event));
