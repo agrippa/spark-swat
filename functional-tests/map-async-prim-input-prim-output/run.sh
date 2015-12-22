@@ -10,7 +10,9 @@ if [[ $# != 1 && $# != 2 ]]; then
     exit 1
 fi
 
+SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.print_kernel=true"
+
 spark-submit --class SparkSimple \
-        --jars ${SWAT_JARS} --master spark://localhost:7077 \
+        --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" --master spark://localhost:7077 \
         ${SWAT_HOME}/functional-tests/map-async-prim-input-prim-output/target/sparksimple-0.0.0.jar \
         $1 $2 hdfs://$(hostname):54310/converted

@@ -50,7 +50,7 @@ object RuntimeUtil {
       hardCodedClassModels : HardCodedClassModels, lambda : java.lang.Object,
       classModel : ClassModel, methodDescriptor : String,
       params : LinkedList[ScalaArrayParameter], dev_ctx : Long,
-      kernelDir : String, printKernel : Boolean) : Tuple2[Entrypoint, String] = {
+      kernelDir : String, printKernel : Boolean, multiInput : Boolean) : Tuple2[Entrypoint, String] = {
     var entryPoint : Entrypoint = null
     var openCL : String = null
 
@@ -77,7 +77,7 @@ object RuntimeUtil {
       } else {
 //         System.err.println("Thread " + threadId + " generating kernel") // PROFILE
         val writerAndKernel = KernelWriter.writeToString(
-            entryPoint, params)
+            entryPoint, params, multiInput)
         openCL = writerAndKernel.kernel
 
         val kernelFilename = kernelDir + "/" + lambda.getClass.getName + ".kernel"
@@ -119,7 +119,7 @@ object RuntimeUtil {
 
     getEntrypointAndKernelHelper(hardCodedClassModels,
             lambda.asInstanceOf[java.lang.Object], classModel, methodDescriptor,
-            params, dev_ctx, kernelDir, printKernel)
+            params, dev_ctx, kernelDir, printKernel, true)
   }
 
   def getEntrypointAndKernel[T: ClassTag, U](firstSample : T,
@@ -148,7 +148,7 @@ object RuntimeUtil {
 
     getEntrypointAndKernelHelper(hardCodedClassModels,
             lambda.asInstanceOf[java.lang.Object], classModel, methodDescriptor,
-            params, dev_ctx, kernelDir, printKernel)
+            params, dev_ctx, kernelDir, printKernel, false)
   }
 
   def getThreadID() : Int = {

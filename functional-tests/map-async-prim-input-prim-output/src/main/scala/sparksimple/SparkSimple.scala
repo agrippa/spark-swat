@@ -62,7 +62,7 @@ object SparkSimple {
 
         val outputs1 : RDD[Double] = inputs.mapAsync(
                 (v: Double, stream: AsyncOutputStream[Double]) =>
-                 stream.spawn(() => v * v * m))
+                 stream.spawn(() => v * v))
 
         val outputs : Array[Double] = outputs1.collect
         sc.stop

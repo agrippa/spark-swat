@@ -24,6 +24,7 @@ class AsyncOutputStream[U: ClassTag](val multiOutput : Boolean,
 
     val initializing : Boolean = (entryPoint == null)
     if (initializing) {
+      System.err.println("SWAT Initializing")
       lambdaName = l.getClass.getName
 
       val classModel : ClassModel = ClassModel.createClassModel(l.getClass, null,
@@ -41,6 +42,7 @@ class AsyncOutputStream[U: ClassTag](val multiOutput : Boolean,
           CLConfig.kernelDir, CLConfig.printKernel)
       entryPoint = entrypointAndKernel._1
       openCL = entrypointAndKernel._2
+      System.err.println("SWAT DONE")
     } else {
       assert(lambdaName == l.getClass.getName)
     }

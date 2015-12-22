@@ -5,11 +5,10 @@ import java.util.LinkedList
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 
-trait CodeGenTest[P, R] {
+trait CodeGenTest[R] {
 
   def getExpectedKernel() : String
   def getExpectedNumInputs() : Int
-  def getFunction() : Function1[P, R]
   def init() : HardCodedClassModels
   def complete(params : LinkedList[ScalaArrayParameter])
   def getExpectedException() : String

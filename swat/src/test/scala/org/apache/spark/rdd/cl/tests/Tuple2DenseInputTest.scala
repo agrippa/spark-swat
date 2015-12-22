@@ -3,6 +3,7 @@ package org.apache.spark.rdd.cl.tests
 import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -13,7 +14,7 @@ import com.amd.aparapi.internal.model.DenseVectorClassModel
 import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
 
-object Tuple2DenseInputTest extends CodeGenTest[(Int, DenseVector), Double] {
+object Tuple2DenseInputTest extends SyncCodeGenTest[(Int, DenseVector), Double] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

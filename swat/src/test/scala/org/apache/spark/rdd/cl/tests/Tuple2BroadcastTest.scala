@@ -4,13 +4,14 @@ import java.util.LinkedList
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
 import org.apache.spark.broadcast.Broadcast
 
-object Tuple2BroadcastTest extends CodeGenTest[Int, Int] {
+object Tuple2BroadcastTest extends SyncCodeGenTest[Int, Int] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

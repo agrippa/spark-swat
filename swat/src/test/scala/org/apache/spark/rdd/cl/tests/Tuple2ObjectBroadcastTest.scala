@@ -4,6 +4,7 @@ import java.util.LinkedList
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import com.amd.aparapi.internal.model.HardCodedClassModels
@@ -15,7 +16,7 @@ import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.mllib.linalg.DenseVector
 
-object Tuple2ObjectBroadcastTest extends CodeGenTest[Int, Int] {
+object Tuple2ObjectBroadcastTest extends SyncCodeGenTest[Int, Int] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
