@@ -20,10 +20,7 @@ class JVMAsyncOutputStream[U: ClassTag](val singleInstance : Boolean)
     val value = l()
     assert(value != null)
 
-    buffered.synchronized {
-      buffered.add(value)
-      buffered.notify
-    }
+    buffered.add(value)
 
     if (singleInstance) {
       throw new SuspendException
@@ -37,13 +34,12 @@ class JVMAsyncOutputStream[U: ClassTag](val singleInstance : Boolean)
   def pop() : Option[U] = {
     var result : Option[U] = None
 
-    buffered.synchronized {
-      while (buffered.isEmpty) {
-        buffered.wait
-      }
-
-      result = Some(buffered.poll)
+    if (buffered.isEmpty) {
+      None
+    } else {
+      Some(buffered.poll)
     }
-    result
   }
+
+  def isEmpty() : Boolean = buffered.isEmpty
 }

@@ -153,7 +153,6 @@ class OpenCLAsyncOutputStream[U: ClassTag](val multiOutput : Boolean,
       } else {
         lastArgIndex = nReferencedFields + 1
       }
-
     } else {
       assert(lambdaName == l.getClass.getName)
     }

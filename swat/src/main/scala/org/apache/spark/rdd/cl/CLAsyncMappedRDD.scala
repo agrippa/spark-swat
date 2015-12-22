@@ -42,23 +42,28 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
     val threadId : Int = RuntimeUtil.getThreadID
 
     if (!useSwat) {
-      val outStream : AsyncOutputStream[U] = new JVMAsyncOutputStream(true)
+      val outStream : JVMAsyncOutputStream[U] = new JVMAsyncOutputStream(
+              !multiOutput)
 
       return new Iterator[U] {
         def next() : U = {
-          var caughtException : Boolean = false
-          try {
-            f(nested.next, outStream)
-          } catch {
-            case s : SuspendException => caughtException = true
-            case e : Exception => throw e
+          if (outStream.isEmpty) {
+            var caughtException : Boolean = false
+            try {
+              f(nested.next, outStream)
+            } catch {
+              case s : SuspendException => caughtException = true
+              case e : Exception => throw e
+            }
+            if (!multiOutput) assert(caughtException)
+            // requires that each lambda call produces at least one output
+            assert(!outStream.isEmpty)
           }
-          assert(caughtException)
           outStream.pop.get
         }
 
         def hasNext() : Boolean = {
-          nested.hasNext
+          nested.hasNext || !outStream.isEmpty
         }
       }
     } else {
