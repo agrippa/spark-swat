@@ -41,7 +41,22 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
     val nested = firstParent[T].iterator(split, context)
     val threadId : Int = RuntimeUtil.getThreadID
 
-    val outStream : AsyncOutputStream[U] = new AsyncOutputStream[U](multiOutput)
+    val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
+            firstParent[T].id, split.index, 0, 0)
+
+//    val deviceInitStart = System.currentTimeMillis // PROFILE
+    val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
+            threadId, CLConfig.heapsPerDevice,
+            CLConfig.heapSize, CLConfig.percHighPerfBuffers,
+            false)
+//    System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
+            CLConfig.heapsPerDevice, CLConfig.heapSize,
+            CLConfig.percHighPerfBuffers, false)
+    val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
+//    RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
+
+    val outStream : AsyncOutputStream[U] = new AsyncOutputStream[U](multiOutput, dev_ctx, threadId)
 
     val runner : Runnable = new Runnable {
       override def run() {

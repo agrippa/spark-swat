@@ -229,7 +229,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   val overallStart = System.currentTimeMillis // PROFILE
 
   val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
-          rddId, partitionIndex, totalNLoaded, 0)
+          rddId, partitionIndex, 0, 0)
 
 //  val deviceInitStart = System.currentTimeMillis // PROFILE
   val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
