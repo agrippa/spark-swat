@@ -201,10 +201,9 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
     CLConfig.outputBufferCache.forThread(threadId)
 
+  val firstSample : T = nested.next
   val isAsyncMap = (userLambda.getClass.getName == "org.apache.spark.rdd.cl.CLAsyncMappedRDD$$anonfun$1")
   val actualLambda = if (isAsyncMap) firstSample else userLambda
-
-  val firstSample : T = nested.next
   val bufferKey : String = RuntimeUtil.getLabelForBufferCache(actualLambda, firstSample,
           CLConfig.N)
 
