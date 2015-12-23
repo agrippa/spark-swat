@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import os
 import sys
 from common import parse_timeline
@@ -13,7 +14,8 @@ per_thread_info = parse_timeline(sys.argv[1])
 limit_n_threads = int(sys.argv[2])
 
 fig = plt.figure(num=0, figsize=(18, 6), dpi=80)
-colors = [ 'r', 'y', 'b', 'g', 'c', 'm' ]
+# colors = [ 'r', 'y', 'b', 'g', 'c', 'm' ]
+colors = [ '#000000', '#cccccc', '#777777' ]
 
 width = 0.35       # the width of the bars: can also be len(x) sequence
 color_counter = 0
@@ -21,12 +23,14 @@ ind = 0
 
 min_timestamp = -1
 max_timestamp = 0
-for kernel in thread_info.get_kernel_list():
-  if min_timestamp == -1 or min_timestamp > kernel.get_input_start():
-      min_timestamp = kernel.get_input_start()
-  write_end = kernel.get_output_start() + kernel.get_output_elapsed()
-  if write_end > max_timestamp:
-      max_timestamp = write_end
+for thread in per_thread_info:
+    thread_info = per_thread_info[thread]
+    for kernel in thread_info.get_kernel_list():
+      if min_timestamp == -1 or min_timestamp > kernel.get_input_start():
+          min_timestamp = kernel.get_input_start()
+      write_end = kernel.get_output_start() + kernel.get_output_elapsed()
+      if write_end > max_timestamp:
+          max_timestamp = write_end
 
 thread_labels = []
 
@@ -74,9 +78,13 @@ for target_thread in thread_iters:
 
     ind = ind + width
 
+print('Used ' + colors[0] + ' for reads, ' + colors[2] + ' for opencl, ' +
+      colors[1] + ' for writes')
+
 plt.ylabel('Work')
-plt.xlabel('Time')
+plt.xlabel('Time (ms)')
 plt.yticks(np.arange(0, len(per_thread_info) * 3, width) + width/2., thread_labels)
 
 plt.axis([ 0, max_timestamp-min_timestamp, 0, ind ])
+
 plt.show()
