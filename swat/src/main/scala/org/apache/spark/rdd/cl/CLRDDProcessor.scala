@@ -273,6 +273,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       inputBuffer = RuntimeUtil.getInputBufferForSample(firstSample, CLConfig.N,
               DenseVectorInputBufferWrapperConfig.tiling,
               SparseVectorInputBufferWrapperConfig.tiling,
+              PrimitiveArrayInputBufferWrapperConfig.tiling,
               entryPoint, false, isAsyncMap)
 
       chunkedOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](

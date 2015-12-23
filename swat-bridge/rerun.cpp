@@ -4,6 +4,15 @@
 #include <time.h>
 #include <map>
 
+/*
+ * Note we don't really support execution on Mac OS, this support is just to
+ * make sure it compiles.
+ */
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include "ocl_util.h"
 #include "common.h"
 #include "kernel_arg.h"
@@ -33,12 +42,24 @@ void usage(char **argv) {
 }
 
 // Nanoseconds
-unsigned long long get_clock_gettime() {
+#ifdef __MACH__
+unsigned long long nanoseconds() {
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    unsigned long long s = 1000000000ULL * (unsigned long long)mts.tv_sec;
+    return (unsigned long long)mts.tv_nsec + s;
+}
+#else
+unsigned long long nanoseconds() {
     struct timespec t ={0,0};
     clock_gettime(CLOCK_MONOTONIC, &t);
     unsigned long long s = 1000000000ULL * (unsigned long long)t.tv_sec;
     return (unsigned long long)t.tv_nsec + s;
 }
+#endif
 
 void get_arg_type_index(char *arg, ARG_TYPE *out_type, int *out_index) {
     char *found = strchr(arg, ':');
@@ -449,13 +470,13 @@ int main(int argc, char **argv) {
     }
     CHECK(clFinish(cmd));
    
-    unsigned long long start_time = get_clock_gettime();
+    unsigned long long start_time = nanoseconds();
     cl_event event;
     CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &global_size, &local_size, 0, NULL,
                 &event));
     CHECK(clWaitForEvents(1, &event));
     CHECK(clFinish(cmd));
-    unsigned long long end_time = get_clock_gettime();
+    unsigned long long end_time = nanoseconds();
     unsigned long long elapsed = end_time - start_time;
     fprintf(stderr, "Kernel took %llu ns (%f us, %f ms, %f s)\n", elapsed,
             elapsed / 1000.0, elapsed / 1000000.0, elapsed / 1000000000.0);

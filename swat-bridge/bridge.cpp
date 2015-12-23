@@ -215,10 +215,12 @@ static unsigned long long get_clock_gettime_ns() {
 }
 #endif
 
+#ifdef PROFILE_LOCKS
 static inline void force_pthread_mutex_lock(pthread_mutex_t *mutex) {
     const int perr = pthread_mutex_lock(mutex);
     ASSERT(perr == 0);
 }
+#endif
 
 static inline void force_pthread_mutex_unlock(pthread_mutex_t *mutex) {
     const int perr = pthread_mutex_unlock(mutex);
@@ -710,7 +712,8 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 
         // Initialize cache state
         for (int i = 0; i < RDD_CACHE_BUCKETS; i++) {
-            rdd_cache_locks[i] = PTHREAD_MUTEX_INITIALIZER;
+            const int perr = pthread_mutex_init(rdd_cache_locks + i, NULL);
+            assert(perr == 0);
 #ifdef PROFILE_LOCKS
             rdd_cache_contention[i] = 0ULL;
 #endif
@@ -1337,6 +1340,33 @@ JNI_JAVA(void, OpenCLBridge, transferOverflowDenseVectorBuffers)(JNIEnv *jenv,
 
     EXIT_TRACE("transferOverflowDenseVectorBuffers");
 }
+
+JNI_JAVA(void, OpenCLBridge, transferOverflowPrimitiveArrayBuffers)(
+        JNIEnv *jenv, jclass clazz, jlong dstValuesBuffer, jlong dstSizesBuffer,
+        jlong dstOffsetsBuffer, jlong srcValuesBuffer, jlong srcSizesBuffer,
+        jlong srcOffsetsBuffer, jint vectorsUsed, jint elementsUsed,
+        jint leftoverVectors, jint leftoverElements,
+        jint primitiveElementSize) {
+    ENTER_TRACE("transferOverflowPrimitiveArrayBuffers");
+
+    unsigned char *dstValues = (unsigned char *)dstValuesBuffer;
+    int *dstSizes = (int *)dstSizesBuffer;
+    int *dstOffsets = (int *)dstSizesBuffer;
+
+    unsigned char *srcValues = (unsigned char *)srcValuesBuffer;
+    int *srcSizes = (int *)srcSizesBuffer;
+    int *srcOffsets = (int *)srcSizesBuffer;
+
+    memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
+    memcpy(dstValues, dstValues + (elementsUsed * primitiveElementSize),
+            leftoverElements * primitiveElementSize);
+    for (int i = 0; i < leftoverVectors; i++) {
+        dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
+    }
+
+    EXIT_TRACE("transferOverflowPrimitiveArrayBuffers");
+}
+
 
 JNI_JAVA(void, OpenCLBridge, deserializeStridedValuesFromNativeArray)(
         JNIEnv *jenv, jclass clazz, jobjectArray bufferTo, jint nToBuffer,
@@ -2695,6 +2725,62 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedDenseVectorsToNativeBuffer)
     EXIT_TRACE("serializeStridedDenseVectorsToNativeBuffer");
     return nSerialized;
 }
+
+JNI_JAVA(jint, OpenCLBridge, serializeStridedPrimitiveArraysToNativeBuffer)
+        (JNIEnv *jenv, jclass clazz, jlong buffer, jint bufferPosition,
+         jlong bufferCapacity, jlong sizesBuffer, jlong offsetsBuffer,
+         jint buffered, jint vectorCapacity, jobjectArray arrays,
+         jintArray vectorSizes, jint nToSerialize, jint tiling,
+         jint primitiveElementSize) {
+    ENTER_TRACE("serializeStridedPrimitiveArraysToNativeBuffer");
+    jenv->EnsureLocalCapacity(nToSerialize);
+
+    unsigned char *serialized = (unsigned char *)buffer;
+    int *sizes = (int *)sizesBuffer;
+    int *offsets = (int *)offsetsBuffer;
+
+    int *vectorLengthsPtr = (int *)jenv->GetPrimitiveArrayCritical(vectorSizes,
+            NULL);
+    CHECK_JNI(vectorLengthsPtr);
+
+    int nSerialized;
+    for (nSerialized = 0; nSerialized < nToSerialize; nSerialized++) {
+        const long offset = bufferPosition + nSerialized;
+        // Array to serialize
+        jarray array = (jarray)jenv->GetObjectArrayElement(arrays, nSerialized);
+        CHECK_JNI(array);
+
+        const jint vectorLength = vectorLengthsPtr[nSerialized];
+        const long lastElement = offset + ((vectorLength - 1) * tiling);
+        if (buffered + nSerialized >= vectorCapacity ||
+                lastElement >= bufferCapacity) {
+            break;
+        }
+
+        unsigned char *arrayValues =
+            (unsigned char *)jenv->GetPrimitiveArrayCritical(array, NULL);
+        CHECK_JNI(arrayValues);
+
+        for (int j = 0; j < vectorLength; j++) {
+            const size_t ele_offset = offset + (j * tiling);
+            memcpy(serialized + ele_offset + primitiveElementSize,
+                    arrayValues + (j * primitiveElementSize),
+                    primitiveElementSize);
+        }
+
+        jenv->ReleasePrimitiveArrayCritical(array, arrayValues, JNI_ABORT);
+
+        sizes[buffered + nSerialized] = vectorLength;
+        offsets[buffered + nSerialized] = offset;
+    }
+
+    jenv->ReleasePrimitiveArrayCritical(vectorSizes, vectorLengthsPtr,
+            JNI_ABORT);
+
+    EXIT_TRACE("serializeStridedPrimitiveArraysToNativeBuffer");
+    return nSerialized;
+}
+
 
 JNI_JAVA(jint, OpenCLBridge, serializeStridedSparseVectorsToNativeBuffer)
         (JNIEnv *jenv, jclass clazz, jlong valuesBuffer, jlong indicesBuffer, jint bufferPosition,

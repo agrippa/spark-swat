@@ -110,6 +110,10 @@ public class OpenCLBridge {
             long dstSizes, long dstOffsets, long srcValues, long srcIndices, long srcSizes,
             long srcOffsets, int vectorsUsed, int elementsUsed,
             int leftoverVectors, int leftoverElements);
+    public static native void transferOverflowPrimitiveArrayBuffers(long dstValues,
+            long dstSizes, long dstOffsets, long srcValues, long srcSizes,
+            long srcOffsets, int vectorsUsed, int elementsUsed,
+            int leftoverVectors, int leftoverElements, int primitiveElementSize);
 
     public static native int serializeStridedDenseVectorsToNativeBuffer(
             long buffer, int position, long capacity, long sizesBuffer,
@@ -121,6 +125,11 @@ public class OpenCLBridge {
             long offsetsBuffer, int buffered, int vectorCapacity,
             org.apache.spark.mllib.linalg.SparseVector[] vectors,
             int[] vectorSizes, int nToSerialize, int tiling);
+    public static native int serializeStridedPrimitiveArraysToNativeBuffer(
+            long buffer, int position, long capacity, long sizesBuffer,
+            long offsetsBuffer, int buffered, int vectorCapacity,
+            Object[] vectors, int[] vectorLengths, int nToSerialize, int tiling,
+            int primitiveElementSize);
 
     public static native boolean setNativeArrayArgImpl(long ctx, long dev_ctx,
         int index, long buffer, int len, long broadcast, int rdd,

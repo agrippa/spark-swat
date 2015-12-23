@@ -162,9 +162,15 @@ object RuntimeUtil {
 
   def getInputBufferForSample[T : ClassTag](firstSample : T, N : Int,
       denseVectorTiling : Int, sparseVectorTiling : Int,
-      entryPoint : Entrypoint, blockingCopies : Boolean, isMapAsync : Boolean) : InputBufferWrapper[T] = {
+      primitiveArrayTiling : Int, entryPoint : Entrypoint,
+      blockingCopies : Boolean, isMapAsync : Boolean) : InputBufferWrapper[T] = {
     if (isMapAsync) {
         new LambdaInputBufferWrapper(N, firstSample, entryPoint, blockingCopies)
+    } else if (firstSample.isInstanceOf[Array[_]]) {
+        val arr : Array[_] = firstSample.asInstanceOf[Array[_]]
+        new PrimitiveArrayInputBufferWrapper[T](
+                N * arr.length, N, primitiveArrayTiling, entryPoint,
+                blockingCopies, firstSample)
     } else if (firstSample.isInstanceOf[Double]) {
       new PrimitiveInputBufferWrapper[Double](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[Int]) {
