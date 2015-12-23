@@ -24,7 +24,8 @@ static int org_apache_spark_rdd_cl_tests_AsyncMapTest$$anon$1__apply(This *this)
    return(org_apache_spark_rdd_cl_tests_AsyncMapTest$$anon$1__apply$mcI$sp(this));
 }
 __kernel void run(
-      __global int* restrict out, __global int* restrict v$1, int N, int iter) {
+      __global int* restrict v$1, 
+      __global int* restrict out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {

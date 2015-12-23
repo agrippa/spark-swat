@@ -70,12 +70,13 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
       val evaluator = (lambda : Function0[U]) => lambda()
       val nestedWrapper : Iterator[Function0[U]] = new Iterator[Function0[U]] {
         val outputStream = new AsyncOutputStream[U] {
-          var newLambda : Option[Function0[U]] = None
+          val lambdas : LinkedList[Function0[U]] = new LinkedList[Function0[U]]
 
           override def spawn(l : () => U) {
-            assert(newLambda.isEmpty)
-            newLambda = Some(l)
-            throw new SuspendException
+            lambdas.add(l)
+            if (!multiOutput) {
+              throw new SuspendException
+            }
           }
 
           override def finish() {
@@ -88,22 +89,23 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
         }
 
         override def next() : Function0[U] = {
-          var caughtException : Boolean = false
-          try {
-            f(nested.next, outputStream)
-          } catch {
-            case s: SuspendException =>caughtException = true
-            case e: Throwable => throw e
+          if (outputStream.lambdas.isEmpty) {
+            var caughtException : Boolean = false
+            try {
+              f(nested.next, outputStream)
+            } catch {
+              case s: SuspendException => caughtException = true
+              case e: Throwable => throw e
+            }
+            if (!multiOutput) assert(caughtException)
+            assert(!outputStream.lambdas.isEmpty)
           }
-          assert(caughtException)
 
-          val result = outputStream.newLambda.get
-          outputStream.newLambda = None
-          result
+          return outputStream.lambdas.poll()
         }
 
         override def hasNext() : Boolean = {
-          nested.hasNext
+          nested.hasNext || !outputStream.lambdas.isEmpty
         }
       }
 

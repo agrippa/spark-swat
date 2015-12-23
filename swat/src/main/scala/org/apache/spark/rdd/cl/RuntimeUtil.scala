@@ -162,8 +162,10 @@ object RuntimeUtil {
 
   def getInputBufferForSample[T : ClassTag](firstSample : T, N : Int,
       denseVectorTiling : Int, sparseVectorTiling : Int,
-      entryPoint : Entrypoint, blockingCopies : Boolean) : InputBufferWrapper[T] = {
-    if (firstSample.isInstanceOf[Double]) {
+      entryPoint : Entrypoint, blockingCopies : Boolean, isMapAsync : Boolean) : InputBufferWrapper[T] = {
+    if (isMapAsync) {
+        new LambdaInputBufferWrapper(N, firstSample, entryPoint, blockingCopies)
+    } else if (firstSample.isInstanceOf[Double]) {
       new PrimitiveInputBufferWrapper[Double](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[Int]) {
       new PrimitiveInputBufferWrapper[Int](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
@@ -343,5 +345,15 @@ object RuntimeUtil {
       label = label + "|" + firstSample.asInstanceOf[SparseVector].size
     }
     label + "|" + N
+  }
+
+  def getElementVectorLengthHint(sample : Any) : Int = {
+    if (sample.isInstanceOf[DenseVector]) {
+      sample.asInstanceOf[DenseVector].size
+    } else if (sample.isInstanceOf[SparseVector]) {
+      sample.asInstanceOf[SparseVector].size
+    } else {
+      -1
+    }
   }
 }

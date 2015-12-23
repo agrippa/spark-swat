@@ -23,7 +23,10 @@ object SparkSimple {
         } else if (cmd == "check") {
             val correct : Array[Double] = run_simple(args.slice(1, args.length), false)
             val actual : Array[Double] = run_simple(args.slice(1, args.length), true)
-            assert(correct.length == actual.length)
+            if (correct.length != actual.length) {
+              System.err.println("Lengths differ, expected " + correct.length + " but got " + actual.length)
+              System.exit(1)
+            }
             for (i <- 0 until correct.length) {
                 val a = correct(i)
                 val b = actual(i)

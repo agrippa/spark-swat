@@ -134,6 +134,9 @@ object CLConfig {
   val printKernel_str = System.getProperty("swat.print_kernel")
   val printKernel = if (printKernel_str != null) printKernel_str.toBoolean else false
 
+  val ASYNC_MAP_LAMBDA_WRAPPER =
+      "org.apache.spark.rdd.cl.CLAsyncMappedRDD$$anonfun$1"
+
   /*
    * It is possible for a single thread to have two active CLMappedRDDs if they
    * are chained together. For example, the following code:
@@ -202,7 +205,8 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     CLConfig.outputBufferCache.forThread(threadId)
 
   val firstSample : T = nested.next
-  val isAsyncMap = (userLambda.getClass.getName == "org.apache.spark.rdd.cl.CLAsyncMappedRDD$$anonfun$1")
+  val isAsyncMap = (userLambda.getClass.getName ==
+          CLConfig.ASYNC_MAP_LAMBDA_WRAPPER)
   val actualLambda = if (isAsyncMap) firstSample else userLambda
   val bufferKey : String = RuntimeUtil.getLabelForBufferCache(actualLambda, firstSample,
           CLConfig.N)
@@ -223,8 +227,10 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   val descriptor : String = method.getDescriptor
 
   // 1 argument expected for maps
-  val params : LinkedList[ScalaArrayParameter] =
-      CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
+  val params : LinkedList[ScalaArrayParameter] = new LinkedList[ScalaArrayParameter]
+  if (!isAsyncMap) {
+    params.addAll(CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1))
+  }
   params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
   var totalNLoaded = 0
@@ -267,7 +273,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       inputBuffer = RuntimeUtil.getInputBufferForSample(firstSample, CLConfig.N,
               DenseVectorInputBufferWrapperConfig.tiling,
               SparseVectorInputBufferWrapperConfig.tiling,
-              entryPoint, false)
+              entryPoint, false, isAsyncMap)
 
       chunkedOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
               sampleOutput.asInstanceOf[U], CLConfig.N,

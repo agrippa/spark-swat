@@ -27,18 +27,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
           blockingCopies : Boolean) =
       this(nele, sample, entryPoint, None, None, true, blockingCopies)
 
-  def getElementVectorLengthHint[T : ClassTag](sample : T) : Int = {
-    if (sample.isInstanceOf[DenseVector]) {
-      sample.asInstanceOf[DenseVector].size
-    } else if (sample.isInstanceOf[SparseVector]) {
-      sample.asInstanceOf[SparseVector].size
-    } else {
-      -1
-    }
-  }
-
-  val firstElementLengthHint = getElementVectorLengthHint[K](sample._1)
-  val secondElementLengthHint = getElementVectorLengthHint[V](sample._2)
+  val firstElementLengthHint = RuntimeUtil.getElementVectorLengthHint(
+          sample._1)
+  val secondElementLengthHint = RuntimeUtil.getElementVectorLengthHint(
+          sample._2)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
