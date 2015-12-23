@@ -111,7 +111,7 @@ __kernel void run(
       __global int * restrict out_1, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* restrict out_2, __global int * restrict centers$1_1, __global org_apache_spark_rdd_cl_tests_PointWithClassifier* restrict centers$1_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier * restrict centers$1, int centers$1__javaArrayLength, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
-   this->centers$1 = centers$1; for (int i = 0; i < centers$1__javaArrayLength; i++) { centers$1[i]._1 = centers$1_1[i]; centers$1[i]._2 = centers$1_2 + i;  } ;
+   this->centers$1 = centers$1; for (int ii = 0; ii < centers$1__javaArrayLength; ii++) { centers$1[ii]._1 = centers$1_1[ii]; centers$1[ii]._2 = centers$1_2 + ii;  } ;
    this->centers$1__javaArrayLength = centers$1__javaArrayLength;
    this->heap = heap;
    this->free_index = free_index;

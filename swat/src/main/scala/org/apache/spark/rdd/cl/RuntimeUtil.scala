@@ -30,39 +30,29 @@ object RuntimeUtil {
           totalTime + " ms " + System.currentTimeMillis) // PROFILE
   } // PROFILE
 
-  def getEntrypointAndKernel[T: ClassTag, U](firstSample : T,
-      sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
-      lambda : T => U, classModel : ClassModel, methodDescriptor : String,
-      dev_ctx : Long, threadId : Int, kernelDir : String,
-      printKernel : Boolean) : Tuple2[Entrypoint, String] = {
-    var entryPoint : Entrypoint = null
-    var openCL : String = null
-
-//     val startClassGeneration = System.currentTimeMillis // PROFILE
-
-    val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
-    if (firstSample.isInstanceOf[Tuple2[_, _]]) {
-      CodeGenUtil.createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
-          hardCodedClassModels, params.get(0))
-    } else if (firstSample.isInstanceOf[DenseVector]) {
-      CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
-    } else if (firstSample.isInstanceOf[SparseVector]) {
-      CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
-    }
-
+  def createHardCodedClassModelsForSampleOutput(sampleOutput : java.lang.Object,
+      hardCodedClassModels : HardCodedClassModels,
+      params : LinkedList[ScalaArrayParameter]) {
     if (sampleOutput != null) {
       if (sampleOutput.isInstanceOf[Tuple2[_, _]]) {
-        CodeGenUtil.createHardCodedTuple2ClassModel(sampleOutput.asInstanceOf[Tuple2[_, _]],
-            hardCodedClassModels, params.get(1))
+        CodeGenUtil.createHardCodedTuple2ClassModel(
+            sampleOutput.asInstanceOf[Tuple2[_, _]], hardCodedClassModels,
+            params.get(params.size - 1))
       } else if (sampleOutput.isInstanceOf[DenseVector]) {
         CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
       } else if (sampleOutput.isInstanceOf[SparseVector]) {
         CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
       }
     }
+  }
 
-//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
-//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+  private def getEntrypointAndKernelHelper(
+      hardCodedClassModels : HardCodedClassModels, lambda : java.lang.Object,
+      classModel : ClassModel, methodDescriptor : String,
+      params : LinkedList[ScalaArrayParameter], dev_ctx : Long,
+      kernelDir : String, printKernel : Boolean, multiInput : Boolean) : Tuple2[Entrypoint, String] = {
+    var entryPoint : Entrypoint = null
+    var openCL : String = null
 
     val entrypointKey : EntrypointCacheKey = new EntrypointCacheKey(
             lambda.getClass.getName)
@@ -87,7 +77,7 @@ object RuntimeUtil {
       } else {
 //         System.err.println("Thread " + threadId + " generating kernel") // PROFILE
         val writerAndKernel = KernelWriter.writeToString(
-            entryPoint, params)
+            entryPoint, params, multiInput)
         openCL = writerAndKernel.kernel
 
         val kernelFilename = kernelDir + "/" + lambda.getClass.getName + ".kernel"
@@ -109,7 +99,56 @@ object RuntimeUtil {
 
 //       profPrint("KernelGeneration", startKernelGeneration, threadId) // PROFILE
     }
+
     (entryPoint, openCL)
+  }
+
+  def getEntrypointAndKernel[U](sampleOutput : java.lang.Object,
+      params : LinkedList[ScalaArrayParameter], lambda : () => U,
+      classModel : ClassModel, methodDescriptor : String,
+      dev_ctx : Long, threadId : Int, kernelDir : String,
+      printKernel : Boolean) : Tuple2[Entrypoint, String] = {
+//     val startClassGeneration = System.currentTimeMillis // PROFILE
+
+    val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
+    createHardCodedClassModelsForSampleOutput(sampleOutput,
+            hardCodedClassModels, params)
+
+//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
+//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+
+    getEntrypointAndKernelHelper(hardCodedClassModels,
+            lambda.asInstanceOf[java.lang.Object], classModel, methodDescriptor,
+            params, dev_ctx, kernelDir, printKernel, true)
+  }
+
+  def getEntrypointAndKernel[T: ClassTag, U](firstSample : T,
+      sampleOutput : java.lang.Object, params : LinkedList[ScalaArrayParameter],
+      lambda : T => U, classModel : ClassModel, methodDescriptor : String,
+      dev_ctx : Long, threadId : Int, kernelDir : String,
+      printKernel : Boolean) : Tuple2[Entrypoint, String] = {
+
+//     val startClassGeneration = System.currentTimeMillis // PROFILE
+
+    val hardCodedClassModels : HardCodedClassModels = new HardCodedClassModels()
+    if (firstSample.isInstanceOf[Tuple2[_, _]]) {
+      CodeGenUtil.createHardCodedTuple2ClassModel(firstSample.asInstanceOf[Tuple2[_, _]],
+          hardCodedClassModels, params.get(0))
+    } else if (firstSample.isInstanceOf[DenseVector]) {
+      CodeGenUtil.createHardCodedDenseVectorClassModel(hardCodedClassModels)
+    } else if (firstSample.isInstanceOf[SparseVector]) {
+      CodeGenUtil.createHardCodedSparseVectorClassModel(hardCodedClassModels)
+    }
+
+    createHardCodedClassModelsForSampleOutput(sampleOutput,
+            hardCodedClassModels, params)
+
+//     profPrint("HardCodedClassGeneration", startClassGeneration, threadId) // PROFILE
+//     val startEntrypointGeneration = System.currentTimeMillis // PROFILE
+
+    getEntrypointAndKernelHelper(hardCodedClassModels,
+            lambda.asInstanceOf[java.lang.Object], classModel, methodDescriptor,
+            params, dev_ctx, kernelDir, printKernel, false)
   }
 
   def getThreadID() : Int = {
@@ -123,11 +162,15 @@ object RuntimeUtil {
 
   def getInputBufferForSample[T : ClassTag](firstSample : T, N : Int,
       denseVectorTiling : Int, sparseVectorTiling : Int,
-      entryPoint : Entrypoint, blockingCopies : Boolean) : InputBufferWrapper[T] = {
-    if (firstSample.isInstanceOf[Double] ||
-        firstSample.isInstanceOf[Int] ||
-        firstSample.isInstanceOf[Float]) {
-      new PrimitiveInputBufferWrapper(N, blockingCopies)
+      entryPoint : Entrypoint, blockingCopies : Boolean, isMapAsync : Boolean) : InputBufferWrapper[T] = {
+    if (isMapAsync) {
+        new LambdaInputBufferWrapper(N, firstSample, entryPoint, blockingCopies)
+    } else if (firstSample.isInstanceOf[Double]) {
+      new PrimitiveInputBufferWrapper[Double](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
+    } else if (firstSample.isInstanceOf[Int]) {
+      new PrimitiveInputBufferWrapper[Int](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
+    } else if (firstSample.isInstanceOf[Float]) {
+      new PrimitiveInputBufferWrapper[Float](N, blockingCopies).asInstanceOf[PrimitiveInputBufferWrapper[T]]
     } else if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       new Tuple2InputBufferWrapper(N,
               firstSample.asInstanceOf[Tuple2[_, _]],
@@ -281,7 +324,7 @@ object RuntimeUtil {
     }
   }
 
-  def getLabelForBufferCache[T, U](f : T => U, firstSample : T, N : Int) : String = {
+  def getLabelForBufferCache[T, U](f : Any, firstSample : T, N : Int) : String = {
     var label : String = f.getClass.getName
     if (firstSample.isInstanceOf[Tuple2[_, _]]) {
       val sampledTuple = firstSample.asInstanceOf[Tuple2[_, _]]
@@ -302,5 +345,15 @@ object RuntimeUtil {
       label = label + "|" + firstSample.asInstanceOf[SparseVector].size
     }
     label + "|" + N
+  }
+
+  def getElementVectorLengthHint(sample : Any) : Int = {
+    if (sample.isInstanceOf[DenseVector]) {
+      sample.asInstanceOf[DenseVector].size
+    } else if (sample.isInstanceOf[SparseVector]) {
+      sample.asInstanceOf[SparseVector].size
+    } else {
+      -1
+    }
   }
 }

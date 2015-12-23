@@ -3,13 +3,14 @@ package org.apache.spark.rdd.cl.tests
 import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
-object Tuple2ObjectInputPassToFuncTest extends CodeGenTest[(Int, Point), Float] {
+object Tuple2ObjectInputPassToFuncTest extends SyncCodeGenTest[(Int, Point), Float] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

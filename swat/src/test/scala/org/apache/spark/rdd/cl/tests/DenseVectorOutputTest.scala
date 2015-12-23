@@ -8,6 +8,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.DenseVectorClassModel
 
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -17,7 +18,7 @@ import org.apache.spark.mllib.linalg.Vectors
 
 import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
 
-object DenseVectorOutputTest extends CodeGenTest[Int, DenseVector] {
+object DenseVectorOutputTest extends SyncCodeGenTest[Int, DenseVector] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

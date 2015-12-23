@@ -4,6 +4,7 @@ import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.DenseVectorClassModel
 
@@ -11,7 +12,7 @@ import org.apache.spark.rdd.cl.DenseVectorInputBufferWrapperConfig
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.mllib.linalg.DenseVector
 
-object DenseVectorBroadcastTest extends CodeGenTest[Int, Double] {
+object DenseVectorBroadcastTest extends SyncCodeGenTest[Int, Double] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

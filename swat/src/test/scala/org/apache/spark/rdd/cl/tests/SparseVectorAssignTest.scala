@@ -8,6 +8,7 @@ import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.SparseVectorClassModel
 
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -16,7 +17,7 @@ import org.apache.spark.mllib.linalg.SparseVector
 
 import org.apache.spark.rdd.cl.SparseVectorInputBufferWrapperConfig
 
-object SparseVectorAssignTest extends CodeGenTest[SparseVector, (Int, Double)] {
+object SparseVectorAssignTest extends SyncCodeGenTest[SparseVector, (Int, Double)] {
   def getExpectedException() : String = {
     return "Assigning from the indices or values of a MLLib Sparse Vector is " +
         "not supported"

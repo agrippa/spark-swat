@@ -54,7 +54,7 @@ __kernel void run(
       __global int* restrict out, __global int * restrict broadcast$1_1, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1_2, __global double * restrict broadcast$1_2_values, __global int * restrict broadcast$1_2_sizes, __global int * restrict broadcast$1_2_offsets, int nbroadcast$1_2, int broadcast$1_2_tiling, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
-   this->broadcast$1 = broadcast$1; for (int i = 0; i < broadcast$1__javaArrayLength; i++) { broadcast$1[i]._1 = broadcast$1_1[i]; broadcast$1[i]._2 = broadcast$1_2 + i;  } ;
+   this->broadcast$1 = broadcast$1; for (int ii = 0; ii < broadcast$1__javaArrayLength; ii++) { broadcast$1[ii]._1 = broadcast$1_1[ii]; broadcast$1[ii]._2 = broadcast$1_2 + ii;  } ;
    this->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest$$anon$1__apply(this, in0[i]);

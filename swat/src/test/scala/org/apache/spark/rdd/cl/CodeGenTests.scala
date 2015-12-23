@@ -22,51 +22,58 @@ object CodeGenTests {
   val testsPath : String = sys.env("SWAT_HOME") +
       "/swat/src/test/scala/org/apache/spark/rdd/cl/tests/"
 
-  val tests : ArrayList[CodeGenTest[_, _]] = new ArrayList[CodeGenTest[_, _]]()
-  tests.add(PrimitiveInputPrimitiveOutputTest)
-  tests.add(PrimitiveInputObjectOutputTest)
-  tests.add(ObjectInputObjectOutputTest)
-  tests.add(ReferenceExternalArrayTest)
-  tests.add(ReferenceExternalObjectArrayTest)
-  tests.add(ReferenceExternalScalarTest)
-  tests.add(ExternalFunctionTest)
-  tests.add(Tuple2InputTest)
-  tests.add(Tuple2ObjectInputTest)
-  tests.add(Tuple2ObjectInputDirectTest)
-  tests.add(Tuple2InputPassToFuncTest)
-  tests.add(Tuple2ObjectInputPassToFuncTest)
-  tests.add(Tuple2ObjectInputPassDirectlyToFuncTest)
-  tests.add(Tuple2OutputTest)
-  tests.add(Tuple2ObjectOutputTest)
-  tests.add(Tuple2InputOutputTest)
-  tests.add(KMeansTest)
-  tests.add(DenseVectorInputTest)
-  tests.add(SparseVectorInputTest)
-  tests.add(SparseVectorAssignTest)
-  tests.add(ArrayAllocTest)
-  tests.add(DenseVectorOutputTest)
-  tests.add(SparseVectorOutputTest)
-  tests.add(PrimitiveArrayBroadcastTest)
-  tests.add(DenseVectorBroadcastTest)
-  tests.add(SparseVectorBroadcastTest)
-  tests.add(Tuple2DenseInputTest)
-  tests.add(ClassExternalFunctionTest)
-  tests.add(Tuple2DenseOutputTest)
-  tests.add(Tuple2BroadcastTest)
-  tests.add(Tuple2ObjectBroadcastTest)
-  tests.add(NestedTuple2OutputTest)
-  tests.add(NestedTuple2OutputDenseTest)
+  val syncTests : ArrayList[SyncCodeGenTest[_, _]] =
+    new ArrayList[SyncCodeGenTest[_, _]]()
+  syncTests.add(PrimitiveInputPrimitiveOutputTest)
+  syncTests.add(PrimitiveInputObjectOutputTest)
+  syncTests.add(ObjectInputObjectOutputTest)
+  syncTests.add(ReferenceExternalArrayTest)
+  syncTests.add(ReferenceExternalObjectArrayTest)
+  syncTests.add(ReferenceExternalScalarTest)
+  syncTests.add(ExternalFunctionTest)
+  syncTests.add(Tuple2InputTest)
+  syncTests.add(Tuple2ObjectInputTest)
+  syncTests.add(Tuple2ObjectInputDirectTest)
+  syncTests.add(Tuple2InputPassToFuncTest)
+  syncTests.add(Tuple2ObjectInputPassToFuncTest)
+  syncTests.add(Tuple2ObjectInputPassDirectlyToFuncTest)
+  syncTests.add(Tuple2OutputTest)
+  syncTests.add(Tuple2ObjectOutputTest)
+  syncTests.add(Tuple2InputOutputTest)
+  syncTests.add(KMeansTest)
+  syncTests.add(DenseVectorInputTest)
+  syncTests.add(SparseVectorInputTest)
+  syncTests.add(SparseVectorAssignTest)
+  syncTests.add(ArrayAllocTest)
+  syncTests.add(DenseVectorOutputTest)
+  syncTests.add(SparseVectorOutputTest)
+  syncTests.add(PrimitiveArrayBroadcastTest)
+  syncTests.add(DenseVectorBroadcastTest)
+  syncTests.add(SparseVectorBroadcastTest)
+  syncTests.add(Tuple2DenseInputTest)
+  syncTests.add(ClassExternalFunctionTest)
+  syncTests.add(Tuple2DenseOutputTest)
+  syncTests.add(Tuple2BroadcastTest)
+  syncTests.add(Tuple2ObjectBroadcastTest)
+  syncTests.add(NestedTuple2OutputTest)
+  syncTests.add(NestedTuple2OutputDenseTest)
+
+  val asyncTests : ArrayList[AsyncCodeGenTest[_]] =
+    new ArrayList[AsyncCodeGenTest[_]]()
+  asyncTests.add(AsyncMapTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
-      test : CodeGenTest[_, _], devId : Int) {
+      test : CodeGenTest[_], devId : Int, isAsync : Boolean) {
     val classModel : ClassModel = ClassModel.createClassModel(lambda.getClass,
         null, new ShouldNotCallMatcher())
     val method = classModel.getPrimitiveApplyMethod
     val descriptor : String = method.getDescriptor
 
-    val params : LinkedList[ScalaArrayParameter] =
-        CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, expectedNumArguments)
+    val params : LinkedList[ScalaArrayParameter] = new LinkedList[ScalaArrayParameter]
+    if (!isAsync) {
+      params.addAll(CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, expectedNumArguments))
+    }
     params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
     test.complete(params)
@@ -102,7 +109,7 @@ object CodeGenTests {
 
     if (expectedException == null) {
       val writerAndKernel : WriterAndKernel = KernelWriter.writeToString(
-              entryPoint, params)
+              entryPoint, params, isAsync)
       val openCL : String = writerAndKernel.kernel
 
       val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
@@ -147,12 +154,22 @@ object CodeGenTests {
     }
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
-    for (i <- 0 until tests.size) {
-      val test : CodeGenTest[_, _] = tests.get(i)
+
+    for (i <- 0 until syncTests.size) {
+      val test : SyncCodeGenTest[_, _] = syncTests.get(i)
       if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
         verifyCodeGen(test.getFunction, test.getExpectedKernel,
             test.getExpectedNumInputs, test.getClass.getSimpleName,
-            test.getExpectedException, test, devId)
+            test.getExpectedException, test, devId, false)
+      }
+    }
+
+    for (i <- 0 until asyncTests.size) {
+      val test : AsyncCodeGenTest[_] = asyncTests.get(i)
+      if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
+        verifyCodeGen(test.getFunction, test.getExpectedKernel,
+            test.getExpectedNumInputs, test.getClass.getSimpleName,
+            test.getExpectedException, test, devId, true)
       }
     }
   }

@@ -27,18 +27,10 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
           blockingCopies : Boolean) =
       this(nele, sample, entryPoint, None, None, true, blockingCopies)
 
-  def getElementVectorLengthHint[T : ClassTag](sample : T) : Int = {
-    if (sample.isInstanceOf[DenseVector]) {
-      sample.asInstanceOf[DenseVector].size
-    } else if (sample.isInstanceOf[SparseVector]) {
-      sample.asInstanceOf[SparseVector].size
-    } else {
-      -1
-    }
-  }
-
-  val firstElementLengthHint = getElementVectorLengthHint[K](sample._1)
-  val secondElementLengthHint = getElementVectorLengthHint[V](sample._2)
+  val firstElementLengthHint = RuntimeUtil.getElementVectorLengthHint(
+          sample._1)
+  val secondElementLengthHint = RuntimeUtil.getElementVectorLengthHint(
+          sample._2)
   
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor("scala.Tuple2",
@@ -120,7 +112,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[Tuple2[K, V]] = nativeBuffers
-  override def setCurrentNativeBuffers(set : NativeInputBuffers[Tuple2[K, V]]) {
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[_]) {
     nativeBuffers = set.asInstanceOf[Tuple2NativeInputBuffers[K, V]]
     if (set == null) {
       buffer1.setCurrentNativeBuffers(null)
@@ -153,7 +145,7 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
   }
 
   override def transferOverflowTo(
-          otherAbstract : NativeInputBuffers[Tuple2[K, V]]) :
+          otherAbstract : NativeInputBuffers[_]) :
           NativeInputBuffers[Tuple2[K, V]] = {
     assert(nativeBuffers.tocopy != -1)
 

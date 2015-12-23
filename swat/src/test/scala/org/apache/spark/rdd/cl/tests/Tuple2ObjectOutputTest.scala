@@ -7,11 +7,12 @@ import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 
-object Tuple2ObjectOutputTest extends CodeGenTest[Int, (Int, Point)] {
+object Tuple2ObjectOutputTest extends SyncCodeGenTest[Int, (Int, Point)] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

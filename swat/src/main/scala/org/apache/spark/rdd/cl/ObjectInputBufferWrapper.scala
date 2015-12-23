@@ -37,7 +37,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[T] = nativeBuffers
-  override def setCurrentNativeBuffers(set : NativeInputBuffers[T]) {
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[_]) {
     nativeBuffers = set.asInstanceOf[ObjectNativeInputBuffers[T]]
   }
 
@@ -81,7 +81,7 @@ class ObjectInputBufferWrapper[T](val nele : Int, val typeName : String,
     nativeBuffers.tocopy = tocopy
   }
 
-  override def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+  override def transferOverflowTo(otherAbstract : NativeInputBuffers[_]) :
       NativeInputBuffers[T] = {
     assert(nativeBuffers.tocopy != -1)
     val other : ObjectNativeInputBuffers[T] =

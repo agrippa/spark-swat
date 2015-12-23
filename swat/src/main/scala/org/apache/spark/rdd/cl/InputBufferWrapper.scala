@@ -56,10 +56,10 @@ trait InputBufferWrapper[T] {
   def selfAllocate(dev_ctx : Long)
   def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T]
   def getCurrentNativeBuffers() : NativeInputBuffers[T]
-  def setCurrentNativeBuffers(set : NativeInputBuffers[T])
+  def setCurrentNativeBuffers(set : NativeInputBuffers[_])
 
   // Must be called prior to transferOverflowTo
   def setupNativeBuffersForCopy(limit : Int)
-  def transferOverflowTo(otherAbstract : NativeInputBuffers[T]) :
+  def transferOverflowTo(otherAbstract : NativeInputBuffers[_]) :
       NativeInputBuffers[T]
 }

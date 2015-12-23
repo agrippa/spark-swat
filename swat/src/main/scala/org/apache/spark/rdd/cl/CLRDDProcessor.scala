@@ -134,6 +134,9 @@ object CLConfig {
   val printKernel_str = System.getProperty("swat.print_kernel")
   val printKernel = if (printKernel_str != null) printKernel_str.toBoolean else false
 
+  val ASYNC_MAP_LAMBDA_WRAPPER =
+      "org.apache.spark.rdd.cl.CLAsyncMappedRDD$$anonfun$1"
+
   /*
    * It is possible for a single thread to have two active CLMappedRDDs if they
    * are chained together. For example, the following code:
@@ -153,7 +156,7 @@ object CLConfig {
 }
 
 class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
-    val f : T => U, val context: TaskContext, val rddId : Int,
+    val userLambda : T => U, val context: TaskContext, val rddId : Int,
     val partitionIndex : Int) extends Iterator[U] {
   var entryPoint : Entrypoint = null
   var openCL : String = null
@@ -202,7 +205,10 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     CLConfig.outputBufferCache.forThread(threadId)
 
   val firstSample : T = nested.next
-  val bufferKey : String = RuntimeUtil.getLabelForBufferCache(f, firstSample,
+  val isAsyncMap = (userLambda.getClass.getName ==
+          CLConfig.ASYNC_MAP_LAMBDA_WRAPPER)
+  val actualLambda = if (isAsyncMap) firstSample else userLambda
+  val bufferKey : String = RuntimeUtil.getLabelForBufferCache(actualLambda, firstSample,
           CLConfig.N)
 
   if (myInputBufferCache.hasAny(bufferKey)) {
@@ -215,21 +221,23 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
         .asInstanceOf[OutputBufferWrapper[U]]
   }
 
-  val classModel : ClassModel = ClassModel.createClassModel(f.getClass, null,
+  val classModel : ClassModel = ClassModel.createClassModel(actualLambda.getClass, null,
       new ShouldNotCallMatcher())
   val method = classModel.getPrimitiveApplyMethod
   val descriptor : String = method.getDescriptor
 
   // 1 argument expected for maps
-  val params : LinkedList[ScalaArrayParameter] =
-      CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1)
+  val params : LinkedList[ScalaArrayParameter] = new LinkedList[ScalaArrayParameter]
+  if (!isAsyncMap) {
+    params.addAll(CodeGenUtil.getParamObjsFromMethodDescriptor(descriptor, 1))
+  }
   params.add(CodeGenUtil.getReturnObjsFromMethodDescriptor(descriptor))
 
   var totalNLoaded = 0
   val overallStart = System.currentTimeMillis // PROFILE
 
   val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
-          rddId, partitionIndex, totalNLoaded, 0)
+          rddId, partitionIndex, 0, 0)
 
 //  val deviceInitStart = System.currentTimeMillis // PROFILE
   val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
@@ -250,11 +258,14 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
 
   if (initializing) {
 //     val initStart = System.currentTimeMillis // PROFILE
-    sampleOutput = f(firstSample).asInstanceOf[java.lang.Object]
+    sampleOutput = userLambda(firstSample).asInstanceOf[java.lang.Object]
     val entrypointAndKernel : Tuple2[Entrypoint, String] =
-        RuntimeUtil.getEntrypointAndKernel[T, U](firstSample, sampleOutput,
-        params, f, classModel, descriptor, dev_ctx, threadId,
-        CLConfig.kernelDir, CLConfig.printKernel)
+        if (!isAsyncMap) RuntimeUtil.getEntrypointAndKernel[T, U](firstSample,
+            sampleOutput, params, userLambda, classModel, descriptor, dev_ctx,
+            threadId, CLConfig.kernelDir, CLConfig.printKernel)
+        else RuntimeUtil.getEntrypointAndKernel[U](sampleOutput, params,
+            actualLambda.asInstanceOf[Function0[U]], classModel, descriptor,
+            dev_ctx, threadId, CLConfig.kernelDir, CLConfig.printKernel)
     entryPoint = entrypointAndKernel._1
     openCL = entrypointAndKernel._2
 
@@ -262,7 +273,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       inputBuffer = RuntimeUtil.getInputBufferForSample(firstSample, CLConfig.N,
               DenseVectorInputBufferWrapperConfig.tiling,
               SparseVectorInputBufferWrapperConfig.tiling,
-              entryPoint, false)
+              entryPoint, false, isAsyncMap)
 
       chunkedOutputBuffer = OpenCLBridgeWrapper.getOutputBufferFor[U](
               sampleOutput.asInstanceOf[U], CLConfig.N,
@@ -287,10 +298,10 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       CLConfig.swatContextCache.forThread(threadId)
 
   val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
-          f.getClass.getName, dev_ctx)
+          actualLambda.getClass.getName, dev_ctx)
   if (!mySwatContextCache.hasAny(kernelDeviceKey)) {
     val ctx : Long = OpenCLBridge.createSwatContext(
-              f.getClass.getName, openCL, dev_ctx, threadId,
+              actualLambda.getClass.getName, openCL, dev_ctx, threadId,
               entryPoint.requiresDoublePragma,
               entryPoint.requiresHeap, CLConfig.N)
     mySwatContextCache.add(kernelDeviceKey, ctx)
@@ -316,13 +327,15 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
 
   // try {
     var argnum = outArgNum + nOutArgs
-    
-    val iter = entryPoint.getReferencedClassModelFields.iterator
-    while (iter.hasNext) {
-      val field = iter.next
-      val isBroadcast = entryPoint.isBroadcastField(field)
-      argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, f,
-          field.getName, field.getDescriptor, entryPoint, isBroadcast)
+  
+    if (!isAsyncMap) {
+      val iter = entryPoint.getReferencedClassModelFields.iterator
+      while (iter.hasNext) {
+        val field = iter.next
+        val isBroadcast = entryPoint.isBroadcastField(field)
+        argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, actualLambda,
+            field.getName, field.getDescriptor, entryPoint, isBroadcast)
+      }
     }
 
     if (entryPoint.requiresHeap) {
@@ -545,7 +558,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
       val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
           CLConfig.swatContextCache.forThread(threadId)
       val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
-              f.getClass.getName, dev_ctx)
+              actualLambda.getClass.getName, dev_ctx)
       mySwatContextCache.add(kernelDeviceKey, ctx)
 
       val myInputBufferCache : PerThreadCache[String, InputBufferWrapper[_]] =

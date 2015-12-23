@@ -55,7 +55,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
   }
 
   override def getCurrentNativeBuffers : NativeInputBuffers[DenseVector] = nativeBuffers
-  override def setCurrentNativeBuffers(set : NativeInputBuffers[DenseVector]) {
+  override def setCurrentNativeBuffers(set : NativeInputBuffers[_]) {
     nativeBuffers = set.asInstanceOf[DenseVectorNativeInputBuffers]
   }
 
@@ -153,7 +153,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
   }
 
   override def transferOverflowTo(
-          otherAbstract : NativeInputBuffers[DenseVector]) :
+          otherAbstract : NativeInputBuffers[_]) :
           NativeInputBuffers[DenseVector] = {
     // setupNativeBuffersForCopy must have been called beforehand
     assert(nativeBuffers.vectorsToCopy != -1 && nativeBuffers.elementsToCopy != -1)

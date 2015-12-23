@@ -4,9 +4,10 @@ import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import com.amd.aparapi.internal.model.HardCodedClassModels
 
-object ArrayAllocTest extends CodeGenTest[Int, Int] {
+object ArrayAllocTest extends SyncCodeGenTest[Int, Int] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

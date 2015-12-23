@@ -4,6 +4,7 @@ import scala.math._
 import java.util.LinkedList
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
@@ -24,7 +25,7 @@ class PointWithClassifier(val x: Float, val y: Float, val z: Float)
   }
 }
 
-object KMeansTest extends CodeGenTest[PointWithClassifier, (Int, PointWithClassifier)] {
+object KMeansTest extends SyncCodeGenTest[PointWithClassifier, (Int, PointWithClassifier)] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }

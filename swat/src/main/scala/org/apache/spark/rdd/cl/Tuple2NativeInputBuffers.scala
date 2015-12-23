@@ -2,8 +2,6 @@ package org.apache.spark.rdd.cl
 
 import scala.reflect.ClassTag
 
-import org.apache.spark.mllib.linalg.DenseVector
-
 class Tuple2NativeInputBuffers[K : ClassTag, V : ClassTag](
         val buffer1 : InputBufferWrapper[K], val buffer2 : InputBufferWrapper[V],
         val firstMemberUsed : Boolean, val secondMemberUsed : Boolean,
