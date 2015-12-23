@@ -16,6 +16,10 @@ object CodeGenUtil {
     return typeString.equals("I") || typeString.equals("D") || typeString.equals("F")
   }
 
+  def isPrimitiveArray(typeString : String) : Boolean = {
+    return typeString.startsWith("[") && isPrimitive(typeString.substring(1))
+  }
+
   def getPrimitiveTypeForDescriptor(descString : String) : String = {
     if (descString.equals("I")) {
       return "int"
@@ -31,9 +35,12 @@ object CodeGenUtil {
   def getClassForDescriptor(descString : String) : Class[_] = {
     if (isPrimitive(descString)) {
       return null
+    } else if (isPrimitiveArray(descString)) {
+      return null
     }
 
     var className : String = getTypeForDescriptor(descString)
+    System.err.println(className + " " + descString)
     return Class.forName(className.trim)
   }
 
