@@ -14,25 +14,28 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PointWithClassifier_s org_apache_spark_rdd_cl_tests_PointWithClassifier;
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier_s scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_KMeansTest$_s org_apache_spark_rdd_cl_tests_KMeansTest$;
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PointWithClassifier_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PointWithClassifier_s{
    float  z;
    float  y;
    float  x;
    
-} org_apache_spark_rdd_cl_tests_PointWithClassifier;
+};
 
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_KMeansTest$_s{
-   
-} org_apache_spark_rdd_cl_tests_KMeansTest$;
-
-
-typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier_s{
+struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier_s{
    __global org_apache_spark_rdd_cl_tests_PointWithClassifier  * _2;
    int  _1;
    
-} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier;
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_KMeansTest$_s{
+   
+};
 
 typedef struct This_s{
    __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier *centers$1;

@@ -7,19 +7,21 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
+typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s org_apache_spark_mllib_linalg_SparseVector;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$_s org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$;
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$_s{
-   
-} org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$;
-
-
-typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s{
+struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s{
    __global int*  indices;
    __global double*  values;
    int  size;
    int  tiling;
    
-} org_apache_spark_mllib_linalg_SparseVector;
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$_s{
+   
+};
 
 typedef struct This_s{
    __global org_apache_spark_mllib_linalg_SparseVector *broadcast$1; ;

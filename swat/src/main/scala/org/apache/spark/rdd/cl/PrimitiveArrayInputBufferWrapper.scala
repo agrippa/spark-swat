@@ -15,7 +15,7 @@ import com.amd.aparapi.internal.util.UnsafeWrapper
 import com.amd.aparapi.internal.writer.KernelWriter
 
 object PrimitiveArrayInputBufferWrapperConfig {
-  val tiling : Int = 32
+  val tiling : Int = 1
 }
 
 class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : Int,
