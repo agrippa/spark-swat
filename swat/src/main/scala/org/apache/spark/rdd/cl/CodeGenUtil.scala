@@ -40,7 +40,6 @@ object CodeGenUtil {
     }
 
     var className : String = getTypeForDescriptor(descString)
-    System.err.println(className + " " + descString)
     return Class.forName(className.trim)
   }
 

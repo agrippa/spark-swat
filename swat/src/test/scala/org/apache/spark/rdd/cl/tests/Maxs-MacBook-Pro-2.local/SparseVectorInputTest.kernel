@@ -24,6 +24,7 @@ typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVect
    __global int*  indices;
    __global double*  values;
    int  size;
+   int  tiling;
    
 } org_apache_spark_mllib_linalg_SparseVector;
 
@@ -41,13 +42,6 @@ typedef struct This_s{
    unsigned int heap_size;
    } This;
 
-static __global scala_Tuple2_I_D *scala_Tuple2_I_D___init_(__global scala_Tuple2_I_D *this, int  one, double  two) {
-   this->_1 = one;
-   this->_2 = two;
-   return this;
-}
-
-
 static int org_apache_spark_mllib_linalg_SparseVector__size(__global org_apache_spark_mllib_linalg_SparseVector *this) {
     return (this->size);
 }
@@ -62,6 +56,13 @@ static __global double *org_apache_spark_mllib_linalg_SparseVector__values(__glo
     return (this->values);
 }
 
+
+static __global scala_Tuple2_I_D *scala_Tuple2_I_D___init_(__global scala_Tuple2_I_D *this, int  one, double  two) {
+   this->_1 = one;
+   this->_2 = two;
+   return this;
+}
+
 static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_SparseVector* in){
 
    return(
@@ -72,8 +73,8 @@ static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInpu
       int i = 0;
       for (; i<org_apache_spark_mllib_linalg_SparseVector__size(in); i = i + 1){
       
-         indexSum = indexSum + org_apache_spark_mllib_linalg_SparseVector__indices(in)[32 * (i)];
-         valueSum = valueSum + org_apache_spark_mllib_linalg_SparseVector__values(in)[32 * (i)];
+         indexSum = indexSum + org_apache_spark_mllib_linalg_SparseVector__indices(in)[in->tiling * (i)];
+         valueSum = valueSum + org_apache_spark_mllib_linalg_SparseVector__values(in)[in->tiling * (i)];
       }
       ;
       __global scala_Tuple2_I_D * __alloc0 = (__global scala_Tuple2_I_D *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_D), &this->alloc_failed);
@@ -82,8 +83,8 @@ static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInpu
    });
 }
 __kernel void run(
-      __global org_apache_spark_mllib_linalg_SparseVector* in0, __global int *in0_indices, __global double *in0_values, __global int *in0_sizes, __global int *in0_offsets, int nin0, 
-      __global int * out_1, __global double * out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+      __global org_apache_spark_mllib_linalg_SparseVector * restrict in0, __global int * restrict in0_indices, __global double * restrict in0_values, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, int in0_tiling, 
+      __global int * restrict out_1, __global double * restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
@@ -91,15 +92,12 @@ __kernel void run(
    this->heap_size = heap_size;
    __global org_apache_spark_mllib_linalg_SparseVector *my_in0 = in0 + get_global_id(0);
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      if (processing_succeeded[i]) continue;
-      
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
       this->alloc_failed = 0;
-      my_in0->values = in0_values + in0_offsets[i]; my_in0->indices = in0_indices + in0_offsets[i]; my_in0->size = in0_sizes[i];
+      my_in0->values = in0_values + in0_offsets[i]; my_in0->indices = in0_indices + in0_offsets[i]; my_in0->size = in0_sizes[i];my_in0->tiling = in0_tiling;
       __global scala_Tuple2_I_D* result = org_apache_spark_rdd_cl_tests_SparseVectorInputTest$$anon$1__apply(this, in0 + i);
-      if (this->alloc_failed) {
-         processing_succeeded[i] = 0;
-         *any_failed = 1;
-      } else {
+      if (!this->alloc_failed) {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;
          out_2[i] = result->_2;

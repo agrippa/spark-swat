@@ -18,6 +18,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
    __global double*  values;
    int  size;
+   int  tiling;
    
 } org_apache_spark_mllib_linalg_DenseVector;
 
@@ -40,20 +41,20 @@ typedef struct This_s{
    unsigned int heap_size;
    } This;
 
-static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *this, int  one, __global org_apache_spark_mllib_linalg_DenseVector *  two) {
-   this->_1 = one;
-   this->_2 = two;
-   return this;
-}
-
-
 static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this) {
     return (this->size);
 }
 
 
 static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[32 * index];
+    return (this->values)[this->tiling * index];
+}
+
+
+static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *this, int  one, __global org_apache_spark_mllib_linalg_DenseVector *  two) {
+   this->_1 = one;
+   this->_2 = two;
+   return this;
 }
 
 static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_cl_tests_Tuple2DenseOutputTest$$anon$1__apply(This *this, int in){
@@ -74,29 +75,27 @@ static __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *org_ap
       if (this->alloc_failed) { return (0x0); }
       __global org_apache_spark_mllib_linalg_DenseVector * __alloc2 = (__global org_apache_spark_mllib_linalg_DenseVector *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), &this->alloc_failed);
       if (this->alloc_failed) { return (0x0); }
-      scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__alloc1, in, ({ __alloc2->values = arr; __alloc2->size = *(((__global long *)__alloc2->values) - 1); __alloc2; }));
+      scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__alloc1, in, ({ __alloc2->values = arr; __alloc2->size = *(((__global long *)__alloc2->values) - 1); ; __alloc2->tiling = 1; __alloc2; }));
    });
 }
 __kernel void run(
-      __global int* in0, 
-      __global int * out_1, __global org_apache_spark_mllib_linalg_DenseVector* out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+      __global int* restrict in0, 
+      __global int * restrict out_1, __global org_apache_spark_mllib_linalg_DenseVector* restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
    this->free_index = free_index;
    this->heap_size = heap_size;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      if (processing_succeeded[i]) continue;
-      
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
       this->alloc_failed = 0;
       __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector* result = org_apache_spark_rdd_cl_tests_Tuple2DenseOutputTest$$anon$1__apply(this, in0[i]);
-      if (this->alloc_failed) {
-         processing_succeeded[i] = 0;
-         *any_failed = 1;
-      } else {
+      if (!this->alloc_failed) {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;
          result->_2->values = ((__global char *)result->_2->values) - ((__global char *)this->heap);
+         result->_2->tiling = iter;
          out_2[i] = *(result->_2);
       }
    }

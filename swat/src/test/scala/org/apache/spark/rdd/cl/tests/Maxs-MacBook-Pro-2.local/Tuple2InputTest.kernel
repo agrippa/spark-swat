@@ -26,8 +26,8 @@ static int org_apache_spark_rdd_cl_tests_Tuple2InputTest$$anon$1__apply(This *th
    return((in->_1 + in->_2));
 }
 __kernel void run(
-      __global int * in0_1, __global int * in0_2, __global scala_Tuple2_I_I *in0, 
-      __global int* out, int N) {
+      __global int * restrict in0_1, __global int * restrict in0_2, __global scala_Tuple2_I_I * restrict in0, 
+      __global int* restrict out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    __global scala_Tuple2_I_I *my_in0 = in0 + get_global_id(0);

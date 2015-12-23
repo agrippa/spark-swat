@@ -42,8 +42,8 @@ static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$ano
    return(org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply$mcFF$sp(this, in));
 }
 __kernel void run(
-      __global float* in0, 
-      __global float* out, __global org_apache_spark_rdd_cl_tests_Point* arr$1, int arr$1__javaArrayLength, int N) {
+      __global float* restrict in0, 
+      __global float* restrict out, __global org_apache_spark_rdd_cl_tests_Point* restrict arr$1, int arr$1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->arr$1 = arr$1;

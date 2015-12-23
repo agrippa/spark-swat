@@ -27,8 +27,8 @@ static int org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__appl
    return(org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, int N) {
+      __global int* restrict in0, 
+      __global int* restrict out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
