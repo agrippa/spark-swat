@@ -21,6 +21,10 @@ object PrimitiveArrayInputBufferWrapperConfig {
 class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : Int,
         val vectorCapacity : Int, val tiling : Int, val entryPoint : Entrypoint,
         val blockingCopies : Boolean, val firstSample : T) extends InputBufferWrapper[T] {
+  val classModel : ClassModel =
+    entryPoint.getHardCodedClassModels().getClassModelFor(
+        "scala.Array", new UnparameterizedMatcher())
+  val arrayStructSize = classModel.getTotalStructSize
 
   var buffered : Int = 0
 
@@ -124,7 +128,7 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
     buffered
   }
 
-  override def countArgumentsUsed : Int = { 5 }
+  override def countArgumentsUsed : Int = { 6 }
 
   override def haveUnprocessedInputs : Boolean = {
     haveOverrun || buffered > 0
@@ -136,7 +140,8 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
 
   override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T] = {
     new PrimitiveArrayNativeInputBuffers(vectorElementCapacity, vectorCapacity,
-            blockingCopies, tiling, dev_ctx, primitiveElementSize)
+            blockingCopies, tiling, dev_ctx, primitiveElementSize,
+            arrayStructSize)
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {
@@ -207,9 +212,9 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
         id.partition, id.offset, id.component, 3, persistent)) {
       val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
       // Number of vectors
-      OpenCLBridge.setIntArg(ctx, 0 + 3, nVectors)
+      OpenCLBridge.setIntArg(ctx, 0 + 4, nVectors)
       // Tiling
-      OpenCLBridge.setIntArg(ctx, 0 + 4, tiling)
+      OpenCLBridge.setIntArg(ctx, 0 + 5, tiling)
 
       return countArgumentsUsed
     } else {

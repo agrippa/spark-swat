@@ -7,6 +7,7 @@ import com.amd.aparapi.internal.model.Tuple2ClassModel
 import com.amd.aparapi.internal.model.ClassModel
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.model.DenseVectorClassModel
+import com.amd.aparapi.internal.model.ScalaArrayClassModel
 
 import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
@@ -25,7 +26,10 @@ object PrimitiveArrayInputTest extends SyncCodeGenTest[Array[Double], Double] {
   }
 
   def init() : HardCodedClassModels = {
-    new HardCodedClassModels()
+    val models = new HardCodedClassModels()
+    val arrayModel = ScalaArrayClassModel.create("D")
+    models.addClassModelFor(classOf[Array[_]], arrayModel)
+    models
   }
 
   def complete(params : LinkedList[ScalaArrayParameter]) {

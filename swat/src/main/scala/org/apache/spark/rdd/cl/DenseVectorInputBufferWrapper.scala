@@ -25,11 +25,6 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
         val blockingCopies : Boolean)
         extends InputBufferWrapper[DenseVector] {
 
-  // def this(vectorCapacity : Int, tiling : Int, entryPoint : Entrypoint,
-  //         blockingCopies : Boolean) = this(
-  //             vectorCapacity * DenseVectorInputBufferWrapperConfig.avgVecLength,
-  //             vectorCapacity, tiling, entryPoint, blockingCopies)
-
   val classModel : ClassModel =
     entryPoint.getHardCodedClassModels().getClassModelFor(
         "org.apache.spark.mllib.linalg.DenseVector", new UnparameterizedMatcher())
