@@ -60,6 +60,7 @@ object CodeGenTests {
   val asyncTests : ArrayList[AsyncCodeGenTest[_]] =
     new ArrayList[AsyncCodeGenTest[_]]()
   asyncTests.add(AsyncMapTest)
+  asyncTests.add(AsyncPrimitiveArrayInputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
