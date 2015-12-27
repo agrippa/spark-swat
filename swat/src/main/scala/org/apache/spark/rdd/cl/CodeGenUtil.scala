@@ -13,7 +13,7 @@ import com.amd.aparapi.internal.model.Entrypoint
 
 object CodeGenUtil {
   def isPrimitive(typeString : String) : Boolean = {
-    return typeString.equals("I") || typeString.equals("D") || typeString.equals("F")
+    return typeString.equals("I") || typeString.equals("D") || typeString.equals("F") || typeString.equals("B")
   }
 
   def isPrimitiveArray(typeString : String) : Boolean = {
@@ -27,6 +27,8 @@ object CodeGenUtil {
       return "double"
     } else if (descString.equals("F")) {
       return "float"
+    } else if (descString.equals("B")) {
+      return "char"
     } else {
       return null
     }

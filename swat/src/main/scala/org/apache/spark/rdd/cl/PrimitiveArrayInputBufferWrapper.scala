@@ -30,6 +30,8 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
             8
           } else if (primitiveClass.equals(classOf[java.lang.Float])) {
             4
+          } else if (primitiveClass.equals(classOf[java.lang.Byte])) {
+            1
           } else {
               throw new RuntimeException("Unsupported type " + primitiveClass.getName)
           }
@@ -124,7 +126,7 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
     buffered
   }
 
-  override def countArgumentsUsed : Int = { 5 }
+  override def countArgumentsUsed : Int = { 4 }
 
   override def haveUnprocessedInputs : Boolean = {
     haveOverrun || buffered > 0
@@ -208,8 +210,6 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
       val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
       // Number of vectors
       OpenCLBridge.setIntArg(ctx, 0 + 3, nVectors)
-      // Tiling
-      OpenCLBridge.setIntArg(ctx, 0 + 4, tiling)
 
       return countArgumentsUsed
     } else {

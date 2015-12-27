@@ -43,10 +43,8 @@ class PrimitiveArrayNativeInputBuffers[T: ClassTag](val vectorElementCapacity : 
             offsetsBuffer, clOffsetsBuffer, vectorsToCopy * 4)
     // Number of vectors
     OpenCLBridge.setIntArg(ctx, argnum + 3, vectorsToCopy)
-    // Tiling
-    OpenCLBridge.setIntArg(ctx, argnum + 4, tiling)
 
-    return 5
+    return 4
   }
 
   override def next() : T = {

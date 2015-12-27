@@ -55,13 +55,12 @@ static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1
    return(org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply$mcD$sp(this));
 }
 __kernel void run(
-      __global double * restrict arr$1, __global int * restrict arr$1_sizes, __global int * restrict arr$1_offsets, int narr$1, int arr$1__javaArrayLength, 
+      __global double * restrict arr$1, __global int * restrict arr$1_sizes, __global int * restrict arr$1_offsets, int narr$1, 
       __global double* restrict out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       this->arr$1 = arr$1 + arr$1_offsets[i]; this->arr$1__javaArrayLength = arr$1_sizes[i];
-      ;
       out[i] = org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply(this);
       
    }

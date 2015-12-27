@@ -57,6 +57,7 @@ object CodeGenTests {
   syncTests.add(Tuple2ObjectBroadcastTest)
   syncTests.add(PrimitiveArrayInputTest)
   syncTests.add(ArrayOutputTest)
+  syncTests.add(ByteArrayInputTest)
 
   val asyncTests : ArrayList[AsyncCodeGenTest[_]] =
     new ArrayList[AsyncCodeGenTest[_]]()
