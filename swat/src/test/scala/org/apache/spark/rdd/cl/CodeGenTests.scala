@@ -62,6 +62,7 @@ object CodeGenTests {
     new ArrayList[AsyncCodeGenTest[_]]()
   asyncTests.add(AsyncMapTest)
   asyncTests.add(AsyncPrimitiveArrayInputTest)
+  asyncTests.add(AsyncArrayOutputTest)
 
   def verifyCodeGen(lambda : java.lang.Object, expectedKernel : String,
       expectedNumArguments : Int, testName : String, expectedException : String,
