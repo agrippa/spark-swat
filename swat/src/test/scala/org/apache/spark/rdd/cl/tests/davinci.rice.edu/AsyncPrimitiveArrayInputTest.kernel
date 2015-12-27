@@ -60,8 +60,8 @@ __kernel void run(
    This thisStruct;
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      this->arr$1 = arr$1 + arr$1_offsets[i];
-      this->arr$1__javaArrayLength = arr$1__javaArrayLength;
+      this->arr$1 = arr$1 + arr$1_offsets[i]; this->arr$1__javaArrayLength = arr$1_sizes[i];
+      ;
       out[i] = org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply(this);
       
    }

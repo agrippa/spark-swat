@@ -62,6 +62,8 @@ object SparkSimple {
 
         val outputs1 : RDD[Double] = inputs.mapAsync(
                 (v: Array[Double], stream: AsyncOutputStream[Double]) => {
+                  val scalar : Double = 42.0
+
                   stream.spawn(() => {
                     var sum : Double = 0.0
                     var i : Int = 0
@@ -69,6 +71,8 @@ object SparkSimple {
                       sum += v(i)
                       i += 1
                     }
+                    sum = v.length
+                    sum = sum * scalar
                     sum
                   })
                 })
