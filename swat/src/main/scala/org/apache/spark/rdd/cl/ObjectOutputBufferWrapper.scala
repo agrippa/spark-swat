@@ -55,10 +55,6 @@ class ObjectOutputBufferWrapper[T : ClassTag](val className : String,
 
   override def countArgumentsUsed() : Int = { 1 }
 
-  override def getNativeOutputBufferInfo() : Array[Int] = {
-    Array(structSize * N)
-  }
-
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
           NativeOutputBuffers[T] = {

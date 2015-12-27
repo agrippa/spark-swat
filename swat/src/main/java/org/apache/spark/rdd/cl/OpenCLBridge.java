@@ -139,6 +139,8 @@ public class OpenCLBridge {
             long[] heapBuffers, long infoBuffer, int slot, int structSize,
             int offsetOffset, int offsetSize, int sizeOffset, int iterOffset,
             boolean isIndices);
+    public static native Object getArrayValuesFromOutputBuffers(long[] heapBuffers,
+            long infoBuffer, long itersBuffer, int slot, int primitiveType);
 
     public static native void deserializeStridedValuesFromNativeArray(
             Object[] bufferTo, int nToBuffer, long valuesBuffer,

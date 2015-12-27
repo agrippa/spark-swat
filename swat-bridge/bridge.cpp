@@ -1426,11 +1426,69 @@ JNI_JAVA(void, OpenCLBridge, deserializeStridedIndicesFromNativeArray)(
     EXIT_TRACE("deserializeStridedIndicesFromNativeArray");
 }
 
+JNI_JAVA(jobject, OpenCLBridge, getArrayValuesFromOutputBuffers)(JNIEnv *jenv,
+        jclass clazz, jlongArray heapBuffers, jlong infoBuffer,
+        jlong itersBuffer, jint slot, jint primitiveType) {
+    ENTER_TRACE("getArrayValuesFromOutputBuffers");
+
+    // Get offset in output buffer of offset in heap
+    char *info = ((char *)infoBuffer) + (slot * sizeof(int));
+
+    int offset_in_heap = *((int *)info);
+
+    int *iters = (int *)itersBuffer;
+    ASSERT(iters);
+    int iter = iters[slot];
+
+    long *buffers = (long *)jenv->GetPrimitiveArrayCritical(heapBuffers, NULL);
+    ASSERT(buffers);
+    char *heapBuffer = (char *)buffers[iter];
+    jenv->ReleasePrimitiveArrayCritical(heapBuffers, buffers, JNI_ABORT);
+
+    void *valuesInHeap = (void *)(heapBuffer + offset_in_heap);
+
+    long arrayLengthInElements = *(((long *)valuesInHeap) - 1);
+
+    jarray resultArray;
+    int primitiveTypeSize;
+    switch (primitiveType) {
+        case (1337): {
+            // int
+            resultArray = jenv->NewIntArray(arrayLengthInElements);
+            primitiveTypeSize = 4;
+            break;
+        }
+        case (1338): {
+            // float
+            resultArray = jenv->NewFloatArray(arrayLengthInElements);
+            primitiveTypeSize = 4;
+            break;
+        }
+        case (1339): {
+            // double
+            resultArray = jenv->NewDoubleArray(arrayLengthInElements);
+            primitiveTypeSize = 8;
+            break;
+        }
+        default:
+            fprintf(stderr, "Unexpected primitiveType = %d\n", primitiveType);
+            exit(1);
+    }
+
+    void *arr = jenv->GetPrimitiveArrayCritical(resultArray, NULL);
+    CHECK_JNI(arr);
+    memcpy(arr, valuesInHeap, arrayLengthInElements * primitiveTypeSize);
+    jenv->ReleasePrimitiveArrayCritical(resultArray, arr, 0);
+
+    EXIT_TRACE("getArrayValuesFromOutputBuffers");
+    return resultArray;
+}
+
 JNI_JAVA(jobject, OpenCLBridge, getVectorValuesFromOutputBuffers)(
         JNIEnv *jenv, jclass clazz, jlongArray heapBuffers, jlong infoBuffer,
         jint slot, jint structSize, jint offsetOffset, jint offsetSize, jint sizeOffset,
         jint iterOffset, jboolean isIndices) {
-    ENTER_TRACE("getDenseVectorValuesFromOutputBuffers");
+    ENTER_TRACE("getVectorValuesFromOutputBuffers");
     const int slotOffset = slot * structSize;
     char *info = ((char *)infoBuffer) + slotOffset;
 
@@ -1482,7 +1540,7 @@ JNI_JAVA(jobject, OpenCLBridge, getVectorValuesFromOutputBuffers)(
         jenv->ReleasePrimitiveArrayCritical(jvmArray, arr, 0);
         resultArray = jvmArray;
     }
-    EXIT_TRACE("getDenseVectorValuesFromOutputBuffers");
+    EXIT_TRACE("getVectorValuesFromOutputBuffers");
     return resultArray;
 }
 
@@ -2088,9 +2146,9 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
                 kernel_ctx->heapStartArgnum);
         kernel_ctx->curr_heap_ctx = heap_ctx;
 #ifdef VERBOSE
-        fprintf(stderr, "thread=%d ctx=%p got heap %u on device %d\n",
-                ctx->host_thread_index, ctx, heap_ctx->id,
-                dev_ctx->device_index);
+        fprintf(stderr, "thread=%d ctx=%p got heap %u on device %d at arg "
+                "index %d\n", ctx->host_thread_index, ctx, heap_ctx->id,
+                dev_ctx->device_index, kernel_ctx->heapStartArgnum);
 #endif
 
         free_index_mem = heap_ctx->free_index;

@@ -37,10 +37,6 @@ class LambdaOutputBuffer[T : ClassTag, U : ClassTag](f : T => U,
     throw new java.lang.UnsupportedOperationException()
   }
 
-  override def getNativeOutputBufferInfo() : Array[Int] = {
-    throw new java.lang.UnsupportedOperationException()
-  }
-
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : U, entryPoint : Entrypoint) :
           NativeOutputBuffers[U] = {

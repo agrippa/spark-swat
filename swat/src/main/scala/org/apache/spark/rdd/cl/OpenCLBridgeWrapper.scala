@@ -424,6 +424,9 @@ object OpenCLBridgeWrapper {
         new Tuple2OutputBufferWrapper(
                 sampleOutput.asInstanceOf[Tuple2[_, _]], N, entryPoint,
                 devicePointerSize, heapSize).asInstanceOf[OutputBufferWrapper[T]]
+    } else if (className.startsWith("[")) {
+        new PrimitiveArrayOutputBufferWrapper(N, devicePointerSize, heapSize,
+            sampleOutput).asInstanceOf[OutputBufferWrapper[T]]
     } else {
         new ObjectOutputBufferWrapper[T](className, N,
                 entryPoint).asInstanceOf[OutputBufferWrapper[T]]

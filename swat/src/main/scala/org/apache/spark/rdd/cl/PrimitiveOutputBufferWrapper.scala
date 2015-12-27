@@ -41,10 +41,6 @@ class PrimitiveOutputBufferWrapper[T : ClassTag](val N : Int) extends OutputBuff
             nLoaded * eleSize)
   }
 
-  override def getNativeOutputBufferInfo() : Array[Int] = {
-    Array(eleSize * N)
-  }
-
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
           NativeOutputBuffers[T] = {

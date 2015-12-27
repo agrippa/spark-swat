@@ -62,10 +62,6 @@ class SparseVectorOutputBufferWrapper(val N : Int, val devicePointerSize : Int,
             maxBuffers)
   }
 
-  override def getNativeOutputBufferInfo() : Array[Int] = {
-    Array(outArgLength)
-  }
-
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : SparseVector, entryPoint : Entrypoint) :
           NativeOutputBuffers[SparseVector] = {

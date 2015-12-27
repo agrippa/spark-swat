@@ -289,7 +289,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
    * When used as an output, only Tuple2 uses two arguments. All other types
    * use one.
    */
-  val nOutArgs : Int = if (sampleOutput.isInstanceOf[Tuple2[_, _]]) 2 else 1
+  val nOutArgs : Int = if (sampleOutput.isInstanceOf[Tuple2[_, _]] || sampleOutput.isInstanceOf[Array[_]]) 2 else 1
   var heapArgStart : Int = -1
   var lastArgIndex : Int = -1
   var heapTopArgNum : Int = -1

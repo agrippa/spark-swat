@@ -47,22 +47,6 @@ class Tuple2OutputBufferWrapper[K : ClassTag, V : ClassTag](
     member1OutputBuffer.fillFrom(kernel_ctx, tuple2OutputBuffers.nestedBuffer2)
   }
 
-  override def getNativeOutputBufferInfo() : Array[Int] = {
-    val member0Info : Array[Int] = member0OutputBuffer.getNativeOutputBufferInfo
-    val member1Info : Array[Int] = member1OutputBuffer.getNativeOutputBufferInfo
-    val mergedLength : Int = member0Info.length + member1Info.length
-    val myInfo : Array[Int] = new Array[Int](mergedLength)
-
-    for (i <- 0 until member0Info.length) {
-      myInfo(i) = member0Info(i)
-    }
-    for (i <- 0 until member1Info.length) {
-      myInfo(member0Info.length + i) = member1Info(i)
-    }
-
-    return myInfo
-  }
-
   override def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : Tuple2[K, V], entryPoint : Entrypoint) :
           NativeOutputBuffers[Tuple2[K, V]] = {

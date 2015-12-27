@@ -23,8 +23,6 @@ trait OutputBufferWrapper[T] {
    */
   def fillFrom(kernel_ctx : Long, nativeOutputBuffers : NativeOutputBuffers[T])
 
-  def getNativeOutputBufferInfo() : Array[Int]
-
   def generateNativeOutputBuffer(N : Int, outArgNum : Int, dev_ctx : Long,
           ctx : Long, sampleOutput : T, entryPoint : Entrypoint) :
           NativeOutputBuffers[T]
