@@ -21,19 +21,14 @@ object PrimitiveArrayInputBufferWrapperConfig {
 class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : Int,
         val vectorCapacity : Int, val tiling : Int, val entryPoint : Entrypoint,
         val blockingCopies : Boolean, val firstSample : T) extends InputBufferWrapper[T] {
-  val classModel : ClassModel =
-    entryPoint.getHardCodedClassModels().getClassModelFor(
-        "scala.Array", new UnparameterizedMatcher())
-  val arrayStructSize = classModel.getTotalStructSize
-
   var buffered : Int = 0
 
   val primitiveClass = firstSample.asInstanceOf[Array[_]](0).getClass
-  val primitiveElementSize = if (primitiveClass.equals(classOf[Int])) {
+  val primitiveElementSize = if (primitiveClass.equals(classOf[java.lang.Integer])) {
             4
-          } else if (primitiveClass.equals(classOf[Double])) {
+          } else if (primitiveClass.equals(classOf[java.lang.Double])) {
             8
-          } else if (primitiveClass.equals(classOf[Float])) {
+          } else if (primitiveClass.equals(classOf[java.lang.Float])) {
             4
           } else {
               throw new RuntimeException("Unsupported type " + primitiveClass.getName)
@@ -46,7 +41,8 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
   var nativeBuffers : PrimitiveArrayNativeInputBuffers[T] = null
   var bufferPosition : Int = 0
 
-  val overrun : Array[Option[T]] = new Array[Option[T]](tiling)
+  private val overrun : Array[Option[T]] = new Array[Option[T]](tiling)
+  for (i <- 0 until tiling) { overrun(i) = None }
   var haveOverrun : Boolean = false
 
 //   var sumVectorLengths : Int = 0 // PROFILE
@@ -128,7 +124,7 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
     buffered
   }
 
-  override def countArgumentsUsed : Int = { 6 }
+  override def countArgumentsUsed : Int = { 5 }
 
   override def haveUnprocessedInputs : Boolean = {
     haveOverrun || buffered > 0
@@ -140,8 +136,7 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
 
   override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[T] = {
     new PrimitiveArrayNativeInputBuffers(vectorElementCapacity, vectorCapacity,
-            blockingCopies, tiling, dev_ctx, primitiveElementSize,
-            arrayStructSize)
+            blockingCopies, tiling, dev_ctx, primitiveElementSize)
   }
 
   override def setupNativeBuffersForCopy(limit : Int) {
@@ -212,9 +207,9 @@ class PrimitiveArrayInputBufferWrapper[T: ClassTag](val vectorElementCapacity : 
         id.partition, id.offset, id.component, 3, persistent)) {
       val nVectors : Int = OpenCLBridge.fetchNLoaded(id.rdd, id.partition, id.offset)
       // Number of vectors
-      OpenCLBridge.setIntArg(ctx, 0 + 4, nVectors)
+      OpenCLBridge.setIntArg(ctx, 0 + 3, nVectors)
       // Tiling
-      OpenCLBridge.setIntArg(ctx, 0 + 5, tiling)
+      OpenCLBridge.setIntArg(ctx, 0 + 4, tiling)
 
       return countArgumentsUsed
     } else {

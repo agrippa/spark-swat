@@ -21,11 +21,12 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
         val sample : Tuple2[K, V], entryPoint : Entrypoint,
         sparseVectorSizeHandler : Option[Function[Int, Int]],
         denseVectorSizeHandler : Option[Function[Int, Int]],
+        primitiveArraySizeHandler : Option[Function[Int, Int]],
         val isInput : Boolean, val blockingCopies : Boolean) extends InputBufferWrapper[Tuple2[K, V]] {
 
   def this(nele : Int, sample : Tuple2[K, V], entryPoint : Entrypoint,
           blockingCopies : Boolean) =
-      this(nele, sample, entryPoint, None, None, true, blockingCopies)
+      this(nele, sample, entryPoint, None, None, None, true, blockingCopies)
 
   val firstElementLengthHint = RuntimeUtil.getElementVectorLengthHint(
           sample._1)
@@ -63,12 +64,16 @@ class Tuple2InputBufferWrapper[K : ClassTag, V : ClassTag](val nele : Int,
 
   val buffer1 = OpenCLBridgeWrapper.getInputBufferFor[K](nele,
           entryPoint, sample._1.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, firstElementLengthHint, blockingCopies)
+          denseVectorSizeHandler, primitiveArraySizeHandler,
+          DenseVectorInputBufferWrapperConfig.tiling,
+          SparseVectorInputBufferWrapperConfig.tiling, firstElementLengthHint,
+          blockingCopies, sample._1)
   val buffer2 = OpenCLBridgeWrapper.getInputBufferFor[V](nele,
           entryPoint, sample._2.getClass.getName, sparseVectorSizeHandler,
-          denseVectorSizeHandler, DenseVectorInputBufferWrapperConfig.tiling,
-          SparseVectorInputBufferWrapperConfig.tiling, secondElementLengthHint, blockingCopies)
+          denseVectorSizeHandler, primitiveArraySizeHandler,
+          DenseVectorInputBufferWrapperConfig.tiling,
+          SparseVectorInputBufferWrapperConfig.tiling, secondElementLengthHint,
+          blockingCopies, sample._2)
   val firstMemberNumArgs = if (firstMemberSize > 0) buffer1.countArgumentsUsed else 1
   val secondMemberNumArgs = if (secondMemberSize > 0) buffer2.countArgumentsUsed else 1
 

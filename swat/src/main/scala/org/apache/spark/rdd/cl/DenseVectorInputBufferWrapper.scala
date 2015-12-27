@@ -39,7 +39,7 @@ class DenseVectorInputBufferWrapper(val vectorElementCapacity : Int,
   var nativeBuffers : DenseVectorNativeInputBuffers = null
   var bufferPosition : Int = 0
 
-  val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
+  private val overrun : Array[DenseVector] = new Array[DenseVector](tiling)
   var haveOverrun : Boolean = false
 
 //   var sumVectorLengths : Int = 0 // PROFILE

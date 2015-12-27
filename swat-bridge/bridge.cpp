@@ -2763,8 +2763,8 @@ JNI_JAVA(jint, OpenCLBridge, serializeStridedPrimitiveArraysToNativeBuffer)
 
         for (int j = 0; j < vectorLength; j++) {
             const size_t ele_offset = offset + (j * tiling);
-            memcpy(serialized + ele_offset + primitiveElementSize,
-                    arrayValues + (j * primitiveElementSize),
+            memcpy(serialized + ele_offset * primitiveElementSize,
+                    arrayValues + j * primitiveElementSize,
                     primitiveElementSize);
         }
 

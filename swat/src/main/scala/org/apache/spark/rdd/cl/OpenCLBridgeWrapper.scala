@@ -214,11 +214,13 @@ object OpenCLBridgeWrapper {
     }
   }
 
-  def getInputBufferFor[T](argLength : Int, entryPoint : Entrypoint,
-          className : String, sparseVectorSizeHandler : Option[Function[Int, Int]],
+  def getInputBufferFor[T : ClassTag](argLength : Int, entryPoint : Entrypoint,
+          className : String,
+          sparseVectorSizeHandler : Option[Function[Int, Int]],
           denseVectorSizeHandler : Option[Function[Int, Int]],
+          primitiveArraySizeHandler : Option[Function[Int, Int]],
           denseVectorTiling : Int, sparseVectorTiling : Int,
-          vectorLengthHint : Int, blockingCopies : Boolean) :
+          vectorLengthHint : Int, blockingCopies : Boolean, sample : T) :
           InputBufferWrapper[T] = {
     val result = className match {
       case "java.lang.Integer" => {
@@ -254,8 +256,20 @@ object OpenCLBridgeWrapper {
           }
       }
       case _ => {
-          new ObjectInputBufferWrapper(argLength, className,
-                  entryPoint, blockingCopies)
+          if (className.startsWith("[")) {
+            if (primitiveArraySizeHandler.isEmpty) {
+              assert(vectorLengthHint > 0)
+              new PrimitiveArrayInputBufferWrapper(vectorLengthHint * argLength,
+                      argLength, 1, entryPoint, blockingCopies, sample)
+            } else {
+              new PrimitiveArrayInputBufferWrapper(getMaxSparseElementIndexFor(
+                          primitiveArraySizeHandler.get, argLength), argLength,
+                          1, entryPoint, blockingCopies, sample)
+            }
+          } else {
+            new ObjectInputBufferWrapper(argLength, className,
+                    entryPoint, blockingCopies)
+          }
       }
     }
     result.asInstanceOf[InputBufferWrapper[T]]
@@ -291,9 +305,9 @@ object OpenCLBridgeWrapper {
           } else {
             val inputBuffer = new Tuple2InputBufferWrapper(
                     argLength, sample, entryPoint,
-                    Some((i) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
-                    Some((i) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size),
-                    isInput, true)
+                    Some((i : Int) => arrOfTuples(i)._1.asInstanceOf[SparseVector].size),
+                    Some((i : Int) => arrOfTuples(i)._1.asInstanceOf[DenseVector].size),
+                    None, isInput, true)
             inputBuffer.selfAllocate(dev_ctx)
 
             for (eleIndex <- 0 until argLength) {

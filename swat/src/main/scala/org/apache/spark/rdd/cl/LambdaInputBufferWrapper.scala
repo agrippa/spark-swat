@@ -22,12 +22,13 @@ class LambdaInputBufferWrapper[L: ClassTag](val nele : Int, val sample : L,
         val lambdaEntrypoint : Entrypoint,
         val sparseVectorSizeHandler : Option[Function[Int, Int]],
         val denseVectorSizeHandler : Option[Function[Int, Int]],
+        val primitiveArraySizeHandler : Option[Function[Int, Int]],
         val isInput : Boolean, val blockingCopies : Boolean)
         extends InputBufferWrapper[L] {
 
   def this(nele : Int, sample : L, entryPoint : Entrypoint,
           blockingCopies : Boolean) =
-      this(nele, sample, entryPoint, None, None, true, blockingCopies)
+      this(nele, sample, entryPoint, None, None, None, true, blockingCopies)
 
   val lambdaClassModel = lambdaEntrypoint.getClassModel
   val structMembers : java.util.ArrayList[FieldNameInfo] = lambdaClassModel.getStructMembers
@@ -51,12 +52,26 @@ class LambdaInputBufferWrapper[L: ClassTag](val nele : Int, val sample : L,
 
     fields(index) = javaField
     fieldSizes(index) = lambdaEntrypoint.getSizeOf(fieldDesc)
+    val primitiveArraySizeLambda = (i : Int) => {
+      if (fieldSample.isInstanceOf[Array[Int]]) {
+        fieldSample.asInstanceOf[Array[Int]].size
+      } else if (fieldSample.isInstanceOf[Array[Double]]) {
+        fieldSample.asInstanceOf[Array[Double]].size
+      } else if (fieldSample.isInstanceOf[Array[Float]]) {
+        fieldSample.asInstanceOf[Array[Float]].size
+      } else {
+        fieldSample.asInstanceOf[Array[_]].size
+      }
+    }
     buffers(index) = OpenCLBridgeWrapper.getInputBufferFor(nele,
             lambdaEntrypoint, fieldSample.getClass.getName,
-            sparseVectorSizeHandler, denseVectorSizeHandler,
+            Some((i : Int) => fieldSample.asInstanceOf[SparseVector].size),
+            Some((i : Int) => fieldSample.asInstanceOf[DenseVector].size),
+            Some(primitiveArraySizeLambda),
             DenseVectorInputBufferWrapperConfig.tiling,
             SparseVectorInputBufferWrapperConfig.tiling,
-            RuntimeUtil.getElementVectorLengthHint(fieldSample), blockingCopies)
+            RuntimeUtil.getElementVectorLengthHint(fieldSample), blockingCopies,
+            fieldSample)
     fieldNumArgs(index) = if (fieldSizes(index) > 0) buffers(index).countArgumentsUsed else 1
 
     index += 1
@@ -180,7 +195,6 @@ class LambdaInputBufferWrapper[L: ClassTag](val nele : Int, val sample : L,
   }
 
   override def generateNativeInputBuffer(dev_ctx : Long) : NativeInputBuffers[L] = {
-    //TODO
     new LambdaNativeInputBuffers(nReferencedFields, buffers, fieldSizes,
             fieldNumArgs, dev_ctx)
   }

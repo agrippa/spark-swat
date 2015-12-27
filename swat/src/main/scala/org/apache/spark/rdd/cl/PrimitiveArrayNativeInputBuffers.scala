@@ -4,8 +4,8 @@ import scala.reflect.ClassTag
 
 class PrimitiveArrayNativeInputBuffers[T: ClassTag](val vectorElementCapacity : Int,
         val vectorCapacity : Int, val blockingCopies : Boolean,
-        val tiling : Int, val dev_ctx : Long, val primitiveElementSize : Int,
-        val arrayStructSize : Int) extends NativeInputBuffers[T] {
+        val tiling : Int, val dev_ctx : Long, val primitiveElementSize : Int)
+        extends NativeInputBuffers[T] {
   val clValuesBuffer : Long = OpenCLBridge.clMalloc(dev_ctx, vectorElementCapacity * primitiveElementSize)
   val valuesBuffer : Long = OpenCLBridge.pin(dev_ctx, clValuesBuffer)
 
@@ -32,9 +32,6 @@ class PrimitiveArrayNativeInputBuffers[T: ClassTag](val vectorElementCapacity : 
   override def copyToDevice(argnum : Int, ctx : Long, dev_ctx : Long,
       cacheID : CLCacheID, persistent : Boolean) : Int = {
 
-    // Array of structs for each item
-    OpenCLBridge.setArgUnitialized(ctx, dev_ctx, argnum,
-            arrayStructSize * vectorCapacity, persistent)
     // values array
     OpenCLBridge.setNativePinnedArrayArg(ctx, dev_ctx, argnum, valuesBuffer,
             clValuesBuffer, elementsToCopy * primitiveElementSize)
@@ -49,7 +46,7 @@ class PrimitiveArrayNativeInputBuffers[T: ClassTag](val vectorElementCapacity : 
     // Tiling
     OpenCLBridge.setIntArg(ctx, argnum + 4, tiling)
 
-    return 6
+    return 5
   }
 
   override def next() : T = {
