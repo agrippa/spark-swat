@@ -60,12 +60,12 @@ object SparkSimple {
 
         val inputs = CLWrapper.cl[Double](inputs_raw, useSwat)
 
-        val outputs1 : RDD[Double] = inputs.mapAsync(
-                (v: Double, stream: AsyncOutputStream[Double]) => {
-                  stream.spawn(() => v)
+        val outputs1 : RDD[Tuple2[Double, Option[Int]]] = inputs.mapAsync(
+                (v: Double, stream: AsyncOutputStream[Double, Int]) => {
+                  stream.spawn(() => v, None)
                 })
 
-        val outputs : Array[Double] = outputs1.collect
+        val outputs : Array[Double] = outputs1.map(v => v._1).collect
         sc.stop
         outputs
     }

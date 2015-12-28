@@ -60,8 +60,8 @@ object SparkSimple {
 
         val inputs = CLWrapper.cl[Array[Double]](inputs_raw, useSwat)
 
-        val outputs1 : RDD[Double] = inputs.mapAsync(
-                (v: Array[Double], stream: AsyncOutputStream[Double]) => {
+        val outputs1 : RDD[Tuple2[Double, Option[Int]]] = inputs.mapAsync(
+                (v: Array[Double], stream: AsyncOutputStream[Double, Int]) => {
                   val scalar : Double = 42.0
 
                   stream.spawn(() => {
@@ -74,10 +74,10 @@ object SparkSimple {
                     sum = sum + v.length
                     sum = sum * scalar
                     sum
-                  })
+                  }, None)
                 })
 
-        val outputs : Array[Double] = outputs1.collect
+        val outputs : Array[Double] = outputs1.map(v => v._1).collect
         sc.stop
         outputs
     }

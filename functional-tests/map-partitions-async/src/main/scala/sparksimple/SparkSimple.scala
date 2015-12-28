@@ -60,8 +60,8 @@ object SparkSimple {
 
         val inputs = CLWrapper.cl[Array[Byte]](inputs_raw, useSwat)
 
-        val outputs1 : RDD[Int] = inputs.mapPartitionsAsync(
-                (v1_iter: Iterator[Array[Byte]], stream: AsyncOutputStream[Int]) => {
+        val outputs1 : RDD[Tuple2[Int, Option[Int]]] = inputs.mapPartitionsAsync(
+                (v1_iter: Iterator[Array[Byte]], stream: AsyncOutputStream[Int, Int]) => {
                   for (v1 <- v1_iter) {
                     val v2 : Array[Byte] = new Array[Byte](v1.length)
                     for (i <- 0 until v2.length) {
@@ -76,11 +76,11 @@ object SparkSimple {
                         i += 1
                       }
                       sum
-                    })
+                    }, None)
                   }
                 })
 
-        val outputs : Array[Int] = outputs1.collect
+        val outputs : Array[Int] = outputs1.map(v => v._1).collect
         sc.stop
         outputs
     }

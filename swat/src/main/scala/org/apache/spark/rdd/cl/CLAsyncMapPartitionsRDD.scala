@@ -29,25 +29,26 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-class CLAsyncMapPartitionsRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
-    val f: (Iterator[T], AsyncOutputStream[U]) => Unit, val useSwat : Boolean)
-    extends RDD[U](prev) {
+class CLAsyncMapPartitionsRDD[U: ClassTag, T: ClassTag, M: ClassTag](
+    val prev: RDD[T], val f: (Iterator[T], AsyncOutputStream[U, M]) => Unit,
+    val useSwat : Boolean) extends RDD[Tuple2[U, Option[M]]](prev) {
 
   override val partitioner = firstParent[T].partitioner
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
+  override def compute(split: Partition, context: TaskContext) : Iterator[Tuple2[U, Option[M]]] = {
     val nested = firstParent[T].iterator(split, context)
     val threadId : Int = RuntimeUtil.getThreadID
 
     if (!useSwat) {
-      val outStream : JVMAsyncOutputStream[U] = new JVMAsyncOutputStream(false)
+      val outStream : JVMAsyncOutputStream[U, M] =
+          new JVMAsyncOutputStream[U, M](false)
 
       f(nested, outStream)
 
-      return new Iterator[U] {
-        def next() : U = { outStream.pop.get }
+      return new Iterator[Tuple2[U, Option[M]]] {
+        def next() : Tuple2[U, Option[M]] = { outStream.pop.get }
         def hasNext() : Boolean = { !outStream.isEmpty }
       }
     } else {
@@ -56,7 +57,7 @@ class CLAsyncMapPartitionsRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
        * output is buffered at a time.
        */
       val evaluator = (lambda : Function0[U]) => lambda()
-      val outputStream = new CLAsyncOutputStream[U](false)
+      val outputStream = new CLAsyncOutputStream[U, M](false)
       f(nested, outputStream)
 
       val nestedWrapper : Iterator[Function0[U]] = new Iterator[Function0[U]] {
@@ -64,8 +65,15 @@ class CLAsyncMapPartitionsRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
         override def hasNext() : Boolean = { !outputStream.lambdas.isEmpty }
       }
 
-      return new CLRDDProcessor(nestedWrapper, evaluator, context,
-              firstParent[T].id, split.index)
+      val clIter : Iterator[U] = new CLRDDProcessor(nestedWrapper, evaluator,
+              context, firstParent[T].id, split.index)
+
+      return new Iterator[Tuple2[U, Option[M]]] {
+        override def next() : Tuple2[U, Option[M]] = {
+          (clIter.next, outputStream.metadata.poll)
+        }
+        override def hasNext() : Boolean = { clIter.hasNext }
+      }
     }
   }
 }

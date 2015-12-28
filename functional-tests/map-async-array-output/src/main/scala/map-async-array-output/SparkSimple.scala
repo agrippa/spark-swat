@@ -73,8 +73,8 @@ object SparkSimple {
         val inputs_raw : RDD[Int] = sc.objectFile[Int](inputPath).cache
         val inputs = CLWrapper.cl[Int](inputs_raw, useSwat)
 
-        val outputs : RDD[Array[Double]] = inputs.mapAsync(
-          (v : Int, stream : AsyncOutputStream[Array[Double]]) => {
+        val outputs : RDD[Tuple2[Array[Double], Option[Int]]] = inputs.mapAsync(
+          (v : Int, stream : AsyncOutputStream[Array[Double], Int]) => {
             val scalar : Double = 3.0
 
             stream.spawn(() => {
@@ -85,9 +85,9 @@ object SparkSimple {
                 i += 1
               }
               arr
-            })
+            }, None)
           })
-        val outputs2 : Array[Array[Double]] = outputs.collect
+        val outputs2 : Array[Array[Double]] = outputs.map(v => v._1).collect
 
         var i = 0
         while (i < 10) {

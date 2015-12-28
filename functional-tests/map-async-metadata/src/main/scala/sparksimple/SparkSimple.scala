@@ -21,17 +21,23 @@ object SparkSimple {
         } else if (cmd == "run") {
             run_simple(args.slice(2, args.length), args(1).toBoolean)
         } else if (cmd == "check") {
-            val correct : Array[Double] = run_simple(args.slice(1, args.length), false)
-            val actual : Array[Double] = run_simple(args.slice(1, args.length), true)
-            if (correct.length != actual.length) {
-              System.err.println("Lengths differ, expected " + correct.length + " but got " + actual.length)
-              System.exit(1)
-            }
+            val correct : Array[Tuple2[Double, Option[Double]]] = run_simple(
+                    args.slice(1, args.length), false)
+            val actual : Array[Tuple2[Double, Option[Double]]] = run_simple(
+                    args.slice(1, args.length), true)
+            assert(correct.length == actual.length)
             for (i <- 0 until correct.length) {
-                val a = correct(i)
-                val b = actual(i)
+                val a = correct(i)._1
+                val b = actual(i)._1
                 if (a != b) {
                     System.err.println(i + ": expected=" + a + ", actual=" + b)
+                    System.exit(1)
+                }
+
+                val m1 = correct(i)._2.get
+                val m2 = correct(i)._2.get
+                if (m1 != m2) {
+                    System.err.println(i + ": metadata expected=" + m1 + ", actual=" + m2)
                     System.exit(1)
                 }
             }
@@ -49,11 +55,11 @@ object SparkSimple {
         return new SparkContext(conf)
     }
 
-    def run_simple(args : Array[String], useSwat : Boolean) : Array[Double] = {
+    def run_simple(args : Array[String], useSwat : Boolean) : Array[Tuple2[Double, Option[Double]]] = {
         if (args.length != 1) {
             println("usage: SparkSimple run input-path");
             println(" nargs=" + args.length)
-            return new Array[Double](0);
+            return new Array[Tuple2[Double, Option[Double]]](0);
         }
         val sc = get_spark_context("Spark Simple");
 
@@ -63,14 +69,12 @@ object SparkSimple {
 
         val inputs = CLWrapper.cl[Double](inputs_raw, useSwat)
 
-        val outputs1 : RDD[Tuple2[Double, Option[Int]]] = inputs.flatMapAsync(
-            (v: Double, stream: AsyncOutputStream[Double, Int]) => {
-                val l = () => v * v
-                stream.spawn(l, None)
-                stream.spawn(l, None)
-            })
+        val outputs1 : RDD[Tuple2[Double, Option[Double]]] = inputs.mapAsync(
+                (v: Double, stream: AsyncOutputStream[Double, Double]) => {
+                  stream.spawn(() => v, Some(v + 3.0))
+                })
 
-        val outputs : Array[Double] = outputs1.map(v => v._1).collect
+        val outputs : Array[Tuple2[Double, Option[Double]]] = outputs1.collect
         sc.stop
         outputs
     }

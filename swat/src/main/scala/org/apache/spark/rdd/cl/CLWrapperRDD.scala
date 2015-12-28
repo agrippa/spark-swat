@@ -44,18 +44,18 @@ class CLWrapperRDD[T: ClassTag](val prev: RDD[T], val useSwat : Boolean)
     new CLMappedRDD(prev, sparkContext.clean(f), useSwat)
   }
 
-  def mapAsync[U: ClassTag](f: (T, AsyncOutputStream[U]) => Unit) :
-      RDD[U] = {
+  def mapAsync[U: ClassTag, M: ClassTag](
+          f: (T, AsyncOutputStream[U, M]) => Unit) : RDD[Tuple2[U, Option[M]]] = {
     new CLAsyncMappedRDD(prev, sparkContext.clean(f), useSwat, false)
   }
 
-  def flatMapAsync[U: ClassTag](f: (T, AsyncOutputStream[U]) => Unit) :
-      RDD[U] = {
+  def flatMapAsync[U: ClassTag, M: ClassTag](
+          f: (T, AsyncOutputStream[U, M]) => Unit) : RDD[Tuple2[U, Option[M]]] = {
     new CLAsyncMappedRDD(prev, sparkContext.clean(f), useSwat, true)
   }
 
-  def mapPartitionsAsync[U: ClassTag](
-      f : (Iterator[T], AsyncOutputStream[U]) => Unit) : RDD[U] = {
+  def mapPartitionsAsync[U: ClassTag, M: ClassTag](
+      f : (Iterator[T], AsyncOutputStream[U, M]) => Unit) : RDD[Tuple2[U, Option[M]]] = {
     new CLAsyncMapPartitionsRDD(prev, sparkContext.clean(f), useSwat)
   }
 }

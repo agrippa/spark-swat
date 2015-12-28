@@ -11,33 +11,31 @@ import com.amd.aparapi.internal.model.Entrypoint
 import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 
-class JVMAsyncOutputStream[U: ClassTag](val singleInstance : Boolean)
-    extends AsyncOutputStream[U] {
+class JVMAsyncOutputStream[U: ClassTag, M: ClassTag](val singleInstance : Boolean)
+    extends AsyncOutputStream[U, M] {
 
   val buffered : LinkedList[U] = new LinkedList[U]
+  val metadataBuffered : LinkedList[Option[M]] = new LinkedList[Option[M]]
 
-  override def spawn(l : () => U) {
+  override def spawn(l : () => U, metadata : Option[M]) {
     val value = l()
     assert(value != null)
 
     buffered.add(value)
+    metadataBuffered.add(metadata)
 
     if (singleInstance) {
       throw new SuspendException
     }
   }
 
-  override def finish() {
-    throw new UnsupportedOperationException
-  }
-
-  def pop() : Option[U] = {
+  def pop() : Option[Tuple2[U, Option[M]]] = {
     var result : Option[U] = None
 
     if (buffered.isEmpty) {
       None
     } else {
-      Some(buffered.poll)
+      Some((buffered.poll, metadataBuffered.poll))
     }
   }
 
