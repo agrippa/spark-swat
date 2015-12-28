@@ -134,8 +134,10 @@ object CLConfig {
   val printKernel_str = System.getProperty("swat.print_kernel")
   val printKernel = if (printKernel_str != null) printKernel_str.toBoolean else false
 
-  val ASYNC_MAP_LAMBDA_WRAPPER =
+  val ASYNC_MAP_LAMBDA =
       "org.apache.spark.rdd.cl.CLAsyncMappedRDD$$anonfun$1"
+  val ASYNC_MAP_PARTITIONS_LAMBDA =
+      "org.apache.spark.rdd.cl.CLAsyncMapPartitionsRDD$$anonfun$1"
 
   /*
    * It is possible for a single thread to have two active CLMappedRDDs if they
@@ -205,8 +207,8 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     CLConfig.outputBufferCache.forThread(threadId)
 
   val firstSample : T = nested.next
-  val isAsyncMap = (userLambda.getClass.getName ==
-          CLConfig.ASYNC_MAP_LAMBDA_WRAPPER)
+  val isAsyncMap = (userLambda.getClass.getName == CLConfig.ASYNC_MAP_LAMBDA ||
+      userLambda.getClass.getName == CLConfig.ASYNC_MAP_PARTITIONS_LAMBDA)
   val actualLambda = if (isAsyncMap) firstSample else userLambda
   val bufferKey : String = RuntimeUtil.getLabelForBufferCache(actualLambda, firstSample,
           CLConfig.N)

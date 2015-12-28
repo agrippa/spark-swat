@@ -69,24 +69,7 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T],
     } else {
       val evaluator = (lambda : Function0[U]) => lambda()
       val nestedWrapper : Iterator[Function0[U]] = new Iterator[Function0[U]] {
-        val outputStream = new AsyncOutputStream[U] {
-          val lambdas : LinkedList[Function0[U]] = new LinkedList[Function0[U]]
-
-          override def spawn(l : () => U) {
-            lambdas.add(l)
-            if (!multiOutput) {
-              throw new SuspendException
-            }
-          }
-
-          override def finish() {
-            throw new UnsupportedOperationException
-          }
-
-          override def pop() : Option[U] = {
-            throw new UnsupportedOperationException
-          }
-        }
+        val outputStream = new CLAsyncOutputStream[U](!multiOutput)
 
         override def next() : Function0[U] = {
           if (outputStream.lambdas.isEmpty) {
