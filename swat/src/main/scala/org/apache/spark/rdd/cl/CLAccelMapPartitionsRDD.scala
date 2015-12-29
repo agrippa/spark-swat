@@ -29,12 +29,8 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-/*
- * A new CLMappedRDD object is created for each partition/task being processed,
- * lifetime and accessibility of items inside an instance of these is limited to
- * one thread and one task running on that thread.
- */
-class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
+class CLAccelMapPartitionsRDD[U: ClassTag, T: ClassTag, M: ClassTag](
+    val prev: RDD[T], val f: (Iterator[T], AccelOutputStream[M]) => Iterator[U],
     val useSwat : Boolean) extends RDD[U](prev) {
 
   override val partitioner = firstParent[T].partitioner
@@ -44,27 +40,20 @@ class CLMappedRDD[U: ClassTag, T: ClassTag](val prev: RDD[T], val f: T => U,
   override def compute(split: Partition, context: TaskContext) : Iterator[U] = {
     val nested = firstParent[T].iterator(split, context)
     val threadId : Int = RuntimeUtil.getThreadID
-    if (useSwat) {
-      // // Every N threads run in JVM
-      // if (threadId % 4 == 0) {
-      //   return new Iterator[U] {
-      //     def next() : U = f(nested.next)
-      //     def hasNext() : Boolean = nested.hasNext
-      //   }
-      // } else {
-        new PullCLRDDProcessor(nested, f, context, firstParent[T].id, split.index)
-      // }
-    } else {
-      System.err.println("Thread = " + threadId + " running stage = " +
-              context.stageId + ", partition = " + context.partitionId +
-              " on JVM")
-      return new Iterator[U] {
-        def next() : U = {
-          f(nested.next)
-        }
 
-        def hasNext() : Boolean = {
-          nested.hasNext
+    if (!useSwat) {
+      val outStream : JVMAccelOutputStream[M] = new JVMAccelOutputStream[M]
+
+      f(nested, outStream)
+    } else {
+      val outputStream = new CLAccelOutputStream[M](context, firstParent[T].id, split.index)
+      val iter = f(nested, outputStream)
+      new Iterator[U] {
+        override def next() : U = { iter.next }
+        override def hasNext() : Boolean = {
+          val haveNext = iter.hasNext
+          if (!haveNext) outputStream.markFinished
+          haveNext
         }
       }
     }

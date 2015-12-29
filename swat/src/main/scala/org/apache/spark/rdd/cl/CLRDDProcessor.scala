@@ -157,9 +157,29 @@ object CLConfig {
   val outputBufferCache = new GlobalCache[String, OutputBufferWrapper[_]]()
 }
 
-class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
-    val userLambda : T => U, val context: TaskContext, val rddId : Int,
-    val partitionIndex : Int) extends Iterator[U] {
+abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
+    val userSample : Option[T], val userLambda : T => U, val context: TaskContext,
+    val rddId : Int, val partitionIndex : Int, val pullModel : Boolean)
+    extends Iterator[U] {
+
+  def this(nested : Iterator[T], userLambda : T => U, context: TaskContext,
+      rddId : Int, partitionIndex : Int) {
+    this(nested, None, userLambda, context, rddId, partitionIndex, true)
+  }
+
+  def this(userSample : T, userLambda : T => U, context: TaskContext,
+      rddId : Int, partitionIndex : Int) {
+    this(null, Some(userSample), userLambda, context, rddId, partitionIndex, false)
+  }
+
+  if (pullModel) {
+    assert(nested != null)
+    assert(userSample.isEmpty)
+  } else {
+    assert(nested == null)
+    assert(!userSample.isEmpty)
+  }
+
   var entryPoint : Entrypoint = null
   var openCL : String = null
 
@@ -206,7 +226,7 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
   val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
     CLConfig.outputBufferCache.forThread(threadId)
 
-  val firstSample : T = nested.next
+  val firstSample : T = if (pullModel) nested.next else userSample.get
   val isAsyncMap = (userLambda.getClass.getName == CLConfig.ASYNC_MAP_LAMBDA ||
       userLambda.getClass.getName == CLConfig.ASYNC_MAP_PARTITIONS_LAMBDA)
   val actualLambda = if (isAsyncMap) firstSample else userLambda
@@ -328,181 +348,87 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     nativeOutputBuffersArray(i) = newBuffer
   }
 
-  // try {
-    var argnum = outArgNum + nOutArgs
+  var argnum = outArgNum + nOutArgs
   
-    if (!isAsyncMap) {
-      val iter = entryPoint.getReferencedClassModelFields.iterator
-      while (iter.hasNext) {
-        val field = iter.next
-        val isBroadcast = entryPoint.isBroadcastField(field)
-        argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, actualLambda,
-            field.getName, field.getDescriptor, entryPoint, isBroadcast)
-      }
+  if (!isAsyncMap) {
+    val iter = entryPoint.getReferencedClassModelFields.iterator
+    while (iter.hasNext) {
+      val field = iter.next
+      val isBroadcast = entryPoint.isBroadcastField(field)
+      argnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, argnum, actualLambda,
+          field.getName, field.getDescriptor, entryPoint, isBroadcast)
     }
+  }
 
-    if (entryPoint.requiresHeap) {
-      heapArgStart = argnum
-      heapTopArgNum = heapArgStart + 1
-      lastArgIndex = heapArgStart + 4
-    } else {
-      lastArgIndex = argnum
-    }
-  // } catch {
-  //   case oomExc : OpenCLOutOfMemoryException => {
-  //     OpenCLBridge.cleanupArguments(ctx)
-  //     return new Iterator[U] {
-  //       override def next() : U = { f(nested.next) }
-  //       override def hasNext() : Boolean = { nested.hasNext }
-  //     }
-  //   }
-  // }
+  if (entryPoint.requiresHeap) {
+    heapArgStart = argnum
+    heapTopArgNum = heapArgStart + 1
+    lastArgIndex = heapArgStart + 4
+  } else {
+    lastArgIndex = argnum
+  }
   /*
    * Flush out the kernel arguments that never change, broadcast variables and
    * closure-captured variables
    */
   OpenCLBridge.setupGlobalArguments(ctx, dev_ctx) 
 
-  /* BEGIN READER THREAD */
-  var noMoreInputBuffering = false
-  var lastSeqNo : Int = -1
-  val readerRunner = new Runnable() {
-    override def run() {
-      var done : Boolean = false
-      inputBuffer.setCurrentNativeBuffers(
-              initiallyEmptyNativeInputBuffers.remove)
-
-      while (!done) {
-        val ioStart = System.currentTimeMillis // PROFILE
-        inputBuffer.reset
-
-        val myOffset : Int = totalNLoaded
-        // val inputCacheId = if (firstParent[T].getStorageLevel.useMemory)
-        //     new CLCacheID(firstParent[T].id, split.index, myOffset, 0)
-        //     else NoCache
-        val inputCacheId = NoCache
-
-        var nLoaded : Int = -1
-        val inputCacheSuccess = if (inputCacheId == NoCache) -1 else
-          inputBuffer.tryCache(inputCacheId, ctx, dev_ctx, entryPoint, false)
-
-        if (inputCacheSuccess != -1) {
-          nLoaded = OpenCLBridge.fetchNLoaded(inputCacheId.rdd, inputCacheId.partition,
-            inputCacheId.offset)
-          /*
-           * Drop the rest of this buffer from the input stream if cached,
-           * accounting for the fact that some items may already have been
-           * buffered from it, either in the inputBuffer (due to an overrun) or
-           * because of firstSample.
-           */
-          val nAlreadyBuffered = if (firstBufferOp)
-                 nLoaded - 1 - inputBuffer.nBuffered else
-                 nLoaded - inputBuffer.nBuffered
-          nested.drop(nAlreadyBuffered)
-        } else {
-          if (firstBufferOp) {
-            inputBuffer.append(firstSample)
-          }
-
-          inputBuffer.aggregateFrom(nested)
-          inputBuffer.flush
-
-          nLoaded = inputBuffer.nBuffered
-          if (inputCacheId != NoCache) {
-            OpenCLBridge.storeNLoaded(inputCacheId.rdd, inputCacheId.partition,
-              inputCacheId.offset, nLoaded)
-          }
-        }
-        firstBufferOp = false
-//         System.err.println("SWAT PROF " + threadId + " Loaded " + // PROFILE
-//                 nLoaded + " at offset " + totalNLoaded) // PROFILE
-        totalNLoaded += nLoaded
-
-        RuntimeUtil.profPrint("Input-I/O", ioStart, threadId) // PROFILE
-
-        /*
-         * Now that we're done loading from the input stream, fetch the next
-         * native input buffers to transfer any overflow into.
-         */
-        val nextNativeInputBuffer : NativeInputBuffers[T] =
-            if (!initiallyEmptyNativeInputBuffers.isEmpty) {
-              initiallyEmptyNativeInputBuffers.remove
-            } else {
-              val id : Int = OpenCLBridge.waitForFreedNativeBuffer(ctx, dev_ctx)
-              nativeInputBuffersArray(id)
-            }
-
-        /*
-         * Transfer overflow from inputBuffer.nativeBuffers/filled to
-         * nextNativeInputBuffer.
-         */
-        inputBuffer.setupNativeBuffersForCopy(-1)
-        val filled : NativeInputBuffers[T] = inputBuffer.transferOverflowTo(
-                nextNativeInputBuffer)
-        assert(filled.id != nextNativeInputBuffer.id)
-
-        // Transfer input to device asynchronously
-        if (filled.clBuffersReadyPtr != 0L) {
-            OpenCLBridge.waitOnBufferReady(filled.clBuffersReadyPtr)
-        }
-        filled.copyToDevice(0, ctx, dev_ctx, inputCacheId, false)
-        /*
-         * Add a callback to notify the reader thread that a native input
-         * buffer is now available
-         */
-        OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx, filled.id)
-
-        val currentNativeOutputBuffer : NativeOutputBuffers[U] =
-             emptiedNativeOutputBuffers.synchronized {
-               while (emptiedNativeOutputBuffers.isEmpty) {
-                 emptiedNativeOutputBuffers.wait
-               }
-               emptiedNativeOutputBuffers.poll
-             }
-        currentNativeOutputBuffer.addToArgs
-
-        if (entryPoint.requiresHeap) {
-          // processing_succeeded
-          if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, heapTopArgNum + 2,
-                  CLConfig.N * 4, false)) {
-            throw new OpenCLOutOfMemoryException();
-          }
-        }
-
-        OpenCLBridge.setIntArg(ctx, lastArgIndex, nLoaded)
-
-        done = !nested.hasNext && !inputBuffer.haveUnprocessedInputs
-        val currSeqNo : Int = OpenCLBridge.getCurrentSeqNo(ctx)
-        if (done) {
-          /*
-           * This should come before OpenCLBridge.run to ensure there is no
-           * race between setting lastSeqNo and the writer thread checking it
-           * after kernel completion.
-           */
-          assert(lastSeqNo == -1)
-          lastSeqNo = currSeqNo
-          inputBuffer.setCurrentNativeBuffers(null)
-        }
-
-        System.err.println("SWAT PROF " + threadId + " Kernel launch @ " + // PROFILE
-            System.currentTimeMillis + " for seq = " + currSeqNo) // PROFILE
-
-        val doneFlag : Long = OpenCLBridge.run(ctx, dev_ctx, nLoaded,
-                CLConfig.cl_local_size, lastArgIndex + 1,
-                heapArgStart, CLConfig.heapsPerDevice,
-                currentNativeOutputBuffer.id)
-        filled.clBuffersReadyPtr = doneFlag
-      }
-    }
-  }
-  var readerThread : Thread = new Thread(readerRunner)
-  readerThread.start
-  /* END READER THREAD */
-
 //      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
   var curr_kernel_ctx : Long = 0L
   var currentNativeOutputBuffer : NativeOutputBuffers[U] = null
   var curr_seq_no : Int = 0
+
+  def handleFullInputBuffer() : Tuple2[Int, NativeInputBuffers[T]] = {
+    inputBuffer.flush
+
+    val nLoaded = inputBuffer.nBuffered
+    totalNLoaded += nLoaded
+
+    val nextNativeInputBuffer : NativeInputBuffers[T] =
+        if (!initiallyEmptyNativeInputBuffers.isEmpty) {
+          initiallyEmptyNativeInputBuffers.remove
+        } else {
+          val id : Int = OpenCLBridge.waitForFreedNativeBuffer(ctx, dev_ctx)
+          nativeInputBuffersArray(id)
+        }
+
+    inputBuffer.setupNativeBuffersForCopy(-1)
+    val filled : NativeInputBuffers[T] = inputBuffer.transferOverflowTo(
+            nextNativeInputBuffer)
+    assert(filled.id != nextNativeInputBuffer.id)
+
+    // Transfer input to device asynchronously
+    if (filled.clBuffersReadyPtr != 0L) {
+        OpenCLBridge.waitOnBufferReady(filled.clBuffersReadyPtr)
+    }
+    filled.copyToDevice(0, ctx, dev_ctx, NoCache, false)
+    /*
+     * Add a callback to notify the reader thread that a native input
+     * buffer is now available
+     */
+    OpenCLBridge.enqueueBufferFreeCallback(ctx, dev_ctx, filled.id)
+
+    currentNativeOutputBuffer =
+         emptiedNativeOutputBuffers.synchronized {
+           while (emptiedNativeOutputBuffers.isEmpty) {
+             emptiedNativeOutputBuffers.wait
+           }
+           emptiedNativeOutputBuffers.poll
+         }
+    currentNativeOutputBuffer.addToArgs
+
+    if (entryPoint.requiresHeap) {
+      // processing_succeeded
+      if (!OpenCLBridge.setArgUnitialized(ctx, dev_ctx, heapTopArgNum + 2,
+              CLConfig.N * 4, false)) {
+        throw new OpenCLOutOfMemoryException();
+      }
+    }
+
+    OpenCLBridge.setIntArg(ctx, lastArgIndex, nLoaded)
+
+    (nLoaded, filled)
+  }
 
   override def next() : U = {
     if (outputBuffer.isEmpty || !outputBuffer.get.hasNext) {
@@ -533,6 +459,13 @@ class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[T],
     }
 
     outputBuffer.get.next
+  }
+
+  var lastSeqNo : Int = -1
+
+  def setLastSeqNo(set : Int) {
+    assert(lastSeqNo == -1)
+    lastSeqNo = set
   }
 
   def hasNext() : Boolean = {

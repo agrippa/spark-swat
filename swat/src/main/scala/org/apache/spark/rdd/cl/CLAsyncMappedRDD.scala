@@ -92,7 +92,7 @@ class CLAsyncMappedRDD[U: ClassTag, T: ClassTag, M: ClassTag](val prev: RDD[T],
         }
       }
 
-      val clIter = new CLRDDProcessor(nestedWrapper, evaluator, context,
+      val clIter = new PullCLRDDProcessor(nestedWrapper, evaluator, context,
               firstParent[T].id, split.index)
 
       return new Iterator[Tuple2[U, Option[M]]] {

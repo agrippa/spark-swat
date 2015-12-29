@@ -65,7 +65,7 @@ class CLAsyncMapPartitionsRDD[U: ClassTag, T: ClassTag, M: ClassTag](
         override def hasNext() : Boolean = { !outputStream.lambdas.isEmpty }
       }
 
-      val clIter : Iterator[U] = new CLRDDProcessor(nestedWrapper, evaluator,
+      val clIter : Iterator[U] = new PullCLRDDProcessor(nestedWrapper, evaluator,
               context, firstParent[T].id, split.index)
 
       return new Iterator[Tuple2[U, Option[M]]] {

@@ -37,7 +37,7 @@ class CLMappedValuesRDD[K: ClassTag, V: ClassTag, U : ClassTag](val prev: RDD[Tu
           }
         }
 
-        val valueProcessor : CLRDDProcessor[V, U] = new CLRDDProcessor[V, U](
+        val valueProcessor : CLRDDProcessor[V, U] = new PullCLRDDProcessor[V, U](
                 valueIter, f, context, firstParent[Tuple2[K, V]].id, split.index)
 
         def next() : Tuple2[K, U] = {
