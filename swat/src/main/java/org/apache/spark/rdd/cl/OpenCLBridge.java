@@ -264,7 +264,8 @@ public class OpenCLBridge {
             argsUsed = 1;
         } else if (desc.startsWith("[")) {
             // Array-typed field
-            final boolean lengthUsed = entryPoint.getArrayFieldArrayLengthUsed().contains(name);
+            // final boolean lengthUsed = entryPoint.getArrayFieldArrayLengthUsed().contains(name);
+            final boolean lengthUsed = true;
             final Field field;
             try {
               field = obj.getClass().getDeclaredField(name);

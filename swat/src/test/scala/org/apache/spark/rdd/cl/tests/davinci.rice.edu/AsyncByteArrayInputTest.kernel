@@ -26,6 +26,7 @@ typedef struct This_s{
    __global char* arr1$1;
    int arr1$1__javaArrayLength;
    __global char* arr2$1;
+   int arr2$1__javaArrayLength;
    } This;
 
 static int scala_Array__size(__global scala_Array *this) {
@@ -62,7 +63,7 @@ __kernel void run(
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       this->arr1$1 = arr1$1 + arr1$1_offsets[i]; this->arr1$1__javaArrayLength = arr1$1_sizes[i];
-      this->arr2$1 = arr2$1 + arr2$1_offsets[i];
+      this->arr2$1 = arr2$1 + arr2$1_offsets[i]; this->arr2$1__javaArrayLength = arr2$1_sizes[i];
       out[i] = org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$$anon$1__apply(this);
       
    }

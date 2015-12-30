@@ -14,12 +14,12 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
-typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s scala_Tuple2_I_I;
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_F_s scala_Tuple2_I_F;
 typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2OutputTest$_s org_apache_spark_rdd_cl_tests_Tuple2OutputTest$;
 
-struct __attribute__ ((packed)) scala_Tuple2_I_I_s{
+struct __attribute__ ((packed)) scala_Tuple2_I_F_s{
    int  _1;
-   int  _2;
+   float  _2;
    
 };
 
@@ -35,21 +35,21 @@ typedef struct This_s{
    unsigned int heap_size;
    } This;
 
-static __global scala_Tuple2_I_I *scala_Tuple2_I_I___init_(__global scala_Tuple2_I_I *this, int  one, int  two) {
+static __global scala_Tuple2_I_F *scala_Tuple2_I_F___init_(__global scala_Tuple2_I_F *this, int  one, float  two) {
    this->_1 = one;
    this->_2 = two;
    return this;
 }
 
-static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(This *this, int in){
+static __global scala_Tuple2_I_F *org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(This *this, int in){
 
-   __global scala_Tuple2_I_I * __alloc0 = (__global scala_Tuple2_I_I *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_I), &this->alloc_failed);
+   __global scala_Tuple2_I_F * __alloc0 = (__global scala_Tuple2_I_F *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_F), &this->alloc_failed);
    if (this->alloc_failed) { return (0x0); }
-   return(scala_Tuple2_I_I___init_(__alloc0, (in + 1), (in + 2)));
+   return(scala_Tuple2_I_F___init_(__alloc0, (in + 1), ((float)in + 2.0f)));
 }
 __kernel void run(
       __global int* restrict in0, 
-      __global int * restrict out_1, __global int * restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
+      __global int * restrict out_1, __global float * restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    this->heap = heap;
@@ -59,7 +59,7 @@ __kernel void run(
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
       this->alloc_failed = 0;
-      __global scala_Tuple2_I_I* result = org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(this, in0[i]);
+      __global scala_Tuple2_I_F* result = org_apache_spark_rdd_cl_tests_Tuple2OutputTest$$anon$1__apply(this, in0[i]);
       if (!this->alloc_failed) {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;

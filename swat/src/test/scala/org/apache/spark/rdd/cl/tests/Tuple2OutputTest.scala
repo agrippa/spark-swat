@@ -12,7 +12,7 @@ import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
 
-object Tuple2OutputTest extends SyncCodeGenTest[Int, (Int, Int)] {
+object Tuple2OutputTest extends SyncCodeGenTest[Int, (Int, Float)] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
@@ -23,7 +23,7 @@ object Tuple2OutputTest extends SyncCodeGenTest[Int, (Int, Int)] {
 
   def init() : HardCodedClassModels = {
     val outputClassType1Name = CodeGenUtil.cleanClassName("I")
-    val outputClassType2Name = CodeGenUtil.cleanClassName("I")
+    val outputClassType2Name = CodeGenUtil.cleanClassName("F")
 
     val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         outputClassType1Name, outputClassType2Name, true)
@@ -34,13 +34,13 @@ object Tuple2OutputTest extends SyncCodeGenTest[Int, (Int, Int)] {
 
   def complete(params : LinkedList[ScalaArrayParameter]) {
     params.get(1).addTypeParameter("I", false)
-    params.get(1).addTypeParameter("I", false)
+    params.get(1).addTypeParameter("F", false)
   }
 
-  def getFunction() : Function1[Int, (Int, Int)] = {
-    new Function[Int, (Int, Int)] {
-      override def apply(in : Int) : (Int, Int) = {
-        (in + 1, in + 2)
+  def getFunction() : Function1[Int, (Int, Float)] = {
+    new Function[Int, (Int, Float)] {
+      override def apply(in : Int) : (Int, Float) = {
+        (in + 1, in + 2.0f)
       }
     }
   }

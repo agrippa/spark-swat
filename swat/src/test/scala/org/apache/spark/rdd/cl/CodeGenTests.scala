@@ -58,6 +58,7 @@ object CodeGenTests {
   syncTests.add(PrimitiveArrayInputTest)
   syncTests.add(ArrayOutputTest)
   syncTests.add(ByteArrayInputTest)
+  syncTests.add(ExtensionTest)
 
   val asyncTests : ArrayList[AsyncCodeGenTest[_]] =
     new ArrayList[AsyncCodeGenTest[_]]()
