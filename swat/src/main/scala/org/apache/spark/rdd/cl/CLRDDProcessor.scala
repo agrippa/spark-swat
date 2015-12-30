@@ -162,16 +162,6 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
     val rddId : Int, val partitionIndex : Int, val pullModel : Boolean)
     extends Iterator[U] {
 
-  def this(nested : Iterator[T], userLambda : T => U, context: TaskContext,
-      rddId : Int, partitionIndex : Int) {
-    this(nested, None, userLambda, context, rddId, partitionIndex, true)
-  }
-
-  def this(userSample : T, userLambda : T => U, context: TaskContext,
-      rddId : Int, partitionIndex : Int) {
-    this(null, Some(userSample), userLambda, context, rddId, partitionIndex, false)
-  }
-
   if (pullModel) {
     assert(nested != null)
     assert(userSample.isEmpty)
@@ -378,6 +368,25 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
   var currentNativeOutputBuffer : NativeOutputBuffers[U] = null
   var curr_seq_no : Int = 0
 
+  /*
+   * Used when a new lambda is passed which has the same code, but captures
+   * different data structures in its closure.
+   */
+  def resetGlobalArguments(newUserLambda : T => U) {
+    OpenCLBridge.cleanupGlobalArguments(ctx, dev_ctx)
+    val iter = entryPoint.getReferencedClassModelFields.iterator
+    var localArgnum = outArgNum + nOutArgs
+    while (iter.hasNext) {
+      val field = iter.next
+      val isBroadcast = entryPoint.isBroadcastField(field)
+      localArgnum += OpenCLBridge.setArgByNameAndType(ctx, dev_ctx, localArgnum,
+          newUserLambda, field.getName, field.getDescriptor, entryPoint,
+          isBroadcast)
+    }
+
+    OpenCLBridge.setupGlobalArguments(ctx, dev_ctx) 
+  }
+
   def handleFullInputBuffer() : Tuple2[Int, NativeInputBuffers[T]] = {
     inputBuffer.flush
 
@@ -468,6 +477,37 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
     lastSeqNo = set
   }
 
+  def cleanup() {
+    for (buffer <- nativeInputBuffersArray) {
+      buffer.releaseOpenCLArrays
+    }
+    for (buffer <- nativeOutputBuffersArray) {
+      buffer.releaseOpenCLArrays
+    }
+
+    OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
+    OpenCLBridge.cleanupSwatContext(ctx, dev_ctx, context.stageId,
+            context.partitionId)
+
+    val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
+        CLConfig.swatContextCache.forThread(threadId)
+    val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
+            actualLambda.getClass.getName, dev_ctx)
+    mySwatContextCache.add(kernelDeviceKey, ctx)
+
+    val myInputBufferCache : PerThreadCache[String, InputBufferWrapper[_]] =
+      CLConfig.inputBufferCache.forThread(threadId)
+    val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
+      CLConfig.outputBufferCache.forThread(threadId)
+    myInputBufferCache.add(bufferKey, inputBuffer)
+    myOutputBufferCache.add(bufferKey, chunkedOutputBuffer)
+    inputBuffer = null
+    chunkedOutputBuffer = null
+
+    RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
+    System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
+  }
+
   def hasNext() : Boolean = {
     /*
      * hasNext may be called multiple times after running out of items, in
@@ -480,34 +520,7 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
       System.err.println("SWAT PROF " + threadId + " Finished writing seq = " + // PROFILE
               (curr_seq_no - 1) + " @ " + System.currentTimeMillis) // PROFILE
 
-      for (buffer <- nativeInputBuffersArray) {
-        buffer.releaseOpenCLArrays
-      }
-      for (buffer <- nativeOutputBuffersArray) {
-        buffer.releaseOpenCLArrays
-      }
-
-      OpenCLBridge.cleanupKernelContext(curr_kernel_ctx)
-      OpenCLBridge.cleanupSwatContext(ctx, dev_ctx, context.stageId,
-              context.partitionId)
-
-      val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
-          CLConfig.swatContextCache.forThread(threadId)
-      val kernelDeviceKey : KernelDevicePair = new KernelDevicePair(
-              actualLambda.getClass.getName, dev_ctx)
-      mySwatContextCache.add(kernelDeviceKey, ctx)
-
-      val myInputBufferCache : PerThreadCache[String, InputBufferWrapper[_]] =
-        CLConfig.inputBufferCache.forThread(threadId)
-      val myOutputBufferCache : PerThreadCache[String, OutputBufferWrapper[_]] =
-        CLConfig.outputBufferCache.forThread(threadId)
-      myInputBufferCache.add(bufferKey, inputBuffer)
-      myOutputBufferCache.add(bufferKey, chunkedOutputBuffer)
-      inputBuffer = null
-      chunkedOutputBuffer = null
-
-      RuntimeUtil.profPrint("Total", overallStart, threadId) // PROFILE
-      System.err.println("SWAT PROF Total loaded = " + totalNLoaded) // PROFILE
+      cleanup()
     }
     haveNext
   }

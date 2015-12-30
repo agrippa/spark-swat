@@ -35,13 +35,13 @@ class PullCLRDDProcessor[T: ClassTag, U: ClassTag](val myNested : Iterator[T],
         val filled = fillResult._2
 
         done = !nested.hasNext && !inputBuffer.haveUnprocessedInputs
-        val currSeqNo : Int = OpenCLBridge.getCurrentSeqNo(ctx)
         if (done) {
           /*
            * This should come before OpenCLBridge.run to ensure there is no
            * race between setting lastSeqNo and the writer thread checking it
            * after kernel completion.
            */
+          val currSeqNo : Int = OpenCLBridge.getCurrentSeqNo(ctx)
           setLastSeqNo(currSeqNo)
           inputBuffer.setCurrentNativeBuffers(null)
         }

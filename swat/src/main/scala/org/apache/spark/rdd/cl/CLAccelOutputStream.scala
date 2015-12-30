@@ -13,30 +13,30 @@ class CLAccelOutputStream[U: ClassTag](context : TaskContext, rddId : Int,
 
   val evaluator = (lambda : Function0[U]) => lambda()
 
-  val processor : Iterator[U] = null
+  var processor : PushCLRDDProcessor[Int, U] = null
 
   override def map(l : Int => U, N : Int) : Array[U] = {
-    throw new UnsupportedOperationException
-    // val arr = new Array[U](N)
-    // if (processor == null) {
-    //   val fakeIter = new Iterator[Int] {
-    //     var count : Int = 0
-    //     override def next() : Int = {
-    //       val result = count
-    //       count += 1
-    //       result
-    //     }
-    //     override def hasNext() : Boolean = { count < N }
-    //   }
-    //   processor = new CLRDDProcessor(fakeIter
+    val arr = new Array[U](N)
+    // TODO avoid creating new processor every time, just don't cache the lambda-captured arguments
+    if (processor == null) {
+      processor = new PushCLRDDProcessor(0, l, context, rddId, partitionId)
+    } else {
+      processor.resetGlobalArguments(l)
+    }
+    
+    for (i <- 0 until N) {
+      processor.push(i)
+    }
+    processor.flush
 
+    for (i <- 0 until N) {
+      arr(i) = processor.next
+    }
+
+    arr
   }
 
   override def markFinished() {
-    throw new UnsupportedOperationException
-    // buffered.synchronized {
-    //   finished = true
-    //   buffered.notify
-    // }
+    processor.cleanup
   }
 }

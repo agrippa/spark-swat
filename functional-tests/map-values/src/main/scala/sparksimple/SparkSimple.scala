@@ -44,7 +44,8 @@ object SparkSimple {
                     error = true
                 }
 
-                for (j <- 0 until a._2.size) {
+                val min_length = if (a._2.size < b._2.size) a._2.size else b._2.size
+                for (j <- 0 until min_length) {
                     if (a._2(j) != b._2(j)) {
                         System.err.println(i + " value mismatch at index " + j +
                                 ", expected " + a._2(j) + " but got " + b._2(j))
@@ -81,15 +82,16 @@ object SparkSimple {
         val inputs_raw : RDD[Tuple2[Int, DenseVector]] = sc.objectFile[Tuple2[Int, DenseVector]](inputPath).cache
         val joined_raw : RDD[Tuple2[Int, Tuple2[DenseVector, DenseVector]]] = inputs_raw.join(inputs_raw)
         val joined = CLWrapper.pairCl[Int, Tuple2[DenseVector, DenseVector]](joined_raw, useSwat)
-        System.err.println("joined = " + joined.getClass.getName)
         val outputs : RDD[Tuple2[Int, DenseVector]] = joined.mapValues(v => {
             val a = v._1
             val b = v._2
-            val size = a.size
+            // val size = a.size
+            val size = 5
             val arr : Array[Double] = new Array[Double](size)
             var i = 0
             while (i < size) {
-                arr(i) = a(i) * b(i)
+                arr(i) = i
+                // arr(i) = a(i) * b(i)
                 i += 1
             }
             Vectors.dense(arr).asInstanceOf[DenseVector]

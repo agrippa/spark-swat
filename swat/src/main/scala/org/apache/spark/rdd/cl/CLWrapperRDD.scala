@@ -58,6 +58,11 @@ class CLWrapperRDD[T: ClassTag](val prev: RDD[T], val useSwat : Boolean)
       f : (Iterator[T], AsyncOutputStream[U, M]) => Unit) : RDD[Tuple2[U, Option[M]]] = {
     new CLAsyncMapPartitionsRDD(prev, sparkContext.clean(f), useSwat)
   }
+
+  def mapPartitionsAccel[U: ClassTag, M: ClassTag](
+      f : (Iterator[T], AccelOutputStream[M]) => Iterator[U]) : RDD[U] = {
+    new CLAccelMapPartitionsRDD(prev, sparkContext.clean(f), useSwat)
+  }
 }
 
 object CLWrapper {

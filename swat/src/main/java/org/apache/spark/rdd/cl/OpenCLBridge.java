@@ -27,6 +27,7 @@ public class OpenCLBridge {
     public static native void resetSwatContext(long ctx);
     public static native void cleanupSwatContext(long ctx, long dev_ctx,
             int stage, int partition);
+    public static native void cleanupGlobalArguments(long ctx, long dev_ctx);
     public static native long getActualDeviceContext(int device_index,
             int heaps_per_device, int heap_size,
             double perc_high_performance_buffers, boolean createCpuContexts);
@@ -298,6 +299,10 @@ public class OpenCLBridge {
             } else if (primitiveType.equals("D")) {
                 setDoubleArrayArg(ctx, dev_ctx, index, (double[])fieldInstance,
                         ((double[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0, true);
+                argsUsed = (lengthUsed ? 2 : 1);
+            } else if (primitiveType.equals("B")) {
+                setByteArrayArg(ctx, dev_ctx, index, (byte[])fieldInstance,
+                        ((byte[])fieldInstance).length, broadcastId, -1, -1, -1, 0, 0, true);
                 argsUsed = (lengthUsed ? 2 : 1);
             } else {
               final String arrayElementTypeName = ClassModel.convert(

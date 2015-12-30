@@ -12,7 +12,7 @@ fi
 
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.print_kernel=true"
 
-spark-submit --class SparkSimple --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" \
-        --master spark://localhost:7077 \
-        ${SWAT_HOME}/functional-tests/map-values/target/sparksimple-0.0.0.jar \
+spark-submit --class SparkSimple \
+        --jars ${SWAT_JARS} --conf "$SWAT_OPTIONS" --master spark://localhost:7077 \
+        ${SWAT_HOME}/functional-tests/map-partitions-parallel/target/sparksimple-0.0.0.jar \
         $1 $2 hdfs://$(hostname):54310/converted
