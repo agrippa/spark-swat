@@ -17,7 +17,7 @@ IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
 ifeq ($(IS_CLANG),1)
 	GXX_FLAGS += -framework OpenCL
 else
-	GXX_FLAGS += -lOpenCL
+	GXX_FLAGS += -lOpenCL -lrt
 endif
 
 all: ${TARGET} rerun query_tool
@@ -25,11 +25,11 @@ all: ${TARGET} rerun query_tool
 ${TARGET}: ${SRC}
 	test ! -z "${GXX}" || { echo 'GXX missing, should be defined in SWAT_HOME/build.conf'; exit 1; }
 	${GXX} ${DEFINES} ${SRC} -o ${TARGET} ${INCLUDES} ${LIBS} -fPIC --shared \
-		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil -lrt ${GXX_FLAGS}
+		-L${CLUTIL_HOME} -L${CLALLOC_HOME} -lclalloc -lclutil ${GXX_FLAGS}
 
 rerun: rerun.cpp common.cpp
 	${GXX} ${DEFINES} ${INCLUDES} ${LIBS} rerun.cpp common.cpp -o rerun \
-		 -L${CLUTIL_HOME} -lclutil -lrt ${GXX_FLAGS}
+		 -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS}
 
 query_tool: query_tool.cpp
 	${GXX} ${INCLUDES} ${LIBS} query_tool.cpp -o query_tool -L${CLUTIL_HOME} -lclutil ${GXX_FLAGS}
