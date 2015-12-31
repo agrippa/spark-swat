@@ -40,9 +40,11 @@ static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_s
 }
 
 
+
 static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
     return (this->values)[this->tiling * index];
 }
+
 
 static int org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest$$anon$1__apply$mcII$sp(This *this, int in){
 

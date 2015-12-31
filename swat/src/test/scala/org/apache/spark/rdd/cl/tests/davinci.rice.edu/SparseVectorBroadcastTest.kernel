@@ -33,14 +33,17 @@ static int org_apache_spark_mllib_linalg_SparseVector__size(__global org_apache_
 }
 
 
-static __global int *org_apache_spark_mllib_linalg_SparseVector__indices(__global org_apache_spark_mllib_linalg_SparseVector *this) {
+
+static __global int* org_apache_spark_mllib_linalg_SparseVector__indices(__global org_apache_spark_mllib_linalg_SparseVector *this) {
     return (this->indices);
 }
 
 
-static __global double *org_apache_spark_mllib_linalg_SparseVector__values(__global org_apache_spark_mllib_linalg_SparseVector *this) {
+
+static __global double* org_apache_spark_mllib_linalg_SparseVector__values(__global org_apache_spark_mllib_linalg_SparseVector *this) {
     return (this->values);
 }
+
 
 static double org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$$anon$1__apply$mcDI$sp(This *this, int in){
 
@@ -51,7 +54,7 @@ static double org_apache_spark_rdd_cl_tests_SparseVectorBroadcastTest$$anon$1__a
       int i = 0;
       for (; i<5; i = i + 1){
       
-         sum = sum + (org_apache_spark_mllib_linalg_SparseVector__values( &(this->broadcast$1[i]))[(&this->broadcast$1[i])->tiling * (i)] + (double)org_apache_spark_mllib_linalg_SparseVector__indices( &(this->broadcast$1[i]))[(&this->broadcast$1[i])->tiling * (i)]);
+         sum = sum + (org_apache_spark_mllib_linalg_SparseVector__values(&(this->broadcast$1[i]))[(&this->broadcast$1[i])->tiling * (i)] + (double)org_apache_spark_mllib_linalg_SparseVector__indices(&(this->broadcast$1[i]))[(&this->broadcast$1[i])->tiling * (i)]);
       }
       sum;
    });

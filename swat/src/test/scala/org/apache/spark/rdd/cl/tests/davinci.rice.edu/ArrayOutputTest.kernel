@@ -30,28 +30,26 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ArrayOutputTest$_s
 };
 
 typedef struct This_s{
-   __global void *heap;
-   __global uint *free_index;
-   int alloc_failed;
-   unsigned int heap_size;
    } This;
 
-static int scala_Array__size(__global scala_Array *this) {
+static int scala_Array__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this) {
     return (this->size);
 }
 
 
-static double scala_Array__apply(__global scala_Array *this, int index) {
+
+static double scala_Array__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this, int index) {
     return (this->values)[this->tiling * index];
 }
 
-static __global double* org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(This *this, int in){
+
+static __global double* org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int in){
 
    return(
    {
    
-      __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (in)), &this->alloc_failed);
-      if (this->alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+      __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
        __global double* valuesArr = __alloc0;
       int i = 0;
       for (; i<in; i = i + 1){
@@ -66,18 +64,15 @@ __kernel void run(
       __global int * restrict out, __global int * restrict out_iters, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
-   this->heap = heap;
-   this->free_index = free_index;
-   this->heap_size = heap_size;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
-      this->alloc_failed = 0;
-      __global double* result = org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(this, in0[i]);
-      if (!this->alloc_failed) {
+      int alloc_failed = 0;
+      __global double* result = org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      if (!alloc_failed) {
          processing_succeeded[i] = 1;
          out_iters[i] = iter;
-         out[i] = ((__global char *)result) - ((__global char *)this->heap);
+         out[i] = ((__global char *)result) - ((__global char *)heap);
          
       }
    }

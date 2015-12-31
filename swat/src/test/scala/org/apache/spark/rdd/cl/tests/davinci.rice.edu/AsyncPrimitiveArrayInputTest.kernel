@@ -32,9 +32,11 @@ static int scala_Array__size(__global scala_Array *this) {
 }
 
 
+
 static double scala_Array__apply(__global scala_Array *this, int index) {
     return (this->values)[this->tiling * index];
 }
+
 
 static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply$mcD$sp(This *this){
 
