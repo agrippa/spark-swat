@@ -251,17 +251,17 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
   val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
           rddId, partitionIndex, 0, 0)
 
-//  val deviceInitStart = System.currentTimeMillis // PROFILE
+ val deviceInitStart = System.currentTimeMillis // PROFILE
   val device_index = OpenCLBridge.getDeviceToUse(partitionDeviceHint,
           threadId, CLConfig.heapsPerDevice,
           CLConfig.heapSize, CLConfig.percHighPerfBuffers,
           false)
-//  System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
+ System.err.println("Thread " + threadId + " selected device " + device_index) // PROFILE
   val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(device_index,
           CLConfig.heapsPerDevice, CLConfig.heapSize,
           CLConfig.percHighPerfBuffers, false)
   val devicePointerSize = OpenCLBridge.getDevicePointerSizeInBytes(dev_ctx)
-//  RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
+ RuntimeUtil.profPrint("DeviceInit", deviceInitStart, threadId) // PROFILE
 
   var firstBufferOp : Boolean = true
   var sampleOutput : java.lang.Object = None
@@ -269,7 +269,7 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
   val initializing : Boolean = (entryPoint == null)
 
   if (initializing) {
-//     val initStart = System.currentTimeMillis // PROFILE
+    val initStart = System.currentTimeMillis // PROFILE
     sampleOutput = userLambda(firstSample).asInstanceOf[java.lang.Object]
     val entrypointAndKernel : Tuple2[Entrypoint, String] =
         if (!isAsyncMap) RuntimeUtil.getEntrypointAndKernel[T, U](firstSample,
@@ -293,7 +293,7 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
               entryPoint, devicePointerSize, CLConfig.heapSize)
     }
 
-//     RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
+    RuntimeUtil.profPrint("Initialization", initStart, threadId) // PROFILE
   }
 
   val outArgNum : Int = inputBuffer.countArgumentsUsed
@@ -306,7 +306,7 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
   var lastArgIndex : Int = -1
   var heapTopArgNum : Int = -1
 
-//   val ctxCreateStart = System.currentTimeMillis // PROFILE
+  val ctxCreateStart = System.currentTimeMillis // PROFILE
   val mySwatContextCache : PerThreadCache[KernelDevicePair, Long] =
       CLConfig.swatContextCache.forThread(threadId)
 
@@ -363,7 +363,7 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
    */
   OpenCLBridge.setupGlobalArguments(ctx, dev_ctx) 
 
-//      RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
+     RuntimeUtil.profPrint("ContextCreation", ctxCreateStart, threadId) // PROFILE
   var curr_kernel_ctx : Long = 0L
   var currentNativeOutputBuffer : NativeOutputBuffers[U] = null
   var curr_seq_no : Int = 0

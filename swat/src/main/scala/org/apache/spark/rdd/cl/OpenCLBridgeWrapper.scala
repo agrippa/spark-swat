@@ -397,6 +397,7 @@ object OpenCLBridgeWrapper {
         case ClassModel.INT => { UnsafeWrapper.putInt(ele, offset, bb.getInt); }
         case ClassModel.FLOAT =>  { UnsafeWrapper.putFloat(ele, offset, bb.getFloat); }
         case ClassModel.DOUBLE => { UnsafeWrapper.putDouble(ele, offset, bb.getDouble); }
+        case ClassModel.LONG => { UnsafeWrapper.putLong(ele, offset, bb.getLong); }
         case _ => throw new RuntimeException("Unsupported type");
       }
       i += 1

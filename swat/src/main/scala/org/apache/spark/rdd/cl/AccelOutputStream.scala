@@ -12,6 +12,6 @@ import com.amd.aparapi.internal.model.HardCodedClassModels.ShouldNotCallMatcher
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 
 trait AccelOutputStream[U] {
-  def map(l : Int => U, N : Int) : Array[U]
+  def map(l : Int => U, N : Int, accel : Boolean) : Array[U]
   def markFinished()
 }
