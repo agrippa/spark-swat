@@ -10,7 +10,7 @@ class CLAccelOutputStream[U: ClassTag](context : TaskContext, rddId : Int,
 
   var processor : PushCLRDDProcessor[Int, U] = null
 
-  override def map(l : Int => U, N : Int, accel : Boolean = true) : Array[U] = {
+  override def map(l : Int => U, N : Int, accel : Boolean) : Array[U] = {
     val arr = new Array[U](N)
 
     if (accel) {
