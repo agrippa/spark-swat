@@ -81,7 +81,7 @@ There are 5 main software modules that make up SWAT.
    gathered on a variety of benchmarks. Note the bimodal distribution: there is
    a cluster of benchmarks that achieve 3-4x speedup on SWAT and another that
    sees no benefit (or slight degradation). Your mileage may vary.
-3. **What platforms is SWAT tested on?** As a small project, SWAT is currently
+4. **What platforms is SWAT tested on?** As a small project, SWAT is currently
    only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
    CUDA 6.5, NVIDIA GPUs, all under Red Hat Enterprise Linux Server release 6.5.
    It is likely to run on other Linux-based systems, but may need tweaking.
@@ -99,10 +99,18 @@ appropriately. You should also set `SWAT\_HOME` to point to the spark-swat
 directory you clone this repo to.
 
 1. Check out APARAPI-SWAT from its repo and build:
-  1. git clone https://github.com/agrippa/aparapi-swat
+  1. `git clone https://github.com/agrippa/aparapi-swat`
   2. Set an `APARAPI\_SWAT` environment variable to point to the aparapi-swat
      directory that was just created.
-  3. cd `$APARAPI\_SWAT` && ./build.sh
-2. cd clalloc/ run `make`.
-2. From clutil/ run `make`.
+  3. `cd $APARAPI\_SWAT && ./build.sh`
+2. `cd $SWAT\_HOME/clutil/ && make`.
+3. `cd $SWAT\_HOME/clalloc/ && make`
+4. `cd $SWAT\_HOME/swat-bridge/ && make`.
+5. `cd $SWAT\_HOME/swat/ && mvn clean package`.
 
+To test the code generator is working, use the script in
+`$SWAT\_HOME/swat/test_translator.sh` to run the code generation tests.
+
+Functional tests can be found in `$SWAT\_HOME/functional-tests`. See the
+`test\_all.sh` script in that directory for an idea of how to run each
+individual test.
