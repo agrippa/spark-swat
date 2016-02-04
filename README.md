@@ -81,7 +81,7 @@ There are 5 main software modules that make up SWAT.
    gathered on a variety of benchmarks. Note the bimodal distribution: there is
    a cluster of benchmarks that achieve 3-4x speedup on SWAT and another that
    sees no benefit (or slight degradation). Your mileage may vary.
-   (https://github.com/agrippa/spark-swat/raw/master/speedup.png)
+   !(https://github.com/agrippa/spark-swat/raw/master/speedup.png)
 3. **What platforms is SWAT tested on?** As a small project, SWAT is currently
    only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
    CUDA 6.5, NVIDIA GPUs, all under Red Hat Enterprise Linux Server release 6.5.
