@@ -33,6 +33,8 @@ hardware platform. Automatic kernel generation from JVM bytecode at runtime
 enables auto-optimization of user kernels and ensures identical semantics to the
 original JVM kernel.
 
+A brief slide deck on SWAT is available under spark-swat/docs/.
+
 # Components
 
 There are 5 main software modules that make up SWAT.
@@ -77,7 +79,7 @@ There are 5 main software modules that make up SWAT.
    processing. SWAT (and accelerators in general) do not work well for kernels
    that process a large amount of data without performing many operations on it.
    For example, a simplistic PageRank benchmark does not perform well on SWAT
-   but a KMeans kernel may. The image [here](https://github.com/agrippa/spark-swat/raw/master/speedup.png) shows some sample results we have
+   but a KMeans kernel may. The image [here](https://github.com/agrippa/spark-swat/raw/master/docs/speedup.png) shows some sample results we have
    gathered on a variety of benchmarks. Note the bimodal distribution: there is
    a cluster of benchmarks that achieve 3-4x speedup on SWAT and another that
    sees no benefit (or slight degradation). Your mileage may vary.
