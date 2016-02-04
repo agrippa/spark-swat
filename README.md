@@ -1,4 +1,4 @@
-# Spark SWAT (Spark With AcceleraTors)
+# Spark SWAT (Spark With Accelerated Tasks)
 
 SWAT accelerates user-defined Spark computation using OpenCL accelerators.
 
