@@ -52,8 +52,28 @@ There are 5 main software modules that make up SWAT.
 5. **aparapi-swat**: The code generation framework we use to convert JVM
    bytecode at runtime to OpenCL kernels. aparapi-swat is an extension of the
    open source APARAPI project and resides in a separate repo, at
-   [https://github.com/agrippa/aparapi-swat].
+   https://github.com/agrippa/aparapi-swat.
 
 # FAQs
+
+1. **Is SWAT production-ready?** No, SWAT is a one-man project at the moment and
+   is not being used in production anywhere. With that said, it does have fairly
+   comprehensive code generation and functional tests. If you are interested in
+   exploring the use of SWAT in your development or contributing to SWAT,
+   contact me at jmaxg3@gmail.com.
+2. **Are there limitations to the kernels that SWAT can run on an accelerator?**
+   Yes, generating OpenCL code from JVM bytecode is no simple task. There are
+   many constructs in the JVM that just don't have an analog in OpenCL (e.g.
+   exceptions). While it is usually possible to loosen the restrictions on the
+   bytecode that can be handled, that loosening sometimes comes with a
+   performance penalty from either more expensive code generation or less
+   well-performing kernels. With that said, the restrictions on SWAT kernels are
+   much looser than most related projects. For example, it can handle some JVM objects (including
+   MLlib objects like DenseVector and SparseVector) as well as dynamic memory
+   allocation (i.e. `new`). For examples of the types of kernels SWAT
+   supports, see the files in spark-swat/swat/src/test/scala/org/apache/spark/rdd/cl/tests.
+3. **What platforms is SWAT tested on?** As a small project, SWAT is currently
+   only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.4, GCC 4.8.5,
+   CUDA 6.5, and NVIDIA GPUs.
 
 # Setup
