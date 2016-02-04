@@ -94,23 +94,23 @@ building may be a pain. If you are having trouble or hitting odd errors, you can
 reach me at jmaxg3@gmail.com and I'll be happy to help.
 
 I'll assume that you already have a Spark cluster deployed and environment
-variables like `SPARK\_HOME`, `HADOOP\_HOME`, and `JAVA\_HOME` set
-appropriately. You should also set `SWAT\_HOME` to point to the spark-swat
+variables like `SPARK_HOME`, `HADOOP_HOME`, and `JAVA_HOME` set
+appropriately. You should also set `SWAT_HOME` to point to the spark-swat
 directory you clone this repo to.
 
 1. Check out APARAPI-SWAT from its repo and build:
   1. `git clone https://github.com/agrippa/aparapi-swat`
-  2. Set an `APARAPI\_SWAT` environment variable to point to the aparapi-swat
+  2. Set an `APARAPI_SWAT` environment variable to point to the aparapi-swat
      directory that was just created.
-  3. `cd $APARAPI\_SWAT && ./build.sh`
-2. `cd $SWAT\_HOME/clutil/ && make`
-3. `cd $SWAT\_HOME/clalloc/ && make`
-4. `cd $SWAT\_HOME/swat-bridge/ && make`
-5. `cd $SWAT\_HOME/swat/ && mvn clean package`
+  3. `cd $APARAPI_SWAT && ./build.sh`
+2. `cd $SWAT_HOME/clutil/ && make`
+3. `cd $SWAT_HOME/clalloc/ && make`
+4. `cd $SWAT_HOME/swat-bridge/ && make`
+5. `cd $SWAT_HOME/swat/ && mvn clean package`
 
 To test the code generator is working, use the script in
-`$SWAT\_HOME/swat/test_translator.sh` to run the code generation tests.
+`$SWAT_HOME/swat/test_translator.sh` to run the code generation tests.
 
-Functional tests can be found in `$SWAT\_HOME/functional-tests`. See the
-`test\_all.sh` script in that directory for an idea of how to run each
+Functional tests can be found in `$SWAT_HOME/functional-tests`. See the
+`test_all.sh` script in that directory for an idea of how to run each
 individual test.
