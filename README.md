@@ -103,10 +103,10 @@ directory you clone this repo to.
   2. Set an `APARAPI\_SWAT` environment variable to point to the aparapi-swat
      directory that was just created.
   3. `cd $APARAPI\_SWAT && ./build.sh`
-2. `cd $SWAT\_HOME/clutil/ && make`.
+2. `cd $SWAT\_HOME/clutil/ && make`
 3. `cd $SWAT\_HOME/clalloc/ && make`
-4. `cd $SWAT\_HOME/swat-bridge/ && make`.
-5. `cd $SWAT\_HOME/swat/ && mvn clean package`.
+4. `cd $SWAT\_HOME/swat-bridge/ && make`
+5. `cd $SWAT\_HOME/swat/ && mvn clean package`
 
 To test the code generator is working, use the script in
 `$SWAT\_HOME/swat/test_translator.sh` to run the code generation tests.
