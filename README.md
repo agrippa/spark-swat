@@ -72,8 +72,38 @@ There are 5 main software modules that make up SWAT.
    MLlib objects like DenseVector and SparseVector) as well as dynamic memory
    allocation (i.e. `new`). For examples of the types of kernels SWAT
    supports, see the files in spark-swat/swat/src/test/scala/org/apache/spark/rdd/cl/tests.
+3. **Will SWAT make my program faster?** This is a tough question to answer and
+   is very dependent on the kernel you are running and the data it is
+   processing. SWAT (and accelerators in general) do not work well for kernels
+   that process a large amount of data without performing many operations on it.
+   For example, a simplistic PageRank benchmark does not perform well on SWAT
+   but a KMeans kernel may. The image below shows some sample results we have
+   gathered on a variety of benchmarks. Note the bimodal distribution: there is
+   a cluster of benchmarks that achieve 3-4x speedup on SWAT and another that
+   sees no benefit (or slight degradation). Your mileage may vary.
+   (https://github.com/agrippa/spark-swat/raw/master/speedup.png)
 3. **What platforms is SWAT tested on?** As a small project, SWAT is currently
-   only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.4, GCC 4.8.5,
-   CUDA 6.5, and NVIDIA GPUs.
+   only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
+   CUDA 6.5, NVIDIA GPUs, all under Red Hat Enterprise Linux Server release 6.5.
+   It is likely to run on other Linux-based systems, but may need tweaking.
 
 # Setup
+
+There are no automated configuration or installation scripts for SWAT at the
+moment as I have no need to support it on more than a couple of platforms, so
+building may be a pain. If you are having trouble or hitting odd errors, you can
+reach me at jmaxg3@gmail.com and I'll be happy to help.
+
+I'll assume that you already have a Spark cluster deployed and environment
+variables like `SPARK\_HOME`, `HADOOP\_HOME`, and `JAVA\_HOME` set
+appropriately. You should also set `SWAT\_HOME` to point to the spark-swat
+directory you clone this repo to.
+
+1. Check out APARAPI-SWAT from its repo and build:
+  1. git clone https://github.com/agrippa/aparapi-swat
+  2. Set an `APARAPI\_SWAT` environment variable to point to the aparapi-swat
+     directory that was just created.
+  3. cd `$APARAPI\_SWAT` && ./build.sh
+2. cd clalloc/ run `make`.
+2. From clutil/ run `make`.
+
