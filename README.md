@@ -88,9 +88,10 @@ There are 5 main software modules that make up SWAT.
    that will run well on accelerators and the SWAT runtime is also able to
    auto-optimize some things.
 6. **What platforms is SWAT tested on?** As a small project, SWAT is currently
-   only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
+   only regularly tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
    CUDA 6.5, NVIDIA GPUs, all under Red Hat Enterprise Linux Server release 6.5.
-   It is likely to run on other Linux-based systems, but may need tweaking.
+   It has been used on other systems, including AMD-based clusters, but is not tested regularly there.
+   It is likely to run on Linux-based systems, but may need tweaking.
 
 # Setup
 
@@ -101,7 +102,8 @@ reach me at jmaxg3@gmail.com and I'll be happy to help.
 
 I'll assume that you already have a Spark cluster deployed and environment
 variables like `SPARK_HOME`, `HADOOP_HOME`, and `JAVA_HOME` set
-appropriately. You should also set `SWAT_HOME` to point to the spark-swat
+appropriately. `CL_HOME` should point to the root directory of your OpenCL
+installation. You should also set `SWAT_HOME` to point to the spark-swat
 directory you clone this repo to.
 
 1. Check out APARAPI-SWAT from its repo and build:
