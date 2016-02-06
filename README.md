@@ -105,7 +105,7 @@ reach me at jmaxg3@gmail.com and I'll be happy to help.
 I'll assume that you already have a Spark cluster deployed and environment
 variables like `SPARK_HOME`, `HADOOP_HOME`, and `JAVA_HOME` set
 appropriately. `CL_HOME` should point to the root directory of your OpenCL
-installation. You should also set `SWAT_HOME` to point to the spark-swat
+installation if you are not on OS X. You should also set `SWAT_HOME` to point to the spark-swat
 directory you clone this repo to.
 
 1. Check out APARAPI-SWAT from its repo and build:
@@ -113,14 +113,15 @@ directory you clone this repo to.
   2. Set an `APARAPI_SWAT` environment variable to point to the aparapi-swat
      directory that was just created.
   3. `cd $APARAPI_SWAT && ./build.sh`
-2. Create a `build.conf` file in `$SPARK_HOME` with a single line setting `GXX=...` to your preferred C++ compiler.
+2. Create a `build.conf` file in `$SWAT_HOME` with a single line setting `GXX=...` to your preferred C++ compiler.
 3. `cd $SWAT_HOME/clutil/ && make`
 4. `cd $SWAT_HOME/clalloc/ && make`
 5. `cd $SWAT_HOME/swat-bridge/ && make`
 6. `cd $SWAT_HOME/swat/ && mvn clean package`
 
 To test the code generator is working, use the script in
-`$SWAT_HOME/swat/test_translator.sh` to run the code generation tests.
+`$SWAT_HOME/swat/test_translator.sh` to run the code generation
+tests.  Before running this program make sure SCALA_HOME is 
 
 Functional tests can be found in `$SWAT_HOME/functional-tests`. See the
 `test_all.sh` script in that directory for an idea of how to run each
