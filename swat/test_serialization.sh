@@ -3,7 +3,7 @@ if [[ "x$SCALA_HOME" == "x" ]]; then
   exit 1
 fi
 
-JARS=./target/test-classes:${APARAPI_HOME}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
+JARS=./target/test-classes:${APARAPI_SWAT}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
 
 for f in $(find $SCALA_HOME/lib -name "*.jar"); do
   JARS="$JARS:$f"
