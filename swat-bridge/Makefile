@@ -5,12 +5,14 @@ DEFINES=
 GXX_FLAGS=-O3 -Wall
 # GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all -g -rdynamic
 
+CLALLOC_HOME=${SWAT_HOME}/clalloc
+CLUTIL_HOME=${SWAT_HOME}/clutil
+
 SRC=bridge.cpp common.cpp
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CLUTIL_HOME} -I${CLALLOC_HOME} \
          -I/System/Library/Frameworks/OpenCL.framework/Versions/Current/Headers \
          -I${CL_HOME}/include
-LIBS=-L${CL_HOME}/lib
 TARGET=libbridge.so
 
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
@@ -18,6 +20,7 @@ ifeq ($(IS_CLANG),1)
 	GXX_FLAGS += -framework OpenCL
 else
 	GXX_FLAGS += -lOpenCL -lrt
+	LIBS=-L${CL_HOME}/lib
 endif
 
 all: ${TARGET} rerun query_tool
