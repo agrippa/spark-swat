@@ -4,6 +4,8 @@ include ${SWAT_HOME}/build.conf
 TARGET=libclalloc.so
 DEFINES=
 
+CLUTIL_HOME=${SWAT_HOME}/clutil
+
 ifeq ($(GXX),nvcc)
 GXX_FLAGS=-O3 -Xcompiler '-Wall' -Xcompiler '-fPIC' -DCUDA_ALLOCATOR
 else
@@ -11,7 +13,6 @@ GXX_FLAGS=-O3 -Wall -fPIC -DOPENCL_ALLOCATOR
 endif
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
-LIBS=-L${CL_HOME}/lib
 
 ifneq ($(GXX),nvcc)
 IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
@@ -19,6 +20,7 @@ ifeq ($(IS_CLANG),1)
 	GXX_FLAGS += -framework OpenCL
 else
 	GXX_FLAGS += -lOpenCL
+	LIBS=-L${CL_HOME}/lib
 endif
 endif
 
