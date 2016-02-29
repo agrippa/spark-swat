@@ -194,7 +194,17 @@ object CodeGenTests {
     for (i <- 0 until syncTests.size) {
       val test : SyncCodeGenTest[_, _] = syncTests.get(i)
       if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
-        verifyCodeGen(test.getFunction, test.getExpectedKernel,
+        val expectedOutput : String = try {
+            test.getExpectedKernel
+        } catch {
+            case m: MissingTestException => {
+                System.err.println(test.getClass.getSimpleName + " FAILED")
+                System.err.println("Missing expected kernel output at " + m.getMessage)
+                System.exit(1)
+                ""
+            }
+        }
+        verifyCodeGen(test.getFunction, expectedOutput,
             test.getExpectedNumInputs, test.getClass.getSimpleName,
             test.getExpectedException, test, devId, false)
       }
@@ -203,7 +213,17 @@ object CodeGenTests {
     for (i <- 0 until asyncTests.size) {
       val test : AsyncCodeGenTest[_] = asyncTests.get(i)
       if (testName == null || test.getClass.getSimpleName.equals(testName + "$")) {
-        verifyCodeGen(test.getFunction, test.getExpectedKernel,
+        val expectedOutput : String = try {
+            test.getExpectedKernel
+        } catch {
+            case m: MissingTestException => {
+                System.err.println(test.getClass.getSimpleName + " FAILED")
+                System.err.println("Missing expected kernel output at " + m.getMessage)
+                System.exit(1)
+                ""
+            }
+        }
+        verifyCodeGen(test.getFunction, expectedOutput,
             test.getExpectedNumInputs, test.getClass.getSimpleName,
             test.getExpectedException, test, devId, true)
       }
