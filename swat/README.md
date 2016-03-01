@@ -26,3 +26,5 @@ update_test.sh <test-name>
 
 or by simply using update_last_failed_test.sh to fix whichever was the most
 recently failed test in a test_translator.sh run.
+
+All scripts above should be run from inside the spark-swat/swat/ directory.
