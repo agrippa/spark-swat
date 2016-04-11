@@ -10,4 +10,6 @@ ERR=$?
 if [[ $ERR != 0 || -z $HOSTNAME ]]; then
     HOSTNAME=$(hostname)
 fi
+
+mkdir -p src/test/scala/org/apache/spark/rdd/cl/tests/$HOSTNAME
 cp generated src/test/scala/org/apache/spark/rdd/cl/tests/$HOSTNAME/$1.kernel

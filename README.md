@@ -1,4 +1,4 @@
-# Spark SWAT (Spark With AcceleraTors)
+# Spark SWAT (Spark With Accelerated Tasks)
 
 SWAT accelerates user-defined Spark computation using OpenCL accelerators.
 
@@ -32,6 +32,8 @@ care of the details of mapping the user-defined work down to the current
 hardware platform. Automatic kernel generation from JVM bytecode at runtime
 enables auto-optimization of user kernels and ensures identical semantics to the
 original JVM kernel.
+
+A brief slide deck on SWAT is available under spark-swat/docs/.
 
 # Components
 
@@ -77,14 +79,21 @@ There are 5 main software modules that make up SWAT.
    processing. SWAT (and accelerators in general) do not work well for kernels
    that process a large amount of data without performing many operations on it.
    For example, a simplistic PageRank benchmark does not perform well on SWAT
-   but a KMeans kernel may. The image [here](https://github.com/agrippa/spark-swat/raw/master/speedup.png) shows some sample results we have
+   but a KMeans kernel may. The image [here](https://github.com/agrippa/spark-swat/raw/master/docs/speedup.png) shows some sample results we have
    gathered on a variety of benchmarks. Note the bimodal distribution: there is
    a cluster of benchmarks that achieve 3-4x speedup on SWAT and another that
    sees no benefit (or slight degradation). Your mileage may vary.
-4. **What platforms is SWAT tested on?** As a small project, SWAT is currently
-   only tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
+4. **Does SWAT support multi-GPU systems?** Yes!
+5. **Do I need to be a accelerator guru to program SWAT effectively?** No, but as in all
+   things performance-oriented an understanding of the underlying platform will
+   help. In general, the functional/parallel patterns of Spark encourage code
+   that will run well on accelerators and the SWAT runtime is also able to
+   auto-optimize some things.
+6. **What platforms is SWAT tested on?** As a small project, SWAT is currently
+   only regularly tested on HotSpot JDK 1.7.8\_80, Spark 1.5.1, Hadoop 2.5.2, GCC 4.8.5,
    CUDA 6.5, NVIDIA GPUs, all under Red Hat Enterprise Linux Server release 6.5.
-   It is likely to run on other Linux-based systems, but may need tweaking.
+   It has been used on other systems, including AMD-based clusters, but is not tested regularly there.
+   It is likely to run on Linux-based systems, but may need tweaking.
 
 # Setup
 
@@ -95,7 +104,8 @@ reach me at jmaxg3@gmail.com and I'll be happy to help.
 
 I'll assume that you already have a Spark cluster deployed and environment
 variables like `SPARK_HOME`, `HADOOP_HOME`, and `JAVA_HOME` set
-appropriately. You should also set `SWAT_HOME` to point to the spark-swat
+appropriately. `CL_HOME` should point to the root directory of your OpenCL
+installation if you are not on OS X. You should also set `SWAT_HOME` to point to the spark-swat
 directory you clone this repo to.
 
 1. Check out APARAPI-SWAT from its repo and build:
@@ -103,14 +113,15 @@ directory you clone this repo to.
   2. Set an `APARAPI_SWAT` environment variable to point to the aparapi-swat
      directory that was just created.
   3. `cd $APARAPI_SWAT && ./build.sh`
-2. Create a `build.conf` file in `$SPARK_HOME` with a single line setting `GXX=...` to your preferred C++ compiler.
+2. Create a `build.conf` file in `$SWAT_HOME` with a single line setting `GXX=...` to your preferred C++ compiler.
 3. `cd $SWAT_HOME/clutil/ && make`
 4. `cd $SWAT_HOME/clalloc/ && make`
 5. `cd $SWAT_HOME/swat-bridge/ && make`
 6. `cd $SWAT_HOME/swat/ && mvn clean package`
 
 To test the code generator is working, use the script in
-`$SWAT_HOME/swat/test_translator.sh` to run the code generation tests.
+`$SWAT_HOME/swat/test_translator.sh` to run the code generation
+tests.  Before running this program make sure SCALA_HOME is 
 
 Functional tests can be found in `$SWAT_HOME/functional-tests`. See the
 `test_all.sh` script in that directory for an idea of how to run each

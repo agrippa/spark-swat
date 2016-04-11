@@ -7,7 +7,10 @@ if [[ "x$SPARK_HOME" == "x" ]]; then
   exit 1
 fi
 
-JARS=./target/test-classes:${APARAPI_HOME}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
+cp ../clalloc/libclalloc.so .
+cp ../clutil/libclutil.so .
+
+JARS=./target/test-classes:${APARAPI_SWAT}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
 
 for f in $(find $SCALA_HOME/lib -name "*.jar"); do
   JARS="$JARS:$f"
@@ -24,3 +27,6 @@ if [[ "x$SCALANLP_HOME" != "x" ]]; then
 fi
 
 SWAT_GPU_WEIGHT=1 SWAT_CPU_WEIGHT=0 scala -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $*
+
+rm libclalloc.so 
+rm libclutil.so 
