@@ -23,7 +23,7 @@ object HyperlinkGraphNormalizer {
         val input : RDD[String] = sc.textFile(inputDir)
         val converted : RDD[Tuple2[Int, Int]] = input.map(line => {
             val tokens : Array[String] = line.split("\t")
-            (tokens(0).toInt, tokens(1).toInt)
+            (Math.abs(tokens(0).toLong.toInt), Math.abs(tokens(1).toLong.toInt))
         })
         val unique : RDD[Int] = converted.flatMap(p => List(p._1, p._2)).distinct()
         val pairedWithId : RDD[Tuple2[Int, Long]] = unique.zipWithIndex()

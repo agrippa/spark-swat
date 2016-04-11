@@ -1206,7 +1206,7 @@ static cl_region *get_mem(swat_context *context, device_context *dev_ctx,
 
 #ifdef PROFILE_OPENCL
 static void add_event_to_list(event_info **list, cl_event event,
-        const char *label, int *list_length, int *list_capacity) {
+        const char *label, int *list_length, int *list_capacity, size_t metadata) {
     if (*list_capacity == *list_length) {
         const int new_capacity = *list_capacity * 2;
         *list = (event_info *)realloc(*list, new_capacity * sizeof(event_info));
@@ -1222,6 +1222,7 @@ static void add_event_to_list(event_info **list, cl_event event,
     memcpy(lbl_copy, label, label_length + 1);
     (*list)[*list_length].label = lbl_copy;
     (*list)[*list_length].timestamp = get_clock_gettime_ns();
+    (*list)[*list_length].metadata = metadata;
 
     *list_length = *list_length + 1;
 }
@@ -1245,7 +1246,7 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
 #ifdef PROFILE_OPENCL
         add_event_to_list(&context->acc_write_events, event, "init_write",
                 &context->acc_write_events_length,
-                &context->acc_write_events_capacity);
+                &context->acc_write_events_capacity, len);
 #endif
         context->last_write_event = event;
     }
@@ -2242,7 +2243,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, free_index_event, "free_index-in",
                 &kernel_ctx->acc_write_events_length,
-                &kernel_ctx->acc_write_events_capacity);
+                &kernel_ctx->acc_write_events_capacity, sizeof(zero));
 #endif
         prev_event = free_index_event;
     }
@@ -2270,7 +2271,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, run_event, "run",
                 &kernel_ctx->acc_write_events_length,
-                &kernel_ctx->acc_write_events_capacity);
+                &kernel_ctx->acc_write_events_capacity, kernel_ctx->n_loaded);
 #endif
 
     perr = pthread_mutex_unlock(&ctx->kernel_lock);
@@ -2292,7 +2293,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, copy_back_event, "free_index-out",
                 &kernel_ctx->acc_write_events_length,
-                &kernel_ctx->acc_write_events_capacity);
+                &kernel_ctx->acc_write_events_capacity, sizeof(zero));
 #endif
 
         CHECK(clSetEventCallback(copy_back_event, CL_COMPLETE,
@@ -2352,11 +2353,12 @@ static void finally_done_callback(cl_event event,
                     NULL));
         fprintf(stderr, "  thread %d : seq %d : %d : %s : %lu ns total "
                 "(started = %llu, queued -> submitted %lu ns, submitted -> "
-                "started %lu ns, started -> finished %lu ns)\n",
+                "started %lu ns, started -> finished %lu ns) : %lu\n",
                 ctx->host_thread_index, kernel_ctx->seq_no, i,
                 (kernel_ctx->acc_write_events)[i].label, finished - queued,
                 (kernel_ctx->acc_write_events)[i].timestamp - app_start_time,
-                submitted - queued, started - submitted, finished - started);
+                submitted - queued, started - submitted, finished - started,
+                (kernel_ctx->acc_write_events)[i].metadata);
         free((kernel_ctx->acc_write_events)[i].label);
     }
     free(kernel_ctx->acc_write_events);
@@ -2425,7 +2427,7 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
 #ifdef PROFILE_OPENCL
             add_event_to_list(&kernel_ctx->acc_write_events, next_event, "out",
                     &kernel_ctx->acc_write_events_length,
-                    &kernel_ctx->acc_write_events_capacity);
+                    &kernel_ctx->acc_write_events_capacity, region->size);
 #endif
             prev_event = next_event;
         }
@@ -2486,7 +2488,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
 #ifdef PROFILE_OPENCL
     add_event_to_list(&kernel_ctx->acc_write_events, heap_event, "heap",
             &kernel_ctx->acc_write_events_length,
-            &kernel_ctx->acc_write_events_capacity);
+            &kernel_ctx->acc_write_events_capacity, available_bytes);
 #endif
 
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].heap_ctx = heap_ctx;
@@ -3313,7 +3315,7 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
 #ifdef PROFILE_OPENCL
     add_event_to_list(&context->acc_write_events, event, "init_write",
             &context->acc_write_events_length,
-            &context->acc_write_events_capacity);
+            &context->acc_write_events_capacity, nbytes);
 #endif
     context->last_write_event = event;
 

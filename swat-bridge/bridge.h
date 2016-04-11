@@ -147,6 +147,7 @@ typedef struct _event_info {
     unsigned long long timestamp;
     cl_event event;
     char *label;
+    size_t metadata;
 } event_info;
 
 typedef struct _kernel_context kernel_context;

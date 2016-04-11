@@ -23,13 +23,14 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.input_chunking=70000 -Dswat.heap_size=83886080 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
-              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true"
 
 INPUT_EXISTS=$(${HADOOP_HOME}/bin/hdfs dfs -ls / | grep census-data | wc -l)
 if [[ $INPUT_EXISTS != 1 ]]; then
     ${HADOOP_HOME}/bin/hdfs dfs -mkdir /census-data
     ${HADOOP_HOME}/bin/hdfs dfs -put \
-        $SPARK_DATASETS/census/3.dup/part* /census-data/
+        $SPARK_DATASETS/census/2.split/part* /census-data/
+        # $SPARK_DATASETS/census/3.dup/part* /census-data/
 fi
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19 -Xloggc:/tmp/SWAT.log -verbose:gc" \
 # --conf "spark.executor.extraJavaOptions=-XX:+PrintGCDetails" \
