@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -e
+
 if [[ "x$SCALA_HOME" == "x" ]]; then
   echo SCALA_HOME must be set
   exit 1

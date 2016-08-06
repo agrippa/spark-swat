@@ -31,71 +31,81 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.apache.spark.rdd.cl.tests
 
-import scala.math._
 import java.util.LinkedList
+
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
+import com.amd.aparapi.internal.model.DenseVectorClassModel
+import com.amd.aparapi.internal.model.ScalaArrayClassModel
+
 import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
-import com.amd.aparapi.internal.model.ClassModel
-import com.amd.aparapi.internal.model.HardCodedClassModels
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.mllib.linalg.DenseVector
 
-object PageRankTest extends SyncCodeGenTest[(Int, Int), (Int, Double)] {
+import org.apache.spark.rdd.cl.PrimitiveArrayInputBufferWrapperConfig
+
+object ASPLOSValueOfRisk extends SyncCodeGenTest[Int, Array[Float]] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
 
-  def getExpectedNumInputs() : Int = {
+  def getExpectedNumInputs : Int = {
     1
   }
 
   def init() : HardCodedClassModels = {
-    val inputClassType1Name = CodeGenUtil.cleanClassName("I")
-    val inputClassType2Name = CodeGenUtil.cleanClassName("I")
-    val inputTuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        inputClassType1Name, inputClassType2Name, false)
-
-    val outputClassType1Name = CodeGenUtil.cleanClassName("I")
-    val outputClassType2Name = CodeGenUtil.cleanClassName("D")
-
-    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
-        outputClassType1Name, outputClassType2Name, true)
     val models = new HardCodedClassModels()
-    models.addClassModelFor(classOf[Tuple2[_, _]], inputTuple2ClassModel)
-    models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+
+    val arrayModel = ScalaArrayClassModel.create("F")
+    models.addClassModelFor(classOf[Array[_]], arrayModel)
+
     models
   }
 
   def complete(params : LinkedList[ScalaArrayParameter]) {
-    params.get(0).addTypeParameter("I", false)
-    params.get(0).addTypeParameter("I", false)
-
-    params.get(1).addTypeParameter("I", false)
-    params.get(1).addTypeParameter("D", false)
   }
 
-  def getFunction() : Function1[(Int, Int), (Int, Double)] = {
-    new Function[(Int, Int), (Int, Double)] {
-      override def apply(in : Tuple2[Int, Int]) : (Int, Double) = {
-          return (1, 3.0)
-    //     var closest_center = -1
-    //     var closest_center_dist = -1.0f
+  def getFunction() : Function1[Int, Array[Float]] = {
+    val broadcastInstruments : Broadcast[Array[Array[Float]]] = null
+    val numTrials : Int = -1
 
-    //     var i = 0
-    //     while (i < centers.length) {
-    //       val d = in.dist(centers(i)._2)
-    //       if (i == 0 || d < closest_center_dist) {
-    //         closest_center = i
-    //         closest_center_dist = d
-    //       }
+    new Function[Int, Array[Float]] {
+      override def apply(in : Int) : Array[Float] = {
+        val insts = broadcastInstruments.value
+        val trialValues = new Array[Float](numTrials)
+        var i = 0
+        while (i < numTrials) {
+          val trial = random.toFloat
+          var totalValue = 0.0f
+          var j = 0
+          while (j < numInst) { // Instrument #
+            var k = 0
+            while (k < numInstValue) { // Instrument value #
+              var instTrailValue = trial * insts(j)(2 + k)
+              var v = if (instTrailValue > insts(j)(0)) {
+                instTrailValue
+              }
+              else {
+                insts(j)(0)
+              }
+              if (v < insts(j)(1))
+                totalValue += v
+              else
+                totalValue += insts(j)(1)
+              k += 1
+            }
+            j += 1
+          }
+          trialValues(i) = totalValue
+          i += 1
+        }
+        trialValues
 
-    //       i += 1
-    //     }
-    //     (centers(closest_center)._1, new PointWithClassifier(
-    //         centers(closest_center)._2.x, centers(closest_center)._2.y,
-    //         centers(closest_center)._2.z))
       }
     }
   }

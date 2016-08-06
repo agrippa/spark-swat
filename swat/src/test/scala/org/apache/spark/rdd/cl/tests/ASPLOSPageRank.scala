@@ -31,40 +31,49 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.apache.spark.rdd.cl.tests
 
-import scala.math._
 import java.util.LinkedList
+
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.model.Tuple2ClassModel
+import com.amd.aparapi.internal.model.ClassModel
+import com.amd.aparapi.internal.model.HardCodedClassModels
+import com.amd.aparapi.internal.model.DenseVectorClassModel
+import com.amd.aparapi.internal.model.ScalaArrayClassModel
+
 import org.apache.spark.rdd.cl.SyncCodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTest
 import org.apache.spark.rdd.cl.CodeGenTests
 import org.apache.spark.rdd.cl.CodeGenUtil
-import com.amd.aparapi.internal.model.ClassModel
-import com.amd.aparapi.internal.model.HardCodedClassModels
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.mllib.linalg.DenseVector
 
-object PageRankTest extends SyncCodeGenTest[(Int, Int), (Int, Double)] {
+import org.apache.spark.rdd.cl.PrimitiveArrayInputBufferWrapperConfig
+
+object ASPLOSPageRank extends SyncCodeGenTest[Tuple2[Int, Int], Tuple2[Int, Float]] {
   def getExpectedException() : String = { return null }
 
   def getExpectedKernel() : String = { getExpectedKernelHelper(getClass) }
 
-  def getExpectedNumInputs() : Int = {
+  def getExpectedNumInputs : Int = {
     1
   }
 
   def init() : HardCodedClassModels = {
+    val models = new HardCodedClassModels()
+
     val inputClassType1Name = CodeGenUtil.cleanClassName("I")
     val inputClassType2Name = CodeGenUtil.cleanClassName("I")
     val inputTuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         inputClassType1Name, inputClassType2Name, false)
 
     val outputClassType1Name = CodeGenUtil.cleanClassName("I")
-    val outputClassType2Name = CodeGenUtil.cleanClassName("D")
-
-    val tuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
+    val outputClassType2Name = CodeGenUtil.cleanClassName("F")
+    val outputTuple2ClassModel : Tuple2ClassModel = Tuple2ClassModel.create(
         outputClassType1Name, outputClassType2Name, true)
-    val models = new HardCodedClassModels()
+
     models.addClassModelFor(classOf[Tuple2[_, _]], inputTuple2ClassModel)
-    models.addClassModelFor(classOf[Tuple2[_, _]], tuple2ClassModel)
+    models.addClassModelFor(classOf[Tuple2[_, _]], outputTuple2ClassModel)
+
     models
   }
 
@@ -73,29 +82,23 @@ object PageRankTest extends SyncCodeGenTest[(Int, Int), (Int, Double)] {
     params.get(0).addTypeParameter("I", false)
 
     params.get(1).addTypeParameter("I", false)
-    params.get(1).addTypeParameter("D", false)
+    params.get(1).addTypeParameter("F", false)
   }
 
-  def getFunction() : Function1[(Int, Int), (Int, Double)] = {
-    new Function[(Int, Int), (Int, Double)] {
-      override def apply(in : Tuple2[Int, Int]) : (Int, Double) = {
-          return (1, 3.0)
-    //     var closest_center = -1
-    //     var closest_center_dist = -1.0f
+  def getFunction() : Function1[Tuple2[Int, Int], Tuple2[Int, Float]] = {
+    val broadcastDocRanks : Broadcast[Array[Float]] = null
+    val broadcastDocLinkCounts : Broadcast[Array[Int]] = null
 
-    //     var i = 0
-    //     while (i < centers.length) {
-    //       val d = in.dist(centers(i)._2)
-    //       if (i == 0 || d < closest_center_dist) {
-    //         closest_center = i
-    //         closest_center_dist = d
-    //       }
-
-    //       i += 1
-    //     }
-    //     (centers(closest_center)._1, new PointWithClassifier(
-    //         centers(closest_center)._2.x, centers(closest_center)._2.y,
-    //         centers(closest_center)._2.z))
+    new Function[Tuple2[Int, Int], Tuple2[Int, Float]] {
+      override def apply(in : Tuple2[Int, Int]) : Tuple2[Int, Float] = {
+        val destNode = in._1
+        val srcNode = in._2
+        val rs = broadcastDocRanks.value
+        val cs = broadcastDocLinkCounts.value
+        val r = rs(srcNode)
+        val c = cs(srcNode)
+        val w = r / c
+        (in._1, w)
       }
     }
   }
