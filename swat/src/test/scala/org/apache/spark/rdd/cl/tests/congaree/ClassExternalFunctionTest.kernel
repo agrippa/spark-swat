@@ -7,10 +7,11 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$_s org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$;
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$_s{
    
-} org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$;
+};
 
 typedef struct This_s{
    } This;
@@ -27,8 +28,8 @@ static int org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__appl
    return(org_apache_spark_rdd_cl_tests_ClassExternalFunctionTest$$anon$1__apply$mcII$sp(this, in));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int* out, int N) {
+      __global int* restrict in0, 
+      __global int* restrict out, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {

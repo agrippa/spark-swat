@@ -14,40 +14,40 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s org_apache_spark_rdd_cl_tests_Point;
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$_s org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$;
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
    float  x;
    float  y;
    float  z;
    
-} org_apache_spark_rdd_cl_tests_Point;
+};
 
 
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$_s{
-   
-} org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$;
-
-
-typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{
+struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s{
    __global org_apache_spark_rdd_cl_tests_Point  * _2;
    int  _1;
    
-} scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$_s{
+   
+};
 
 typedef struct This_s{
-   __global void *heap;
-   __global uint *free_index;
-   int alloc_failed;
-   unsigned int heap_size;
    } This;
 
-static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, __global org_apache_spark_rdd_cl_tests_Point *  two) {
+static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *this, int  one, __global org_apache_spark_rdd_cl_tests_Point *  two) {
    this->_1 = one;
    this->_2 = two;
    return this;
 }
 
-static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){
+
+static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this, float x, float y, float z){
 
    this->x=x;
    this->y=y;
@@ -55,31 +55,25 @@ static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_te
    ;
    return (this);
 }
-static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(This *this, int in){
+static __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int in){
 
-   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);
-   if (this->alloc_failed) { return (0x0); }
-   __global org_apache_spark_rdd_cl_tests_Point * __alloc1 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(this->heap, this->free_index, this->heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), &this->alloc_failed);
-   if (this->alloc_failed) { return (0x0); }
-   return(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__alloc0, (in + 1), org_apache_spark_rdd_cl_tests_Point___init_(__alloc1, 1.0f, 2.0f, 3.0f)));
+   __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); }
+   __global org_apache_spark_rdd_cl_tests_Point * __alloc1 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); }
+   return(scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc0, (in + 1), org_apache_spark_rdd_cl_tests_Point___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc1, 1.0f, 2.0f, 3.0f)));
 }
 __kernel void run(
-      __global int* in0, 
-      __global int * out_1, __global org_apache_spark_rdd_cl_tests_Point* out_2, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+      __global int* restrict in0, 
+      __global int * restrict out_1, __global org_apache_spark_rdd_cl_tests_Point* restrict out_2, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this=&thisStruct;
-   this->heap = heap;
-   this->free_index = free_index;
-   this->heap_size = heap_size;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      if (processing_succeeded[i]) continue;
-      
-      this->alloc_failed = 0;
-      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(this, in0[i]);
-      if (this->alloc_failed) {
-         processing_succeeded[i] = 0;
-         *any_failed = 1;
-      } else {
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
+      int alloc_failed = 0;
+      __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* result = org_apache_spark_rdd_cl_tests_Tuple2ObjectOutputTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      if (!alloc_failed) {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;
          out_2[i] = *(result->_2);

@@ -1,0 +1,302 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) scala_Array_s scala_Array;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSAES$_s org_apache_spark_rdd_cl_tests_ASPLOSAES$;
+
+struct __attribute__ ((packed)) scala_Array_s{
+   __global int*  values;
+   int  size;
+   int  tiling;
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSAES$_s{
+   
+};
+
+typedef struct This_s{
+   __global int* bKey$1;
+   int bKey$1__javaArrayLength;
+   __global int* sbox;
+   int sbox__javaArrayLength;
+   } This;
+
+static int scala_Array__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this) {
+    return (this->size);
+}
+
+
+
+static int scala_Array__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this, int index) {
+    return (this->values)[this->tiling * index];
+}
+
+
+static int org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__rj_xtime(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int x){
+
+   int mask = x & 128;
+   return((mask==1) ? ({
+   
+      ((x << 1) ^ 27);
+   }) : ({
+   
+      (x << 1);
+   }));
+}
+static __global int* org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this){
+
+   return(this->sbox);
+}
+static __global int* org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this,  __global int* data, int data__javaArrayLength){
+
+   return(
+   {
+   
+      __global int * __alloc0 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (32)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (32); __alloc0 = (__global int *)(((__global long *)__alloc0) + 1); 
+       __global int* key = __alloc0;
+      __global int * __alloc1 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (32)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc1) = (32); __alloc1 = (__global int *)(((__global long *)__alloc1) + 1); 
+       __global int* enckey = __alloc1;
+      __global int * __alloc2 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (32)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc2) = (32); __alloc2 = (__global int *)(((__global long *)__alloc2) + 1); 
+       __global int* deckey = __alloc2;
+      __global int * __alloc3 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (16)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc3) = (16); __alloc3 = (__global int *)(((__global long *)__alloc3) + 1); 
+       __global int* aes_data = __alloc3;
+      int rcon = 1;
+      int i = 0;
+      int j = 0;
+      int p = 0;
+      int q = 0;
+      for (; i<16; i = i + 1){
+      
+         aes_data[i]  = data[i];
+      }
+      i = 0;
+      for (; i<32; i = i + 1){
+      
+         enckey[i]  = this->bKey$1[i];
+         deckey[i]  = this->bKey$1[i];
+      }
+      i = 7;
+      for (; i>0; i = i - 1){
+      
+         deckey[0]  = (deckey[0] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[29]) ^ rcon;
+         deckey[1]  = deckey[1] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[30];
+         deckey[2]  = deckey[2] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[31];
+         deckey[3]  = deckey[3] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[28];
+         rcon = (rcon << 1) ^ (((rcon >> 7) & 1) * 27);
+         deckey[4]  = deckey[4] ^ deckey[0];
+         deckey[5]  = deckey[5] ^ deckey[1];
+         deckey[6]  = deckey[6] ^ deckey[2];
+         deckey[7]  = deckey[7] ^ deckey[3];
+         deckey[8]  = deckey[8] ^ deckey[4];
+         deckey[9]  = deckey[9] ^ deckey[5];
+         deckey[10]  = deckey[10] ^ deckey[6];
+         deckey[11]  = deckey[11] ^ deckey[7];
+         deckey[12]  = deckey[12] ^ deckey[8];
+         deckey[13]  = deckey[13] ^ deckey[9];
+         deckey[14]  = deckey[14] ^ deckey[10];
+         deckey[15]  = deckey[15] ^ deckey[11];
+         deckey[16]  = deckey[16] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[12];
+         deckey[17]  = deckey[17] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[13];
+         deckey[18]  = deckey[18] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[14];
+         deckey[19]  = deckey[19] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[15];
+         deckey[20]  = deckey[20] ^ deckey[16];
+         deckey[21]  = deckey[21] ^ deckey[17];
+         deckey[22]  = deckey[22] ^ deckey[18];
+         deckey[23]  = deckey[23] ^ deckey[19];
+         deckey[24]  = deckey[24] ^ deckey[20];
+         deckey[25]  = deckey[25] ^ deckey[21];
+         deckey[26]  = deckey[26] ^ deckey[22];
+         deckey[27]  = deckey[27] ^ deckey[23];
+         deckey[28]  = deckey[28] ^ deckey[24];
+         deckey[29]  = deckey[29] ^ deckey[25];
+         deckey[30]  = deckey[30] ^ deckey[26];
+         deckey[31]  = deckey[31] ^ deckey[27];
+      }
+      i = 15;
+      for (; i>0; i = i - 1){
+      
+         enckey[i]  = key[i];
+         aes_data[i]  = aes_data[i] ^ 1;
+         key[i + 16]  = enckey[(i + 16)];
+      }
+      rcon = 1;
+      i = 0;
+      for (; i<14; i = i + 1){
+      
+         j = 15;
+         for (; j>0; j = j - 1){
+         
+            aes_data[j]  = org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[(aes_data[j] & 255)];
+         }
+         p = aes_data[1];
+         p = aes_data[1];
+         aes_data[1]  = aes_data[5];
+         aes_data[5]  = aes_data[9];
+         aes_data[9]  = aes_data[13];
+         aes_data[13]  = p;
+         p = aes_data[10];
+         aes_data[10]  = aes_data[2];
+         aes_data[2]  = p;
+         q = aes_data[3];
+         aes_data[3]  = aes_data[15];
+         aes_data[15]  = aes_data[11];
+         aes_data[11]  = aes_data[7];
+         aes_data[7]  = q;
+         q = aes_data[14];
+         aes_data[14]  = aes_data[6];
+         aes_data[6]  = q;
+         j = 0;
+         while (j<16){
+         
+            {
+            
+               int a = aes_data[j];
+               int b = aes_data[(j + 1)];
+               int c = aes_data[(j + 2)];
+               int d = aes_data[(j + 3)];
+               int e = ((a ^ b) ^ c) ^ d;
+               aes_data[j]  = (aes_data[j] ^ e) ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__rj_xtime(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, (a ^ b));
+               aes_data[j + 1]  = (aes_data[j] ^ e) ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__rj_xtime(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, (b ^ c));
+               aes_data[j + 2]  = (aes_data[j] ^ e) ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__rj_xtime(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, (c ^ d));
+               aes_data[j + 3]  = (aes_data[j] ^ e) ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__rj_xtime(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, (d ^ a));
+               j = j + 4;
+            }
+         }
+         ((i % 1)==1) ? ({
+         
+            j = 15;
+            for (; j>0; j = j - 1){
+            
+               aes_data[j]  = aes_data[j] ^ key[(16 + j)];
+            }
+         }) : ({
+         
+            j = 0;
+            key[0]  = (key[0] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[29]) ^ rcon;
+            key[1]  = key[1] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[30];
+            key[2]  = key[2] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[31];
+            key[3]  = key[3] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[28];
+            rcon = (rcon << 1) ^ (((rcon >> 7) & 1) * 27);
+            j = 4;
+            for (; j<16; j = j + 4){
+            
+               key[j]  = key[j] ^ key[(j - 4)];
+               key[j + 1]  = key[(j + 1)] ^ key[(j - 3)];
+               key[j + 2]  = key[(j + 2)] ^ key[(j - 2)];
+               key[j + 3]  = key[(j + 3)] ^ key[(j - 1)];
+            }
+            key[16]  = key[16] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[12];
+            key[17]  = key[17] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[13];
+            key[18]  = key[18] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[14];
+            key[19]  = key[19] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[15];
+            j = 20;
+            for (; j<32; j = j + 4){
+            
+               key[j]  = key[j] ^ key[(j - 4)];
+               key[j + 1]  = key[(j + 1)] ^ key[(j - 3)];
+               key[j + 2]  = key[(j + 2)] ^ key[(j - 2)];
+               key[j + 3]  = key[(j + 3)] ^ key[(j - 1)];
+            }
+            j = 15;
+            for (; j>0; j = j - 1){
+            
+               aes_data[j]  = aes_data[j] ^ key[j];
+            }
+         });
+      }
+      i = 15;
+      for (; i>0; i = i - 1){
+      
+         aes_data[i]  = org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[(aes_data[i] % 255)];
+      }
+      p = aes_data[1];
+      aes_data[1]  = aes_data[5];
+      aes_data[5]  = aes_data[9];
+      aes_data[9]  = aes_data[13];
+      aes_data[13]  = p;
+      p = aes_data[10];
+      aes_data[10]  = aes_data[2];
+      aes_data[2]  = p;
+      q = aes_data[3];
+      aes_data[3]  = aes_data[15];
+      aes_data[15]  = aes_data[11];
+      aes_data[11]  = aes_data[7];
+      aes_data[7]  = q;
+      q = aes_data[14];
+      aes_data[14]  = aes_data[6];
+      aes_data[6]  = q;
+      j = 0;
+      key[0]  = (key[0] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[29]) ^ rcon;
+      key[1]  = key[1] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[30];
+      key[2]  = key[2] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[31];
+      key[3]  = key[3] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[28];
+      rcon = (rcon << 1) ^ (((rcon >> 7) & 1) * 27);
+      j = 4;
+      for (; j<16; j = j + 4){
+      
+         key[j]  = key[j] ^ key[(j - 4)];
+         key[j + 1]  = key[(j + 1)] ^ key[(j - 3)];
+         key[j + 2]  = key[(j + 2)] ^ key[(j - 2)];
+         key[j + 3]  = key[(j + 3)] ^ key[(j - 1)];
+      }
+      key[16]  = key[16] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[12];
+      key[17]  = key[17] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[13];
+      key[18]  = key[18] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[14];
+      key[19]  = key[19] ^ org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__sbox(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this)[15];
+      j = 20;
+      for (; j<32; j = j + 4){
+      
+         key[j]  = key[j] ^ key[(j - 4)];
+         key[j + 1]  = key[j] ^ key[(j - 3)];
+         key[j + 2]  = key[j] ^ key[(j - 2)];
+         key[j + 3]  = key[j] ^ key[(j - 1)];
+      }
+      j = 15;
+      for (; j>0; j = j - 1){
+      
+         aes_data[j]  = aes_data[j] ^ key[j];
+      }
+      aes_data;
+   });
+}
+__kernel void run(
+      __global int * restrict in0, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, 
+      __global int * restrict out, __global int * restrict out_iters, __global int* restrict bKey$1, int bKey$1__javaArrayLength, __global int* restrict sbox, int sbox__javaArrayLength, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   this->bKey$1 = bKey$1;
+   this->bKey$1__javaArrayLength = bKey$1__javaArrayLength;
+   this->sbox = sbox;
+   this->sbox__javaArrayLength = sbox__javaArrayLength;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
+      int alloc_failed = 0;
+      __global int* result = org_apache_spark_rdd_cl_tests_ASPLOSAES$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0 + in0_offsets[i], in0_sizes[i]);
+      if (!alloc_failed) {
+         processing_succeeded[i] = 1;
+         out_iters[i] = iter;
+         out[i] = ((__global char *)result) - ((__global char *)heap);
+         
+      }
+   }
+}
