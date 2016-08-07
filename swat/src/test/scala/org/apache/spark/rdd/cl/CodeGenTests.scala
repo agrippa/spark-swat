@@ -92,9 +92,7 @@ object CodeGenTests {
   syncTests.add(ExtensionTest)
   syncTests.add(ASPLOSAES)
   syncTests.add(ASPLOSBlackScholes)
-  // syncTests.add(ASPLOSKMeans)
   syncTests.add(ASPLOSPageRank)
-  syncTests.add(ASPLOSValueOfRisk)
 
   val asyncTests : ArrayList[AsyncCodeGenTest[_]] =
     new ArrayList[AsyncCodeGenTest[_]]()
