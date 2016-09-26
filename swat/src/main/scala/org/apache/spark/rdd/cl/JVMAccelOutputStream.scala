@@ -46,8 +46,6 @@ import java.util.HashMap
 
 class JVMAccelOutputStream[U: ClassTag] extends AccelOutputStream[U] {
 
-  val buffered : LinkedList[U] = new LinkedList[U]
-
   override def map(l : Int => U, N : Int, accel : Boolean) : Array[U] = {
     val arr = new Array[U](N)
     for (i <- 0 until N) {

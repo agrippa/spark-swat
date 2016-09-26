@@ -43,6 +43,7 @@ class CLAccelOutputStream[U: ClassTag](context : TaskContext, rddId : Int,
 
   override def map(l : Int => U, N : Int, accel : Boolean) : Array[U] = {
     val arr = new Array[U](N)
+    System.err.println("Running CL version, N=" + N + " accel=" + accel)
 
     if (accel) {
       if (processor == null) {
@@ -69,6 +70,8 @@ class CLAccelOutputStream[U: ClassTag](context : TaskContext, rddId : Int,
   }
 
   override def markFinished() {
-    processor.cleanup
+    if (processor != null) {
+      processor.cleanup
+    }
   }
 }

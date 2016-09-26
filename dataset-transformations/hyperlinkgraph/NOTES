@@ -3,5 +3,10 @@ stored in the same folder. On each line of each file is a pair of tab-separated
 integers that represent the source node and destination node for a link in the
 graph.
 
-The output placed in 1.normalized is of type RDD[Tuple2[Int, Int]], with a
-pairing for each link.
+It is available with the following command:
+
+wget -i http://webdatacommons.org/hyperlinkgraph/2014-04/data/arc.list.txt
+
+That will download a collection of gzip'ed text files. You will need to iterate
+over them and run gzip -d to extract them. Then, run the scripts in this
+directory on those files to produce a working dataset.

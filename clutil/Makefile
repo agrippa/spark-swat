@@ -1,5 +1,8 @@
 include ${SWAT_HOME}/build.conf
 
+# USE_CUDA should be set to 1 or 0. If set to 0, we will use OpenCL APIs instead.
+USE_CUDA=0
+
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
 TARGET=libclutil.so
 DEFINES=
@@ -7,9 +10,9 @@ GXX_FLAGS=-O3 -Wall
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
 
-IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
-ifeq ($(IS_CLANG),1)
-	GXX_FLAGS += -framework OpenCL
+ifeq ($(USE_CUDA),1)
+	LIBS=-L${CUDA_HOME}/lib64
+	GXX_FLAGS += -lcudart -DUSE_CUDA
 else
 	LIBS=-L${CL_HOME}/lib
 	GXX_FLAGS += -lOpenCL

@@ -35,9 +35,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
+#ifdef USE_CUDA
+#include <cuda.h>
+typedef uint32_t cl_uint;
+typedef int32_t cl_int;
+typedef int cl_platform_id;
+typedef CUdevice cl_device_id;
+typedef enum {
+    CL_DEVICE_TYPE_CPU,
+    CL_DEVICE_TYPE_GPU,
+    CL_DEVICE_TYPE_ALL
+} cl_device_type;
 #else
 #include <CL/cl.h>
 #endif
@@ -56,6 +66,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     } \
 }
 
+#ifdef USE_CUDA
+#define CHECK(call) { \
+    const cudaError_t __err = (call); \
+    if (__err != cudaSuccess) { \
+        fprintf(stderr, "CUDA Runtime Error at %s:%d - %s\n", __FILE__, \
+                __LINE__, cudaGetErrorString(__err)); \
+        exit(1); \
+    } \
+}
+
+#define CHECK_DRIVER(call) { \
+    const CUresult _err = (call); \
+    if (_err != CUDA_SUCCESS) { \
+        fprintf(stderr, "CUDA Driver Error at %s:%d - %d\n", __FILE__, \
+                __LINE__, _err); \
+        exit(1); \
+    } \
+}
+#else
 #define CHECK(call) { \
     const cl_int __err = (call); \
     if (__err != CL_SUCCESS) { \
@@ -64,8 +93,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         exit(1); \
     } \
 }
+#endif
 
-extern cl_uint get_num_opencl_platforms();
+extern cl_uint get_num_platforms();
 extern cl_uint get_num_devices(cl_platform_id platform, cl_device_type type);
 extern cl_uint get_num_gpus(cl_platform_id platform);
 extern cl_uint get_num_cpus(cl_platform_id platform);
@@ -75,5 +105,9 @@ extern const char *get_device_type_str(cl_device_id device);
 extern cl_device_type get_device_type(cl_device_id device);
 extern cl_uint get_total_num_devices();
 extern cl_uint get_device_pointer_size_in_bytes(cl_device_id device);
+
+extern void get_platform_ids(cl_platform_id *platforms, const unsigned capacity);
+extern void get_device_ids(cl_platform_id platform, cl_device_id *devices,
+        const unsigned capacity);
 
 #endif

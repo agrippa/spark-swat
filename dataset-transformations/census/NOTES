@@ -2,5 +2,15 @@ The original census data is formatted as a CSV file. Each row starts with a
 unique ID for the data point, and is followed by a series of comma-separated
 values representing different attributes for this data point.
 
-The output of convert.sh is a RDD[DenseVector] representing each of the input
-data points as a single vector.
+The census CSV file can be downloaded from:
+
+https://archive.ics.uci.edu/ml/machine-learning-databases/census1990-mld/USCensus1990.data.txt
+
+Start by placing it at $SPARK_DATASETS/census/0.original/USCensus1990.data.txt
+and removing the first header row. Then run the scripts in this directory in the
+order indicated by their numbering.
+
+I generally run 2.dup.sh with 10 duplicates.
+
+The output is an RDD[DenseVector] representing each of the input data points as
+a single vector.

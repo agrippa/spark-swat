@@ -1,7 +1,9 @@
 include ${SWAT_HOME}/build.conf
 
+USE_CUDA=0
+
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE -DPROFILE_OPENCL
-DEFINES=-DPROFILE_OPENCL
+DEFINES=
 GXX_FLAGS=-O3 -Wall
 # GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all -g -rdynamic
 
@@ -15,11 +17,11 @@ INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${CL_HOME}/include
 TARGET=libbridge.so
 
-IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
-ifeq ($(IS_CLANG),1)
-	GXX_FLAGS += -framework OpenCL
-else
-	GXX_FLAGS += -lOpenCL -lrt
+ifeq ($(USE_CUDA),1)
+	GXX_FLAGS+=-lcuda -DUSE_CUDA
+	LIBS=-L${CUDA_HOME}/lib64 -L${CUDA_HOME}/lib64/stubs
+els
+	GXX_FLAGS+=-lOpenCL -lrt
 	LIBS=-L${CL_HOME}/lib
 endif
 

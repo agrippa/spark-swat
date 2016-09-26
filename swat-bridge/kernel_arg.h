@@ -34,8 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string.h>
 
-#ifdef __APPLE__
-#include <cl.h>
+#ifdef USE_CUDA
 #else
 #include <CL/cl.h>
 #endif
@@ -77,15 +76,24 @@ class kernel_arg {
             clear_to_zero = set_clear_to_zero;
         }
 
+#ifdef USE_CUDA
+        kernel_arg(CUdeviceptr mem, size_t set_size, device_context *ctx) {
+#else
         kernel_arg(cl_mem mem, size_t set_size, device_context *ctx) {
+#endif
             has_val = true;
             val = malloc(set_size);
             ASSERT(val);
 #ifdef VERBOSE
             fprintf(stderr, "Transferring out %lu bytes for kernel arg\n", set_size);
 #endif
+
+#ifdef USE_CUDA
+            CHECK_DRIVER(cuMemcpyDtoH(val, mem, set_size))
+#else
             CHECK(clEnqueueReadBuffer(ctx->cmd, mem, CL_TRUE, 0, set_size, val,
                         0, NULL, NULL));
+#endif
 
             size = set_size;
             is_ref = true;

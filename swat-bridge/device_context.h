@@ -32,18 +32,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef DEVICE_CONTEXT_H
 #define DEVICE_CONTEXT_H
 
-#ifdef __APPLE__
-#include <cl.h>
-#else
-#include <CL/cl.h>
-#endif
-
 #include <pthread.h>
 #include <map>
 #include <string>
 #include <jni.h>
 
+#include "ocl_util.h"
 #include "allocator.h"
+
+#ifdef USE_CUDA
+#include <nvrtc.h>
+typedef CUmodule cl_program;
+typedef CUfunction cl_kernel;
+typedef CUevent cl_event;
+typedef CUdeviceptr cl_mem;
+#else
+#include <CL/cl.h>
+#endif
 
 using namespace std;
 
@@ -97,8 +102,13 @@ typedef struct _heap_context {
 typedef struct _device_context {
     cl_platform_id platform;
     cl_device_id dev;
+#ifdef USE_CUDA
+    CUcontext ctx;
+    CUstream cmd;
+#else
     cl_context ctx;
     cl_command_queue cmd;
+#endif
     int device_index;
     int initialized;
     int count_heaps;
@@ -119,7 +129,9 @@ typedef struct _device_context {
 
     cl_allocator *allocator;
 
+    // Map from kernel name to PTX or to OpenCL program object
     map<string, cl_program> *program_cache;
+
     map<broadcast_id, cl_region *> *broadcast_cache;
 
     // List of free heaps

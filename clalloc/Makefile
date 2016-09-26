@@ -1,27 +1,28 @@
 include ${SWAT_HOME}/build.conf
 
+USE_CUDA=0
+
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
 TARGET=libclalloc.so
 DEFINES=
 
 CLUTIL_HOME=${SWAT_HOME}/clutil
 
-ifeq ($(GXX),nvcc)
-GXX_FLAGS=-O3 -Xcompiler '-Wall' -Xcompiler '-fPIC' -DCUDA_ALLOCATOR
+ifeq ($(USE_CUDA),1)
+GXX_FLAGS=-O3 -Wall -fPIC -DUSE_CUDA
 else
-GXX_FLAGS=-O3 -Wall -fPIC -DOPENCL_ALLOCATOR
+GXX_FLAGS=-O3 -Wall -fPIC
 endif
+
 INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
 
-ifneq ($(GXX),nvcc)
-IS_CLANG := $(shell ${GXX} --version 2>&1 | grep clang | wc -l | bc)
-ifeq ($(IS_CLANG),1)
-	GXX_FLAGS += -framework OpenCL
+ifeq ($(USE_CUDA),1)
+	GXX_FLAGS += -lcudart
+	LIBS=-L${CUDA_HOME}/lib64
 else
 	GXX_FLAGS += -lOpenCL
 	LIBS=-L${CL_HOME}/lib
-endif
 endif
 
 ${TARGET}: allocator.cpp allocator.h

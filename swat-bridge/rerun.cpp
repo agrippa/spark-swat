@@ -135,10 +135,10 @@ size_t find_matching_arg_size_change(int index, change_arg_size *changes,
 }
 
 void list_devices() {
-    cl_uint num_platforms = get_num_opencl_platforms();
+    cl_uint num_platforms = get_num_platforms();
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
-    CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+    get_platform_ids(platforms, num_platforms);
     int device_index = 0;
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
@@ -149,33 +149,17 @@ void list_devices() {
 
         cl_device_id *devices = (cl_device_id *)malloc(sizeof(cl_device_id) *
                 num_devices);
-        CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                    num_devices, devices, NULL));
+        get_device_ids(platforms[platform_index], devices, num_devices);
         for (unsigned d = 0; d < num_devices; d++) {
             cl_device_id dev = devices[d];
-            cl_device_type type;
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_TYPE, sizeof(type), &type,
-                        NULL));
-            printf("  Device %d - ", device_index);
+            const char *type_str = get_device_type_str(dev);
+            char *device_name = get_device_name(dev);
 
-            if (type == CL_DEVICE_TYPE_GPU) {
-                printf("GPU");
-            } else if (type == CL_DEVICE_TYPE_CPU) {
-                printf("CPU");
-            } else {
-                fprintf(stderr, "Unsupported device type in list_devices\n");
-                exit(1);
-            }
+            printf("  Device %d - %s - ", device_index, type_str);
 
-            printf(" - ");
-
-            size_t name_len;
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_NAME, 0, NULL, &name_len));
-            char *device_name = (char *)malloc(name_len + 1);
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_NAME, name_len, device_name,
-                        NULL));
-            device_name[name_len] = '\0';
-
+#ifdef USE_CUDA
+            printf("%s\n", device_name);
+#else
             size_t version_len;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_VERSION, 0, NULL, &version_len));
             char *device_version = (char *)malloc(version_len + 1);
@@ -192,6 +176,7 @@ void list_devices() {
             device_ext[ext_len] = '\0';
 
             printf("%s - %d compute units - %s - %s\n", device_name, compute_units, device_version, device_ext);
+#endif
 
             device_index++;
         }
@@ -202,10 +187,10 @@ void list_devices() {
 
 void find_platform_and_device(unsigned target_device, cl_platform_id *platform,
         cl_device_id *device) {
-    cl_uint num_platforms = get_num_opencl_platforms();
+    cl_uint num_platforms = get_num_platforms();
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
-    CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+    get_platform_ids(platforms, num_platforms);
     unsigned device_index = 0;
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
@@ -214,8 +199,7 @@ void find_platform_and_device(unsigned target_device, cl_platform_id *platform,
 
         cl_device_id *devices = (cl_device_id *)malloc(sizeof(cl_device_id) *
                 num_devices);
-        CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                    num_devices, devices, NULL));
+        get_device_ids(platforms[platform_index], devices, num_devices);
         if (target_device >= device_index && target_device < device_index + num_devices) {
             *device = devices[target_device - device_index];
             *platform = platforms[platform_index];

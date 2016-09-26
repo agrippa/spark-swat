@@ -608,7 +608,6 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                 to_free->offset, to_free->size);
         print_allocator(to_free->grandparent->allocator, -1);
 #endif
-
     }
 
     bool return_value = (to_free->refs == 0);
@@ -919,7 +918,9 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
     cl_region *copy = swap_out_for_copy(target_region);
     copy->refs = 1;
     if (copy->sub_mem == NULL) {
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+        copy->sub_mem = alloc->mem + copy->offset;
+#else
         int err;
         cl_buffer_region sub_region;
         sub_region.origin = copy->offset;
@@ -927,8 +928,6 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         copy->sub_mem = clCreateSubBuffer(alloc->mem, 0,
                 CL_BUFFER_CREATE_TYPE_REGION, &sub_region, &err);
         CHECK(err);
-#else
-        copy->sub_mem = alloc->mem + copy->offset;
 #endif
         copy->keeping = false;
     }
@@ -1058,12 +1057,12 @@ bool re_allocate_cl_region(cl_region *target_region, int target_device) {
     return true;
 }
 
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+cl_allocator *init_allocator(CUcontext ctx)
+#else
 cl_allocator *init_allocator(cl_device_id dev, int device_index,
         cl_mem_flags alloc_flags, size_t limit_size, cl_context ctx,
         cl_command_queue cmd)
-#else
-cl_allocator *init_allocator(const int device_index)
 #endif
 {
     ENTER_TRACE("init_allocator");
@@ -1072,7 +1071,21 @@ cl_allocator *init_allocator(const int device_index)
 #endif
 
     unsigned int address_align;
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+    const int max_n_allocs = 1;
+    address_align = 8;
+    size_t max_alloc_size, global_mem_size;
+
+    CHECK_DRIVER(cuCtxPushCurrent(ctx));
+
+    CUdevice dev;
+    CHECK_DRIVER(cuCtxGetDevice(&dev));
+    const int device_index = dev;
+
+    size_t nbytes;
+    CHECK_DRIVER(cuDeviceTotalMem(&nbytes, dev));
+    max_alloc_size = global_mem_size = nbytes;
+#else
     cl_ulong global_mem_size, max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_GLOBAL_MEM_SIZE,
                 sizeof(global_mem_size), &global_mem_size, NULL));
@@ -1085,14 +1098,6 @@ cl_allocator *init_allocator(const int device_index)
     const int max_n_allocs = (global_mem_size + max_alloc_size - 1) / max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_MEM_BASE_ADDR_ALIGN,
                 sizeof(address_align), &address_align, NULL));
-#else
-    const int max_n_allocs = 1;
-    address_align = 8;
-    size_t max_alloc_size, global_mem_size;
-    CHECK(cudaSetDevice(device_index));
-    struct cudaDeviceProp props;
-    CHECK(cudaGetDeviceProperties(&props, device_index));
-    max_alloc_size = global_mem_size = props.totalGlobalMem;
 #endif
 
     cl_allocator *allocator = (cl_allocator *)malloc(sizeof(cl_allocator));
@@ -1100,6 +1105,9 @@ cl_allocator *init_allocator(const int device_index)
     allocator->allocs = (cl_alloc *)malloc(max_n_allocs * sizeof(cl_alloc));
     CHECK_ALLOC(allocator->allocs);
     allocator->address_align = address_align;
+#ifdef USE_CUDA
+    allocator->cu_ctx = ctx;
+#endif
     allocator->device_index = device_index;
 
     int i = 0;
@@ -1110,17 +1118,26 @@ cl_allocator *init_allocator(const int device_index)
             alloc_size = leftover;
         }
 
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+        CUresult err;
+        CUdeviceptr mem;
+#else
         int err;
         cl_mem mem;
-#else
-        cudaError_t err;
-        char *mem;
 #endif
         // Keep allocs at least 20MB
         bool success = false;
         while (alloc_size > 20 * 1024 * 1024) {
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+            err = cuMemAlloc(&mem, alloc_size);
+            if (err == CUDA_ERROR_OUT_OF_MEMORY) {
+                alloc_size -= (20 * 1024 * 1024);
+            } else if (err != CUDA_SUCCESS) {
+                CHECK_DRIVER(err);
+                success = true;
+                break;
+            }
+#else
             mem = clCreateBuffer(ctx, alloc_flags, alloc_size, NULL,
                     &err);
             CHECK(err);
@@ -1133,23 +1150,19 @@ cl_allocator *init_allocator(const int device_index)
                 success = true;
                 break;
             }
-#else
-            err = cudaMalloc((void **)&mem, alloc_size);
-            if (err == cudaErrorMemoryAllocation) {
-                alloc_size -= (20 * 1024 * 1024);
-            } else if (err != cudaSuccess) {
-                CHECK(err);
-                success = true;
-                break;
-            }
 #endif
         }
 
         if (!success) break;
 
+#ifdef USE_CUDA
+        void *pinned;
+        CHECK_DRIVER(cuMemAllocHost(&pinned, alloc_size));
+#else
         void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
                 alloc_size, 0, NULL, NULL, &err);
         CHECK(err);
+#endif
 
         (allocator->allocs)[i].mem = mem;
         (allocator->allocs)[i].size = alloc_size;
@@ -1200,6 +1213,12 @@ cl_allocator *init_allocator(const int device_index)
     }
     allocator->nallocs = i;
     EXIT_TRACE("init_allocator");
+
+#ifdef USE_CUDA
+    CUcontext old_ctx;
+    CHECK_DRIVER(cuCtxPopCurrent(&old_ctx));
+    assert(old_ctx == ctx);
+#endif
 
 #ifdef PROFILE
     __sync_fetch_and_add(&acc_init_time, get_clock_gettime_ns() - start);

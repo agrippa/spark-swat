@@ -34,8 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unistd.h>
 #include <map>
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
+#ifdef USE_CUDA
 #else
 #include <CL/cl.h>
 #endif

@@ -60,7 +60,10 @@ import com.amd.aparapi.internal.writer.BlockWriter
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
 import com.amd.aparapi.internal.writer.ScalaParameter.DIRECTION
 
-
+/*
+ * A pairing of a compiled and executable kernel with a handle for a certain
+ * device.
+ */
 class KernelDevicePair(val kernel : String, val dev_ctx : Long) {
 
   override def equals(obj : Any) : Boolean = {
@@ -81,6 +84,10 @@ class KernelDevicePair(val kernel : String, val dev_ctx : Long) {
   }
 }
 
+/*
+ * An abstract, thread-local (and therefore thread-unsafe) caching structure
+ * that maps from arbitrary keys to a collection of values for that key.
+ */
 class PerThreadCache[K, V] {
   val cache : java.util.HashMap[K, java.util.LinkedList[V]] =
       new java.util.HashMap[K, java.util.LinkedList[V]]()
@@ -279,6 +286,20 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
   var totalNLoaded = 0
   val overallStart = System.currentTimeMillis // PROFILE
 
+  /*
+   * Each thread processing a SWAT partition starts by selecting a device to use
+   * for the entirety of the processing for this partition. It then uses this
+   * device to get a device context, which encapsulates all of the shared
+   * resources (such as the clallocator, the broadcast cache, and any uncompiled
+   * programs for this device).
+   *
+   * A SWAT context is then fetched, which is the combination of a particular
+   * kernel and the device to run that kernel on. A SWAT context is
+   * thread-unsafe and so is only accessible to a single thread at a time. It is
+   * used to issue all commands and track all thread-local resources (such as
+   * arguments collected for a particular kernel launch, and a compiled kernel
+   * object for a specific device).
+   */
   val partitionDeviceHint : Int = OpenCLBridge.getDeviceHintFor(
           rddId, partitionIndex, 0, 0)
 

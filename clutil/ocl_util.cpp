@@ -31,14 +31,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocl_util.h"
 #include <assert.h>
+#include <string.h>
 
-cl_uint get_num_opencl_platforms() {
+cl_uint get_num_platforms() {
+#ifdef USE_CUDA
+    // Emulate the idea of OCL platforms by putting all GPUs in a single platform
+    return 1;
+#else
     cl_uint num_platforms;
     CHECK(clGetPlatformIDs(0, NULL, &num_platforms));
     return num_platforms;
+#endif
 }
 
 cl_uint get_num_devices(cl_platform_id platform, cl_device_type type) {
+#ifdef USE_CUDA
+    assert(platform == 0);
+    if (type == CL_DEVICE_TYPE_GPU || type == CL_DEVICE_TYPE_ALL) {
+        int count;
+        CHECK_DRIVER(cuDeviceGetCount(&count));
+        return count;
+    } else {
+        return 0;
+    }
+#else
     cl_uint num_devices;
     cl_int err = clGetDeviceIDs(platform, type, 0, NULL, &num_devices);
     if (err == CL_DEVICE_NOT_FOUND) {
@@ -47,6 +63,7 @@ cl_uint get_num_devices(cl_platform_id platform, cl_device_type type) {
         CHECK(err);
     }
     return num_devices;
+#endif
 }
 
 cl_uint get_num_gpus(cl_platform_id platform) {
@@ -62,8 +79,11 @@ cl_uint get_num_devices(cl_platform_id platform) {
 }
 
 cl_uint get_total_num_devices() {
+#ifdef USE_CUDA
+    return get_num_devices(0, CL_DEVICE_TYPE_GPU);
+#else
     cl_uint count_devices = 0;
-    cl_uint num_platforms = get_num_opencl_platforms();
+    cl_uint num_platforms = get_num_platforms();
 
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
@@ -78,9 +98,17 @@ cl_uint get_total_num_devices() {
     free(platforms);
 
     return count_devices;
+#endif
 }
 
 char *get_device_name(cl_device_id device) {
+#ifdef USE_CUDA
+    char name_buf[1024];
+    CHECK_DRIVER(cuDeviceGetName(name_buf, 1024, device));
+    char *device_name = (char *)malloc(strlen(name_buf) + 1);
+    memcpy(device_name, name_buf, strlen(name_buf) + 1);
+    return device_name;
+#else
     size_t name_len;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_NAME, 0, NULL, &name_len));
     char *device_name = (char *)malloc(name_len + 1);
@@ -89,6 +117,7 @@ char *get_device_name(cl_device_id device) {
                 NULL));
     device_name[name_len] = '\0';
     return device_name;
+#endif
 }
 
 const char *get_device_type_str(cl_device_id device) {
@@ -105,23 +134,61 @@ const char *get_device_type_str(cl_device_id device) {
 }
 
 cl_device_type get_device_type(cl_device_id device) {
+#ifdef USE_CUDA
+    return CL_DEVICE_TYPE_GPU;
+#else
     cl_device_type type;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(type), &type, NULL));
     return type;
+#endif
 }
 
 cl_uint get_num_compute_units(cl_device_id device) {
+#ifdef USE_CUDA
+    int compute_units;
+    CHECK_DRIVER(cuDeviceGetAttribute(&compute_units,
+                CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device));
+    return compute_units;
+#else
     cl_uint compute_units;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,
                 sizeof(compute_units), &compute_units, NULL));
     return compute_units;
+#endif
 }
 
-
 cl_uint get_device_pointer_size_in_bytes(cl_device_id device) {
+#ifdef USE_CUDA
+    return 8; // TODO is this safe?
+#else
     cl_uint pointer_size_in_bits;
     CHECK(clGetDeviceInfo(device, CL_DEVICE_ADDRESS_BITS,
                 sizeof(pointer_size_in_bits), &pointer_size_in_bits, NULL));
     assert(pointer_size_in_bits % 8 == 0);
     return pointer_size_in_bits / 8;
+#endif
+}
+
+void get_platform_ids(cl_platform_id *platforms, const unsigned capacity) {
+#ifdef USE_CUDA
+    assert(capacity == 1);
+    *platforms = 0;
+#else
+    CHECK(clGetPlatformIDs(capacity, platforms, NULL)); 
+#endif
+}
+
+void get_device_ids(cl_platform_id platform, cl_device_id *devices,
+        const unsigned capacity) {
+#ifdef USE_CUDA
+    assert(platform == 0);
+    const int count = get_num_devices(platform, CL_DEVICE_TYPE_ALL);
+    assert(capacity >= count);
+    for (int i = 0; i < count; i++) {
+        CHECK_DRIVER(cuDeviceGet(devices + i, i));
+    }
+#else
+    CHECK(clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL,
+                capacity, devices, NULL)); 
+#endif
 }

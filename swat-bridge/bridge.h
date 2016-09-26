@@ -47,8 +47,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace std;
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
+#ifdef USE_CUDA
+#include <cuda.h>
+
+#define CHECK_NVRTC(call) { \
+    const nvrtcResult _err = (call); \
+    if (_err != NVRTC_SUCCESS) { \
+        fprintf(stderr, "NVRTC Error @ %s:%d - %d\n", __FILE__, __LINE__, _err); \
+        exit(1); \
+    } \
+}
 #else
 #include <CL/cl.h>
 #endif
@@ -139,13 +147,21 @@ typedef struct _arg_value {
 
 typedef struct _native_input_buffer_list_node {
     int id;
+#ifdef USE_CUDA
+    CUevent event;
+#else
     cl_event event;
+#endif
     struct _native_input_buffer_list_node *next;
 } native_input_buffer_list_node;
 
 typedef struct _event_info {
     unsigned long long timestamp;
+#ifdef USE_CUDA
+    CUevent event;
+#else
     cl_event event;
+#endif
     char *label;
     size_t metadata;
 } event_info;
@@ -154,7 +170,15 @@ typedef struct _kernel_context kernel_context;
 typedef struct _native_output_buffers native_output_buffers;
 
 typedef struct _swat_context {
+#ifdef USE_CUDA
+    CUfunction kernel;
+
+    void **kernel_buffers;
+    unsigned kernel_buffers_capacity;
+#else
     cl_kernel kernel;
+#endif
+
     pthread_mutex_t kernel_lock;
 #ifdef PROFILE_LOCKS
     unsigned long long kernel_lock_contention;
@@ -173,8 +197,14 @@ typedef struct _swat_context {
     void *zeros;
     size_t zeros_capacity;
 
+#ifdef USE_CUDA
+    CUevent last_write_event;
+    CUevent last_kernel_event;
+#else
     cl_event last_write_event;
     cl_event last_kernel_event;
+#endif
+
 #ifdef PROFILE_OPENCL
     event_info *acc_write_events;
     int acc_write_events_capacity;
@@ -231,7 +261,11 @@ struct _kernel_context {
 
     heap_context *curr_heap_ctx;
     saved_heap *heaps;
+#ifdef USE_CUDA
+    CUevent *heap_copy_back_events;
+#else
     cl_event *heap_copy_back_events;
+#endif
     int n_heap_ctxs;
     int heapStartArgnum;
 

@@ -32,46 +32,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
-#ifndef OPENCL_ALLOCATOR
-#ifndef CUDA_ALLOCATOR
-// Default to OpenCL if neither is defined
-#define OPENCL_ALLOCATOR
-#endif
-#endif
-
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 
-#ifdef OPENCL_ALLOCATOR
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
+#include "ocl_util.h"
+
+#ifdef USE_CUDA
+#include <cuda.h>
 #else
 #include <CL/cl.h>
-#endif
-
-#include "ocl_util.h"
-#else
-
-#include <cuda_runtime.h>
-
-#define CHECK(call) { \
-    cudaError_t __err = (call); \
-    if (__err != cudaSuccess) { \
-        fprintf(stderr, "CUDA Error at %s:%d - %s\n", \
-                __FILE__, __LINE__, cudaGetErrorString(__err)); \
-        exit(1); \
-    } \
-}
-
-#define CHECK_ALLOC(ptr) { \
-    if ((ptr) == NULL) { \
-        fprintf(stderr, "Allocation failed at %s:%d\n", __FILE__, __LINE__); \
-        exit(1); \
-    } \
-}
-
 #endif
 
 #define ASSERT_MSG(conditional, msg) { \
@@ -131,10 +102,10 @@ struct _cl_allocator;
 typedef struct _cl_allocator cl_allocator;
 
 typedef struct _cl_region {
-#ifdef OPENCL_ALLOCATOR
-    cl_mem sub_mem;
+#ifdef USE_CUDA
+    CUdeviceptr sub_mem;
 #else
-    char *sub_mem;
+    cl_mem sub_mem;
 #endif
     size_t offset, size;
     cl_bucket *parent;
@@ -157,10 +128,10 @@ typedef struct _cl_bucket {
 } cl_bucket;
 
 typedef struct _cl_alloc {
-#ifdef OPENCL_ALLOCATOR
-    cl_mem mem;
+#ifdef USE_CUDA
+    CUdeviceptr mem;
 #else
-    char *mem;
+    cl_mem mem;
 #endif
     char *pinned;
     size_t size;
@@ -189,16 +160,22 @@ typedef struct _cl_allocator {
     cl_alloc *allocs;
     int nallocs;
     unsigned int address_align;
+#ifdef USE_CUDA
+    CUcontext cu_ctx;
+#endif
     int device_index;
 } cl_allocator;
 
-#ifdef OPENCL_ALLOCATOR
+#ifdef USE_CUDA
+/*
+ * Assumes that the calling thread has already attached a CUDA context. This
+ * call asserts that the current context matches the expected device index.
+ */
+extern cl_allocator *init_allocator(CUcontext ctx);
+#else
 extern cl_allocator *init_allocator(cl_device_id dev, int device_index,
         cl_mem_flags alloc_flags, size_t limit_size, cl_context ctx,
         cl_command_queue cmd);
-#else
-extern cl_allocator *init_allocator(int device_index,
-        double perc_high_performance_buffers);
 #endif
 
 extern bool re_allocate_cl_region(cl_region *target_region, int target_device);

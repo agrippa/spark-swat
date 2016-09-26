@@ -258,6 +258,14 @@ static inline void force_pthread_mutex_unlock(pthread_mutex_t *mutex) {
     ASSERT(perr == 0);
 }
 
+#ifdef USE_CUDA
+static void pop_cu_ctx(device_context *dev_ctx) {
+    CUcontext old_ctx;
+    CHECK_DRIVER(cuCtxPopCurrent(&old_ctx));
+    assert(old_ctx == dev_ctx->ctx);
+}
+#endif
+
 static void add_pending_arg(swat_context *context, int index, bool keep,
         bool dont_free, bool copy_out, enum arg_type type,
         region_or_scalar val) {
@@ -450,6 +458,7 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
         int requiresHeap) {
 
     int result = 1;
+#ifndef USE_CUDA
     int requires_extension_check = (requiresDouble || requiresHeap);
     if (requires_extension_check) {
         size_t ext_len;
@@ -471,6 +480,7 @@ static int checkAllAssertions(cl_device_id device, int requiresDouble,
         }
         free(exts);
     }
+#endif
     return result;
 }
 
@@ -523,7 +533,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
     }
 
     /*
-     * clGetPlatformIDs called inside get_num_opencl_platforms is supposed to be
+     * clGetPlatformIDs called inside get_num_platforms is supposed to be
      * thread-safe... That doens't stop the Intel OpenCL library from
      * segfaulting or throwing an error if it is called from multiple threads at
      * once. If I had to guess, some Intel initialization is not thread-safe
@@ -549,20 +559,19 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
         CHECK_ALLOC(tmp_device_ctxs);
         n_device_ctxs = total_num_devices;
 
-        cl_uint num_platforms = get_num_opencl_platforms();
+        cl_uint num_platforms = get_num_platforms();
 
         cl_platform_id *platforms =
             (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
         CHECK_ALLOC(platforms);
-        CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+        get_platform_ids(platforms, num_platforms);
 
         unsigned global_device_id = 0;
         for (unsigned platform_index = 0; platform_index < num_platforms; platform_index++) {
             cl_uint num_devices = get_num_devices(platforms[platform_index]);
             cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
             CHECK_ALLOC(devices);
-            CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                        num_devices, devices, NULL));
+            get_device_ids(platforms[platform_index], devices, num_devices);
 
             for (unsigned i = 0; i < num_devices; i++) {
                 cl_device_id curr_dev = devices[i];
@@ -583,6 +592,10 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                     continue;
                 }
 
+#ifdef USE_CUDA
+                CUcontext ctx;
+                CHECK_DRIVER(cuCtxCreate(&ctx, CU_CTX_SCHED_AUTO, curr_dev));
+#else
                 cl_int err;
                 cl_context_properties ctx_props[] = { CL_CONTEXT_PLATFORM,
                     (cl_context_properties)platforms[platform_index], 0 };
@@ -590,27 +603,22 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 CHECK(err);
 
                 cl_command_queue_properties props = 0;
-#ifndef __APPLE__
-                /*
-                 * Need to keep this disabled. If we have N heaps (enabling N
-                 * parallel kernels) and M output buffers where M < N, then
-                 * out-of-order kernel execution can lead to later kernels
-                 * acquiring all output buffers, and earlier kernel coming along
-                 * and blocking trying to acquire an output buffer, while the
-                 * output thread blocks and waits on the earlier kernel ->
-                 * deadlock. In general, this makes it harder to reason about
-                 * the execution order of OpenCL commands and makes it easier to
-                 * get into bad situations.
-                 */
-                // props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-#endif
 #ifdef PROFILE_OPENCL
                 props |= CL_QUEUE_PROFILING_ENABLE;
 #endif
+#endif
 
+#ifdef USE_CUDA
+                CUstream cmd;
+                CHECK_DRIVER(cuStreamCreate(&cmd, CU_STREAM_NON_BLOCKING));
+                CUcontext old_ctx;
+                CHECK_DRIVER(cuCtxPopCurrent(&old_ctx));
+                assert(old_ctx == ctx);
+#else
                 cl_command_queue cmd = clCreateCommandQueue(ctx, curr_dev,
                         props, &err);
                 CHECK(err);
+#endif
 
                 tmp_device_ctxs[global_device_id].platform = platforms[platform_index];
                 tmp_device_ctxs[global_device_id].dev = curr_dev;
@@ -641,9 +649,13 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
                 tmp_device_ctxs[global_device_id].heap_cache_blocked = 0ULL;
 #endif
 
+#ifdef USE_CUDA
+                tmp_device_ctxs[global_device_id].allocator = init_allocator(ctx);
+#else
                 tmp_device_ctxs[global_device_id].allocator = init_allocator(
                         curr_dev, global_device_id,
                         CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 0, ctx, cmd);
+#endif
 
                 tmp_device_ctxs[global_device_id].broadcast_cache =
                     new map<broadcast_id, cl_region *>();
@@ -1013,6 +1025,15 @@ JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
     ctx->run_seq_no = 0;
 
     ctx->completed_kernels = NULL;
+
+#ifdef USE_CUDA
+    for (int i = 0; i < ctx->kernel_buffers_capacity; i++) {
+        if (ctx->kernel_buffers[i]) free(ctx->kernel_buffers[i]);
+    }
+    free(ctx->kernel_buffers);
+    ctx->kernel_buffers = NULL;
+    ctx->kernel_buffers_capacity = 0;
+#endif
 }
 
 JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
@@ -1068,7 +1089,6 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         store_source[source_len] = '\0';
         jenv->ReleaseStringUTFChars(source, raw_source);
 #endif
-
     } else {
         const char *raw_source = jenv->GetStringUTFChars(source, NULL);
         CHECK_JNI(raw_source)
@@ -1080,6 +1100,34 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         store_source[source_len] = '\0';
 #endif
 
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+        nvrtcProgram prog;
+        CHECK_NVRTC(nvrtcCreateProgram(&prog, raw_source, "foo", 0, NULL, NULL));
+
+        const char *opts[] = {"--gpu-architecture=compute_20"};
+        nvrtcResult compile_result = nvrtcCompileProgram(prog, 1, opts);
+
+        size_t compile_log_size;
+        CHECK_NVRTC(nvrtcGetProgramLogSize(prog, &compile_log_size));
+        char *log = new char[compile_log_size];
+        CHECK_NVRTC(nvrtcGetProgramLog(prog, log));
+        fprintf(stderr, "Compilation log:\n%s\n", log);
+        delete[] log;
+        CHECK_NVRTC(compile_result);
+
+        size_t ptx_size;
+        CHECK_NVRTC(nvrtcGetPTXSize(prog, &ptx_size));
+        char *ptx = new char[ptx_size];
+        CHECK_NVRTC(nvrtcGetPTX(prog, ptx));
+        CHECK_NVRTC(nvrtcDestroyProgram(&prog));
+
+        CHECK_DRIVER(cuModuleLoadDataEx(&program, ptx, 0, 0, 0));
+
+        CUcontext old_ctx;
+        CHECK_DRIVER(cuCtxPopCurrent(&old_ctx));
+        assert(old_ctx == dev_ctx->ctx);
+#else
         size_t source_size[] = { (size_t)source_len };
         program = clCreateProgramWithSource(dev_ctx->ctx, 1, (const char **)&raw_source,
                 source_size, &err);
@@ -1100,6 +1148,8 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
             free(build_log);
         }
         CHECK(err);
+#endif
+
         jenv->ReleaseStringUTFChars(source, raw_source);
 
         bool success = dev_ctx->program_cache->insert(pair<string, cl_program>(label_str,
@@ -1110,14 +1160,26 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     perr = pthread_mutex_unlock(&dev_ctx->program_cache_lock);
     ASSERT(perr == 0);
 
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+    cl_kernel kernel;
+    CHECK_DRIVER(cuModuleGetFunction(&kernel, program, "run"));
+    pop_cu_ctx(dev_ctx);
+#else
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
+#endif
 
     swat_context *context = (swat_context *)malloc(sizeof(swat_context));
     CHECK_ALLOC(context);
     context->kernel = kernel;
     perr = pthread_mutex_init(&context->kernel_lock, NULL);
     ASSERT(perr == 0);
+
+#ifdef USE_CUDA
+    context->kernel_buffers = NULL;
+    context->kernel_buffers_capacity = 0;
+#endif
 
 #ifdef PROFILE_LOCKS
     context->kernel_lock_contention = 0ULL;
@@ -1235,14 +1297,28 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
             broadcastId, rdd, persistent);
     if (region == NULL) return NULL;
 
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+#endif
+
     if (blocking) {
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuMemcpyHtoD(region->sub_mem, host, len));
+#else
         CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
                     CL_TRUE, 0, len, host, 0, NULL, NULL));
+#endif
     } else {
         cl_event event;
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuEventCreate(&event, CU_EVENT_DEFAULT));
+        CHECK_DRIVER(cuMemcpyHtoDAsync(region->sub_mem, host, len, dev_ctx->cmd));
+        CHECK_DRIVER(cuEventRecord(event, dev_ctx->cmd));
+#else
         CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
                     CL_FALSE, 0, len, host, context->last_write_event ? 1 : 0,
                     context->last_write_event ? &context->last_write_event : NULL, &event));
+#endif
 #ifdef PROFILE_OPENCL
         add_event_to_list(&context->acc_write_events, event, "init_write",
                 &context->acc_write_events_length,
@@ -1250,6 +1326,10 @@ static cl_region *set_and_write_kernel_arg(void *host, size_t len, int index,
 #endif
         context->last_write_event = event;
     }
+
+#ifdef USE_CUDA
+    pop_cu_ctx(dev_ctx);
+#endif
 
 #ifdef VERBOSE
     fprintf(stderr, "setting arg %d to a memory buffer of size %lu\n", index,
@@ -2044,6 +2124,27 @@ static void add_to_global_arguments(arg_value *val, swat_context *ctx) {
     ctx->global_arguments_len = ctx->global_arguments_len + 1;
 }
 
+
+static void clSetKernelArgWrapper(swat_context *ctx, int index, size_t size,
+        const void *val) {
+#ifdef USE_CUDA
+    if (ctx->kernel_buffers_capacity < index + 1) {
+        const unsigned prev_size = ctx->kernel_buffers_capacity;
+        const unsigned new_size = index + 1;
+        ctx->kernel_buffers = (void **)realloc(ctx->kernel_buffers,
+                new_size * sizeof(void *));
+        assert(ctx->kernel_buffers);
+        memset(ctx->kernel_buffers + prev_size, 0x00,
+                (new_size - prev_size) * sizeof(void *));
+    }
+
+    (ctx->kernel_buffers)[index] = realloc((ctx->kernel_buffers)[index], size);
+    memcpy((ctx->kernel_buffers)[index], val, size);
+#else
+    CHECK(clSetKernelArg(ctx->kernel, index, size, val));
+#endif
+}
+
 static void setKernelArgument(arg_value *val, swat_context *context,
         device_context *dev_ctx) {
     const int index = val->index;
@@ -2059,8 +2160,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
                         mem);
 #endif
 
-                CHECK(clSetKernelArg(context->kernel, index, sizeof(mem),
-                            &mem));
+                clSetKernelArgWrapper(context, index, sizeof(mem), &mem);
+
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(mem,
                         val->val.region->size, dev_ctx);
@@ -2072,7 +2173,8 @@ static void setKernelArgument(arg_value *val, swat_context *context,
                         index);
 #endif
                 cl_mem none = 0x0;
-                CHECK(clSetKernelArg(context->kernel, index, sizeof(none), &none));
+                clSetKernelArgWrapper(context, index, sizeof(none), &none);
+
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(&none,
                         sizeof(none), false, false);
@@ -2086,7 +2188,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
                     "val=%d\n", context->host_thread_index, context, index, i);
 #endif
-            CHECK(clSetKernelArg(context->kernel, index, sizeof(i), &i));
+            clSetKernelArgWrapper(context, index, sizeof(i), &i);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&i,
                         sizeof(i), false, false);
@@ -2099,7 +2201,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
                     "val=%f\n", context->host_thread_index, context, index, f);
 #endif
-            CHECK(clSetKernelArg(context->kernel, index, sizeof(f), &f));
+            clSetKernelArgWrapper(context, index, sizeof(f), &f);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&f,
                         sizeof(f), false, false);
@@ -2112,7 +2214,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             fprintf(stderr, "setKernelArgument: thread=%d ctx=%p index=%d "
                     "val=%f\n", context->host_thread_index, context, index, d);
 #endif
-            CHECK(clSetKernelArg(context->kernel, index, sizeof(d), &d));
+            clSetKernelArgWrapper(context, index, sizeof(d), &d);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&d,
                         sizeof(d), false, false);
@@ -2173,10 +2275,16 @@ static void save_to_dump_file(swat_context *context, size_t global_size,
 }
 #endif
 
+#ifdef USE_CUDA
+static void heap_copy_callback(CUstream hStream, CUresult status, void*  userData);
+static void mark_kernel_complete_wrapper(CUstream hStream, CUresult status,
+        void*  userData);
+#else
 static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
         void *user_data);
 static void mark_kernel_complete_wrapper(cl_event event,
         cl_int event_command_exec_status, void *user_data);
+#endif
 static void copy_kernel_outputs(kernel_context *kernel_ctx, cl_event prev_event);
 
 static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
@@ -2186,6 +2294,10 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
     heap_context *heap_ctx = NULL;
     cl_region *free_index_mem = NULL;
     int *pinned_h_free_index = NULL;
+
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+#endif
 
     // Lock kernel to prevent concurrent changes via clSetKernelArg
 #ifdef PROFILE_LOCKS
@@ -2214,12 +2326,12 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         free_index_mem = heap_ctx->free_index;
         pinned_h_free_index = heap_ctx->pinned_h_free_index;
 
-        CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->heapStartArgnum,
-                    sizeof(cl_mem), &heap_ctx->heap->sub_mem));
-        CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->heapStartArgnum + 1,
-                    sizeof(cl_mem), &heap_ctx->free_index->sub_mem));
-        CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->heapStartArgnum + 2,
-                    sizeof(heap_ctx->heap_size), &heap_ctx->heap_size));
+        clSetKernelArgWrapper(ctx, kernel_ctx->heapStartArgnum, sizeof(cl_mem),
+                &heap_ctx->heap->sub_mem);
+        clSetKernelArgWrapper(ctx, kernel_ctx->heapStartArgnum + 1,
+                    sizeof(cl_mem), &heap_ctx->free_index->sub_mem);
+        clSetKernelArgWrapper(ctx, kernel_ctx->heapStartArgnum + 2,
+                    sizeof(heap_ctx->heap_size), &heap_ctx->heap_size);
 #ifdef BRIDGE_DEBUG
         (*ctx->debug_arguments)[kernel_ctx->heapStartArgnum] = new kernel_arg(
                 heap_ctx->heap->sub_mem, heap_ctx->heap_size,
@@ -2235,11 +2347,19 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         // Clear the free index of the acquired heap asynchronously
         cl_event free_index_event;
         *pinned_h_free_index = 0;
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuEventCreate(&free_index_event, CU_EVENT_DEFAULT));
+        CHECK_DRIVER(cuMemcpyHtoDAsync(free_index_mem->sub_mem,
+                pinned_h_free_index, sizeof(zero), kernel_ctx->dev_ctx->cmd));
+        CHECK_DRIVER(cuEventRecord(free_index_event, kernel_ctx->dev_ctx->cmd));
+#else
         CHECK(clEnqueueWriteBuffer(kernel_ctx->dev_ctx->cmd,
                     free_index_mem->sub_mem, CL_FALSE, 0,
                     sizeof(zero), pinned_h_free_index, prev_event ? 1 : 0,
                     prev_event ? &prev_event : NULL,
                     &free_index_event));
+#endif
+
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, free_index_event, "free_index-in",
                 &kernel_ctx->acc_write_events_length,
@@ -2260,14 +2380,21 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #endif
 
     // Set the current iter of this kernel instance
-    CHECK(clSetKernelArg(ctx->kernel, kernel_ctx->iterArgNum,
-                sizeof(kernel_ctx->iter), &kernel_ctx->iter));
+    clSetKernelArgWrapper(ctx, kernel_ctx->iterArgNum, sizeof(kernel_ctx->iter),
+            &kernel_ctx->iter);
     // Launch a new invocation of this kernel
     cl_event run_event;
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuLaunchKernel(ctx->kernel,
+                kernel_ctx->global_size / kernel_ctx->local_size, 1, 1,
+                kernel_ctx->local_size, 1, 1, 0, kernel_ctx->dev_ctx->cmd,
+                ctx->kernel_buffers, NULL));
+#else
     CHECK(clEnqueueNDRangeKernel(kernel_ctx->dev_ctx->cmd,
                 ctx->kernel, 1, NULL, &kernel_ctx->global_size,
                 &kernel_ctx->local_size, prev_event ? 1 : 0,
                 prev_event ? &prev_event : NULL, &run_event));
+#endif
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, run_event, "run",
                 &kernel_ctx->acc_write_events_length,
@@ -2286,23 +2413,45 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
          * heap_copy_callback on completion.
          */
         cl_event copy_back_event;
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuEventCreate(&copy_back_event, CU_EVENT_DEFAULT));
+        CHECK_DRIVER(cuMemcpyDtoHAsync(pinned_h_free_index,
+                free_index_mem->sub_mem, sizeof(zero),
+                kernel_ctx->dev_ctx->cmd));
+        CHECK_DRIVER(cuEventRecord(copy_back_event, kernel_ctx->dev_ctx->cmd));
+#else
         CHECK(clEnqueueReadBuffer(kernel_ctx->dev_ctx->cmd,
                     free_index_mem->sub_mem, CL_FALSE, 0,
                     sizeof(zero), pinned_h_free_index, 1,
                     &run_event, &copy_back_event));
+#endif
 #ifdef PROFILE_OPENCL
         add_event_to_list(&kernel_ctx->acc_write_events, copy_back_event, "free_index-out",
                 &kernel_ctx->acc_write_events_length,
                 &kernel_ctx->acc_write_events_capacity, sizeof(zero));
 #endif
 
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuStreamAddCallback(kernel_ctx->dev_ctx->cmd,
+                heap_copy_callback, kernel_ctx, 0));
+#else
         CHECK(clSetEventCallback(copy_back_event, CL_COMPLETE,
                     heap_copy_callback, kernel_ctx));
+#endif
     } else {
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuStreamAddCallback(kernel_ctx->dev_ctx->cmd,
+                mark_kernel_complete_wrapper, kernel_ctx->done_flag, 0));
+#else
         CHECK(clSetEventCallback(run_event, CL_COMPLETE,
                     mark_kernel_complete_wrapper, kernel_ctx->done_flag));
+#endif
         copy_kernel_outputs(kernel_ctx, run_event);
     }
+
+#ifdef USE_CUDA
+    pop_cu_ctx(dev_ctx);
+#endif
 }
 
 static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
@@ -2322,10 +2471,21 @@ static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
     return found->val.region;
 }
 
+#ifdef USE_CUDA
+static void finally_done_callback(CUstream hStream, CUresult status,
+        void *user_data)
+#else
 static void finally_done_callback(cl_event event,
-        cl_int event_command_exec_status, void *user_data) {
+        cl_int event_command_exec_status, void *user_data)
+#endif
+{
     ENTER_TRACE("finally_done_callback");
+#ifdef USE_CUDA
+    ASSERT(status == CUDA_SUCCESS);
+#else
     ASSERT(event_command_exec_status == CL_COMPLETE);
+#endif
+
     kernel_context *kernel_ctx = (kernel_context *)user_data;
     swat_context *ctx = kernel_ctx->ctx;
 #ifdef VERBOSE
@@ -2398,6 +2558,10 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+#endif
+
 #ifdef VERBOSE
     fprintf(stderr, "copy_kernel_outputs: thread=%d ctx=%p seq=%d\n",
             ctx->host_thread_index, ctx, kernel_ctx->seq_no);
@@ -2422,8 +2586,15 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
 #endif
 
             cl_event next_event;
+#ifdef USE_CUDA
+            CHECK_DRIVER(cuEventCreate(&next_event, CU_EVENT_DEFAULT));
+            CHECK_DRIVER(cuMemcpyDtoHAsync(pinned, region->sub_mem,
+                    region->size, dev_ctx->cmd));
+            CHECK_DRIVER(cuEventRecord(next_event, dev_ctx->cmd));
+#else
             CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
                         0, region->size, pinned, 1, &prev_event, &next_event));
+#endif
 #ifdef PROFILE_OPENCL
             add_event_to_list(&kernel_ctx->acc_write_events, next_event, "out",
                     &kernel_ctx->acc_write_events_length,
@@ -2433,8 +2604,17 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
         }
     }
 
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuStreamAddCallback(dev_ctx->cmd,
+            finally_done_callback, kernel_ctx, 0));
+#else
     CHECK(clSetEventCallback(prev_event, CL_COMPLETE, finally_done_callback,
                 kernel_ctx));
+#endif
+
+#ifdef USE_CUDA
+    pop_cu_ctx(dev_ctx);
+#endif
 }
 
 static void mark_kernel_complete(kernel_complete_flag *done_flag) {
@@ -2447,9 +2627,19 @@ static void mark_kernel_complete(kernel_complete_flag *done_flag) {
     ASSERT(perr == 0);
 }
 
+#ifdef USE_CUDA
+static void mark_kernel_complete_wrapper(CUstream hStream, CUresult status,
+        void *user_data)
+#else
 static void mark_kernel_complete_wrapper(cl_event event,
-        cl_int event_command_exec_status, void *user_data) {
+        cl_int event_command_exec_status, void *user_data)
+#endif
+{
+#ifdef USE_CUDA
+    ASSERT(status == CUDA_SUCCESS);
+#else
     ASSERT(event_command_exec_status == CL_COMPLETE);
+#endif
 
     kernel_complete_flag *done_flag = (kernel_complete_flag *)user_data;
     mark_kernel_complete(done_flag);
@@ -2465,14 +2655,28 @@ static void mark_kernel_complete_wrapper(cl_event event,
  * completed_kernels queue. Otherwise, a retry of this kernel is launched using
  * runImpl.
  */
+#ifdef USE_CUDA
+static void heap_copy_callback(CUstream hStream, CUresult status, void *user_data)
+#else
 static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
-        void *user_data) {
+        void *user_data)
+#endif
+{
+#ifdef USE_CUDA
+    ASSERT(status == CUDA_SUCCESS);
+#else
     ASSERT(event_command_exec_status == CL_COMPLETE);
+#endif
 
     kernel_context *kernel_ctx = (kernel_context *)user_data;
     heap_context *heap_ctx = (heap_context *)kernel_ctx->curr_heap_ctx;
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
+
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+#endif
+
 #ifdef VERBOSE
     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d\n",
             ctx->host_thread_index, ctx, kernel_ctx->seq_no);
@@ -2483,8 +2687,16 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
 
     cl_event heap_event;
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuEventCreate(&heap_event, CU_EVENT_DEFAULT));
+    CHECK_DRIVER(cuMemcpyDtoHAsync(heap_ctx->pinned_h_heap,
+            heap_ctx->heap->sub_mem, available_bytes, dev_ctx->cmd));
+    CHECK_DRIVER(cuEventRecord(heap_event, dev_ctx->cmd));
+#else
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
                 0, available_bytes, heap_ctx->pinned_h_heap, 0, NULL, &heap_event));
+#endif
+
 #ifdef PROFILE_OPENCL
     add_event_to_list(&kernel_ctx->acc_write_events, heap_event, "heap",
             &kernel_ctx->acc_write_events_length,
@@ -2507,6 +2719,10 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
 
         copy_kernel_outputs(kernel_ctx, heap_event);
     }
+
+#ifdef USE_CUDA
+    pop_cu_ctx(dev_ctx);
+#endif
 }
 
 static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, int tid) {
@@ -2616,7 +2832,15 @@ JNI_JAVA(jlong, OpenCLBridge, waitForFinishedKernel)(JNIEnv *jenv, jclass clazz,
      * performs no dynamic memory allocations.
      */
     if (mine->n_heap_ctxs > 0) {
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+        for (int i = 0; i < mine->n_heap_ctxs; i++) {
+            CHECK_DRIVER(cuEventSynchronize(mine->heap_copy_back_events[i]));
+        }
+        pop_cu_ctx(dev_ctx);
+#else
         CHECK(clWaitForEvents(mine->n_heap_ctxs, mine->heap_copy_back_events));
+#endif
     }
 
     /*
@@ -3116,6 +3340,7 @@ JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
         jclass clazz, jlong l_ctx, jlong l_dev_ctx) {
     ENTER_TRACE("waitForFreedNativeBuffer");
     swat_context *ctx = (swat_context *)l_ctx;
+    device_context *dev_ctx = (device_context *)l_dev_ctx;
 
 #ifdef PROFILE_LOCKS
     const unsigned long long start = get_clock_gettime_ns();
@@ -3143,7 +3368,13 @@ JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
 
     int buffer_id = released->id;
     if (released->event) {
+#ifdef USE_CUDA
+        CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+        CHECK_DRIVER(cuEventSynchronize(released->event));
+        pop_cu_ctx(dev_ctx);
+#else
         CHECK(clWaitForEvents(1, &released->event));
+#endif
     }
     free(released);
 
@@ -3309,9 +3540,19 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
     add_pending_region_arg(context, index, false, true, false, region);
 
     cl_event event;
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
+    CHECK_DRIVER(cuEventCreate(&event, CU_EVENT_DEFAULT));
+    CHECK_DRIVER(cuMemcpyHtoDAsync(region->sub_mem, pinned, nbytes,
+            dev_ctx->cmd));
+    CHECK_DRIVER(cuEventRecord(event, dev_ctx->cmd));
+    pop_cu_ctx(dev_ctx);
+#else
     CHECK(clEnqueueWriteBuffer(dev_ctx->cmd, region->sub_mem,
                 CL_FALSE, 0, nbytes, pinned, context->last_write_event ? 1 : 0,
                 context->last_write_event ? &context->last_write_event : NULL, &event));
+#endif
+
 #ifdef PROFILE_OPENCL
     add_event_to_list(&context->acc_write_events, event, "init_write",
             &context->acc_write_events_length,
