@@ -47,6 +47,7 @@ for STAGE in $STAGES; do
     MIN_TASK_TIME=$(cat $LOG_FILE | grep "Finished task" | grep "in stage ${STAGE}.0" | awk '{ print $14 }' | python ~/min.py)
     MAX_TASK_TIME=$(cat $LOG_FILE | grep "Finished task" | grep "in stage ${STAGE}.0" | awk '{ print $14 }' | python ~/max.py)
     TASK_LABEL=$(cat $LOG_FILE | grep "Stage $STAGE " | grep finished | awk '{ print $9 }')
+    echo $TASK_LABEL
     TASK_LABEL=${TASK_LABEL:0:${#TASK_LABEL}-1}
     if [[ $NTASKS == 0 ]]; then
         echo Stage $STAGE : No tasks found

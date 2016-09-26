@@ -1,0 +1,175 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$_s org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_OptionData_s org_apache_spark_rdd_cl_tests_OptionData;
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$_s{
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_OptionData_s{
+   float  otype;
+   float  otime;
+   float  volatility;
+   float  rate;
+   float  strike;
+   float  sptprice;
+   
+};
+
+typedef struct This_s{
+   } This;
+static float org_apache_spark_rdd_cl_tests_OptionData__otype(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->otype;
+}
+static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(This *this, float inputX){
+
+   return(
+   {
+   
+      int sign = 0;
+      float outputX = 0.0f;
+      float xInput = 0.0f;
+      float xNPrimeofX = 0.0f;
+      float expValues = 0.0f;
+      float xK2 = 0.0f;
+      float xK2_2 = 0.0f;
+      float xK2_3 = 0.0f;
+      float xK2_4 = 0.0f;
+      float xK2_5 = 0.0f;
+      float xLocal = 0.0f;
+      float xLocal_1 = 0.0f;
+      float xLocal_2 = 0.0f;
+      float xLocal_3 = 0.0f;
+      (inputX<0.0f) ? ({
+      
+         xInput = -inputX;
+         sign = 1;
+      }) : ({
+      
+         xInput = inputX;
+         sign = 0;
+      });
+      expValues = (float)exp((double)((-0.5f * inputX) * inputX));
+      xNPrimeofX = expValues;
+      xNPrimeofX = xNPrimeofX * 0.3989423f;
+      xK2 = 0.2316419f * xInput;
+      xK2 = 1.0f + xK2;
+      xK2 = 1.0f / xK2;
+      xK2_2 = xK2 * xK2;
+      xK2_3 = xK2_2 * xK2;
+      xK2_4 = xK2_3 * xK2;
+      xK2_5 = xK2_4 * xK2;
+      xLocal_1 = xK2 * 0.31938154f;
+      xLocal_2 = xK2_2 * -0.35656378f;
+      xLocal_3 = xK2_3 * 1.7814779f;
+      xLocal_2 = xLocal_2 + xLocal_3;
+      xLocal_3 = xK2_4 * -1.8212559f;
+      xLocal_2 = xLocal_2 + xLocal_3;
+      xLocal_3 = xK2_5 * 1.3302745f;
+      xLocal_2 = xLocal_2 + xLocal_3;
+      xLocal_1 = xLocal_2 + xLocal_1;
+      xLocal = xLocal_1 * xNPrimeofX;
+      xLocal = 1.0f - xLocal;
+      outputX = (sign==1) ? ({
+      
+         (1.0f - xLocal);
+      }) : ({
+      
+         xLocal;
+      });
+      outputX;
+   });
+}
+static float org_apache_spark_rdd_cl_tests_OptionData__otime(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->otime;
+}
+static float org_apache_spark_rdd_cl_tests_OptionData__volatility(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->volatility;
+}
+static float org_apache_spark_rdd_cl_tests_OptionData__rate(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->rate;
+}
+static float org_apache_spark_rdd_cl_tests_OptionData__strike(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->strike;
+}
+static float org_apache_spark_rdd_cl_tests_OptionData__sptprice(__global org_apache_spark_rdd_cl_tests_OptionData *this){
+   return this->sptprice;
+}
+static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_OptionData* in){
+
+   return(
+   {
+   
+      float optionPrice = 0.0f;
+      float xStockPrice = 0.0f;
+      float xStrikePrice = 0.0f;
+      float xRiskFreeRate = 0.0f;
+      float xVolatility = 0.0f;
+      float xTime = 0.0f;
+      float xSqrtTime = 0.0f;
+      float logValues = 0.0f;
+      float xLogTerm = 0.0f;
+      float xPowerTerm = 0.0f;
+      float xD1 = 0.0f;
+      float xD2 = 0.0f;
+      float xPowerTer = 0.0f;
+      float xDen = 0.0f;
+      float d1 = 0.0f;
+      float d2 = 0.0f;
+      float futureValueX = 0.0f;
+      float nofXd1 = 0.0f;
+      float nofXd2 = 0.0f;
+      float negnofXd1 = 0.0f;
+      float negnofXd2 = 0.0f;
+      xStockPrice = in->sptprice;
+      xStrikePrice = in->strike;
+      xRiskFreeRate = in->rate;
+      xVolatility = in->volatility;
+      xTime = in->otime;
+      xSqrtTime = (float)sqrt((double)xTime);
+      logValues = in->sptprice / in->strike;
+      xLogTerm = logValues;
+      xPowerTerm = xVolatility * xVolatility;
+      xPowerTerm = xPowerTerm * 0.5f;
+      xD1 = xRiskFreeRate + xPowerTerm;
+      xD1 = xD1 * xTime;
+      xD1 = xD1 + xLogTerm;
+      xDen = xVolatility * xSqrtTime;
+      xD1 = xD1 / xDen;
+      xD2 = xD1 - xDen;
+      d1 = xD1;
+      d2 = xD2;
+      nofXd1 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(this, d1);
+      nofXd2 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(this, d2);
+      futureValueX = xStrikePrice * (float)exp((double)(-xRiskFreeRate * xTime));
+      (in->otype==(float)0) ? ({
+      
+         optionPrice = (xStockPrice * nofXd1) - (futureValueX * nofXd2);
+      }) : ({
+      
+         negnofXd1 = 1.0f - nofXd1;
+         negnofXd2 = 1.0f - nofXd2;
+         optionPrice = (futureValueX * negnofXd2) - (xStockPrice * negnofXd1);
+      });
+      optionPrice;
+   });
+}
+__kernel void run(
+      __global org_apache_spark_rdd_cl_tests_OptionData* restrict in0, 
+      __global float* restrict out, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      out[i] = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__apply(this, in0 + i);
+      
+   }
+}

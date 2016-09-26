@@ -1,0 +1,79 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) scala_Array_s scala_Array;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ArrayOutputTest$_s org_apache_spark_rdd_cl_tests_ArrayOutputTest$;
+
+struct __attribute__ ((packed)) scala_Array_s{
+   __global double*  values;
+   int  size;
+   int  tiling;
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ArrayOutputTest$_s{
+   
+};
+
+typedef struct This_s{
+   } This;
+
+static int scala_Array__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this) {
+    return (this->size);
+}
+
+
+
+static double scala_Array__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Array *this, int index) {
+    return (this->values)[this->tiling * index];
+}
+
+
+static __global double* org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int in){
+
+   return(
+   {
+   
+      __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+       __global double* valuesArr = __alloc0;
+      int i = 0;
+      for (; i<in; i = i + 1){
+      
+         valuesArr[i]  = (double)(2 * i);
+      }
+      valuesArr;
+   });
+}
+__kernel void run(
+      __global int* restrict in0, 
+      __global int * restrict out, __global int * restrict out_iters, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
+      int alloc_failed = 0;
+      __global double* result = org_apache_spark_rdd_cl_tests_ArrayOutputTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      if (!alloc_failed) {
+         processing_succeeded[i] = 1;
+         out_iters[i] = iter;
+         out[i] = ((__global char *)result) - ((__global char *)heap);
+         
+      }
+   }
+}
