@@ -35,6 +35,7 @@ import java.io.IOException
 import java.util.LinkedList
 import com.amd.aparapi.internal.model.HardCodedClassModels
 import com.amd.aparapi.internal.writer.ScalaArrayParameter
+import com.amd.aparapi.internal.writer.BlockWriter
 
 trait CodeGenTest[R] {
 
@@ -53,6 +54,7 @@ trait CodeGenTest[R] {
           tokens(tokens.length - 1)
     }
     val correctPath = CodeGenTests.testsPath + "/" + hostName + "/" +
+        (if (BlockWriter.emitOcl) "opencl" else "cuda") + "/" +
         className.substring(0, className.length - 1) + ".kernel"
 
     try {
