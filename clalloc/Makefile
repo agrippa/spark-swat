@@ -1,6 +1,6 @@
 include ${SWAT_HOME}/build.conf
 
-USE_CUDA=0
+USE_CUDA=1
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
 TARGET=libclalloc.so

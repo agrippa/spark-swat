@@ -1,0 +1,47 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s scala_Tuple2_I_I;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$_s org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$;
+
+struct __attribute__ ((packed)) scala_Tuple2_I_I_s{
+   int  _1;
+   int  _2;
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$_s{
+   
+};
+
+typedef struct This_s{
+   __global scala_Tuple2_I_I *broadcast$1;
+   int broadcast$1__javaArrayLength;
+   } This;
+static int org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$$anon$1__apply$mcII$sp(This *this, int in){
+
+   return(( (this->broadcast$1[in])._1 +  (this->broadcast$1[in])._2));
+}
+static int org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$$anon$1__apply(This *this, int in){
+
+   return(org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$$anon$1__apply$mcII$sp(this, in));
+}
+__kernel void run(
+      __global int* restrict in0, 
+      __global int* restrict out, __global int * restrict broadcast$1_1, __global int * restrict broadcast$1_2, __global scala_Tuple2_I_I * restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   this->broadcast$1 = broadcast$1; for (int ii = 0; ii < broadcast$1__javaArrayLength; ii++) { broadcast$1[ii]._1 = broadcast$1_1[ii]; broadcast$1[ii]._2 = broadcast$1_2[ii];  } ;
+   this->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      out[i] = org_apache_spark_rdd_cl_tests_Tuple2BroadcastTest$$anon$1__apply(this, in0[i]);
+      
+   }
+}

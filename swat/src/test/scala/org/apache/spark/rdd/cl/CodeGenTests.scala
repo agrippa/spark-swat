@@ -174,6 +174,8 @@ object CodeGenTests {
     var testName : String = null
     var devId : Int = 0
 
+    var runOcl : Boolean = true
+
     var i = 0
     while (i < args.length) {
       if (args(i) == "-d") {
@@ -182,8 +184,11 @@ object CodeGenTests {
       } else if (args(i) == "-t") {
         testName = args(i + 1)
         i += 1
+      } else if (args(i) == "-c") {
+        runOcl = args(i + 1).toBoolean
+        i += 1
       } else if (args(i) == "-h") {
-        System.err.println("usage: scala CodeGenTests [-d devid] [-t testname]")
+        System.err.println("usage: scala CodeGenTests [-d devid] [-t testname] [-c use-ocl]")
         System.exit(1)
       } else {
         System.err.println("Unknown command line argument \"" + args(i) + "\"")
@@ -191,6 +196,8 @@ object CodeGenTests {
       }
       i += 1
     }
+
+    BlockWriter.emitOcl = runOcl
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
 
