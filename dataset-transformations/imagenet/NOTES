@@ -4,6 +4,17 @@ The dataset we used is downloadable from:
 
 http://image-net.org/image/ILSVRC2015/ILSVRC2015_DET_test.tar.gz
 
+This downloads the full dataset, you should simply place the JPEG files under
+$SPARK_DATASETS/imagenet/0.original.
+
+You should then run the scripts in this directory in the order indicated by
+their numbering.
+
+If 0.find_min_image_size.sh reports errors for some files, delete them from your
+filesystem. There should not be many, but this may indicate corrupted JPEGs
+which your JVM installation cannot read. You likely will also want to delete any
+oddly small files (e.g. ones reported as having a height and width of 1).
+
 The convert_jpeg_to_txt.sh script uses the ConvertJPEGsToText to convert each
 JPEG file containing N pixels to a text file containing a single space-separated
 line where each element on the line is either the R, G, or B component of a

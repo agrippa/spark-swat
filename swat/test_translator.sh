@@ -11,10 +11,11 @@ if [[ "x$SPARK_HOME" == "x" ]]; then
   exit 1
 fi
 
-cp ../clalloc/libclalloc.so .
-cp ../clutil/libclutil.so .
+# cp ../clalloc/libclalloc.so .
+# cp ../clutil/libclutil.so .
 
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=../clutil:../clalloc:$LD_LIBRARY_PATH
 
 JARS=./target/test-classes:${APARAPI_SWAT}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
 
@@ -32,7 +33,7 @@ if [[ "x$SCALANLP_HOME" != "x" ]]; then
     done
 fi
 
-SWAT_GPU_WEIGHT=1 SWAT_CPU_WEIGHT=0 scala -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $*
+SWAT_GPU_WEIGHT=1 SWAT_CPU_WEIGHT=0 scala -J-Xmx2g -classpath ${JARS} org.apache.spark.rdd.cl.CodeGenTests $*
 
-rm libclalloc.so 
-rm libclutil.so 
+# rm libclalloc.so 
+# rm libclutil.so 

@@ -119,7 +119,11 @@ object CodeGenTests {
 
     val hardCodedClassModels : HardCodedClassModels = test.init
 
-    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024, 0.2, true)
+    val dev_ctx : Long = OpenCLBridge.getActualDeviceContext(devId, 1, 1024, 0.2, false)
+    if (dev_ctx == 0) {
+        System.err.println("Invalid device")
+        System.exit(1)
+    }
     val config = CodeGenUtil.createCodeGenConfig(dev_ctx)
     var gotExpectedException = false
     var entryPoint : Entrypoint = null;
@@ -161,6 +165,7 @@ object CodeGenTests {
       if (!openCL.equals(expectedKernel)) {
         System.err.println(testName + " FAILED")
         System.err.println("Kernel mismatch, generated output in 'generated', correct output in 'correct'")
+        System.err.println("Reference file is at " + getReferenceOutputPath(test.getClass))
         System.err.println("Use 'vimdiff correct generated' to see the difference")
 
         System.exit(1)
@@ -168,6 +173,20 @@ object CodeGenTests {
     }
 
     System.err.println(testName + " PASSED")
+  }
+
+  def getReferenceOutputPath(cls : Class[_]) : String = {
+      val className : String = cls.getSimpleName
+      var hostName : String = java.net.InetAddress.getLocalHost.getHostName
+      val tokens : Array[String] = hostName.split('.')
+      if (tokens.length > 3) {
+        hostName = tokens(tokens.length - 3) + "." + tokens(tokens.length - 2) + "." +
+            tokens(tokens.length - 1)
+      }
+
+      CodeGenTests.testsPath + "/" + hostName + "/" +
+        (if (BlockWriter.emitOcl) "opencl" else "cuda") + "/" +
+        className.substring(0, className.length - 1) + ".kernel"
   }
 
   def main(args : Array[String]) {
@@ -198,6 +217,18 @@ object CodeGenTests {
     }
 
     BlockWriter.emitOcl = runOcl
+
+    if (runOcl) {
+        if (OpenCLBridge.usingCuda() > 0) {
+            System.err.println("Mismatch in the code generation target (OCL) and the runtime compilation target (CUDA)")
+            System.exit(1);
+        }
+    } else {
+        if (OpenCLBridge.usingCuda() == 0) {
+            System.err.println("Mismatch in the code generation target (CUDA) and the runtime compilation target (OCL)")
+            System.exit(1);
+        }
+    }
 
     System.setProperty("com.amd.aparapi.enable.NEW", "true");
 

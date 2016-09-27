@@ -554,7 +554,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
     // Double check after locking
     if (device_ctxs == NULL) {
 
+#ifdef USE_CUDA
         CHECK_DRIVER(cuInit(0));
+#endif
 
         cl_uint total_num_devices = get_total_num_devices();
         device_context *tmp_device_ctxs = (device_context *)malloc(
@@ -576,10 +578,7 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
             CHECK_ALLOC(devices);
             get_device_ids(platforms[platform_index], devices, num_devices);
 
-            fprintf(stderr, "%d devices\n", num_devices);
-
             for (unsigned i = 0; i < num_devices; i++) {
-                fprintf(stderr, "DEVICE %d\n", i);
                 cl_device_id curr_dev = devices[i];
 #ifdef VERBOSE
                 char *device_name = get_device_name(curr_dev);
@@ -1121,8 +1120,8 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         nvrtcProgram prog;
         CHECK_NVRTC(nvrtcCreateProgram(&prog, raw_source, "foo", 0, NULL, NULL));
 
-        const char *opts[] = {"--gpu-architecture=compute_20"};
-        nvrtcResult compile_result = nvrtcCompileProgram(prog, 1, opts);
+        const char *opts[] = {"--gpu-architecture=compute_20", "-default-device"};
+        nvrtcResult compile_result = nvrtcCompileProgram(prog, 2, opts);
 
         size_t compile_log_size;
         CHECK_NVRTC(nvrtcGetProgramLogSize(prog, &compile_log_size));

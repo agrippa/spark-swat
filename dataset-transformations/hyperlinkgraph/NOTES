@@ -8,5 +8,11 @@ It is available with the following command:
 wget -i http://webdatacommons.org/hyperlinkgraph/2014-04/data/arc.list.txt
 
 That will download a collection of gzip'ed text files. You will need to iterate
-over them and run gzip -d to extract them. Then, run the scripts in this
+over them and run gzip -d to extract them.
+
+That extraction should give you about 1TB of data. To deal with more reasonable
+dataset sizes for testing, just trim out some of the text files. For example, to
+test with ~1 billion elements only requires ~10-20 text files usually.
+
+Then, run the scripts in this
 directory on those files to produce a working dataset.

@@ -1,7 +1,7 @@
 include ${SWAT_HOME}/build.conf
 
 # USE_CUDA should be set to 1 or 0. If set to 0, we will use OpenCL APIs instead.
-USE_CUDA=1
+USE_CUDA=0
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE
 TARGET=libclutil.so

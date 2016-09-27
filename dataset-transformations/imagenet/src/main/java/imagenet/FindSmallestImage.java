@@ -21,7 +21,9 @@ public class FindSmallestImage {
         String[] inputFilenames = inputDirFile.list();
 
         int minWidth = Integer.MAX_VALUE;
+        String minWidthImage = null;
         int minHeight = Integer.MAX_VALUE;
+        String minHeightImage = null;
 
         for (int i = 0; i < inputFilenames.length; i++) {
             if (i % nprocs != pid) {
@@ -38,7 +40,8 @@ public class FindSmallestImage {
                 img = ImageIO.read(new File(inputPath));
             } catch (Exception e) {
                 System.err.println("Error on file " + inputPath);
-                throw new RuntimeException(e);
+                e.printStackTrace();
+                continue;
             }
 
             final Raster raster = img.getData();
@@ -47,14 +50,17 @@ public class FindSmallestImage {
 
             if (width < minWidth) {
                 minWidth = width;
+                minWidthImage = inputPath;
             }
 
             if (height < minHeight) {
                 minHeight = height;
+                minHeightImage = inputPath;
             }
         }
 
-        System.out.println("minWidth=" + minWidth + " minHeight=" + minHeight);
+        System.out.println("minWidth=" + minWidth + " (" + minWidthImage +
+                "), minHeight=" + minHeight + " (" + minHeightImage + ")");
     }
 }
 

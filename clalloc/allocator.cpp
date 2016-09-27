@@ -34,8 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <string.h>
 
-#define VERBOSE
-
 #ifdef PROFILE
 static volatile unsigned long long acc_init_time = 0ULL;
 static volatile unsigned long long acc_realloc_time = 0ULL;
@@ -351,8 +349,8 @@ static void split(cl_region *target, size_t first_partition_size,
     cl_region *lower_region = copy_cl_region(target);
     cl_region *upper_region = copy_cl_region(target);
 
-    lower_region->sub_mem = (CUdeviceptr)NULL;
-    upper_region->sub_mem = (CUdeviceptr)NULL;
+    lower_region->sub_mem = (cl_mem)NULL;
+    upper_region->sub_mem = (cl_mem)NULL;
 
     upper_region->offset += first_partition_size;
 
@@ -535,7 +533,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     next->offset, next->size, to_free, to_free->offset,
                     to_free->size);
 #endif
-            prev->sub_mem = (CUdeviceptr)NULL;
+            prev->sub_mem = (cl_mem)NULL;
             prev->size += to_free->size + next->size;
             prev->next = next->next;
             if (prev->next) {
@@ -559,7 +557,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     next->size, to_free, to_free->offset, to_free->size);
 #endif
 
-            to_free->sub_mem = (CUdeviceptr)NULL;
+            to_free->sub_mem = (cl_mem)NULL;
             to_free->size += next->size;
             to_free->next = next->next;
             if (to_free->next) {
@@ -591,7 +589,7 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
                     prev->offset, prev->size);
 #endif
 
-            prev->sub_mem = (CUdeviceptr)NULL;
+            prev->sub_mem = (cl_mem)NULL;
             free(to_free);
             remove_from_bucket(prev);
             ASSERT(prev->size >= MIN_ALLOC_SIZE);
@@ -864,7 +862,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
         if (new_region->grandparent->region_list_head == best_candidate) {
             new_region->grandparent->region_list_head = new_region;
         }
-        new_region->sub_mem = (CUdeviceptr)NULL;
+        new_region->sub_mem = (cl_mem)NULL;
         new_region->refs = 0;
         new_region->keeping = false;
         new_region->birth = 0;
@@ -919,7 +917,7 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
      */
     cl_region *copy = swap_out_for_copy(target_region);
     copy->refs = 1;
-    if (copy->sub_mem == (CUdeviceptr)NULL) {
+    if (copy->sub_mem == (cl_mem)NULL) {
 #ifdef USE_CUDA
         copy->sub_mem = alloc->mem + copy->offset;
 #else
@@ -1172,6 +1170,11 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
         void *pinned;
         CHECK_DRIVER(cuMemAllocHost(&pinned, alloc_size));
 #else
+        /*
+         * If you start seeing memory allocation errors from here, it is very
+         * possible that the operating system is not unpinning pages when a
+         * process exits suddenly.
+         */
         void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
                 alloc_size, 0, NULL, NULL, &err);
         CHECK(err);
@@ -1191,7 +1194,7 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
 
         cl_region *first_region = (cl_region *)malloc(sizeof(cl_region));
         CHECK_ALLOC(first_region);
-        first_region->sub_mem = (CUdeviceptr)NULL;
+        first_region->sub_mem = (cl_mem)NULL;
         first_region->offset = 0;
         first_region->size = alloc_size;
         first_region->parent = NULL;
