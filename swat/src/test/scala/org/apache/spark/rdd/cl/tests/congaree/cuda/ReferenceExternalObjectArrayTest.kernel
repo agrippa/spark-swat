@@ -1,0 +1,57 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$_s org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s org_apache_spark_rdd_cl_tests_Point;
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$_s{
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
+   float  x;
+   float  y;
+   float  z;
+   
+};
+
+typedef struct This_s{
+   __global org_apache_spark_rdd_cl_tests_Point* arr$1;
+   int arr$1__javaArrayLength;
+   } This;
+static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){
+   return this->z;
+}
+static float org_apache_spark_rdd_cl_tests_Point__y(__global org_apache_spark_rdd_cl_tests_Point *this){
+   return this->y;
+}
+static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){
+   return this->x;
+}
+static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply$mcFF$sp(This *this, float in){
+
+   return((((in +  (this->arr$1[0]).x) +  (this->arr$1[1]).y) +  (this->arr$1[2]).z));
+}
+static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply(This *this, float in){
+
+   return(org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply$mcFF$sp(this, in));
+}
+__kernel void run(
+      __global float* restrict in0, 
+      __global float* restrict out, __global org_apache_spark_rdd_cl_tests_Point* restrict arr$1, int arr$1__javaArrayLength, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   this->arr$1 = arr$1;
+   this->arr$1__javaArrayLength = arr$1__javaArrayLength;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      out[i] = org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest$$anon$1__apply(this, in0[i]);
+      
+   }
+}

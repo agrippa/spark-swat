@@ -18,7 +18,7 @@ INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
          -I${JAVA_HOME}/include/linux -I${CL_HOME}/include
 
 ifeq ($(USE_CUDA),1)
-	GXX_FLAGS += -lcudart
+	GXX_FLAGS += -lcudart -I${CUDA_HOME}/include
 	LIBS=-L${CUDA_HOME}/lib64
 else
 	GXX_FLAGS += -lOpenCL

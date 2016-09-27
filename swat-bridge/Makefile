@@ -18,8 +18,8 @@ INCLUDES=-I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin \
 TARGET=libbridge.so
 
 ifeq ($(USE_CUDA),1)
-	GXX_FLAGS+=-lcuinj64 -DUSE_CUDA
-	LIBS=-L${CUDA_HOME}/lib64
+	GXX_FLAGS+=-L/usr/lib/x86_64-linux-gnu -DUSE_CUDA -I${CUDA_HOME}/include
+	LIBS=-L${CUDA_HOME}/lib64 -lcuda
 else
 	GXX_FLAGS+=-lOpenCL -lrt
 	LIBS=-L${CL_HOME}/lib

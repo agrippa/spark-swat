@@ -1,0 +1,131 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_InternalParallelismTest$_s{
+   
+} org_apache_spark_rdd_cl_tests_InternalParallelismTest$;
+
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1_s{
+   
+} org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1;
+
+
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1_s{
+   __global double*  arr$1;
+   
+} org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1;
+
+typedef struct This_s{
+   __global void *heap;
+   __global uint *free_index;
+   int alloc_failed;
+   unsigned int heap_size;
+   __local int * stage_ptr;
+   __local int * stage_size_ptr;
+   __local org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 * stage1;
+   } This;
+static void org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1__apply$mcVI$sp( org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 *this, int iter){
+
+   {
+   
+      int tmp = iter * 4;
+      this->arr$1[tmp]  = (double)tmp;
+   }
+   return;
+}
+static __local org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 * org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1___init_(__local org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 *this,  __global double* arr$1){
+
+   this->arr$1=arr$1;
+   ;
+   return (this);
+}
+static int org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1__apply$mcII$sp(This *this, int in){
+
+   return(
+   {
+   
+      int niters = in * 2;
+      __global double * __alloc0 = (__global double *)alloc(this->heap, this->free_index, this->heap_size, sizeof(long) + (sizeof(double) * (5)), &this->alloc_failed);
+      if (this->alloc_failed) { return (0); } *((__global long *)__alloc0) = (5); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+       __global double* arr = __alloc0;
+      org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1___init_(this->stage1, arr);
+      *(this->stage_ptr) = 1; 
+      *(this->stage_size_ptr) = niters;
+      barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+      barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+      int out = niters / 4;
+      out;
+   });
+}
+static int org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1__apply(This *this, int in){
+
+   return(org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1__apply$mcII$sp(this, in));
+}
+static void worker_thread_kernel(This *this) {
+   org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 stage1;
+   while (1) {
+      barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+      switch (*(this->stage_ptr)) {
+         case (0):
+            break;
+         case (1):
+            stage1 = *(this->stage1);
+            for (int i = get_local_id(0) - 1; i < *(this->stage_size_ptr); i += (get_local_size(0) - 1)) {
+            org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1__apply$mcVI$sp(&stage1, i);
+            }
+            barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+            
+      }
+   }
+}
+
+__kernel void run(
+      __global int* in0, 
+      __global int* out, __global void *heap, __global uint *free_index, unsigned int heap_size, __global int *processing_succeeded, __global int *any_failed, int N) {
+   This thisStruct;
+   This* this=&thisStruct;
+   __local int stage;
+   __local int stage_size;
+   this->stage_ptr = &stage;
+   this->stage_size_ptr = &stage_size;
+   __local org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1$$anonfun$apply$mcII$sp$1 stage1;
+   this->stage1 = &stage1;
+   this->heap = heap;
+   this->free_index = free_index;
+   this->heap_size = heap_size;
+   for (int i = get_group_id(0); i < N; i += get_num_groups(0)) {
+      if (processing_succeeded[i]) continue;
+      
+      this->alloc_failed = 0;
+      if (get_local_id(0) == 0) {
+         out[i] = org_apache_spark_rdd_cl_tests_InternalParallelismTest$$anon$1__apply(this, in0[i]);
+         *(this->stage_ptr) = 0;
+         barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+         if (this->alloc_failed) {
+            processing_succeeded[i] = 0;
+            *any_failed = 1;
+         } else {
+            processing_succeeded[i] = 1;
+            
+         }
+      } else {
+         worker_thread_kernel(this);
+      }
+      
+   }
+}

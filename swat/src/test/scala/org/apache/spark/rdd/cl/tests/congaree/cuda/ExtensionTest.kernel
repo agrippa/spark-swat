@@ -1,0 +1,560 @@
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_extended_atomics : enable
+static int atomicAdd(__global int *_arr, int _index, int _delta){
+   return atomic_add(&_arr[_index], _delta);
+}
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest$_s org_apache_spark_rdd_cl_tests_ExtensionTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtRet_s org_apache_spark_rdd_cl_tests_ExtRet;
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest$_s{
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtRet_s{
+   long  rEnd;
+   long  rBeg;
+   int  idx;
+   int  width;
+   int  trueScore;
+   int  qEnd;
+   int  score;
+   int  qBeg;
+   
+};
+
+typedef struct This_s{
+   __global int* fpgaExtTasks_penClip3$1;
+   int fpgaExtTasks_penClip3$1__javaArrayLength;
+   __global int* fpgaExtTasks_penClip5$1;
+   int fpgaExtTasks_penClip5$1__javaArrayLength;
+   __global char* fpgaExtTasks_leftRs$1;
+   int fpgaExtTasks_leftRs$1__javaArrayLength;
+   __global int* fpgaExtTasks_rightQoffset$1;
+   int fpgaExtTasks_rightQoffset$1__javaArrayLength;
+   __global int* fpgaExtTasks_zdrop$1;
+   int fpgaExtTasks_zdrop$1__javaArrayLength;
+   __global int* fpgaExtTasks_oIns$1;
+   int fpgaExtTasks_oIns$1__javaArrayLength;
+   __global int* fpgaExtTasks_rightRlen$1;
+   int fpgaExtTasks_rightRlen$1__javaArrayLength;
+   __global int* fpgaExtTasks_idx$1;
+   int fpgaExtTasks_idx$1__javaArrayLength;
+   __global int* fpgaExtTasks_w$1;
+   int fpgaExtTasks_w$1__javaArrayLength;
+   int max_band_try$1;
+   __global int* fpgaExtTasks_regScore$1;
+   int fpgaExtTasks_regScore$1__javaArrayLength;
+   __global int* fpgaExtTasks_rightRoffset$1;
+   int fpgaExtTasks_rightRoffset$1__javaArrayLength;
+   __global int* fpgaExtTasks_leftRoffset$1;
+   int fpgaExtTasks_leftRoffset$1__javaArrayLength;
+   __global char* fpgaExtTasks_rightQs$1;
+   int fpgaExtTasks_rightQs$1__javaArrayLength;
+   __global int* fpgaExtTasks_leftQoffset$1;
+   int fpgaExtTasks_leftQoffset$1__javaArrayLength;
+   __global int* fpgaExtTasks_eIns$1;
+   int fpgaExtTasks_eIns$1__javaArrayLength;
+   __global int* fpgaExtTasks_rightQlen$1;
+   int fpgaExtTasks_rightQlen$1__javaArrayLength;
+   __global int* fpgaExtTasks_leftQlen$1;
+   int fpgaExtTasks_leftQlen$1__javaArrayLength;
+   __global char* fpgaExtTasks_leftQs$1;
+   int fpgaExtTasks_leftQs$1__javaArrayLength;
+   __global int* fpgaExtTasks_leftRlen$1;
+   int fpgaExtTasks_leftRlen$1__javaArrayLength;
+   int matlen$1;
+   __global int* fpgaExtTasks_oDel$1;
+   int fpgaExtTasks_oDel$1__javaArrayLength;
+   __global int* fpgaExtTasks_eDel$1;
+   int fpgaExtTasks_eDel$1__javaArrayLength;
+   __global char* fpgaExtTasks_rightRs$1;
+   int fpgaExtTasks_rightRs$1__javaArrayLength;
+   __global char* fpgaExtTasks_mat$1;
+   int fpgaExtTasks_mat$1__javaArrayLength;
+   __global int* fpgaExtTasks_h0$1;
+   int fpgaExtTasks_h0$1__javaArrayLength;
+   __global int* fpgaExtTasks_qBeg$1;
+   int fpgaExtTasks_qBeg$1__javaArrayLength;
+   } This;
+static void org_apache_spark_rdd_cl_tests_ExtRet__idx_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->idx=x$1;
+   return;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->width=x$1;
+   return;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->trueScore=x$1;
+   return;
+}
+static int org_apache_spark_rdd_cl_tests_ExtRet__trueScore(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this){
+   return this->trueScore;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, long x$1){
+
+   this->rEnd=x$1;
+   return;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->qEnd=x$1;
+   return;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->score=x$1;
+   return;
+}
+static __global int* org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int qLen, int qOffset,  __global char* query, int query__javaArrayLength, int tLen, int tOffset,  __global char* target, int target__javaArrayLength, int m,  __global char* mat, int mat__javaArrayLength, int matlen, int oDel, int eDel, int oIns, int eIns, int w_i, int endBonus, int zdrop, int h0){
+
+   return(
+   {
+   
+      __global int * __alloc0 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (6)), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (6); __alloc0 = (__global int *)(((__global long *)__alloc0) + 1); 
+       __global int* retArray = __alloc0;
+      __global int * __alloc1 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * ((qLen + 1))), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc1) = ((qLen + 1)); __alloc1 = (__global int *)(((__global long *)__alloc1) + 1); 
+       __global int* eh_e = __alloc1;
+      __global int * __alloc2 = (__global int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * ((qLen + 1))), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc2) = ((qLen + 1)); __alloc2 = (__global int *)(((__global long *)__alloc2) + 1); 
+       __global int* eh_h = __alloc2;
+      __global char * __alloc3 = (__global char *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(char) * ((qLen * m))), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc3) = ((qLen * m)); __alloc3 = (__global char *)(((__global long *)__alloc3) + 1); 
+       __global char* qp = __alloc3;
+      int oeDel = oDel + eDel;
+      int oeIns = oIns + eIns;
+      int i = 0;
+      int j = 0;
+      int k = 0;
+      int w = w_i;
+      for (; i<(qLen + 1); i = i + 1){
+      
+         eh_e[i]  = 0;
+         eh_h[i]  = 0;
+      }
+      i = 0;
+      k = 0;
+      while (k<m){
+      
+         {
+         
+            int p = k * m;
+            j = 0;
+            for (; j<qLen; j = j + 1){
+            
+               qp[i]  = mat[(p + query[(qOffset + j)])];
+               i = i + 1;
+            }
+            k = k + 1;
+         }
+      }
+      eh_h[0]  = h0;
+      (h0>oeIns) ? ({
+      
+         eh_h[1]  = h0 - oeIns;
+      }) : ({
+      
+         eh_h[1]  = 0;
+      });
+      j = 2;
+      for (; j<=qLen && eh_h[(j - 1)]>eIns; j = j + 1){
+      
+         eh_h[j]  = eh_h[(j - 1)] - eIns;
+      }
+      k = m * m;
+      int max = 0;
+      i = 0;
+      for (; i<matlen; i = i + 1){
+      
+         if (mat[i]>max){
+         
+            max = mat[i];
+         }
+      }
+      int maxIns = (int)(((double)(((qLen * max) + endBonus) - oIns) / (double)eIns) + 1.0);
+      if (maxIns<1){
+      
+         maxIns = 1;
+      }
+      if (w>maxIns){
+      
+         w = maxIns;
+      }
+      int maxDel = (int)(((double)(((qLen * max) + endBonus) - oDel) / (double)eDel) + 1.0);
+      if (maxDel<1){
+      
+         maxDel = 1;
+      }
+      if (w>maxDel){
+      
+         w = maxDel;
+      }
+      max = h0;
+      int max_i = -1;
+      int max_j = -1;
+      int max_ie = -1;
+      int gscore = -1;
+      int max_off = 0;
+      int beg = 0;
+      int end = qLen;
+      char isBreak = 0;
+      i = 0;
+      while (i<tLen && isBreak==0){
+      
+         {
+         
+            int t = 0;
+            int f = 0;
+            int h1 = 0;
+            int m = 0;
+            int mj = -1;
+            int qPtr = target[(tOffset + i)] * qLen;
+            h1 = h0 - (oDel + (eDel * (i + 1)));
+            if (h1<0){
+            
+               h1 = 0;
+            }
+            if (beg<(i - w)){
+            
+               beg = i - w;
+            }
+            if (end>((i + w) + 1)){
+            
+               end = (i + w) + 1;
+            }
+            if (end>qLen){
+            
+               end = qLen;
+            }
+            j = beg;
+            while (j<end){
+            
+               {
+               
+                  int h = eh_h[j];
+                  int e = eh_e[j];
+                  eh_h[j]  = h1;
+                  h = h + qp[(qPtr + j)];
+                  if (h<e){
+                  
+                     h = e;
+                  }
+                  if (h<f){
+                  
+                     h = f;
+                  }
+                  h1 = h;
+                  if (m<=h){
+                  
+                     mj = j;
+                     m = h;
+                  }
+                  t = h - oeDel;
+                  if (t<0){
+                  
+                     t = 0;
+                  }
+                  e = e - eDel;
+                  if (e<t){
+                  
+                     e = t;
+                  }
+                  eh_e[j]  = e;
+                  t = h - oeIns;
+                  if (t<0){
+                  
+                     t = 0;
+                  }
+                  f = f - eIns;
+                  if (f<t){
+                  
+                     f = t;
+                  }
+                  j = j + 1;
+               }
+            }
+            eh_h[end]  = h1;
+            eh_e[end]  = 0;
+            if (j==qLen && gscore<=h1){
+            
+               max_ie = i;
+               gscore = h1;
+            }
+            (m==0) ? ({
+            
+               isBreak = 1;
+            }) : ({
+            
+               (m>max) ? ({
+               
+                  max = m;
+                  max_i = i;
+                  max_j = mj;
+                  if (max_off<abs((mj - i))){
+                  
+                     max_off = abs((mj - i));
+                  }
+               }) : ({
+               
+                  if (zdrop>0 && (i - max_i)>(mj - max_j)){
+                  
+                     (((max - m) - (((i - max_i) - (mj - max_j)) * eDel))>zdrop) ? ({
+                     
+                        isBreak = 1;
+                     }) : ({
+                     
+                        if (((max - m) - (((mj - max_j) - (i - max_i)) * eIns))>zdrop){
+                        
+                           isBreak = 1;
+                        }
+                     });
+                  }
+               });
+               if (isBreak==0){
+               
+                  j = mj;
+                  for (; j>=beg && eh_h[j]>0; j = j - 1){
+                  
+                  }
+                  beg = j + 1;
+                  j = mj + 2;
+                  for (; j<=end && eh_h[j]>0; j = j + 1){
+                  
+                  }
+                  end = j;
+               }
+            });
+            i = i + 1;
+         }
+      }
+      retArray[0]  = max;
+      retArray[1]  = max_j + 1;
+      retArray[2]  = max_i + 1;
+      retArray[3]  = max_ie + 1;
+      retArray[4]  = gscore;
+      retArray[5]  = max_off;
+      retArray;
+   });
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, long x$1){
+
+   this->rBeg=x$1;
+   return;
+}
+static void org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+
+   this->qBeg=x$1;
+   return;
+}
+static __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtRet___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this){
+
+   ;
+   this->qBeg=-1;
+   this->rBeg=-1L;
+   this->qEnd=-1;
+   this->rEnd=-1L;
+   this->score=-1;
+   this->trueScore=-1;
+   this->width=-1;
+   this->idx=-1;
+   return (this);
+}
+static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int extParam_w, int extParam_regScore, int extParam_rightQlen, int extParam_rightQoffset,  __global char* extParam_rightQs, int extParam_rightQs__javaArrayLength, int extParam_leftQlen, int extParam_leftQoffset,  __global char* extParam_leftQs, int extParam_leftQs__javaArrayLength, int extParam_rightRlen, int extParam_rightRoffset,  __global char* extParam_rightRs, int extParam_rightRs__javaArrayLength, int extParam_idx, int extParam_penClip5, int extParam_penClip3, int extParam_qBeg, int extParam_leftRlen, int extParam_leftRoffset,  __global char* extParam_leftRs, int extParam_leftRs__javaArrayLength,  __global char* extParam_mat, int extParam_mat__javaArrayLength, int matlen, int extParam_oDel, int extParam_eDel, int extParam_oIns, int extParam_elns, int extParam_zdrop, int extParam_h0, int MAX_BAND_TRY){
+
+   return(
+   {
+   
+      int aw0 = extParam_w;
+      int aw1 = extParam_w;
+      int qle = -1;
+      int tle = -1;
+      int gtle = -1;
+      int gscore = -1;
+      int maxoff = -1;
+      int i = 0;
+      char isBreak = 0;
+      int prev = -1;
+      int regScore = extParam_regScore;
+      __global org_apache_spark_rdd_cl_tests_ExtRet * __alloc4 = (__global org_apache_spark_rdd_cl_tests_ExtRet *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_rdd_cl_tests_ExtRet), __swat_alloc_failed);
+      if (*__swat_alloc_failed) { return (0x0); }
+       __global org_apache_spark_rdd_cl_tests_ExtRet *extRet = org_apache_spark_rdd_cl_tests_ExtRet___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc4);
+      org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
+      org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
+      org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
+      org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
+      org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_regScore);
+      if (extParam_leftQlen>0){
+      
+         while (i<MAX_BAND_TRY && isBreak==0){
+         
+            prev = regScore;
+            aw0 = extParam_w << i;
+            {
+            
+                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, extParam_leftQlen, extParam_leftQoffset, extParam_leftQs, extParam_leftQs__javaArrayLength, extParam_leftRlen, extParam_leftRoffset, extParam_leftRs, extParam_leftRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw0, extParam_penClip5, extParam_zdrop, extParam_h0);
+               regScore = results[0];
+               qle = results[1];
+               tle = results[2];
+               gtle = results[3];
+               gscore = results[4];
+               maxoff = results[5];
+               if (regScore==prev || maxoff<((aw0 >> 1) + (aw0 >> 2))){
+               
+                  isBreak = 1;
+               }
+               i = i + 1;
+            }
+         }
+         org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+         (gscore<=0 || gscore<=(regScore - extParam_penClip5)) ? ({
+         
+            org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (extParam_qBeg - qle));
+            org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-tle);
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+         }) : ({
+         
+            org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
+            org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-gtle);
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, gscore);
+         });
+      }
+      if (extParam_rightQlen>0){
+      
+         i = 0;
+         isBreak = 0;
+         int sc0 = regScore;
+         while (i<MAX_BAND_TRY && isBreak==0){
+         
+            prev = regScore;
+            aw1 = extParam_w << i;
+            {
+            
+                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, extParam_rightQlen, extParam_rightQoffset, extParam_rightQs, extParam_rightQs__javaArrayLength, extParam_rightRlen, extParam_rightRoffset, extParam_rightRs, extParam_rightRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw1, extParam_penClip3, extParam_zdrop, sc0);
+               regScore = results[0];
+               qle = results[1];
+               tle = results[2];
+               gtle = results[3];
+               gscore = results[4];
+               maxoff = results[5];
+               if (regScore==prev || maxoff<((aw1 >> 1) + (aw1 >> 2))){
+               
+                  isBreak = 1;
+               }
+               i = i + 1;
+            }
+         }
+         org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+         (gscore<=0 || gscore<=(regScore - extParam_penClip3)) ? ({
+         
+            org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, qle);
+            org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)tle);
+             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43 = extRet;
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43, (org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43->trueScore + (regScore - sc0)));
+         }) : ({
+         
+            org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
+            org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)gtle);
+             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44 = extRet;
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44, (org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44->trueScore + (gscore - sc0)));
+         });
+      }
+      (aw0>aw1) ? ({
+      
+         org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw0);
+      }) : ({
+      
+         org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw1);
+      });
+      org_apache_spark_rdd_cl_tests_ExtRet__idx_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_idx);
+      extRet;
+   });
+}
+static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int i){
+
+   return(org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, this->fpgaExtTasks_w$1[i], this->fpgaExtTasks_regScore$1[i], this->fpgaExtTasks_rightQlen$1[i], this->fpgaExtTasks_rightQoffset$1[i], this->fpgaExtTasks_rightQs$1, this->fpgaExtTasks_rightQs$1__javaArrayLength, this->fpgaExtTasks_leftQlen$1[i], this->fpgaExtTasks_leftQoffset$1[i], this->fpgaExtTasks_leftQs$1, this->fpgaExtTasks_leftQs$1__javaArrayLength, this->fpgaExtTasks_rightRlen$1[i], this->fpgaExtTasks_rightRoffset$1[i], this->fpgaExtTasks_rightRs$1, this->fpgaExtTasks_rightRs$1__javaArrayLength, this->fpgaExtTasks_idx$1[i], this->fpgaExtTasks_penClip5$1[i], this->fpgaExtTasks_penClip3$1[i], this->fpgaExtTasks_qBeg$1[i], this->fpgaExtTasks_leftRlen$1[i], this->fpgaExtTasks_leftRoffset$1[i], this->fpgaExtTasks_leftRs$1, this->fpgaExtTasks_leftRs$1__javaArrayLength, this->fpgaExtTasks_mat$1, this->fpgaExtTasks_mat$1__javaArrayLength, this->matlen$1, this->fpgaExtTasks_oDel$1[i], this->fpgaExtTasks_eDel$1[i], this->fpgaExtTasks_oIns$1[i], this->fpgaExtTasks_eIns$1[i], this->fpgaExtTasks_zdrop$1[i], this->fpgaExtTasks_h0$1[i], this->max_band_try$1));
+}
+__kernel void run(
+      __global int* restrict in0, 
+      __global org_apache_spark_rdd_cl_tests_ExtRet* restrict out, __global int* restrict fpgaExtTasks_penClip3$1, int fpgaExtTasks_penClip3$1__javaArrayLength, __global int* restrict fpgaExtTasks_penClip5$1, int fpgaExtTasks_penClip5$1__javaArrayLength, __global char* restrict fpgaExtTasks_leftRs$1, int fpgaExtTasks_leftRs$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightQoffset$1, int fpgaExtTasks_rightQoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_zdrop$1, int fpgaExtTasks_zdrop$1__javaArrayLength, __global int* restrict fpgaExtTasks_oIns$1, int fpgaExtTasks_oIns$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightRlen$1, int fpgaExtTasks_rightRlen$1__javaArrayLength, __global int* restrict fpgaExtTasks_idx$1, int fpgaExtTasks_idx$1__javaArrayLength, __global int* restrict fpgaExtTasks_w$1, int fpgaExtTasks_w$1__javaArrayLength, int max_band_try$1, __global int* restrict fpgaExtTasks_regScore$1, int fpgaExtTasks_regScore$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightRoffset$1, int fpgaExtTasks_rightRoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftRoffset$1, int fpgaExtTasks_leftRoffset$1__javaArrayLength, __global char* restrict fpgaExtTasks_rightQs$1, int fpgaExtTasks_rightQs$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftQoffset$1, int fpgaExtTasks_leftQoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_eIns$1, int fpgaExtTasks_eIns$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightQlen$1, int fpgaExtTasks_rightQlen$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftQlen$1, int fpgaExtTasks_leftQlen$1__javaArrayLength, __global char* restrict fpgaExtTasks_leftQs$1, int fpgaExtTasks_leftQs$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftRlen$1, int fpgaExtTasks_leftRlen$1__javaArrayLength, int matlen$1, __global int* restrict fpgaExtTasks_oDel$1, int fpgaExtTasks_oDel$1__javaArrayLength, __global int* restrict fpgaExtTasks_eDel$1, int fpgaExtTasks_eDel$1__javaArrayLength, __global char* restrict fpgaExtTasks_rightRs$1, int fpgaExtTasks_rightRs$1__javaArrayLength, __global char* restrict fpgaExtTasks_mat$1, int fpgaExtTasks_mat$1__javaArrayLength, __global int* restrict fpgaExtTasks_h0$1, int fpgaExtTasks_h0$1__javaArrayLength, __global int* restrict fpgaExtTasks_qBeg$1, int fpgaExtTasks_qBeg$1__javaArrayLength, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   this->fpgaExtTasks_penClip3$1 = fpgaExtTasks_penClip3$1;
+   this->fpgaExtTasks_penClip3$1__javaArrayLength = fpgaExtTasks_penClip3$1__javaArrayLength;
+   this->fpgaExtTasks_penClip5$1 = fpgaExtTasks_penClip5$1;
+   this->fpgaExtTasks_penClip5$1__javaArrayLength = fpgaExtTasks_penClip5$1__javaArrayLength;
+   this->fpgaExtTasks_leftRs$1 = fpgaExtTasks_leftRs$1;
+   this->fpgaExtTasks_leftRs$1__javaArrayLength = fpgaExtTasks_leftRs$1__javaArrayLength;
+   this->fpgaExtTasks_rightQoffset$1 = fpgaExtTasks_rightQoffset$1;
+   this->fpgaExtTasks_rightQoffset$1__javaArrayLength = fpgaExtTasks_rightQoffset$1__javaArrayLength;
+   this->fpgaExtTasks_zdrop$1 = fpgaExtTasks_zdrop$1;
+   this->fpgaExtTasks_zdrop$1__javaArrayLength = fpgaExtTasks_zdrop$1__javaArrayLength;
+   this->fpgaExtTasks_oIns$1 = fpgaExtTasks_oIns$1;
+   this->fpgaExtTasks_oIns$1__javaArrayLength = fpgaExtTasks_oIns$1__javaArrayLength;
+   this->fpgaExtTasks_rightRlen$1 = fpgaExtTasks_rightRlen$1;
+   this->fpgaExtTasks_rightRlen$1__javaArrayLength = fpgaExtTasks_rightRlen$1__javaArrayLength;
+   this->fpgaExtTasks_idx$1 = fpgaExtTasks_idx$1;
+   this->fpgaExtTasks_idx$1__javaArrayLength = fpgaExtTasks_idx$1__javaArrayLength;
+   this->fpgaExtTasks_w$1 = fpgaExtTasks_w$1;
+   this->fpgaExtTasks_w$1__javaArrayLength = fpgaExtTasks_w$1__javaArrayLength;
+   this->max_band_try$1 = max_band_try$1;
+   this->fpgaExtTasks_regScore$1 = fpgaExtTasks_regScore$1;
+   this->fpgaExtTasks_regScore$1__javaArrayLength = fpgaExtTasks_regScore$1__javaArrayLength;
+   this->fpgaExtTasks_rightRoffset$1 = fpgaExtTasks_rightRoffset$1;
+   this->fpgaExtTasks_rightRoffset$1__javaArrayLength = fpgaExtTasks_rightRoffset$1__javaArrayLength;
+   this->fpgaExtTasks_leftRoffset$1 = fpgaExtTasks_leftRoffset$1;
+   this->fpgaExtTasks_leftRoffset$1__javaArrayLength = fpgaExtTasks_leftRoffset$1__javaArrayLength;
+   this->fpgaExtTasks_rightQs$1 = fpgaExtTasks_rightQs$1;
+   this->fpgaExtTasks_rightQs$1__javaArrayLength = fpgaExtTasks_rightQs$1__javaArrayLength;
+   this->fpgaExtTasks_leftQoffset$1 = fpgaExtTasks_leftQoffset$1;
+   this->fpgaExtTasks_leftQoffset$1__javaArrayLength = fpgaExtTasks_leftQoffset$1__javaArrayLength;
+   this->fpgaExtTasks_eIns$1 = fpgaExtTasks_eIns$1;
+   this->fpgaExtTasks_eIns$1__javaArrayLength = fpgaExtTasks_eIns$1__javaArrayLength;
+   this->fpgaExtTasks_rightQlen$1 = fpgaExtTasks_rightQlen$1;
+   this->fpgaExtTasks_rightQlen$1__javaArrayLength = fpgaExtTasks_rightQlen$1__javaArrayLength;
+   this->fpgaExtTasks_leftQlen$1 = fpgaExtTasks_leftQlen$1;
+   this->fpgaExtTasks_leftQlen$1__javaArrayLength = fpgaExtTasks_leftQlen$1__javaArrayLength;
+   this->fpgaExtTasks_leftQs$1 = fpgaExtTasks_leftQs$1;
+   this->fpgaExtTasks_leftQs$1__javaArrayLength = fpgaExtTasks_leftQs$1__javaArrayLength;
+   this->fpgaExtTasks_leftRlen$1 = fpgaExtTasks_leftRlen$1;
+   this->fpgaExtTasks_leftRlen$1__javaArrayLength = fpgaExtTasks_leftRlen$1__javaArrayLength;
+   this->matlen$1 = matlen$1;
+   this->fpgaExtTasks_oDel$1 = fpgaExtTasks_oDel$1;
+   this->fpgaExtTasks_oDel$1__javaArrayLength = fpgaExtTasks_oDel$1__javaArrayLength;
+   this->fpgaExtTasks_eDel$1 = fpgaExtTasks_eDel$1;
+   this->fpgaExtTasks_eDel$1__javaArrayLength = fpgaExtTasks_eDel$1__javaArrayLength;
+   this->fpgaExtTasks_rightRs$1 = fpgaExtTasks_rightRs$1;
+   this->fpgaExtTasks_rightRs$1__javaArrayLength = fpgaExtTasks_rightRs$1__javaArrayLength;
+   this->fpgaExtTasks_mat$1 = fpgaExtTasks_mat$1;
+   this->fpgaExtTasks_mat$1__javaArrayLength = fpgaExtTasks_mat$1__javaArrayLength;
+   this->fpgaExtTasks_h0$1 = fpgaExtTasks_h0$1;
+   this->fpgaExtTasks_h0$1__javaArrayLength = fpgaExtTasks_h0$1__javaArrayLength;
+   this->fpgaExtTasks_qBeg$1 = fpgaExtTasks_qBeg$1;
+   this->fpgaExtTasks_qBeg$1__javaArrayLength = fpgaExtTasks_qBeg$1__javaArrayLength;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      if (iter == 0) processing_succeeded[i] = 0;
+      else if (processing_succeeded[i]) continue;
+      int alloc_failed = 0;
+      __global org_apache_spark_rdd_cl_tests_ExtRet* result = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      if (!alloc_failed) {
+         processing_succeeded[i] = 1;
+         out[i] = *result;
+      }
+   }
+}

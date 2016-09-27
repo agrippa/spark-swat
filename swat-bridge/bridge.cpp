@@ -553,6 +553,9 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
 
     // Double check after locking
     if (device_ctxs == NULL) {
+
+        CHECK_DRIVER(cuInit(0));
+
         cl_uint total_num_devices = get_total_num_devices();
         device_context *tmp_device_ctxs = (device_context *)malloc(
                 total_num_devices * sizeof(device_context));
@@ -573,7 +576,10 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
             CHECK_ALLOC(devices);
             get_device_ids(platforms[platform_index], devices, num_devices);
 
+            fprintf(stderr, "%d devices\n", num_devices);
+
             for (unsigned i = 0; i < num_devices; i++) {
+                fprintf(stderr, "DEVICE %d\n", i);
                 cl_device_id curr_dev = devices[i];
 #ifdef VERBOSE
                 char *device_name = get_device_name(curr_dev);

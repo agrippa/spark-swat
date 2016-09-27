@@ -1,0 +1,35 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$_s org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$;
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$_s{
+   
+};
+
+typedef struct This_s{
+   } This;
+static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(This *this, int in){
+
+   return((in + 3));
+}
+static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(This *this, int in){
+
+   return(org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(this, in));
+}
+__kernel void run(
+      __global int* restrict in0, 
+      __global int* restrict out, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      out[i] = org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(this, in0[i]);
+      
+   }
+}

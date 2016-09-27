@@ -1,0 +1,72 @@
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   __global unsigned char *cheap = (__global unsigned char *)heap;
+   uint rounded = nbytes + (8 - (nbytes % 8));
+   uint offset = atomic_add(free_index, rounded);
+   if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
+   else return (__global void *)(cheap + offset);
+}
+typedef struct __attribute__ ((packed)) scala_Array_s scala_Array;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$_s org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$;
+
+struct __attribute__ ((packed)) scala_Array_s{
+   __global char*  values;
+   int  size;
+   int  tiling;
+   
+};
+
+
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$_s{
+   
+};
+
+typedef struct This_s{
+   __global char* arr1$1;
+   int arr1$1__javaArrayLength;
+   __global char* arr2$1;
+   int arr2$1__javaArrayLength;
+   } This;
+
+static int scala_Array__size(__global scala_Array *this) {
+    return (this->size);
+}
+
+
+
+static char scala_Array__apply(__global scala_Array *this, int index) {
+    return (this->values)[this->tiling * index];
+}
+
+
+static int org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$$anon$1__apply$mcI$sp(This *this){
+
+   return(
+   {
+   
+      int sum = 0;
+      int i = 0;
+      for (; i<this->arr1$1__javaArrayLength; i = i + 1){
+      
+         sum = sum + (this->arr1$1[i] * this->arr2$1[i]);
+      }
+      sum;
+   });
+}
+static int org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$$anon$1__apply(This *this){
+
+   return(org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$$anon$1__apply$mcI$sp(this));
+}
+__kernel void run(
+      __global char * restrict arr1$1, __global int * restrict arr1$1_sizes, __global int * restrict arr1$1_offsets, int narr1$1, __global char * restrict arr2$1, __global int * restrict arr2$1_sizes, __global int * restrict arr2$1_offsets, int narr2$1, 
+      __global int* restrict out, int N, int iter) {
+   This thisStruct;
+   This* this=&thisStruct;
+   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
+      this->arr1$1 = arr1$1 + arr1$1_offsets[i]; this->arr1$1__javaArrayLength = arr1$1_sizes[i];
+      this->arr2$1 = arr2$1 + arr2$1_offsets[i]; this->arr2$1__javaArrayLength = arr2$1_sizes[i];
+      out[i] = org_apache_spark_rdd_cl_tests_AsyncByteArrayInputTest$$anon$1__apply(this);
+      
+   }
+}

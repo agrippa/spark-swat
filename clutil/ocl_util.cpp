@@ -182,9 +182,9 @@ void get_device_ids(cl_platform_id platform, cl_device_id *devices,
         const unsigned capacity) {
 #ifdef USE_CUDA
     assert(platform == 0);
-    const int count = get_num_devices(platform, CL_DEVICE_TYPE_ALL);
+    const unsigned count = get_num_devices(platform, CL_DEVICE_TYPE_ALL);
     assert(capacity >= count);
-    for (int i = 0; i < count; i++) {
+    for (unsigned i = 0; i < count; i++) {
         CHECK_DRIVER(cuDeviceGet(devices + i, i));
     }
 #else

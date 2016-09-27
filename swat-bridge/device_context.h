@@ -45,7 +45,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef CUmodule cl_program;
 typedef CUfunction cl_kernel;
 typedef CUevent cl_event;
-typedef CUdeviceptr cl_mem;
 #else
 #include <CL/cl.h>
 #endif

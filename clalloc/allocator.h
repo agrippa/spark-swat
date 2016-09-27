@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef USE_CUDA
 #include <cuda.h>
+typedef CUdeviceptr cl_mem;
 #else
 #include <CL/cl.h>
 #endif
