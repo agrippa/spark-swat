@@ -776,6 +776,15 @@ static void populateDeviceContexts(JNIEnv *jenv, jint n_heaps_per_device,
     ASSERT(perr == 0);
 }
 
+JNI_JAVA(jint, OpenCLBridge, usingCuda)
+        (JNIEnv *jenv, jclass clazz) {
+#ifdef USE_CUDA
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 JNI_JAVA(jint, OpenCLBridge, getDeviceToUse)
         (JNIEnv *jenv, jclass clazz, jint hint, jint host_thread_index,
          jint n_heaps_per_device, jint heap_size,
@@ -1107,6 +1116,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 #endif
 
 #ifdef USE_CUDA
+        fprintf(stderr, "=====\n%s\n=====\n", raw_source);
         CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
         nvrtcProgram prog;
         CHECK_NVRTC(nvrtcCreateProgram(&prog, raw_source, "foo", 0, NULL, NULL));

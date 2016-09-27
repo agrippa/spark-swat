@@ -49,6 +49,8 @@ public class OpenCLBridge {
         System.load(swatHome + "/swat-bridge/libbridge.so");
     }
 
+    public static native int usingCuda();
+
     public static native long createSwatContext(String label, String _source,
             long dev_ctx, int host_thread_index, boolean requiresDouble,
             boolean requiresHeap, int max_n_buffered);
