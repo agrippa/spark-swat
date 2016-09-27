@@ -14,6 +14,8 @@ fi
 cp ../clalloc/libclalloc.so .
 cp ../clutil/libclutil.so .
 
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
 JARS=./target/test-classes:${APARAPI_SWAT}/com.amd.aparapi/dist/aparapi.jar:./target/swat-1.0-SNAPSHOT.jar
 
 for f in $(find $SCALA_HOME/lib -name "*.jar"); do
