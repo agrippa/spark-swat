@@ -19,7 +19,7 @@ TARGET=libbridge.so
 
 ifeq ($(USE_CUDA),1)
 	GXX_FLAGS+=-L/usr/lib/x86_64-linux-gnu -DUSE_CUDA -I${CUDA_HOME}/include
-	LIBS=-L${CUDA_HOME}/lib64 -lcuda
+	LIBS=-L${CUDA_HOME}/lib64 -lcuda -lnvrtc
 else
 	GXX_FLAGS+=-lOpenCL -lrt
 	LIBS=-L${CL_HOME}/lib

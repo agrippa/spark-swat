@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef USE_CUDA
 #include <cuda.h>
+#include <cuda_runtime.h>
 typedef CUdeviceptr cl_mem;
 #else
 #include <CL/cl.h>
@@ -103,11 +104,7 @@ struct _cl_allocator;
 typedef struct _cl_allocator cl_allocator;
 
 typedef struct _cl_region {
-#ifdef USE_CUDA
-    CUdeviceptr sub_mem;
-#else
     cl_mem sub_mem;
-#endif
     size_t offset, size;
     cl_bucket *parent;
     cl_alloc *grandparent;
@@ -129,11 +126,7 @@ typedef struct _cl_bucket {
 } cl_bucket;
 
 typedef struct _cl_alloc {
-#ifdef USE_CUDA
-    CUdeviceptr mem;
-#else
     cl_mem mem;
-#endif
     char *pinned;
     size_t size;
     size_t free_bytes; // purely for diagnostics and error-checking

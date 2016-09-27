@@ -1139,9 +1139,8 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
 #ifdef USE_CUDA
             err = cuMemAlloc(&mem, alloc_size);
             if (err == CUDA_ERROR_OUT_OF_MEMORY) {
-                fprintf(stderr, "Failed at %llu\n", alloc_size);
                 alloc_size -= (20 * 1024 * 1024);
-            } else if (err != CUDA_SUCCESS) {
+            } else {
                 CHECK_DRIVER(err);
                 success = true;
                 break;

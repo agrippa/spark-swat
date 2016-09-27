@@ -2355,8 +2355,8 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         *pinned_h_free_index = 0;
 #ifdef USE_CUDA
         CHECK_DRIVER(cuEventCreate(&free_index_event, CU_EVENT_DEFAULT));
-        CHECK_DRIVER(cuMemcpyHtoDAsync(free_index_mem->sub_mem,
-                pinned_h_free_index, sizeof(zero), kernel_ctx->dev_ctx->cmd));
+        CHECK_DRIVER(cuMemcpyHtoDAsync(free_index_mem->sub_mem, pinned_h_free_index,
+                    sizeof(zero), kernel_ctx->dev_ctx->cmd));
         CHECK_DRIVER(cuEventRecord(free_index_event, kernel_ctx->dev_ctx->cmd));
 #else
         CHECK(clEnqueueWriteBuffer(kernel_ctx->dev_ctx->cmd,
@@ -2421,9 +2421,8 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
         cl_event copy_back_event;
 #ifdef USE_CUDA
         CHECK_DRIVER(cuEventCreate(&copy_back_event, CU_EVENT_DEFAULT));
-        CHECK_DRIVER(cuMemcpyDtoHAsync(pinned_h_free_index,
-                free_index_mem->sub_mem, sizeof(zero),
-                kernel_ctx->dev_ctx->cmd));
+        CHECK_DRIVER(cuMemcpyDtoHAsync(pinned_h_free_index, free_index_mem->sub_mem,
+                    sizeof(zero), kernel_ctx->dev_ctx->cmd));
         CHECK_DRIVER(cuEventRecord(copy_back_event, kernel_ctx->dev_ctx->cmd));
 #else
         CHECK(clEnqueueReadBuffer(kernel_ctx->dev_ctx->cmd,
@@ -2595,7 +2594,7 @@ static void copy_kernel_outputs(kernel_context *kernel_ctx,
 #ifdef USE_CUDA
             CHECK_DRIVER(cuEventCreate(&next_event, CU_EVENT_DEFAULT));
             CHECK_DRIVER(cuMemcpyDtoHAsync(pinned, region->sub_mem,
-                    region->size, dev_ctx->cmd));
+                        region->size, dev_ctx->cmd));
             CHECK_DRIVER(cuEventRecord(next_event, dev_ctx->cmd));
 #else
             CHECK(clEnqueueReadBuffer(dev_ctx->cmd, region->sub_mem, CL_FALSE,
@@ -2696,7 +2695,8 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
 #ifdef USE_CUDA
     CHECK_DRIVER(cuEventCreate(&heap_event, CU_EVENT_DEFAULT));
     CHECK_DRIVER(cuMemcpyDtoHAsync(heap_ctx->pinned_h_heap,
-            heap_ctx->heap->sub_mem, available_bytes, dev_ctx->cmd));
+                heap_ctx->heap->sub_mem, available_bytes,
+                dev_ctx->cmd));
     CHECK_DRIVER(cuEventRecord(heap_event, dev_ctx->cmd));
 #else
     CHECK(clEnqueueReadBuffer(dev_ctx->cmd, heap_ctx->heap->sub_mem, CL_FALSE,
@@ -3550,7 +3550,7 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
     CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
     CHECK_DRIVER(cuEventCreate(&event, CU_EVENT_DEFAULT));
     CHECK_DRIVER(cuMemcpyHtoDAsync(region->sub_mem, pinned, nbytes,
-            dev_ctx->cmd));
+                dev_ctx->cmd));
     CHECK_DRIVER(cuEventRecord(event, dev_ctx->cmd));
     pop_cu_ctx(dev_ctx);
 #else
