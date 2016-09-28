@@ -8,7 +8,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    else return (__global void *)(cheap + offset);
 }
 typedef struct __attribute__ ((packed)) scala_Array_s scala_Array;
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$_s org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__s org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest_;
 
 struct __attribute__ ((packed)) scala_Array_s{
    __global double*  values;
@@ -18,7 +18,7 @@ struct __attribute__ ((packed)) scala_Array_s{
 };
 
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__s{
    
 };
 
@@ -38,32 +38,32 @@ static double scala_Array__apply(__global scala_Array *this, int index) {
 }
 
 
-static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply$mcD$sp(This *this){
+static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply_mcD_sp(This *this_ptr){
 
    return(
    {
    
       double sum = 0.0;
       int i = 0;
-      for (; i<this->arr$1__javaArrayLength; i = i + 1){
+      for (; i<this_ptr->arr$1__javaArrayLength; i = i + 1){
       
-         sum = sum + this->arr$1[i];
+         sum = sum + this_ptr->arr$1[i];
       }
       sum;
    });
 }
-static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply(This *this){
+static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply(This *this_ptr){
 
-   return(org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply$mcD$sp(this));
+   return(org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply_mcD_sp(this_ptr));
 }
 __kernel void run(
       __global double * restrict arr$1, __global int * restrict arr$1_sizes, __global int * restrict arr$1_offsets, int narr$1, 
       __global double* restrict out, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
+   This* this_ptr=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      this->arr$1 = arr$1 + arr$1_offsets[i]; this->arr$1__javaArrayLength = arr$1_sizes[i];
-      out[i] = org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest$$anon$1__apply(this);
+      this_ptr->arr$1 = arr$1 + arr$1_offsets[i]; this_ptr->arr$1__javaArrayLength = arr$1_sizes[i];
+      out[i] = org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply(this_ptr);
       
    }
 }

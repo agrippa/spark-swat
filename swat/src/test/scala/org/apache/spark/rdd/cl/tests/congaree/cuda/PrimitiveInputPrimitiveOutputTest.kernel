@@ -1,35 +1,49 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
-static __global void *alloc(__global void *heap, volatile __global uint *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
-   __global unsigned char *cheap = (__global unsigned char *)heap;
-   uint rounded = nbytes + (8 - (nbytes % 8));
-   uint offset = atomic_add(free_index, rounded);
+static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigned int heap_size, int nbytes, int *alloc_failed) {
+   unsigned char *cheap = (unsigned char *)heap;
+   unsigned rounded = nbytes + (8 - (nbytes % 8));
+   unsigned offset = atomicAdd((unsigned int *)free_index, rounded);
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
-   else return (__global void *)(cheap + offset);
+   else return (void *)(cheap + offset);
 }
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$_s org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$;
+template<typename T>
+inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+    alloc->values = vals;
+    alloc->size = size;
+    alloc->tiling = tiling;
+    return alloc;
+}
+template<typename T>
+inline T *sparse_vec_fill(T *alloc, double *vals, int *indices, unsigned size, unsigned tiling) {
+    alloc->values = vals;
+    alloc->indices = indices;
+    alloc->size = size;
+    alloc->tiling = tiling;
+    return alloc;
+}
+typedef struct org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__s org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest_;
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$_s{
+struct org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__s{
    
 };
 
 typedef struct This_s{
    } This;
-static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(This *this, int in){
+static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
    return((in + 3));
 }
-static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(This *this, int in){
+static int org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__anon_1__apply(This *this_ptr, int in){
 
-   return(org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply$mcII$sp(this, in));
+   return(org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__anon_1__apply_mcII_sp(this_ptr, in));
 }
-__kernel void run(
-      __global int* restrict in0, 
-      __global int* restrict out, int N, int iter) {
+extern "C" __global__ void run(
+      int* in0, 
+      int* out, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
-   for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      out[i] = org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest$$anon$1__apply(this, in0[i]);
+   This* this_ptr=&thisStruct;
+   for (int i = (blockIdx.x * blockDim.x + threadIdx.x); i < N; i += (gridDim.x * blockDim.x)) {
+      out[i] = org_apache_spark_rdd_cl_tests_PrimitiveInputPrimitiveOutputTest__anon_1__apply(this_ptr, in0[i]);
       
    }
 }

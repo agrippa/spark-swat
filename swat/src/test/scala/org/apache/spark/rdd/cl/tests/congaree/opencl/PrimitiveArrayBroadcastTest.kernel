@@ -7,9 +7,9 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$_s org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__s org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest_;
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__s{
    
 };
 
@@ -17,23 +17,23 @@ typedef struct This_s{
    __global int* broadcast$1;
    int broadcast$1__javaArrayLength;
    } This;
-static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__apply$mcII$sp(This *this, int in){
+static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
-   return(this->broadcast$1[in]);
+   return(this_ptr->broadcast$1[in]);
 }
-static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__apply(This *this, int in){
+static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply(This *this_ptr, int in){
 
-   return(org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__apply$mcII$sp(this, in));
+   return(org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply_mcII_sp(this_ptr, in));
 }
 __kernel void run(
       __global int* restrict in0, 
       __global int* restrict out, __global int* restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
-   this->broadcast$1 = broadcast$1;
-   this->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
+   This* this_ptr=&thisStruct;
+   this_ptr->broadcast$1 = broadcast$1;
+   this_ptr->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      out[i] = org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest$$anon$1__apply(this, in0[i]);
+      out[i] = org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply(this_ptr, in0[i]);
       
    }
 }

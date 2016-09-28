@@ -8,7 +8,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    else return (__global void *)(cheap + offset);
 }
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s org_apache_spark_mllib_linalg_DenseVector;
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorInputTest$_s org_apache_spark_rdd_cl_tests_DenseVectorInputTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorInputTest__s org_apache_spark_rdd_cl_tests_DenseVectorInputTest_;
 
 struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
    __global double*  values;
@@ -18,7 +18,7 @@ struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_DenseVector_s{
 };
 
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorInputTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorInputTest__s{
    
 };
 
@@ -36,7 +36,7 @@ static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apac
 }
 
 
-static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(This *this, __global org_apache_spark_mllib_linalg_DenseVector* in){
+static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest__anon_1__apply(This *this_ptr, __global org_apache_spark_mllib_linalg_DenseVector* in){
 
    return(
    {
@@ -54,11 +54,11 @@ __kernel void run(
       __global org_apache_spark_mllib_linalg_DenseVector * restrict in0, __global double * restrict in0_values, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, int in0_tiling, 
       __global double* restrict out, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
+   This* this_ptr=&thisStruct;
    __global org_apache_spark_mllib_linalg_DenseVector *my_in0 = in0 + get_global_id(0);
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       my_in0->values = in0_values + in0_offsets[i]; my_in0->size = in0_sizes[i]; my_in0->tiling = in0_tiling;
-      out[i] = org_apache_spark_rdd_cl_tests_DenseVectorInputTest$$anon$1__apply(this, in0 + i);
+      out[i] = org_apache_spark_rdd_cl_tests_DenseVectorInputTest__anon_1__apply(this_ptr, in0 + i);
       
    }
 }

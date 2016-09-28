@@ -1115,13 +1115,14 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 #endif
 
 #ifdef USE_CUDA
-        fprintf(stderr, "=====\n%s\n=====\n", raw_source);
+        // fprintf(stderr, "=====\n%s\n=====\n", raw_source);
         CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
         nvrtcProgram prog;
         CHECK_NVRTC(nvrtcCreateProgram(&prog, raw_source, "foo", 0, NULL, NULL));
 
-        const char *opts[] = {"--gpu-architecture=compute_20", "-default-device"};
-        nvrtcResult compile_result = nvrtcCompileProgram(prog, 2, opts);
+        const char *opts[] = {"--gpu-architecture=compute_20",
+            "-default-device", "--restrict", "--std=c++11"};
+        nvrtcResult compile_result = nvrtcCompileProgram(prog, 4, opts);
 
         size_t compile_log_size;
         CHECK_NVRTC(nvrtcGetProgramLogSize(prog, &compile_log_size));

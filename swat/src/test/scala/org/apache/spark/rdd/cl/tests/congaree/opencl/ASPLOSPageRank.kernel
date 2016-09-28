@@ -16,7 +16,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
 }
 typedef struct __attribute__ ((packed)) scala_Tuple2_I_I_s scala_Tuple2_I_I;
 typedef struct __attribute__ ((packed)) scala_Tuple2_I_F_s scala_Tuple2_I_F;
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSPageRank$_s org_apache_spark_rdd_cl_tests_ASPLOSPageRank$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSPageRank__s org_apache_spark_rdd_cl_tests_ASPLOSPageRank_;
 
 struct __attribute__ ((packed)) scala_Tuple2_I_I_s{
    int  _1;
@@ -32,7 +32,7 @@ struct __attribute__ ((packed)) scala_Tuple2_I_F_s{
 };
 
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSPageRank$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSPageRank__s{
    
 };
 
@@ -50,15 +50,15 @@ static __global scala_Tuple2_I_F* scala_Tuple2_I_F___init_(__global void * restr
 }
 
 
-static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_ASPLOSPageRank$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, __global scala_Tuple2_I_I* in){
+static __global scala_Tuple2_I_I *org_apache_spark_rdd_cl_tests_ASPLOSPageRank__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, __global scala_Tuple2_I_I* in){
 
    return(
    {
    
       int destNode = in->_1;
       int srcNode = in->_2;
-       __global float* rs = this->broadcastDocRanks$1;
-       __global int* cs = this->broadcastDocLinkCounts$1;
+       __global float* rs = this_ptr->broadcastDocRanks$1;
+       __global int* cs = this_ptr->broadcastDocLinkCounts$1;
       float r = rs[srcNode];
       int c = cs[srcNode];
       float w = r / (float)c;
@@ -72,18 +72,18 @@ __kernel void run(
       __global int * restrict in0_1, __global int * restrict in0_2, __global scala_Tuple2_I_I * restrict in0, 
       __global int * restrict out_1, __global float * restrict out_2, __global int* restrict broadcastDocLinkCounts$1, int broadcastDocLinkCounts$1__javaArrayLength, __global float* restrict broadcastDocRanks$1, int broadcastDocRanks$1__javaArrayLength, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
-   this->broadcastDocLinkCounts$1 = broadcastDocLinkCounts$1;
-   this->broadcastDocLinkCounts$1__javaArrayLength = broadcastDocLinkCounts$1__javaArrayLength;
-   this->broadcastDocRanks$1 = broadcastDocRanks$1;
-   this->broadcastDocRanks$1__javaArrayLength = broadcastDocRanks$1__javaArrayLength;
+   This* this_ptr=&thisStruct;
+   this_ptr->broadcastDocLinkCounts$1 = broadcastDocLinkCounts$1;
+   this_ptr->broadcastDocLinkCounts$1__javaArrayLength = broadcastDocLinkCounts$1__javaArrayLength;
+   this_ptr->broadcastDocRanks$1 = broadcastDocRanks$1;
+   this_ptr->broadcastDocRanks$1__javaArrayLength = broadcastDocRanks$1__javaArrayLength;
    __global scala_Tuple2_I_I *my_in0 = in0 + get_global_id(0);
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
       int alloc_failed = 0;
       my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2[i]; 
-      __global scala_Tuple2_I_F* result = org_apache_spark_rdd_cl_tests_ASPLOSPageRank$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, my_in0);
+      __global scala_Tuple2_I_F* result = org_apache_spark_rdd_cl_tests_ASPLOSPageRank__anon_1__apply(heap, free_index, &alloc_failed, heap_size, this_ptr, my_in0);
       if (!alloc_failed) {
          processing_succeeded[i] = 1;
          out_1[i] = result->_1;

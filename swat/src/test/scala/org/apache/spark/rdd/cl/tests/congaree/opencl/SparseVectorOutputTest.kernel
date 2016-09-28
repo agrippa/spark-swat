@@ -15,7 +15,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    else return (__global void *)(cheap + offset);
 }
 typedef struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s org_apache_spark_mllib_linalg_SparseVector;
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorOutputTest$_s org_apache_spark_rdd_cl_tests_SparseVectorOutputTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorOutputTest__s org_apache_spark_rdd_cl_tests_SparseVectorOutputTest_;
 
 struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s{
    __global int*  indices;
@@ -26,7 +26,7 @@ struct __attribute__ ((packed)) org_apache_spark_mllib_linalg_SparseVector_s{
 };
 
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorOutputTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorOutputTest__s{
    
 };
 
@@ -50,7 +50,7 @@ static __global double* org_apache_spark_mllib_linalg_SparseVector__values(__glo
 }
 
 
-static __global org_apache_spark_mllib_linalg_SparseVector *org_apache_spark_rdd_cl_tests_SparseVectorOutputTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int in){
+static __global org_apache_spark_mllib_linalg_SparseVector *org_apache_spark_rdd_cl_tests_SparseVectorOutputTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int in){
 
    return(
    {
@@ -76,12 +76,12 @@ __kernel void run(
       __global int* restrict in0, 
       __global org_apache_spark_mllib_linalg_SparseVector* restrict out, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
+   This* this_ptr=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
       int alloc_failed = 0;
-      __global org_apache_spark_mllib_linalg_SparseVector* result = org_apache_spark_rdd_cl_tests_SparseVectorOutputTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      __global org_apache_spark_mllib_linalg_SparseVector* result = org_apache_spark_rdd_cl_tests_SparseVectorOutputTest__anon_1__apply(heap, free_index, &alloc_failed, heap_size, this_ptr, in0[i]);
       if (!alloc_failed) {
          processing_succeeded[i] = 1;
          result->values = ((__global char *)result->values) - ((__global char *)heap);

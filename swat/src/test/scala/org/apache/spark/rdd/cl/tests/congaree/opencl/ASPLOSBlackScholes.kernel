@@ -7,10 +7,10 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$_s org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__s org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes_;
 typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_OptionData_s org_apache_spark_rdd_cl_tests_OptionData;
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__s{
    
 };
 
@@ -27,10 +27,10 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_OptionData_s{
 
 typedef struct This_s{
    } This;
-static float org_apache_spark_rdd_cl_tests_OptionData__otype(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->otype;
+static float org_apache_spark_rdd_cl_tests_OptionData__otype(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->otype;
 }
-static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(This *this, float inputX){
+static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__anon_1__CNDF(This *this_ptr, float inputX){
 
    return(
    {
@@ -89,22 +89,22 @@ static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(This
       outputX;
    });
 }
-static float org_apache_spark_rdd_cl_tests_OptionData__otime(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->otime;
+static float org_apache_spark_rdd_cl_tests_OptionData__otime(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->otime;
 }
-static float org_apache_spark_rdd_cl_tests_OptionData__volatility(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->volatility;
+static float org_apache_spark_rdd_cl_tests_OptionData__volatility(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->volatility;
 }
-static float org_apache_spark_rdd_cl_tests_OptionData__rate(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->rate;
+static float org_apache_spark_rdd_cl_tests_OptionData__rate(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->rate;
 }
-static float org_apache_spark_rdd_cl_tests_OptionData__strike(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->strike;
+static float org_apache_spark_rdd_cl_tests_OptionData__strike(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->strike;
 }
-static float org_apache_spark_rdd_cl_tests_OptionData__sptprice(__global org_apache_spark_rdd_cl_tests_OptionData *this){
-   return this->sptprice;
+static float org_apache_spark_rdd_cl_tests_OptionData__sptprice(__global org_apache_spark_rdd_cl_tests_OptionData *this_ptr){
+   return this_ptr->sptprice;
 }
-static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__apply(This *this, __global org_apache_spark_rdd_cl_tests_OptionData* in){
+static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__anon_1__apply(This *this_ptr, __global org_apache_spark_rdd_cl_tests_OptionData* in){
 
    return(
    {
@@ -148,8 +148,8 @@ static float org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__apply(Thi
       xD2 = xD1 - xDen;
       d1 = xD1;
       d2 = xD2;
-      nofXd1 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(this, d1);
-      nofXd2 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__CNDF(this, d2);
+      nofXd1 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__anon_1__CNDF(this_ptr, d1);
+      nofXd2 = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__anon_1__CNDF(this_ptr, d2);
       futureValueX = xStrikePrice * (float)exp((double)(-xRiskFreeRate * xTime));
       (in->otype==(float)0) ? ({
       
@@ -167,9 +167,9 @@ __kernel void run(
       __global org_apache_spark_rdd_cl_tests_OptionData* restrict in0, 
       __global float* restrict out, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
+   This* this_ptr=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      out[i] = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes$$anon$1__apply(this, in0 + i);
+      out[i] = org_apache_spark_rdd_cl_tests_ASPLOSBlackScholes__anon_1__apply(this_ptr, in0 + i);
       
    }
 }

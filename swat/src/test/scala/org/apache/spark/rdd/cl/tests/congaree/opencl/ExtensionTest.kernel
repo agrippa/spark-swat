@@ -14,10 +14,10 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
    if (offset + nbytes > heap_size) { *alloc_failed = 1; return 0x0; }
    else return (__global void *)(cheap + offset);
 }
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest$_s org_apache_spark_rdd_cl_tests_ExtensionTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest__s org_apache_spark_rdd_cl_tests_ExtensionTest_;
 typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtRet_s org_apache_spark_rdd_cl_tests_ExtRet;
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ExtensionTest__s{
    
 };
 
@@ -88,40 +88,40 @@ typedef struct This_s{
    __global int* fpgaExtTasks_qBeg$1;
    int fpgaExtTasks_qBeg$1__javaArrayLength;
    } This;
-static void org_apache_spark_rdd_cl_tests_ExtRet__idx_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__idx__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->idx=x$1;
+   this_ptr->idx=x$1;
    return;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__width__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->width=x$1;
+   this_ptr->width=x$1;
    return;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->trueScore=x$1;
+   this_ptr->trueScore=x$1;
    return;
 }
-static int org_apache_spark_rdd_cl_tests_ExtRet__trueScore(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this){
-   return this->trueScore;
+static int org_apache_spark_rdd_cl_tests_ExtRet__trueScore(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr){
+   return this_ptr->trueScore;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, long x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__rEnd__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, long x$1){
 
-   this->rEnd=x$1;
+   this_ptr->rEnd=x$1;
    return;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__qEnd__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->qEnd=x$1;
+   this_ptr->qEnd=x$1;
    return;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__score__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->score=x$1;
+   this_ptr->score=x$1;
    return;
 }
-static __global int* org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int qLen, int qOffset,  __global char* query, int query__javaArrayLength, int tLen, int tOffset,  __global char* target, int target__javaArrayLength, int m,  __global char* mat, int mat__javaArrayLength, int matlen, int oDel, int eDel, int oIns, int eIns, int w_i, int endBonus, int zdrop, int h0){
+static __global int* org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__SWExtend(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int qLen, int qOffset,  __global char* query, int query__javaArrayLength, int tLen, int tOffset,  __global char* target, int target__javaArrayLength, int m,  __global char* mat, int mat__javaArrayLength, int matlen, int oDel, int eDel, int oIns, int eIns, int w_i, int endBonus, int zdrop, int h0){
 
    return(
    {
@@ -353,30 +353,30 @@ static __global int* org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExte
       retArray;
    });
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, long x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__rBeg__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, long x$1){
 
-   this->rBeg=x$1;
+   this_ptr->rBeg=x$1;
    return;
 }
-static void org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this, int x$1){
+static void org_apache_spark_rdd_cl_tests_ExtRet__qBeg__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr, int x$1){
 
-   this->qBeg=x$1;
+   this_ptr->qBeg=x$1;
    return;
 }
-static __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtRet___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this){
+static __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtRet___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_ExtRet *this_ptr){
 
    ;
-   this->qBeg=-1;
-   this->rBeg=-1L;
-   this->qEnd=-1;
-   this->rEnd=-1L;
-   this->score=-1;
-   this->trueScore=-1;
-   this->width=-1;
-   this->idx=-1;
-   return (this);
+   this_ptr->qBeg=-1;
+   this_ptr->rBeg=-1L;
+   this_ptr->qEnd=-1;
+   this_ptr->rEnd=-1L;
+   this_ptr->score=-1;
+   this_ptr->trueScore=-1;
+   this_ptr->width=-1;
+   this_ptr->idx=-1;
+   return (this_ptr);
 }
-static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int extParam_w, int extParam_regScore, int extParam_rightQlen, int extParam_rightQoffset,  __global char* extParam_rightQs, int extParam_rightQs__javaArrayLength, int extParam_leftQlen, int extParam_leftQoffset,  __global char* extParam_leftQs, int extParam_leftQs__javaArrayLength, int extParam_rightRlen, int extParam_rightRoffset,  __global char* extParam_rightRs, int extParam_rightRs__javaArrayLength, int extParam_idx, int extParam_penClip5, int extParam_penClip3, int extParam_qBeg, int extParam_leftRlen, int extParam_leftRoffset,  __global char* extParam_leftRs, int extParam_leftRs__javaArrayLength,  __global char* extParam_mat, int extParam_mat__javaArrayLength, int matlen, int extParam_oDel, int extParam_eDel, int extParam_oIns, int extParam_elns, int extParam_zdrop, int extParam_h0, int MAX_BAND_TRY){
+static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int extParam_w, int extParam_regScore, int extParam_rightQlen, int extParam_rightQoffset,  __global char* extParam_rightQs, int extParam_rightQs__javaArrayLength, int extParam_leftQlen, int extParam_leftQoffset,  __global char* extParam_leftQs, int extParam_leftQs__javaArrayLength, int extParam_rightRlen, int extParam_rightRoffset,  __global char* extParam_rightRs, int extParam_rightRs__javaArrayLength, int extParam_idx, int extParam_penClip5, int extParam_penClip3, int extParam_qBeg, int extParam_leftRlen, int extParam_leftRoffset,  __global char* extParam_leftRs, int extParam_leftRs__javaArrayLength,  __global char* extParam_mat, int extParam_mat__javaArrayLength, int matlen, int extParam_oDel, int extParam_eDel, int extParam_oIns, int extParam_elns, int extParam_zdrop, int extParam_h0, int MAX_BAND_TRY){
 
    return(
    {
@@ -395,11 +395,11 @@ static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_te
       __global org_apache_spark_rdd_cl_tests_ExtRet * __alloc4 = (__global org_apache_spark_rdd_cl_tests_ExtRet *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_rdd_cl_tests_ExtRet), __swat_alloc_failed);
       if (*__swat_alloc_failed) { return (0x0); }
        __global org_apache_spark_rdd_cl_tests_ExtRet *extRet = org_apache_spark_rdd_cl_tests_ExtRet___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc4);
-      org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
-      org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
-      org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
-      org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
-      org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_regScore);
+      org_apache_spark_rdd_cl_tests_ExtRet__qBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
+      org_apache_spark_rdd_cl_tests_ExtRet__rBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
+      org_apache_spark_rdd_cl_tests_ExtRet__qEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
+      org_apache_spark_rdd_cl_tests_ExtRet__rEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0L);
+      org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_regScore);
       if (extParam_leftQlen>0){
       
          while (i<MAX_BAND_TRY && isBreak==0){
@@ -408,7 +408,7 @@ static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_te
             aw0 = extParam_w << i;
             {
             
-                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, extParam_leftQlen, extParam_leftQoffset, extParam_leftQs, extParam_leftQs__javaArrayLength, extParam_leftRlen, extParam_leftRoffset, extParam_leftRs, extParam_leftRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw0, extParam_penClip5, extParam_zdrop, extParam_h0);
+                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, extParam_leftQlen, extParam_leftQoffset, extParam_leftQs, extParam_leftQs__javaArrayLength, extParam_leftRlen, extParam_leftRoffset, extParam_leftRs, extParam_leftRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw0, extParam_penClip5, extParam_zdrop, extParam_h0);
                regScore = results[0];
                qle = results[1];
                tle = results[2];
@@ -422,17 +422,17 @@ static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_te
                i = i + 1;
             }
          }
-         org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+         org_apache_spark_rdd_cl_tests_ExtRet__score__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
          (gscore<=0 || gscore<=(regScore - extParam_penClip5)) ? ({
          
-            org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (extParam_qBeg - qle));
-            org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-tle);
-            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+            org_apache_spark_rdd_cl_tests_ExtRet__qBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (extParam_qBeg - qle));
+            org_apache_spark_rdd_cl_tests_ExtRet__rBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-tle);
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
          }) : ({
          
-            org_apache_spark_rdd_cl_tests_ExtRet__qBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
-            org_apache_spark_rdd_cl_tests_ExtRet__rBeg_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-gtle);
-            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, gscore);
+            org_apache_spark_rdd_cl_tests_ExtRet__qBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, 0);
+            org_apache_spark_rdd_cl_tests_ExtRet__rBeg__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)-gtle);
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, gscore);
          });
       }
       if (extParam_rightQlen>0){
@@ -446,7 +446,7 @@ static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_te
             aw1 = extParam_w << i;
             {
             
-                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, extParam_rightQlen, extParam_rightQoffset, extParam_rightQs, extParam_rightQs__javaArrayLength, extParam_rightRlen, extParam_rightRoffset, extParam_rightRs, extParam_rightRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw1, extParam_penClip3, extParam_zdrop, sc0);
+                __global int* results = org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__SWExtend(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, extParam_rightQlen, extParam_rightQoffset, extParam_rightQs, extParam_rightQs__javaArrayLength, extParam_rightRlen, extParam_rightRoffset, extParam_rightRs, extParam_rightRs__javaArrayLength, 5, extParam_mat, extParam_mat__javaArrayLength, matlen, extParam_oDel, extParam_eDel, extParam_oIns, extParam_elns, aw1, extParam_penClip3, extParam_zdrop, sc0);
                regScore = results[0];
                qle = results[1];
                tle = results[2];
@@ -460,98 +460,98 @@ static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_te
                i = i + 1;
             }
          }
-         org_apache_spark_rdd_cl_tests_ExtRet__score_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
+         org_apache_spark_rdd_cl_tests_ExtRet__score__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, regScore);
          (gscore<=0 || gscore<=(regScore - extParam_penClip3)) ? ({
          
-            org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, qle);
-            org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)tle);
-             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43 = extRet;
-            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43, (org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp43->trueScore + (regScore - sc0)));
+            org_apache_spark_rdd_cl_tests_ExtRet__qEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, qle);
+            org_apache_spark_rdd_cl_tests_ExtRet__rEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)tle);
+             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp43 = extRet;
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp43, (org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp43->trueScore + (regScore - sc0)));
          }) : ({
          
-            org_apache_spark_rdd_cl_tests_ExtRet__qEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
-            org_apache_spark_rdd_cl_tests_ExtRet__rEnd_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)gtle);
-             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44 = extRet;
-            org_apache_spark_rdd_cl_tests_ExtRet__trueScore_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44, (org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension__tmp44->trueScore + (gscore - sc0)));
+            org_apache_spark_rdd_cl_tests_ExtRet__qEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_rightQlen);
+            org_apache_spark_rdd_cl_tests_ExtRet__rEnd__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, (long)gtle);
+             __global org_apache_spark_rdd_cl_tests_ExtRet * org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp44 = extRet;
+            org_apache_spark_rdd_cl_tests_ExtRet__trueScore__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp44, (org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension__tmp44->trueScore + (gscore - sc0)));
          });
       }
       (aw0>aw1) ? ({
       
-         org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw0);
+         org_apache_spark_rdd_cl_tests_ExtRet__width__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw0);
       }) : ({
       
-         org_apache_spark_rdd_cl_tests_ExtRet__width_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw1);
+         org_apache_spark_rdd_cl_tests_ExtRet__width__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, aw1);
       });
-      org_apache_spark_rdd_cl_tests_ExtRet__idx_$eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_idx);
+      org_apache_spark_rdd_cl_tests_ExtRet__idx__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, extRet, extParam_idx);
       extRet;
    });
 }
-static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this, int i){
+static __global org_apache_spark_rdd_cl_tests_ExtRet *org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int i){
 
-   return(org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__extension(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this, this->fpgaExtTasks_w$1[i], this->fpgaExtTasks_regScore$1[i], this->fpgaExtTasks_rightQlen$1[i], this->fpgaExtTasks_rightQoffset$1[i], this->fpgaExtTasks_rightQs$1, this->fpgaExtTasks_rightQs$1__javaArrayLength, this->fpgaExtTasks_leftQlen$1[i], this->fpgaExtTasks_leftQoffset$1[i], this->fpgaExtTasks_leftQs$1, this->fpgaExtTasks_leftQs$1__javaArrayLength, this->fpgaExtTasks_rightRlen$1[i], this->fpgaExtTasks_rightRoffset$1[i], this->fpgaExtTasks_rightRs$1, this->fpgaExtTasks_rightRs$1__javaArrayLength, this->fpgaExtTasks_idx$1[i], this->fpgaExtTasks_penClip5$1[i], this->fpgaExtTasks_penClip3$1[i], this->fpgaExtTasks_qBeg$1[i], this->fpgaExtTasks_leftRlen$1[i], this->fpgaExtTasks_leftRoffset$1[i], this->fpgaExtTasks_leftRs$1, this->fpgaExtTasks_leftRs$1__javaArrayLength, this->fpgaExtTasks_mat$1, this->fpgaExtTasks_mat$1__javaArrayLength, this->matlen$1, this->fpgaExtTasks_oDel$1[i], this->fpgaExtTasks_eDel$1[i], this->fpgaExtTasks_oIns$1[i], this->fpgaExtTasks_eIns$1[i], this->fpgaExtTasks_zdrop$1[i], this->fpgaExtTasks_h0$1[i], this->max_band_try$1));
+   return(org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__extension(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, this_ptr->fpgaExtTasks_w$1[i], this_ptr->fpgaExtTasks_regScore$1[i], this_ptr->fpgaExtTasks_rightQlen$1[i], this_ptr->fpgaExtTasks_rightQoffset$1[i], this_ptr->fpgaExtTasks_rightQs$1, this_ptr->fpgaExtTasks_rightQs$1__javaArrayLength, this_ptr->fpgaExtTasks_leftQlen$1[i], this_ptr->fpgaExtTasks_leftQoffset$1[i], this_ptr->fpgaExtTasks_leftQs$1, this_ptr->fpgaExtTasks_leftQs$1__javaArrayLength, this_ptr->fpgaExtTasks_rightRlen$1[i], this_ptr->fpgaExtTasks_rightRoffset$1[i], this_ptr->fpgaExtTasks_rightRs$1, this_ptr->fpgaExtTasks_rightRs$1__javaArrayLength, this_ptr->fpgaExtTasks_idx$1[i], this_ptr->fpgaExtTasks_penClip5$1[i], this_ptr->fpgaExtTasks_penClip3$1[i], this_ptr->fpgaExtTasks_qBeg$1[i], this_ptr->fpgaExtTasks_leftRlen$1[i], this_ptr->fpgaExtTasks_leftRoffset$1[i], this_ptr->fpgaExtTasks_leftRs$1, this_ptr->fpgaExtTasks_leftRs$1__javaArrayLength, this_ptr->fpgaExtTasks_mat$1, this_ptr->fpgaExtTasks_mat$1__javaArrayLength, this_ptr->matlen$1, this_ptr->fpgaExtTasks_oDel$1[i], this_ptr->fpgaExtTasks_eDel$1[i], this_ptr->fpgaExtTasks_oIns$1[i], this_ptr->fpgaExtTasks_eIns$1[i], this_ptr->fpgaExtTasks_zdrop$1[i], this_ptr->fpgaExtTasks_h0$1[i], this_ptr->max_band_try$1));
 }
 __kernel void run(
       __global int* restrict in0, 
       __global org_apache_spark_rdd_cl_tests_ExtRet* restrict out, __global int* restrict fpgaExtTasks_penClip3$1, int fpgaExtTasks_penClip3$1__javaArrayLength, __global int* restrict fpgaExtTasks_penClip5$1, int fpgaExtTasks_penClip5$1__javaArrayLength, __global char* restrict fpgaExtTasks_leftRs$1, int fpgaExtTasks_leftRs$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightQoffset$1, int fpgaExtTasks_rightQoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_zdrop$1, int fpgaExtTasks_zdrop$1__javaArrayLength, __global int* restrict fpgaExtTasks_oIns$1, int fpgaExtTasks_oIns$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightRlen$1, int fpgaExtTasks_rightRlen$1__javaArrayLength, __global int* restrict fpgaExtTasks_idx$1, int fpgaExtTasks_idx$1__javaArrayLength, __global int* restrict fpgaExtTasks_w$1, int fpgaExtTasks_w$1__javaArrayLength, int max_band_try$1, __global int* restrict fpgaExtTasks_regScore$1, int fpgaExtTasks_regScore$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightRoffset$1, int fpgaExtTasks_rightRoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftRoffset$1, int fpgaExtTasks_leftRoffset$1__javaArrayLength, __global char* restrict fpgaExtTasks_rightQs$1, int fpgaExtTasks_rightQs$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftQoffset$1, int fpgaExtTasks_leftQoffset$1__javaArrayLength, __global int* restrict fpgaExtTasks_eIns$1, int fpgaExtTasks_eIns$1__javaArrayLength, __global int* restrict fpgaExtTasks_rightQlen$1, int fpgaExtTasks_rightQlen$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftQlen$1, int fpgaExtTasks_leftQlen$1__javaArrayLength, __global char* restrict fpgaExtTasks_leftQs$1, int fpgaExtTasks_leftQs$1__javaArrayLength, __global int* restrict fpgaExtTasks_leftRlen$1, int fpgaExtTasks_leftRlen$1__javaArrayLength, int matlen$1, __global int* restrict fpgaExtTasks_oDel$1, int fpgaExtTasks_oDel$1__javaArrayLength, __global int* restrict fpgaExtTasks_eDel$1, int fpgaExtTasks_eDel$1__javaArrayLength, __global char* restrict fpgaExtTasks_rightRs$1, int fpgaExtTasks_rightRs$1__javaArrayLength, __global char* restrict fpgaExtTasks_mat$1, int fpgaExtTasks_mat$1__javaArrayLength, __global int* restrict fpgaExtTasks_h0$1, int fpgaExtTasks_h0$1__javaArrayLength, __global int* restrict fpgaExtTasks_qBeg$1, int fpgaExtTasks_qBeg$1__javaArrayLength, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
-   this->fpgaExtTasks_penClip3$1 = fpgaExtTasks_penClip3$1;
-   this->fpgaExtTasks_penClip3$1__javaArrayLength = fpgaExtTasks_penClip3$1__javaArrayLength;
-   this->fpgaExtTasks_penClip5$1 = fpgaExtTasks_penClip5$1;
-   this->fpgaExtTasks_penClip5$1__javaArrayLength = fpgaExtTasks_penClip5$1__javaArrayLength;
-   this->fpgaExtTasks_leftRs$1 = fpgaExtTasks_leftRs$1;
-   this->fpgaExtTasks_leftRs$1__javaArrayLength = fpgaExtTasks_leftRs$1__javaArrayLength;
-   this->fpgaExtTasks_rightQoffset$1 = fpgaExtTasks_rightQoffset$1;
-   this->fpgaExtTasks_rightQoffset$1__javaArrayLength = fpgaExtTasks_rightQoffset$1__javaArrayLength;
-   this->fpgaExtTasks_zdrop$1 = fpgaExtTasks_zdrop$1;
-   this->fpgaExtTasks_zdrop$1__javaArrayLength = fpgaExtTasks_zdrop$1__javaArrayLength;
-   this->fpgaExtTasks_oIns$1 = fpgaExtTasks_oIns$1;
-   this->fpgaExtTasks_oIns$1__javaArrayLength = fpgaExtTasks_oIns$1__javaArrayLength;
-   this->fpgaExtTasks_rightRlen$1 = fpgaExtTasks_rightRlen$1;
-   this->fpgaExtTasks_rightRlen$1__javaArrayLength = fpgaExtTasks_rightRlen$1__javaArrayLength;
-   this->fpgaExtTasks_idx$1 = fpgaExtTasks_idx$1;
-   this->fpgaExtTasks_idx$1__javaArrayLength = fpgaExtTasks_idx$1__javaArrayLength;
-   this->fpgaExtTasks_w$1 = fpgaExtTasks_w$1;
-   this->fpgaExtTasks_w$1__javaArrayLength = fpgaExtTasks_w$1__javaArrayLength;
-   this->max_band_try$1 = max_band_try$1;
-   this->fpgaExtTasks_regScore$1 = fpgaExtTasks_regScore$1;
-   this->fpgaExtTasks_regScore$1__javaArrayLength = fpgaExtTasks_regScore$1__javaArrayLength;
-   this->fpgaExtTasks_rightRoffset$1 = fpgaExtTasks_rightRoffset$1;
-   this->fpgaExtTasks_rightRoffset$1__javaArrayLength = fpgaExtTasks_rightRoffset$1__javaArrayLength;
-   this->fpgaExtTasks_leftRoffset$1 = fpgaExtTasks_leftRoffset$1;
-   this->fpgaExtTasks_leftRoffset$1__javaArrayLength = fpgaExtTasks_leftRoffset$1__javaArrayLength;
-   this->fpgaExtTasks_rightQs$1 = fpgaExtTasks_rightQs$1;
-   this->fpgaExtTasks_rightQs$1__javaArrayLength = fpgaExtTasks_rightQs$1__javaArrayLength;
-   this->fpgaExtTasks_leftQoffset$1 = fpgaExtTasks_leftQoffset$1;
-   this->fpgaExtTasks_leftQoffset$1__javaArrayLength = fpgaExtTasks_leftQoffset$1__javaArrayLength;
-   this->fpgaExtTasks_eIns$1 = fpgaExtTasks_eIns$1;
-   this->fpgaExtTasks_eIns$1__javaArrayLength = fpgaExtTasks_eIns$1__javaArrayLength;
-   this->fpgaExtTasks_rightQlen$1 = fpgaExtTasks_rightQlen$1;
-   this->fpgaExtTasks_rightQlen$1__javaArrayLength = fpgaExtTasks_rightQlen$1__javaArrayLength;
-   this->fpgaExtTasks_leftQlen$1 = fpgaExtTasks_leftQlen$1;
-   this->fpgaExtTasks_leftQlen$1__javaArrayLength = fpgaExtTasks_leftQlen$1__javaArrayLength;
-   this->fpgaExtTasks_leftQs$1 = fpgaExtTasks_leftQs$1;
-   this->fpgaExtTasks_leftQs$1__javaArrayLength = fpgaExtTasks_leftQs$1__javaArrayLength;
-   this->fpgaExtTasks_leftRlen$1 = fpgaExtTasks_leftRlen$1;
-   this->fpgaExtTasks_leftRlen$1__javaArrayLength = fpgaExtTasks_leftRlen$1__javaArrayLength;
-   this->matlen$1 = matlen$1;
-   this->fpgaExtTasks_oDel$1 = fpgaExtTasks_oDel$1;
-   this->fpgaExtTasks_oDel$1__javaArrayLength = fpgaExtTasks_oDel$1__javaArrayLength;
-   this->fpgaExtTasks_eDel$1 = fpgaExtTasks_eDel$1;
-   this->fpgaExtTasks_eDel$1__javaArrayLength = fpgaExtTasks_eDel$1__javaArrayLength;
-   this->fpgaExtTasks_rightRs$1 = fpgaExtTasks_rightRs$1;
-   this->fpgaExtTasks_rightRs$1__javaArrayLength = fpgaExtTasks_rightRs$1__javaArrayLength;
-   this->fpgaExtTasks_mat$1 = fpgaExtTasks_mat$1;
-   this->fpgaExtTasks_mat$1__javaArrayLength = fpgaExtTasks_mat$1__javaArrayLength;
-   this->fpgaExtTasks_h0$1 = fpgaExtTasks_h0$1;
-   this->fpgaExtTasks_h0$1__javaArrayLength = fpgaExtTasks_h0$1__javaArrayLength;
-   this->fpgaExtTasks_qBeg$1 = fpgaExtTasks_qBeg$1;
-   this->fpgaExtTasks_qBeg$1__javaArrayLength = fpgaExtTasks_qBeg$1__javaArrayLength;
+   This* this_ptr=&thisStruct;
+   this_ptr->fpgaExtTasks_penClip3$1 = fpgaExtTasks_penClip3$1;
+   this_ptr->fpgaExtTasks_penClip3$1__javaArrayLength = fpgaExtTasks_penClip3$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_penClip5$1 = fpgaExtTasks_penClip5$1;
+   this_ptr->fpgaExtTasks_penClip5$1__javaArrayLength = fpgaExtTasks_penClip5$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftRs$1 = fpgaExtTasks_leftRs$1;
+   this_ptr->fpgaExtTasks_leftRs$1__javaArrayLength = fpgaExtTasks_leftRs$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightQoffset$1 = fpgaExtTasks_rightQoffset$1;
+   this_ptr->fpgaExtTasks_rightQoffset$1__javaArrayLength = fpgaExtTasks_rightQoffset$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_zdrop$1 = fpgaExtTasks_zdrop$1;
+   this_ptr->fpgaExtTasks_zdrop$1__javaArrayLength = fpgaExtTasks_zdrop$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_oIns$1 = fpgaExtTasks_oIns$1;
+   this_ptr->fpgaExtTasks_oIns$1__javaArrayLength = fpgaExtTasks_oIns$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightRlen$1 = fpgaExtTasks_rightRlen$1;
+   this_ptr->fpgaExtTasks_rightRlen$1__javaArrayLength = fpgaExtTasks_rightRlen$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_idx$1 = fpgaExtTasks_idx$1;
+   this_ptr->fpgaExtTasks_idx$1__javaArrayLength = fpgaExtTasks_idx$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_w$1 = fpgaExtTasks_w$1;
+   this_ptr->fpgaExtTasks_w$1__javaArrayLength = fpgaExtTasks_w$1__javaArrayLength;
+   this_ptr->max_band_try$1 = max_band_try$1;
+   this_ptr->fpgaExtTasks_regScore$1 = fpgaExtTasks_regScore$1;
+   this_ptr->fpgaExtTasks_regScore$1__javaArrayLength = fpgaExtTasks_regScore$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightRoffset$1 = fpgaExtTasks_rightRoffset$1;
+   this_ptr->fpgaExtTasks_rightRoffset$1__javaArrayLength = fpgaExtTasks_rightRoffset$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftRoffset$1 = fpgaExtTasks_leftRoffset$1;
+   this_ptr->fpgaExtTasks_leftRoffset$1__javaArrayLength = fpgaExtTasks_leftRoffset$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightQs$1 = fpgaExtTasks_rightQs$1;
+   this_ptr->fpgaExtTasks_rightQs$1__javaArrayLength = fpgaExtTasks_rightQs$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftQoffset$1 = fpgaExtTasks_leftQoffset$1;
+   this_ptr->fpgaExtTasks_leftQoffset$1__javaArrayLength = fpgaExtTasks_leftQoffset$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_eIns$1 = fpgaExtTasks_eIns$1;
+   this_ptr->fpgaExtTasks_eIns$1__javaArrayLength = fpgaExtTasks_eIns$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightQlen$1 = fpgaExtTasks_rightQlen$1;
+   this_ptr->fpgaExtTasks_rightQlen$1__javaArrayLength = fpgaExtTasks_rightQlen$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftQlen$1 = fpgaExtTasks_leftQlen$1;
+   this_ptr->fpgaExtTasks_leftQlen$1__javaArrayLength = fpgaExtTasks_leftQlen$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftQs$1 = fpgaExtTasks_leftQs$1;
+   this_ptr->fpgaExtTasks_leftQs$1__javaArrayLength = fpgaExtTasks_leftQs$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_leftRlen$1 = fpgaExtTasks_leftRlen$1;
+   this_ptr->fpgaExtTasks_leftRlen$1__javaArrayLength = fpgaExtTasks_leftRlen$1__javaArrayLength;
+   this_ptr->matlen$1 = matlen$1;
+   this_ptr->fpgaExtTasks_oDel$1 = fpgaExtTasks_oDel$1;
+   this_ptr->fpgaExtTasks_oDel$1__javaArrayLength = fpgaExtTasks_oDel$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_eDel$1 = fpgaExtTasks_eDel$1;
+   this_ptr->fpgaExtTasks_eDel$1__javaArrayLength = fpgaExtTasks_eDel$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_rightRs$1 = fpgaExtTasks_rightRs$1;
+   this_ptr->fpgaExtTasks_rightRs$1__javaArrayLength = fpgaExtTasks_rightRs$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_mat$1 = fpgaExtTasks_mat$1;
+   this_ptr->fpgaExtTasks_mat$1__javaArrayLength = fpgaExtTasks_mat$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_h0$1 = fpgaExtTasks_h0$1;
+   this_ptr->fpgaExtTasks_h0$1__javaArrayLength = fpgaExtTasks_h0$1__javaArrayLength;
+   this_ptr->fpgaExtTasks_qBeg$1 = fpgaExtTasks_qBeg$1;
+   this_ptr->fpgaExtTasks_qBeg$1__javaArrayLength = fpgaExtTasks_qBeg$1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
       int alloc_failed = 0;
-      __global org_apache_spark_rdd_cl_tests_ExtRet* result = org_apache_spark_rdd_cl_tests_ExtensionTest$$anon$1__apply(heap, free_index, &alloc_failed, heap_size, this, in0[i]);
+      __global org_apache_spark_rdd_cl_tests_ExtRet* result = org_apache_spark_rdd_cl_tests_ExtensionTest__anon_1__apply(heap, free_index, &alloc_failed, heap_size, this_ptr, in0[i]);
       if (!alloc_failed) {
          processing_succeeded[i] = 1;
          out[i] = *result;
