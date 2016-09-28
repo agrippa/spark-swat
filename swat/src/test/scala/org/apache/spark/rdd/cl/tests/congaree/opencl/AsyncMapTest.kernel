@@ -14,23 +14,23 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncMapTest__s{
 };
 
 typedef struct This_s{
-   int v$1;
+   int v_1;
    } This;
 static int org_apache_spark_rdd_cl_tests_AsyncMapTest__anon_1__apply_mcI_sp(This *this_ptr){
 
-   return((this_ptr->v$1 * 5));
+   return((this_ptr->v_1 * 5));
 }
 static int org_apache_spark_rdd_cl_tests_AsyncMapTest__anon_1__apply(This *this_ptr){
 
    return(org_apache_spark_rdd_cl_tests_AsyncMapTest__anon_1__apply_mcI_sp(this_ptr));
 }
 __kernel void run(
-      __global int* restrict v$1, 
+      __global int* restrict v_1, 
       __global int* restrict out, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      this_ptr->v$1 = v$1[i];
+      this_ptr->v_1 = v_1[i];
       out[i] = org_apache_spark_rdd_cl_tests_AsyncMapTest__anon_1__apply(this_ptr);
       
    }

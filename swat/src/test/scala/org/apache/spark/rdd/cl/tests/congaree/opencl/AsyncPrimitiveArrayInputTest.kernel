@@ -23,46 +23,43 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncPrimitiveArra
 };
 
 typedef struct This_s{
-   __global double* arr$1;
-   int arr$1__javaArrayLength;
+   __global double* arr_1;
+   int arr_1__javaArrayLength;
    } This;
 
-static int scala_Array__size(__global scala_Array *this) {
-    return (this->size);
+static int scala_Array__size(__global scala_Array *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static double scala_Array__apply(__global scala_Array *this, int index) {
-    return (this->values)[this->tiling * index];
+static double scala_Array__apply(__global scala_Array *this_ptr, int index) {
+    return (this_ptr->values)[this_ptr->tiling * index];
 }
 
 
 static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply_mcD_sp(This *this_ptr){
 
-   return(
-   {
    
-      double sum = 0.0;
-      int i = 0;
-      for (; i<this_ptr->arr$1__javaArrayLength; i = i + 1){
-      
-         sum = sum + this_ptr->arr$1[i];
-      }
-      sum;
-   });
+   double sum = 0.0;
+   int i = 0;
+   for (; i<this_ptr->arr_1__javaArrayLength; i = i + 1){
+   
+      sum = sum + this_ptr->arr_1[i];
+   }
+   return sum;;
 }
 static double org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply(This *this_ptr){
 
    return(org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply_mcD_sp(this_ptr));
 }
 __kernel void run(
-      __global double * restrict arr$1, __global int * restrict arr$1_sizes, __global int * restrict arr$1_offsets, int narr$1, 
+      __global double * restrict arr_1, __global int * restrict arr_1_sizes, __global int * restrict arr_1_offsets, int narr_1, 
       __global double* restrict out, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
-      this_ptr->arr$1 = arr$1 + arr$1_offsets[i]; this_ptr->arr$1__javaArrayLength = arr$1_sizes[i];
+      this_ptr->arr_1 = arr_1 + arr_1_offsets[i]; this_ptr->arr_1__javaArrayLength = arr_1_sizes[i];
       out[i] = org_apache_spark_rdd_cl_tests_AsyncPrimitiveArrayInputTest__anon_1__apply(this_ptr);
       
    }

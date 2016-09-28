@@ -41,49 +41,46 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_SparseVectorInputT
 typedef struct This_s{
    } This;
 
-static int org_apache_spark_mllib_linalg_SparseVector__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this) {
-    return (this->size);
+static int org_apache_spark_mllib_linalg_SparseVector__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static __global int* org_apache_spark_mllib_linalg_SparseVector__indices(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this) {
-    return (this->indices);
+static __global int* org_apache_spark_mllib_linalg_SparseVector__indices(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this_ptr) {
+    return (this_ptr->indices);
 }
 
 
 
-static __global double* org_apache_spark_mllib_linalg_SparseVector__values(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this) {
-    return (this->values);
+static __global double* org_apache_spark_mllib_linalg_SparseVector__values(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_SparseVector *this_ptr) {
+    return (this_ptr->values);
 }
 
 
 
-static __global scala_Tuple2_I_D* scala_Tuple2_I_D___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Tuple2_I_D *this, int  one, double  two) {
-   this->_1 = one;
-   this->_2 = two;
-   return this;
+static __global scala_Tuple2_I_D* scala_Tuple2_I_D___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global scala_Tuple2_I_D *this_ptr, int  one, double  two) {
+   this_ptr->_1 = one;
+   this_ptr->_2 = two;
+   return this_ptr;
 }
 
 
 static __global scala_Tuple2_I_D *org_apache_spark_rdd_cl_tests_SparseVectorInputTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, __global org_apache_spark_mllib_linalg_SparseVector* in){
 
-   return(
-   {
    
-      int indexSum = 0;
-      double valueSum = 0.0;
-      int i = 0;
-      for (; i<org_apache_spark_mllib_linalg_SparseVector__size(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in); i = i + 1){
-      
-         indexSum = indexSum + org_apache_spark_mllib_linalg_SparseVector__indices(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in)[in->tiling * (i)];
-         valueSum = valueSum + org_apache_spark_mllib_linalg_SparseVector__values(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in)[in->tiling * (i)];
-      }
-      ;
-      __global scala_Tuple2_I_D * __alloc0 = (__global scala_Tuple2_I_D *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(scala_Tuple2_I_D), __swat_alloc_failed);
-      if (*__swat_alloc_failed) { return (0x0); }
-      scala_Tuple2_I_D___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc0, indexSum, valueSum);
-   });
+   int indexSum = 0;
+   double valueSum = 0.0;
+   int i = 0;
+   for (; i<org_apache_spark_mllib_linalg_SparseVector__size(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in); i = i + 1){
+   
+      indexSum = indexSum + org_apache_spark_mllib_linalg_SparseVector__indices(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in)[in->tiling * (i)];
+      valueSum = valueSum + org_apache_spark_mllib_linalg_SparseVector__values(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, in)[in->tiling * (i)];
+   }
+   ;
+   __global scala_Tuple2_I_D * __alloc0 = (__global scala_Tuple2_I_D *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(scala_Tuple2_I_D), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); }
+   return scala_Tuple2_I_D___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc0, indexSum, valueSum);;
 }
 __kernel void run(
       __global org_apache_spark_mllib_linalg_SparseVector * restrict in0, __global int * restrict in0_indices, __global double * restrict in0_values, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, int in0_tiling, 

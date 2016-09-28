@@ -21,22 +21,19 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_AsyncArrayOutputTe
 };
 
 typedef struct This_s{
-   int v$1;
+   int v_1;
    } This;
 static __global double* org_apache_spark_rdd_cl_tests_AsyncArrayOutputTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr){
 
-   return(
-   {
    
-      __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (this_ptr->v$1)), __swat_alloc_failed);
-      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (this_ptr->v$1); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
-       __global double* arr = __alloc0;
-      arr[0]  = (double)this_ptr->v$1;
-      arr;
-   });
+   __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (this_ptr->v_1)), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (this_ptr->v_1); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+    __global double* arr = __alloc0;
+   arr[0]  = (double)this_ptr->v_1;
+   return arr;;
 }
 __kernel void run(
-      __global int* restrict v$1, 
+      __global int* restrict v_1, 
       __global int * restrict out, __global int * restrict out_iters, __global void * restrict heap, __global uint * restrict free_index, unsigned int heap_size, __global int * restrict processing_succeeded, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
@@ -44,7 +41,7 @@ __kernel void run(
       if (iter == 0) processing_succeeded[i] = 0;
       else if (processing_succeeded[i]) continue;
       int alloc_failed = 0;
-      this_ptr->v$1 = v$1[i];
+      this_ptr->v_1 = v_1[i];
       __global double* result = org_apache_spark_rdd_cl_tests_AsyncArrayOutputTest__anon_1__apply(heap, free_index, &alloc_failed, heap_size, this_ptr);
       if (!alloc_failed) {
          processing_succeeded[i] = 1;

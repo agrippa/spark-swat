@@ -23,8 +23,8 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
 };
 
 typedef struct This_s{
-   __global org_apache_spark_rdd_cl_tests_Point* arr$1;
-   int arr$1__javaArrayLength;
+   __global org_apache_spark_rdd_cl_tests_Point* arr_1;
+   int arr_1__javaArrayLength;
    } This;
 static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->z;
@@ -37,7 +37,7 @@ static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rd
 }
 static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest__anon_1__apply_mcFF_sp(This *this_ptr, float in){
 
-   return((((in +  (this_ptr->arr$1[0]).x) +  (this_ptr->arr$1[1]).y) +  (this_ptr->arr$1[2]).z));
+   return((((in +  (this_ptr->arr_1[0]).x) +  (this_ptr->arr_1[1]).y) +  (this_ptr->arr_1[2]).z));
 }
 static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest__anon_1__apply(This *this_ptr, float in){
 
@@ -45,11 +45,11 @@ static float org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest__ano
 }
 __kernel void run(
       __global float* restrict in0, 
-      __global float* restrict out, __global org_apache_spark_rdd_cl_tests_Point* restrict arr$1, int arr$1__javaArrayLength, int N, int iter) {
+      __global float* restrict out, __global org_apache_spark_rdd_cl_tests_Point* restrict arr_1, int arr_1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
-   this_ptr->arr$1 = arr$1;
-   this_ptr->arr$1__javaArrayLength = arr$1__javaArrayLength;
+   this_ptr->arr_1 = arr_1;
+   this_ptr->arr_1__javaArrayLength = arr_1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_ReferenceExternalObjectArrayTest__anon_1__apply(this_ptr, in0[i]);
       

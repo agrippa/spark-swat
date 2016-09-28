@@ -25,30 +25,27 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorInputTe
 typedef struct This_s{
    } This;
 
-static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this) {
-    return (this->size);
+static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[this->tiling * index];
+static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this_ptr, int index) {
+    return (this_ptr->values)[this_ptr->tiling * index];
 }
 
 
 static double org_apache_spark_rdd_cl_tests_DenseVectorInputTest__anon_1__apply(This *this_ptr, __global org_apache_spark_mllib_linalg_DenseVector* in){
 
-   return(
-   {
    
-      double sum = 0.0;
-      int i = 0;
-      for (; i<org_apache_spark_mllib_linalg_DenseVector__size(in); i = i + 1){
-      
-         sum = sum + org_apache_spark_mllib_linalg_DenseVector__apply(in, i);
-      }
-      sum;
-   });
+   double sum = 0.0;
+   int i = 0;
+   for (; i<org_apache_spark_mllib_linalg_DenseVector__size(in); i = i + 1){
+   
+      sum = sum + org_apache_spark_mllib_linalg_DenseVector__apply(in, i);
+   }
+   return sum;;
 }
 __kernel void run(
       __global org_apache_spark_mllib_linalg_DenseVector * restrict in0, __global double * restrict in0_values, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, int in0_tiling, 

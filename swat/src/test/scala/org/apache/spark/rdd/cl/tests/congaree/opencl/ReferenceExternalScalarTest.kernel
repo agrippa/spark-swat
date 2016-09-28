@@ -14,11 +14,11 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ReferenceExternalS
 };
 
 typedef struct This_s{
-   int v$1;
+   int v_1;
    } This;
 static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
-   return((in + this_ptr->v$1));
+   return((in + this_ptr->v_1));
 }
 static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest__anon_1__apply(This *this_ptr, int in){
 
@@ -26,10 +26,10 @@ static int org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest__anon_1__ap
 }
 __kernel void run(
       __global int* restrict in0, 
-      __global int* restrict out, int v$1, int N, int iter) {
+      __global int* restrict out, int v_1, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
-   this_ptr->v$1 = v$1;
+   this_ptr->v_1 = v_1;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_ReferenceExternalScalarTest__anon_1__apply(this_ptr, in0[i]);
       

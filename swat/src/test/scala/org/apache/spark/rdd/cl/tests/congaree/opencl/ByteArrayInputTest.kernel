@@ -25,30 +25,27 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ByteArrayInputTest
 typedef struct This_s{
    } This;
 
-static int scala_Array__size(__global scala_Array *this) {
-    return (this->size);
+static int scala_Array__size(__global scala_Array *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static char scala_Array__apply(__global scala_Array *this, int index) {
-    return (this->values)[this->tiling * index];
+static char scala_Array__apply(__global scala_Array *this_ptr, int index) {
+    return (this_ptr->values)[this_ptr->tiling * index];
 }
 
 
 static int org_apache_spark_rdd_cl_tests_ByteArrayInputTest__anon_1__apply(This *this_ptr,  __global char* in, int in__javaArrayLength){
 
-   return(
-   {
    
-      int sum = 0;
-      int i = 0;
-      for (; i<in__javaArrayLength; i = i + 1){
-      
-         sum = sum + in[i];
-      }
-      sum;
-   });
+   int sum = 0;
+   int i = 0;
+   for (; i<in__javaArrayLength; i = i + 1){
+   
+      sum = sum + in[i];
+   }
+   return sum;;
 }
 __kernel void run(
       __global char * restrict in0, __global int * restrict in0_sizes, __global int * restrict in0_offsets, int nin0, 

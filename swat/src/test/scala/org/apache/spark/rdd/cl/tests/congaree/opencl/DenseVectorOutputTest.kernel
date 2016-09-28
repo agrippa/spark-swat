@@ -32,34 +32,31 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_DenseVectorOutputT
 typedef struct This_s{
    } This;
 
-static int org_apache_spark_mllib_linalg_DenseVector__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_DenseVector *this) {
-    return (this->size);
+static int org_apache_spark_mllib_linalg_DenseVector__size(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_DenseVector *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static double org_apache_spark_mllib_linalg_DenseVector__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[this->tiling * index];
+static double org_apache_spark_mllib_linalg_DenseVector__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_mllib_linalg_DenseVector *this_ptr, int index) {
+    return (this_ptr->values)[this_ptr->tiling * index];
 }
 
 
 static __global org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_cl_tests_DenseVectorOutputTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int in){
 
-   return(
-   {
    
-      __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
-      if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
-       __global double* valuesArr = __alloc0;
-      int i = 0;
-      for (; i<in; i = i + 1){
-      
-         valuesArr[i]  = (double)(2 * i);
-      }
-      __global org_apache_spark_mllib_linalg_DenseVector * __alloc1 = (__global org_apache_spark_mllib_linalg_DenseVector *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), __swat_alloc_failed);
-      if (*__swat_alloc_failed) { return (0x0); }
-      ({ __alloc1->values = valuesArr; __alloc1->size = *(((__global long *)__alloc1->values) - 1); ; __alloc1->tiling = 1; __alloc1; });
-   });
+   __global double * __alloc0 = (__global double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); } *((__global long *)__alloc0) = (in); __alloc0 = (__global double *)(((__global long *)__alloc0) + 1); 
+    __global double* valuesArr = __alloc0;
+   int i = 0;
+   for (; i<in; i = i + 1){
+   
+      valuesArr[i]  = (double)(2 * i);
+   }
+   __global org_apache_spark_mllib_linalg_DenseVector * __alloc1 = (__global org_apache_spark_mllib_linalg_DenseVector *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); }
+   return ({ __alloc1->values = valuesArr; __alloc1->size = *(((__global long *)__alloc1->values) - 1); ; __alloc1->tiling = 1; __alloc1; });;
 }
 __kernel void run(
       __global int* restrict in0, 
@@ -73,7 +70,7 @@ __kernel void run(
       __global org_apache_spark_mllib_linalg_DenseVector* result = org_apache_spark_rdd_cl_tests_DenseVectorOutputTest__anon_1__apply(heap, free_index, &alloc_failed, heap_size, this_ptr, in0[i]);
       if (!alloc_failed) {
          processing_succeeded[i] = 1;
-         result->values = ((__global char *)result->values) - ((__global char *)heap);
+         result->values = (__global double *)(((__global char *)result->values) - ((__global char *)heap));
          result->tiling = iter;
          out[i] = *result;
       }

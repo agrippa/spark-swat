@@ -31,26 +31,26 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
 
 typedef struct This_s{
    } This;
-static void org_apache_spark_rdd_cl_tests_Point__z__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x$1){
+static void org_apache_spark_rdd_cl_tests_Point__z__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
-   this_ptr->z=x$1;
-   return;
+   this_ptr->z=x_1;
+   ;
 }
 static float org_apache_spark_rdd_cl_tests_Point__z(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->z;
 }
-static void org_apache_spark_rdd_cl_tests_Point__y__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x$1){
+static void org_apache_spark_rdd_cl_tests_Point__y__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
-   this_ptr->y=x$1;
-   return;
+   this_ptr->y=x_1;
+   ;
 }
 static float org_apache_spark_rdd_cl_tests_Point__y(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->y;
 }
-static void org_apache_spark_rdd_cl_tests_Point__x__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x$1){
+static void org_apache_spark_rdd_cl_tests_Point__x__eq(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
-   this_ptr->x=x$1;
-   return;
+   this_ptr->x=x_1;
+   ;
 }
 static float org_apache_spark_rdd_cl_tests_Point__x(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->x;
@@ -60,7 +60,7 @@ static void org_apache_spark_rdd_cl_tests_Point__update_values(__global void * r
    org_apache_spark_rdd_cl_tests_Point__x__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, (this_ptr->x + (float)inc));
    org_apache_spark_rdd_cl_tests_Point__y__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, (this_ptr->y + (float)inc));
    org_apache_spark_rdd_cl_tests_Point__z__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, (this_ptr->z + (float)inc));
-   return;
+   ;
 }
 static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_tests_Point___init_(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, __global org_apache_spark_rdd_cl_tests_Point *this_ptr, float x, float y, float z){
 
@@ -72,15 +72,12 @@ static __global org_apache_spark_rdd_cl_tests_Point * org_apache_spark_rdd_cl_te
 }
 static __global org_apache_spark_rdd_cl_tests_Point *org_apache_spark_rdd_cl_tests_ExternalFunctionTest__anon_1__apply(__global void * restrict __swat_heap, __global uint * restrict __swat_free_index, int * restrict __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, __global org_apache_spark_rdd_cl_tests_Point* in){
 
-   return(
-   {
    
-      __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), __swat_alloc_failed);
-      if (*__swat_alloc_failed) { return (0x0); }
-       __global org_apache_spark_rdd_cl_tests_Point *p = org_apache_spark_rdd_cl_tests_Point___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc0, (in->x + (float)1), (in->y + (float)2), (in->z + (float)3));
-      org_apache_spark_rdd_cl_tests_Point__update_values(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, p, 4);
-      p;
-   });
+   __global org_apache_spark_rdd_cl_tests_Point * __alloc0 = (__global org_apache_spark_rdd_cl_tests_Point *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_rdd_cl_tests_Point), __swat_alloc_failed);
+   if (*__swat_alloc_failed) { return (0x0); }
+    __global org_apache_spark_rdd_cl_tests_Point *p = org_apache_spark_rdd_cl_tests_Point___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc0, (in->x + (float)1), (in->y + (float)2), (in->z + (float)3));
+   org_apache_spark_rdd_cl_tests_Point__update_values(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, p, 4);
+   return p;;
 }
 __kernel void run(
       __global org_apache_spark_rdd_cl_tests_Point* restrict in0, 

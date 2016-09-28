@@ -31,24 +31,24 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadc
 };
 
 typedef struct This_s{
-   __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *broadcast$1;
-   int broadcast$1__javaArrayLength;
+   __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *broadcast_1;
+   int broadcast_1__javaArrayLength;
    } This;
 
-static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this) {
-    return (this->size);
+static int org_apache_spark_mllib_linalg_DenseVector__size(__global org_apache_spark_mllib_linalg_DenseVector *this_ptr) {
+    return (this_ptr->size);
 }
 
 
 
-static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this, int index) {
-    return (this->values)[this->tiling * index];
+static double org_apache_spark_mllib_linalg_DenseVector__apply(__global org_apache_spark_mllib_linalg_DenseVector *this_ptr, int index) {
+    return (this_ptr->values)[this_ptr->tiling * index];
 }
 
 
 static int org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
-   return(( (this_ptr->broadcast$1[in])._1 + (int)org_apache_spark_mllib_linalg_DenseVector__apply( (this_ptr->broadcast$1[in])._2, 0)));
+   return(( (this_ptr->broadcast_1[in])._1 + (int)org_apache_spark_mllib_linalg_DenseVector__apply( (this_ptr->broadcast_1[in])._2, 0)));
 }
 static int org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest__anon_1__apply(This *this_ptr, int in){
 
@@ -56,11 +56,11 @@ static int org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest__anon_1__appl
 }
 __kernel void run(
       __global int* restrict in0, 
-      __global int* restrict out, __global int * restrict broadcast$1_1, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1_2, __global double * restrict broadcast$1_2_values, __global int * restrict broadcast$1_2_sizes, __global int * restrict broadcast$1_2_offsets, int nbroadcast$1_2, int broadcast$1_2_tiling, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
+      __global int* restrict out, __global int * restrict broadcast_1_1, __global org_apache_spark_mllib_linalg_DenseVector * restrict broadcast_1_2, __global double * restrict broadcast_1_2_values, __global int * restrict broadcast_1_2_sizes, __global int * restrict broadcast_1_2_offsets, int nbroadcast_1_2, int broadcast_1_2_tiling, __global scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector * restrict broadcast_1, int broadcast_1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
-   this_ptr->broadcast$1 = broadcast$1; for (int ii = 0; ii < broadcast$1__javaArrayLength; ii++) { broadcast$1[ii]._1 = broadcast$1_1[ii]; broadcast$1[ii]._2 = broadcast$1_2 + ii;  } ;
-   this_ptr->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
+   this_ptr->broadcast_1 = broadcast_1; for (int ii = 0; ii < broadcast_1__javaArrayLength; ii++) { broadcast_1[ii]._1 = broadcast_1_1[ii]; broadcast_1[ii]._2 = broadcast_1_2 + ii;  } ;
+   this_ptr->broadcast_1__javaArrayLength = broadcast_1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectBroadcastTest__anon_1__apply(this_ptr, in0[i]);
       

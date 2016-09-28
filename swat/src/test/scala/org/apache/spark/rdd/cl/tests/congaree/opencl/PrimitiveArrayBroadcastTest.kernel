@@ -14,12 +14,12 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_PrimitiveArrayBroa
 };
 
 typedef struct This_s{
-   __global int* broadcast$1;
-   int broadcast$1__javaArrayLength;
+   __global int* broadcast_1;
+   int broadcast_1__javaArrayLength;
    } This;
 static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
-   return(this_ptr->broadcast$1[in]);
+   return(this_ptr->broadcast_1[in]);
 }
 static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply(This *this_ptr, int in){
 
@@ -27,11 +27,11 @@ static int org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__ap
 }
 __kernel void run(
       __global int* restrict in0, 
-      __global int* restrict out, __global int* restrict broadcast$1, int broadcast$1__javaArrayLength, int N, int iter) {
+      __global int* restrict out, __global int* restrict broadcast_1, int broadcast_1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
-   this_ptr->broadcast$1 = broadcast$1;
-   this_ptr->broadcast$1__javaArrayLength = broadcast$1__javaArrayLength;
+   this_ptr->broadcast_1 = broadcast_1;
+   this_ptr->broadcast_1__javaArrayLength = broadcast_1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_PrimitiveArrayBroadcastTest__anon_1__apply(this_ptr, in0[i]);
       

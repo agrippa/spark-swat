@@ -14,12 +14,12 @@ struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_ReferenceExternalA
 };
 
 typedef struct This_s{
-   __global int* arr$1;
-   int arr$1__javaArrayLength;
+   __global int* arr_1;
+   int arr_1__javaArrayLength;
    } This;
 static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest__anon_1__apply_mcII_sp(This *this_ptr, int in){
 
-   return((((in + this_ptr->arr$1[0]) + this_ptr->arr$1[1]) + this_ptr->arr$1[2]));
+   return((((in + this_ptr->arr_1[0]) + this_ptr->arr_1[1]) + this_ptr->arr_1[2]));
 }
 static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest__anon_1__apply(This *this_ptr, int in){
 
@@ -27,11 +27,11 @@ static int org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest__anon_1__app
 }
 __kernel void run(
       __global int* restrict in0, 
-      __global int* restrict out, __global int* restrict arr$1, int arr$1__javaArrayLength, int N, int iter) {
+      __global int* restrict out, __global int* restrict arr_1, int arr_1__javaArrayLength, int N, int iter) {
    This thisStruct;
    This* this_ptr=&thisStruct;
-   this_ptr->arr$1 = arr$1;
-   this_ptr->arr$1__javaArrayLength = arr$1__javaArrayLength;
+   this_ptr->arr_1 = arr_1;
+   this_ptr->arr_1__javaArrayLength = arr_1__javaArrayLength;
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       out[i] = org_apache_spark_rdd_cl_tests_ReferenceExternalArrayTest__anon_1__apply(this_ptr, in0[i]);
       
