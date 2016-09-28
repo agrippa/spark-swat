@@ -43,12 +43,9 @@ static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rd
 }
 static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputTest__anon_1__apply(This *this_ptr, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){
 
-   return(
-   {
    
-       __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;
-      ((p->x + p->y) + p->z);
-   });
+    __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;
+   return ((p->x + p->y) + p->z);;
 }
 __kernel void run(
       __global int * restrict in0_1, __global org_apache_spark_rdd_cl_tests_Point* restrict in0_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * restrict in0, 

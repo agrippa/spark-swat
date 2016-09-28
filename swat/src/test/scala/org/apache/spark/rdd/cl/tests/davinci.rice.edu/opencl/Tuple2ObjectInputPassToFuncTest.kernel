@@ -9,7 +9,7 @@ static __global void *alloc(__global void *heap, volatile __global uint *free_in
 }
 typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s org_apache_spark_rdd_cl_tests_Point;
 typedef struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point_s scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point;
-typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$_s org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$;
+typedef struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__s org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest_;
 
 struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Point_s{
    float  x;
@@ -26,47 +26,44 @@ struct __attribute__ ((packed)) scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Poi
 };
 
 
-struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$_s{
+struct __attribute__ ((packed)) org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__s{
    
 };
 
 typedef struct This_s{
    } This;
-static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this){
-   return this->z;
+static float org_apache_spark_rdd_cl_tests_Point__z(__global org_apache_spark_rdd_cl_tests_Point *this_ptr){
+   return this_ptr->z;
 }
-static float org_apache_spark_rdd_cl_tests_Point__y(__global org_apache_spark_rdd_cl_tests_Point *this){
-   return this->y;
+static float org_apache_spark_rdd_cl_tests_Point__y(__global org_apache_spark_rdd_cl_tests_Point *this_ptr){
+   return this_ptr->y;
 }
-static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__externalPoint(This *this, __global org_apache_spark_rdd_cl_tests_Point* v){
+static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__externalPoint(This *this_ptr, __global org_apache_spark_rdd_cl_tests_Point* v){
 
    return((v->y + v->z));
 }
-static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__external(This *this, float v){
+static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__external(This *this_ptr, float v){
 
    return((v + 3.0f));
 }
-static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this){
-   return this->x;
+static float org_apache_spark_rdd_cl_tests_Point__x(__global org_apache_spark_rdd_cl_tests_Point *this_ptr){
+   return this_ptr->x;
 }
-static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__apply(This *this, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){
+static float org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__apply(This *this_ptr, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point* in){
 
-   return(
-   {
    
-       __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;
-      (org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__external(this, p->x) + org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__externalPoint(this, p));
-   });
+    __global org_apache_spark_rdd_cl_tests_Point *p = in->_2;
+   return (org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__external(this_ptr, p->x) + org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__externalPoint(this_ptr, p));;
 }
 __kernel void run(
       __global int * restrict in0_1, __global org_apache_spark_rdd_cl_tests_Point* restrict in0_2, __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point * restrict in0, 
       __global float* restrict out, int N, int iter) {
    This thisStruct;
-   This* this=&thisStruct;
+   This* this_ptr=&thisStruct;
    __global scala_Tuple2_I_org_apache_spark_rdd_cl_tests_Point *my_in0 = in0 + get_global_id(0);
    for (int i = get_global_id(0); i < N; i += get_global_size(0)) {
       my_in0->_1 = in0_1[i]; my_in0->_2 = in0_2 + i; 
-      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest$$anon$1__apply(this, my_in0);
+      out[i] = org_apache_spark_rdd_cl_tests_Tuple2ObjectInputPassToFuncTest__anon_1__apply(this_ptr, my_in0);
       
    }
 }

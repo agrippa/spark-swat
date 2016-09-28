@@ -1175,9 +1175,10 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
          * possible that the operating system is not unpinning pages when a
          * process exits suddenly.
          */
-        void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
-                alloc_size, 0, NULL, NULL, &err);
-        CHECK(err);
+        void *pinned = NULL;
+        // void *pinned = clEnqueueMapBuffer(cmd, mem, CL_TRUE, CL_MAP_WRITE, 0,
+        //         alloc_size, 0, NULL, NULL, &err);
+        // CHECK(err);
 #endif
 
         (allocator->allocs)[i].mem = mem;
