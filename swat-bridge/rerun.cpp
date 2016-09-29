@@ -48,6 +48,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.h"
 #include "kernel_arg.h"
 
+#ifdef USE_CUDA
+#define CHECK_NVRTC(call) { \
+    const nvrtcResult _err = (call); \
+    if (_err != NVRTC_SUCCESS) { \
+        fprintf(stderr, "NVRTC Error @ %s:%d - %d\n", __FILE__, __LINE__, _err); \
+        exit(1); \
+    } \
+}
+#endif
+
 using namespace std;
 
 enum ARG_TYPE {
@@ -225,6 +235,32 @@ bool want_to_clear(int index, int *clears, int nclears) {
     return false;
 }
 
+#ifdef USE_CUDA
+static void addArg(void ***kernel_buffers_ref,
+        unsigned *kernel_buffers_capacity_ref, int index, size_t size,
+        void *arg) {
+    void **kernel_buffers = *kernel_buffers_ref;
+    unsigned kernel_buffers_capacity = *kernel_buffers_capacity_ref;
+
+    if ((int)kernel_buffers_capacity < index + 1) {
+        const unsigned prev_size = kernel_buffers_capacity;
+        const unsigned new_size = index + 1;
+        kernel_buffers = (void **)realloc(kernel_buffers,
+                new_size * sizeof(void *));
+        ASSERT(kernel_buffers);
+        memset(kernel_buffers + prev_size, 0x00,
+                (new_size - prev_size) * sizeof(void *));
+        kernel_buffers_capacity = new_size;
+    }
+
+    (kernel_buffers)[index] = realloc((kernel_buffers)[index], size);
+    memcpy((kernel_buffers)[index], arg, size);
+
+    *kernel_buffers_ref = kernel_buffers;
+    *kernel_buffers_capacity_ref = kernel_buffers_capacity;
+}
+#endif
+
 int main(int argc, char **argv) {
 #ifndef BRIDGE_DEBUG
     fprintf(stderr, "Error, %s was not compiled with -DBRIDGE_DEBUG\n",
@@ -386,11 +422,6 @@ int main(int argc, char **argv) {
         debug_arguments[arg_index] = arg;
     }
 
-    for (map<int, kernel_arg *>::iterator i = debug_arguments.begin(),
-            e = debug_arguments.end(); i != e; i++) {
-        int arg_index = i->first;
-        kernel_arg *arg = i->second;
-    }
 
     close(fd);
 
@@ -399,14 +430,13 @@ int main(int argc, char **argv) {
     cl_device_id cl_device;
     find_platform_and_device(device, &cl_platform, &cl_device);
 
-    size_t name_len;
-    CHECK(clGetDeviceInfo(cl_device, CL_DEVICE_NAME, 0, NULL, &name_len));
-    char *device_name = (char *)malloc(name_len + 1);
-    CHECK(clGetDeviceInfo(cl_device, CL_DEVICE_NAME, name_len, device_name,
-                NULL));
-    device_name[name_len] = '\0';
-    fprintf(stderr, "Using device %s\n", device_name);
+    fprintf(stderr, "Using device %s\n", get_device_name(cl_device));
 
+#ifdef USE_CUDA
+    CUcontext ctx;
+    CHECK_DRIVER(cuInit(0));
+    CHECK_DRIVER(cuCtxCreate(&ctx, CU_CTX_SCHED_AUTO, cl_device));
+#else
     cl_int err;
     cl_context_properties ctx_props[] = { CL_CONTEXT_PLATFORM,
         (cl_context_properties)cl_platform, 0 };
@@ -416,9 +446,38 @@ int main(int argc, char **argv) {
 
     cl_command_queue cmd = clCreateCommandQueue(ctx, cl_device, 0, &err);
     CHECK(err);
+#endif
 
+    cl_program program;
+#ifdef USE_CUDA
+    nvrtcProgram prog;
+    CHECK_NVRTC(nvrtcCreateProgram(&prog, kernel_src, "foo", 0, NULL, NULL));
+
+    const char *opts[] = {"--gpu-architecture=compute_20",
+        "-default-device", "--restrict", "--std=c++11"};
+    nvrtcResult compile_result = nvrtcCompileProgram(prog, 4, opts);
+
+    size_t compile_log_size;
+    CHECK_NVRTC(nvrtcGetProgramLogSize(prog, &compile_log_size));
+    char *log = new char[compile_log_size];
+    CHECK_NVRTC(nvrtcGetProgramLog(prog, log));
+    fprintf(stderr, "Compilation log:\n%s\n", log);
+    delete[] log;
+    CHECK_NVRTC(compile_result);
+
+    size_t ptx_size;
+    CHECK_NVRTC(nvrtcGetPTXSize(prog, &ptx_size));
+    char *ptx = new char[ptx_size];
+    CHECK_NVRTC(nvrtcGetPTX(prog, ptx));
+    CHECK_NVRTC(nvrtcDestroyProgram(&prog));
+
+    CHECK_DRIVER(cuModuleLoadDataEx(&program, ptx, 0, 0, 0));
+
+    void **kernel_buffers = NULL;
+    unsigned kernel_buffers_capacity = 0;
+#else
     size_t source_size[] = { kernel_src_len };
-    cl_program program = clCreateProgramWithSource(ctx, 1,
+    program = clCreateProgramWithSource(ctx, 1,
             (const char **)&kernel_src, source_size, &err);
     CHECK(err);
 
@@ -435,9 +494,15 @@ int main(int argc, char **argv) {
         free(build_log);
     }
     CHECK(err);
+#endif
 
+#ifdef USE_CUDA
+    cl_kernel kernel;
+    CHECK_DRIVER(cuModuleGetFunction(&kernel, program, "run"));
+#else
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
+#endif
 
     for (map<int, kernel_arg *>::iterator i = debug_arguments.begin(),
             e = debug_arguments.end(); i != e; i++) {
@@ -449,10 +514,15 @@ int main(int argc, char **argv) {
                     size_changes, n_size_changes);
             size_t size = (new_size == 0 ? arg->get_size() : new_size);
 
+            cl_mem mem;
+#ifdef USE_CUDA
+            CHECK_DRIVER(cuMemAlloc(&mem, size));
+#else
             cl_int err;
-            cl_mem mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
+            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
                     size, NULL, &err);
             CHECK(err);
+#endif
             fprintf(stderr, "Allocating argument %d of size %lu\n", arg_index,
                     size);
 
@@ -464,33 +534,60 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "  Memsetting to zeros\n");
                     void *zeros = malloc(size);
                     memset(zeros, 0x00, size);
+#ifdef USE_CUDA
+                    CHECK_DRIVER(cuMemcpyHtoD(mem, zeros, size));
+#else
                     CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0, size,
                                 zeros, 0, NULL, NULL));
+#endif
                 }
             } else {
                 assert(!arg->get_clear_to_zero());
                 fprintf(stderr, "  Filling...\n");
+#ifdef USE_CUDA
+                CHECK_DRIVER(cuMemcpyHtoD(mem, arg->get_val(), arg->get_size()));
+#else
                 CHECK(clEnqueueWriteBuffer(cmd, mem, CL_TRUE, 0,
                             arg->get_size(), arg->get_val(), 0, NULL, NULL));
+#endif
             }
 
+#ifdef USE_CUDA
+            addArg(&kernel_buffers, &kernel_buffers_capacity, arg_index,
+                    sizeof(mem), &mem);
+#else
             CHECK(clSetKernelArg(kernel, arg_index, sizeof(mem), &mem));
+#endif
         } else {
             assert(!arg->get_clear_to_zero());
             assert(arg->get_val() != NULL);
             fprintf(stderr, "Scalar argument for %d\n", arg_index);
+#ifdef USE_CUDA
+            addArg(&kernel_buffers, &kernel_buffers_capacity, arg_index,
+                    arg->get_size(), arg->get_val());
+#else
             CHECK(clSetKernelArg(kernel, arg_index, arg->get_size(),
                         arg->get_val()));
+#endif
         }
     }
+#ifndef USE_CUDA
     CHECK(clFinish(cmd));
+#endif
    
     unsigned long long start_time = nanoseconds();
+#ifdef USE_CUDA
+    assert(global_size % local_size == 0);
+    global_size = global_size / local_size;
+    CHECK_DRIVER(cuLaunchKernel(kernel, global_size, 1, 1, local_size, 1, 1, 0,
+            0, kernel_buffers, NULL));
+#else
     cl_event event;
     CHECK(clEnqueueNDRangeKernel(cmd, kernel, 1, NULL, &global_size, &local_size, 0, NULL,
                 &event));
     CHECK(clWaitForEvents(1, &event));
     CHECK(clFinish(cmd));
+#endif
     unsigned long long end_time = nanoseconds();
     unsigned long long elapsed = end_time - start_time;
     fprintf(stderr, "Kernel took %llu ns (%f us, %f ms, %f s)\n", elapsed,
@@ -512,9 +609,13 @@ int main(int argc, char **argv) {
                 case (INT): {
                     assert(size % sizeof(int) == 0);
                     int *ibuf = (int *)malloc(size);
+#ifdef USE_CUDA
+                    CHECK_DRIVER(cuMemcpyDtoH(ibuf, mem, size));
+#else
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, ibuf, 0,
                                 NULL, NULL));
-                    for (int j = 0; j < (size / sizeof(int)); j++) {
+#endif
+                    for (unsigned j = 0; j < (size / sizeof(int)); j++) {
                         fprintf(stderr, "  %d\n", ibuf[j]);
                     }
                     fprintf(stderr, "\n");
@@ -525,9 +626,13 @@ int main(int argc, char **argv) {
                 case (FLOAT): {
                     assert(size % sizeof(float) == 0);
                     float *fbuf = (float *)malloc(size);
+#ifdef USE_CUDA
+                    CHECK_DRIVER(cuMemcpyDtoH(fbuf, mem, size));
+#else
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, fbuf, 0,
                                 NULL, NULL));
-                    for (int j = 0; j < (size / sizeof(float)); j++) {
+#endif
+                    for (unsigned j = 0; j < (size / sizeof(float)); j++) {
                         fprintf(stderr, "%f\n", fbuf[j]);
                     }
                     fprintf(stderr, "\n");
@@ -538,9 +643,13 @@ int main(int argc, char **argv) {
                 case (DOUBLE): {
                     assert(size % sizeof(double) == 0);
                     double *dbuf = (double *)malloc(size);
+#ifdef USE_CUDA
+                    CHECK_DRIVER(cuMemcpyDtoH(dbuf, mem, size));
+#else
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, dbuf, 0,
                                 NULL, NULL));
-                    for (int j = 0; j < (size / sizeof(double)); j++) {
+#endif
+                    for (unsigned j = 0; j < (size / sizeof(double)); j++) {
                         fprintf(stderr, "%f\n", dbuf[j]);
                     }
                     fprintf(stderr, "\n");
@@ -551,9 +660,13 @@ int main(int argc, char **argv) {
                 case (LONG): {
                     assert(size % sizeof(long) == 0);
                     long *lbuf = (long *)malloc(size);
+#ifdef USE_CUDA
+                    CHECK_DRIVER(cuMemcpyDtoH(lbuf, mem, size));
+#else
                     CHECK(clEnqueueReadBuffer(cmd, mem, CL_TRUE, 0, size, lbuf,
                                 0, NULL, NULL));
-                    for (int j = 0; j < (size / sizeof(long)); j++) {
+#endif
+                    for (unsigned j = 0; j < (size / sizeof(long)); j++) {
                         fprintf(stderr, "%ld ", lbuf[j]);
                     }
                     fprintf(stderr, "\n");

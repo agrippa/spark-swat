@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef USE_CUDA
 #include <cuda.h>
+#include <cuda_runtime.h>
 typedef uint32_t cl_uint;
 typedef int32_t cl_int;
 typedef int cl_platform_id;

@@ -45,12 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TRACE_MSG(...)
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#if defined(PROFILE_LOCKS) || defined(PROFILE_OPENCL)
 static unsigned long long get_clock_gettime_ns();
-#ifdef __cplusplus
-}
 #endif
 
 #ifdef PROFILE_OPENCL
@@ -438,6 +434,7 @@ static void remove_from_broadcast_cache_if_present(broadcast_id uuid,
     }
 }
 
+#ifndef USE_CUDA
 static int checkExtension(char *exts, size_t ext_len, const char *ext) {
     unsigned start = 0;
     while (start < ext_len) {
@@ -454,6 +451,7 @@ static int checkExtension(char *exts, size_t ext_len, const char *ext) {
     }
     return 0;
 }
+#endif
 
 static int checkAllAssertions(cl_device_id device, int requiresDouble,
         int requiresHeap) {
@@ -1035,7 +1033,7 @@ JNI_JAVA(void, OpenCLBridge, resetSwatContext)(JNIEnv *jenv, jclass clazz,
     ctx->completed_kernels = NULL;
 
 #ifdef USE_CUDA
-    for (int i = 0; i < ctx->kernel_buffers_capacity; i++) {
+    for (unsigned i = 0; i < ctx->kernel_buffers_capacity; i++) {
         if (ctx->kernel_buffers[i]) free(ctx->kernel_buffers[i]);
     }
     free(ctx->kernel_buffers);
@@ -1082,7 +1080,6 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 #endif
     jsize source_len;
 
-    cl_int err;
     cl_program program;
     if (dev_ctx->program_cache->find(label_str) != dev_ctx->program_cache->end()) {
         program = dev_ctx->program_cache->at(label_str);
@@ -1139,6 +1136,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
         ASSERT(old_ctx == dev_ctx->ctx);
 #else
         size_t source_size[] = { (size_t)source_len };
+        cl_int err;
         program = clCreateProgramWithSource(dev_ctx->ctx, 1, (const char **)&raw_source,
                 source_size, &err);
         CHECK(err);
@@ -1176,6 +1174,7 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
     CHECK_DRIVER(cuModuleGetFunction(&kernel, program, "run"));
     pop_cu_ctx(dev_ctx);
 #else
+    cl_int err;
     cl_kernel kernel = clCreateKernel(program, "run", &err);
     CHECK(err);
 #endif
@@ -1446,7 +1445,7 @@ JNI_JAVA(void, OpenCLBridge, transferOverflowSparseVectorBuffers)(JNIEnv *jenv,
     int *srcOffsets = (int *)srcSizesBuffer;
 
     memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
-    memcpy(dstValues, dstValues + elementsUsed, leftoverElements * sizeof(double));
+    memcpy(dstValues, srcValues + elementsUsed, leftoverElements * sizeof(double));
     memcpy(dstIndices, srcIndices + elementsUsed, leftoverElements * sizeof(int));
     for (int i = 0; i < leftoverVectors; i++) {
         dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
@@ -1472,7 +1471,7 @@ JNI_JAVA(void, OpenCLBridge, transferOverflowDenseVectorBuffers)(JNIEnv *jenv,
     int *srcOffsets = (int *)srcSizesBuffer;
 
     memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
-    memcpy(dstValues, dstValues + elementsUsed, leftoverElements * sizeof(double));
+    memcpy(dstValues, srcValues + elementsUsed, leftoverElements * sizeof(double));
     for (int i = 0; i < leftoverVectors; i++) {
         dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
     }
@@ -1497,7 +1496,7 @@ JNI_JAVA(void, OpenCLBridge, transferOverflowPrimitiveArrayBuffers)(
     int *srcOffsets = (int *)srcSizesBuffer;
 
     memcpy(dstSizes, srcSizes + vectorsUsed, leftoverVectors * sizeof(int));
-    memcpy(dstValues, dstValues + (elementsUsed * primitiveElementSize),
+    memcpy(dstValues, srcValues + (elementsUsed * primitiveElementSize),
             leftoverElements * primitiveElementSize);
     for (int i = 0; i < leftoverVectors; i++) {
         dstOffsets[i] = srcOffsets[vectorsUsed + i] - elementsUsed;
@@ -1512,7 +1511,6 @@ JNI_JAVA(void, OpenCLBridge, deserializeStridedValuesFromNativeArray)(
         jlong valuesBuffer, jlong sizesBuffer, jlong offsetsBuffer, jint index,
         jint tiling) {
     ENTER_TRACE("deserializeStridedValuesFromNativeArray");
-    const int bufferToLength = tiling;
 
     double *values = (double *)valuesBuffer;
     int *sizes = (int *)sizesBuffer;
@@ -1541,7 +1539,6 @@ JNI_JAVA(void, OpenCLBridge, deserializeStridedIndicesFromNativeArray)(
         jlong indicesBuffer, jlong sizesBuffer, jlong offsetsBuffer, jint index,
         jint tiling) {
     ENTER_TRACE("deserializeStridedIndicesFromNativeArray");
-    const int bufferToLength = tiling;
 
     int *indices = (int *)indicesBuffer;
     int *sizes = (int *)sizesBuffer;
@@ -2138,7 +2135,7 @@ static void add_to_global_arguments(arg_value *val, swat_context *ctx) {
 static void clSetKernelArgWrapper(swat_context *ctx, int index, size_t size,
         const void *val) {
 #ifdef USE_CUDA
-    if (ctx->kernel_buffers_capacity < index + 1) {
+    if ((int)ctx->kernel_buffers_capacity < index + 1) {
         const unsigned prev_size = ctx->kernel_buffers_capacity;
         const unsigned new_size = index + 1;
         ctx->kernel_buffers = (void **)realloc(ctx->kernel_buffers,
@@ -2299,7 +2296,6 @@ static void mark_kernel_complete_wrapper(cl_event event,
 static void copy_kernel_outputs(kernel_context *kernel_ctx, cl_event prev_event);
 
 static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
-    const int free_index_arg_index = kernel_ctx->heapStartArgnum + 1;
     swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
     heap_context *heap_ctx = NULL;
@@ -2466,23 +2462,6 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 #endif
 }
 
-static cl_region *find_kernel_specific_argument_for(kernel_context *kernel_ctx,
-        int index) {
-    const int args_len = kernel_ctx->accumulated_arguments_len;
-
-    arg_value *found = NULL;
-    for (int i = 0; i < args_len && found == NULL; i++) {
-        arg_value *curr = kernel_ctx->accumulated_arguments + i;
-        if (curr->index == index) {
-            found = curr;
-        }
-    }
-    ASSERT(found);
-    ASSERT(found->type == REGION);
-    ASSERT(found->val.region);
-    return found->val.region;
-}
-
 #ifdef USE_CUDA
 static void finally_done_callback(CUstream hStream, CUresult status,
         void *user_data)
@@ -2565,7 +2544,9 @@ static void finally_done_callback(cl_event event,
 
 static void copy_kernel_outputs(kernel_context *kernel_ctx,
         cl_event prev_event) {
+#ifdef VERBOSE
     swat_context *ctx = kernel_ctx->ctx;
+#endif
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
 #ifdef USE_CUDA
@@ -2680,10 +2661,11 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
 
     kernel_context *kernel_ctx = (kernel_context *)user_data;
     heap_context *heap_ctx = (heap_context *)kernel_ctx->curr_heap_ctx;
+#ifdef VERBOSE
     swat_context *ctx = kernel_ctx->ctx;
-    device_context *dev_ctx = kernel_ctx->dev_ctx;
+#endif
 
-    const int free_index = *(heap_ctx->pinned_h_free_index);
+    const unsigned free_index = *(heap_ctx->pinned_h_free_index);
     const size_t available_bytes =
         (free_index > heap_ctx->heap_size ? heap_ctx->heap_size : free_index);
     const int kernel_complete = (free_index <= heap_ctx->heap_size);
@@ -2709,7 +2691,7 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     force_pthread_mutex_unlock(&heaps_to_copy_lock);
 }
 
-static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, int tid) {
+static kernel_context *find_matching_kernel_ctx(swat_context *ctx, unsigned seq_no, int tid) {
     kernel_context *prev = NULL;
     kernel_context *curr = ctx->completed_kernels;
 
@@ -2742,7 +2724,6 @@ static kernel_context *find_matching_kernel_ctx(swat_context *ctx, int seq_no, i
 JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
         jlong l_kernel_ctx) {
     kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
-    swat_context *ctx = kernel_ctx->ctx;
     device_context *dev_ctx = kernel_ctx->dev_ctx;
 
 #ifdef PROFILE_LOCKS
@@ -3448,7 +3429,6 @@ JNI_JAVA(void, OpenCLBridge, enqueueBufferFreeCallback)(JNIEnv *jenv,
         jclass clazz, jlong l_ctx, jlong l_dev_ctx, jint buffer_id) {
     ENTER_TRACE("enqueueBufferFreeCallback");
     swat_context *ctx = (swat_context *)l_ctx;
-    device_context *dev_ctx = (device_context *)l_dev_ctx;
 
     ASSERT(ctx->last_write_event);
     add_freed_native_buffer(ctx, buffer_id, ctx->last_write_event);
@@ -3464,9 +3444,9 @@ JNI_JAVA(jint, OpenCLBridge, getCurrentSeqNo)(JNIEnv *jenv, jclass clazz,
 
 JNI_JAVA(void, OpenCLBridge, pinnedToJVMArray)(JNIEnv *jenv, jclass clazz,
         jlong l_kernel_ctx, jobject primitive_arr, jlong l_pinned, jint nbytes) {
-    kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
     void *pinned = (void *)l_pinned;
 #ifdef VERBOSE
+    kernel_context *kernel_ctx = (kernel_context *)l_kernel_ctx;
     fprintf(stderr, "pinnedToJVMArray: thread=%d pinned=%p nbytes=%d\n",
             kernel_ctx->ctx->host_thread_index, pinned, nbytes);
 #endif
@@ -3546,7 +3526,6 @@ JNI_JAVA(jlong, OpenCLBridge, clMallocImpl)(JNIEnv *jenv, jclass clazz,
 
 JNI_JAVA(void, OpenCLBridge, clFree)(JNIEnv *jenv, jclass clazz, jlong l_region,
         jlong l_dev_ctx) {
-    device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_region *region = (cl_region *)l_region;
 #ifdef VERBOSE
     fprintf(stderr, "clFree: region=%p\n", region);
@@ -3557,7 +3536,6 @@ JNI_JAVA(void, OpenCLBridge, clFree)(JNIEnv *jenv, jclass clazz, jlong l_region,
 
 JNI_JAVA(jlong, OpenCLBridge, pin)(JNIEnv *jenv, jclass clazz,
         jlong l_dev_ctx, jlong l_region) {
-    device_context *dev_ctx = (device_context *)l_dev_ctx;
     cl_region *region = (cl_region *)l_region;
 #ifdef VERBOSE
     fprintf(stderr, "pin: region=%p\n", region);
@@ -3617,7 +3595,6 @@ JNI_JAVA(void, OpenCLBridge, setNativePinnedArrayArg)(JNIEnv *jenv,
 
 JNI_JAVA(void, OpenCLBridge, setOutArrayArg)(JNIEnv *jenv, jclass clazz,
         jlong lctx, jlong ldev_ctx, jint index, jlong l_region) {
-    device_context *dev_ctx = (device_context *)ldev_ctx;
     swat_context *ctx = (swat_context *)lctx;
     cl_region *region = (cl_region *)l_region;
 

@@ -54,7 +54,7 @@ static org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_cl_tests_
 
    
    double * __alloc0 = (double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
-   if (*__swat_alloc_failed) { return (0x0); } *((long *)__alloc0) = (in); __alloc0 = (double *)(((long *)__alloc0) + 1); 
+   if (*__swat_alloc_failed) { return ((org_apache_spark_mllib_linalg_DenseVector*)0x0); } *((long *)__alloc0) = (in); __alloc0 = (double *)(((long *)__alloc0) + 1); 
    double* valuesArr = __alloc0;
    int i = 0;
    for (; i<in; i = i + 1){
@@ -62,7 +62,7 @@ static org_apache_spark_mllib_linalg_DenseVector *org_apache_spark_rdd_cl_tests_
       valuesArr[i]  = (double)(2 * i);
    }
    org_apache_spark_mllib_linalg_DenseVector * __alloc1 = (org_apache_spark_mllib_linalg_DenseVector *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), __swat_alloc_failed);
-   if (*__swat_alloc_failed) { return (0x0); }
+   if (*__swat_alloc_failed) { return ((org_apache_spark_mllib_linalg_DenseVector*)0x0); }
    return dense_vec_fill(__alloc1, valuesArr);;
 }
 extern "C" __global__ void run(

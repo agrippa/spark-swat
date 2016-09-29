@@ -107,6 +107,7 @@ object SparkConnectedComponents {
             val countElapsed = System.currentTimeMillis - countStart
             System.err.println("nNodes=" + nNodes + ", " + countElapsed +
                     " ms to count")
+            System.exit(1)
         }
 
         val limitIters : Int = if (args.length > 2) args(2).toInt else -1

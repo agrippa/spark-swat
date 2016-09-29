@@ -3,7 +3,7 @@ include ${SWAT_HOME}/build.conf
 USE_CUDA=1
 
 # DEFINES=-DBRIDGE_DEBUG -DTRACE -DVERBOSE -DPROFILE_OPENCL
-DEFINES=
+DEFINES=-DBRIDGE_DEBUG
 GXX_FLAGS=-O3 -Wall
 # GXX_FLAGS+=-check-pointers=rw -check-pointers-dangling=all -g -rdynamic
 

@@ -42,10 +42,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocl_util.h"
 
 void list_devices() {
-    cl_uint num_platforms = get_num_opencl_platforms();
+    cl_uint num_platforms = get_num_platforms();
     cl_platform_id *platforms =
         (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
-    CHECK(clGetPlatformIDs(num_platforms, platforms, NULL));
+    get_platform_ids(platforms, num_platforms);
     int device_index = 0;
 
     for (cl_uint platform_index = 0; platform_index < num_platforms;
@@ -56,34 +56,13 @@ void list_devices() {
 
         cl_device_id *devices = (cl_device_id *)malloc(sizeof(cl_device_id) *
                 num_devices);
-        CHECK(clGetDeviceIDs(platforms[platform_index], CL_DEVICE_TYPE_ALL,
-                    num_devices, devices, NULL));
+        get_device_ids(platforms[platform_index], devices, num_devices);
         for (unsigned d = 0; d < num_devices; d++) {
             cl_device_id dev = devices[d];
-            cl_device_type type;
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_TYPE, sizeof(type), &type,
-                        NULL));
-            printf("  Device %d - ", device_index);
+            printf("  Device %d - %s - %s\n", device_index,
+                    get_device_type_str(dev), get_device_name(dev));
 
-            if (type == CL_DEVICE_TYPE_GPU) {
-                printf("GPU");
-            } else if (type == CL_DEVICE_TYPE_CPU) {
-                printf("CPU");
-            } else {
-                fprintf(stderr, "Unsupported device type in list_devices\n");
-                exit(1);
-            }
-
-            printf(" - ");
-
-            size_t name_len;
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_NAME, 0, NULL, &name_len));
-            char *device_name = (char *)malloc(name_len + 1);
-            CHECK(clGetDeviceInfo(dev, CL_DEVICE_NAME, name_len, device_name,
-                        NULL));
-            device_name[name_len] = '\0';
-            printf("%s\n", device_name);
-
+#ifndef USE_CUDA
             size_t version_len;
             CHECK(clGetDeviceInfo(dev, CL_DEVICE_VERSION, 0, NULL, &version_len));
             char *device_version = (char *)malloc(version_len + 1);
@@ -126,6 +105,7 @@ void list_devices() {
             printf("    %lu byte max arg size\n", max_arg_size);
             printf("    %s\n", device_version);
             printf("    %s\n", device_ext);
+#endif
 
             device_index++;
         }

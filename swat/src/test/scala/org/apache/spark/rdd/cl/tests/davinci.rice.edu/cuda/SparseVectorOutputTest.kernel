@@ -61,10 +61,10 @@ static org_apache_spark_mllib_linalg_SparseVector *org_apache_spark_rdd_cl_tests
 
    
    int * __alloc0 = (int *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(int) * (in)), __swat_alloc_failed);
-   if (*__swat_alloc_failed) { return (0x0); } *((long *)__alloc0) = (in); __alloc0 = (int *)(((long *)__alloc0) + 1); 
+   if (*__swat_alloc_failed) { return ((org_apache_spark_mllib_linalg_SparseVector*)0x0); } *((long *)__alloc0) = (in); __alloc0 = (int *)(((long *)__alloc0) + 1); 
    int* indicesArr = __alloc0;
    double * __alloc1 = (double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);
-   if (*__swat_alloc_failed) { return (0x0); } *((long *)__alloc1) = (in); __alloc1 = (double *)(((long *)__alloc1) + 1); 
+   if (*__swat_alloc_failed) { return ((org_apache_spark_mllib_linalg_SparseVector*)0x0); } *((long *)__alloc1) = (in); __alloc1 = (double *)(((long *)__alloc1) + 1); 
    double* valuesArr = __alloc1;
    int i = 0;
    for (; i<in; i = i + 1){
@@ -73,7 +73,7 @@ static org_apache_spark_mllib_linalg_SparseVector *org_apache_spark_rdd_cl_tests
       valuesArr[i]  = (double)(20 * in);
    }
    org_apache_spark_mllib_linalg_SparseVector * __alloc2 = (org_apache_spark_mllib_linalg_SparseVector *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_mllib_linalg_SparseVector), __swat_alloc_failed);
-   if (*__swat_alloc_failed) { return (0x0); }
+   if (*__swat_alloc_failed) { return ((org_apache_spark_mllib_linalg_SparseVector*)0x0); }
    return sparse_vec_fill(__alloc2, valuesArr, indicesArr, in, 1);;
 }
 extern "C" __global__ void run(

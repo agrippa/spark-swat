@@ -238,6 +238,13 @@ object SparkNN {
          * infoFilename should have one line for each layer in the neural net,
          * containing a single integer that is the number of neurons in that
          * layer. This includes the input layer and output layer.
+         *
+         * For example, the current contents of the info file is:
+         *
+         * 75
+         * 400
+         * 400
+         * 32
          */
         val infoFilename = args(0)
         /*
@@ -327,7 +334,10 @@ object SparkNN {
         val activations = new Array[RDD[Tuple2[Int, DenseVector]]](nlayers)
 
         val checkSize : Array[Tuple2[Int, DenseVector]] = raw_inputs.takeSample(true, 1, 1)
-        assert(checkSize.size == 1)
+        if (checkSize.size != 1) {
+            System.err.println("Expected checkSize to have 1 element but had " + checkSize.size)
+            System.exit(1)
+        }
         if (checkSize(0)._2.size != layerDimensionalities(0)) {
           System.err.println("Mismatch in expected input layer size and " +
                   "actual layer size. Expected " + layerDimensionalities(0) +
