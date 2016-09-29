@@ -7,10 +7,10 @@ static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigne
    else return (void *)(cheap + offset);
 }
 template<typename T>
-inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+inline T *dense_vec_fill(T *alloc, double *vals) {
     alloc->values = vals;
-    alloc->size = size;
-    alloc->tiling = tiling;
+    alloc->size = *(((long *)vals) - 1);
+    alloc->tiling = 1;
     return alloc;
 }
 template<typename T>
@@ -37,7 +37,7 @@ struct org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest__s{
 
 typedef struct This_s{
    } This;
-static int org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest__anon_1__external(This *this_ptr, int v){
+static int  org_apache_spark_rdd_cl_tests_Tuple2InputPassToFuncTest__anon_1__external(This *this_ptr, int v){
 
    return((v + 3));
 }

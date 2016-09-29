@@ -36,6 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <stdio.h>
 #include <map>
+#include <vector>
 #include <set>
 #include <string>
 #include <pthread.h>
@@ -237,6 +238,12 @@ typedef struct _swat_context {
 #endif
 
 } swat_context;
+
+typedef struct _heap_to_copy_back {
+    kernel_context *kernel_ctx;
+    unsigned heap_index;
+    int kernel_complete;
+} heap_to_copy_back;
 
 /*
  * The host-side storage of a single heap instance transferred from the device.

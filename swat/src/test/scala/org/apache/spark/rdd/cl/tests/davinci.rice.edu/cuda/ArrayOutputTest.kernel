@@ -7,10 +7,10 @@ static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigne
    else return (void *)(cheap + offset);
 }
 template<typename T>
-inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+inline T *dense_vec_fill(T *alloc, double *vals) {
     alloc->values = vals;
-    alloc->size = size;
-    alloc->tiling = tiling;
+    alloc->size = *(((long *)vals) - 1);
+    alloc->tiling = 1;
     return alloc;
 }
 template<typename T>
@@ -50,7 +50,7 @@ static double scala_Array__apply(void * __swat_heap, unsigned * __swat_free_inde
 }
 
 
-static double* org_apache_spark_rdd_cl_tests_ArrayOutputTest__anon_1__apply(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int in){
+static double * org_apache_spark_rdd_cl_tests_ArrayOutputTest__anon_1__apply(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size, This *this_ptr, int in){
 
    
    double * __alloc0 = (double *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(long) + (sizeof(double) * (in)), __swat_alloc_failed);

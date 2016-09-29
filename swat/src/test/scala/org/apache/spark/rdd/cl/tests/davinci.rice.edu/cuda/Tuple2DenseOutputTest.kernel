@@ -7,10 +7,10 @@ static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigne
    else return (void *)(cheap + offset);
 }
 template<typename T>
-inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+inline T *dense_vec_fill(T *alloc, double *vals) {
     alloc->values = vals;
-    alloc->size = size;
-    alloc->tiling = tiling;
+    alloc->size = *(((long *)vals) - 1);
+    alloc->tiling = 1;
     return alloc;
 }
 template<typename T>
@@ -82,7 +82,7 @@ static scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector *org_apache_spar
    if (*__swat_alloc_failed) { return (0x0); }
    org_apache_spark_mllib_linalg_DenseVector * __alloc2 = (org_apache_spark_mllib_linalg_DenseVector *)alloc(__swat_heap, __swat_free_index, __swat_heap_size, sizeof(org_apache_spark_mllib_linalg_DenseVector), __swat_alloc_failed);
    if (*__swat_alloc_failed) { return (0x0); }
-   return scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc1, in, dense_vec_fill(__alloc2, arr, *(((long *)__alloc2->values) - 1), 1));;
+   return scala_Tuple2_I_org_apache_spark_mllib_linalg_DenseVector___init_(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, __alloc1, in, dense_vec_fill(__alloc2, arr));;
 }
 extern "C" __global__ void run(
       int* in0, 

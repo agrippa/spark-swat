@@ -322,6 +322,9 @@ abstract class CLRDDProcessor[T : ClassTag, U : ClassTag](val nested : Iterator[
 
   if (initializing) {
     val initStart = System.currentTimeMillis // PROFILE
+    // Configure code generation to target the appropriate language
+    BlockWriter.emitOcl = (OpenCLBridge.usingCuda() == 0)
+
     sampleOutput = userLambda(firstSample).asInstanceOf[java.lang.Object]
     val entrypointAndKernel : Tuple2[Entrypoint, String] =
         if (!isAsyncMap) RuntimeUtil.getEntrypointAndKernel[T, U](firstSample,

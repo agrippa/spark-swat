@@ -7,10 +7,10 @@ static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigne
    else return (void *)(cheap + offset);
 }
 template<typename T>
-inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+inline T *dense_vec_fill(T *alloc, double *vals) {
     alloc->values = vals;
-    alloc->size = size;
-    alloc->tiling = tiling;
+    alloc->size = *(((long *)vals) - 1);
+    alloc->tiling = 1;
     return alloc;
 }
 template<typename T>
@@ -56,13 +56,13 @@ static scala_Tuple2_I_org_apache_spark_rdd_cl_tests_PointWithClassifier* scala_T
 }
 
 
-static float org_apache_spark_rdd_cl_tests_PointWithClassifier__z(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_PointWithClassifier__z(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
    return this_ptr->z;
 }
-static float org_apache_spark_rdd_cl_tests_PointWithClassifier__y(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_PointWithClassifier__y(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
    return this_ptr->y;
 }
-static float org_apache_spark_rdd_cl_tests_PointWithClassifier__x(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_PointWithClassifier__x(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr){
    return this_ptr->x;
 }
 static  org_apache_spark_rdd_cl_tests_PointWithClassifier * org_apache_spark_rdd_cl_tests_PointWithClassifier___init_(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr, float x, float y, float z){
@@ -73,7 +73,7 @@ static  org_apache_spark_rdd_cl_tests_PointWithClassifier * org_apache_spark_rdd
    ;
    return (this_ptr);
 }
-static float org_apache_spark_rdd_cl_tests_PointWithClassifier__dist(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr, org_apache_spark_rdd_cl_tests_PointWithClassifier* center){
+static float  org_apache_spark_rdd_cl_tests_PointWithClassifier__dist(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_PointWithClassifier *this_ptr, org_apache_spark_rdd_cl_tests_PointWithClassifier* center){
 
    
    float diffx = center->x - this_ptr->x;

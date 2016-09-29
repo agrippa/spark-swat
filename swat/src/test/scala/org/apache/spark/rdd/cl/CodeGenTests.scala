@@ -155,11 +155,12 @@ object CodeGenTests {
               entryPoint, params, isAsync)
       val openCL : String = writerAndKernel.kernel
 
+      Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
+
       val ctx : Long = OpenCLBridge.createSwatContext(lambda.getClass.getName,
           openCL, dev_ctx, 0, entryPoint.requiresDoublePragma,
           entryPoint.requiresHeap, 1);
 
-      Files.write(Paths.get("generated"), openCL.getBytes(StandardCharsets.UTF_8))
       Files.write(Paths.get("correct"), expectedKernel.getBytes(StandardCharsets.UTF_8))
 
       if (!openCL.equals(expectedKernel)) {

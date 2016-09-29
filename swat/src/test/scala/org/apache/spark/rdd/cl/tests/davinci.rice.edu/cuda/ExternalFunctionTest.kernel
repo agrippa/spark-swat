@@ -7,10 +7,10 @@ static __device__ void *alloc(void *heap, volatile unsigned *free_index, unsigne
    else return (void *)(cheap + offset);
 }
 template<typename T>
-inline T *dense_vec_fill(T *alloc, double *vals, unsigned size, unsigned tiling) {
+inline T *dense_vec_fill(T *alloc, double *vals) {
     alloc->values = vals;
-    alloc->size = size;
-    alloc->tiling = tiling;
+    alloc->size = *(((long *)vals) - 1);
+    alloc->tiling = 1;
     return alloc;
 }
 template<typename T>
@@ -38,31 +38,31 @@ struct org_apache_spark_rdd_cl_tests_Point_s{
 
 typedef struct This_s{
    } This;
-static void org_apache_spark_rdd_cl_tests_Point__z__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
+static void  org_apache_spark_rdd_cl_tests_Point__z__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
    this_ptr->z=x_1;
    ;
 }
-static float org_apache_spark_rdd_cl_tests_Point__z(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_Point__z(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->z;
 }
-static void org_apache_spark_rdd_cl_tests_Point__y__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
+static void  org_apache_spark_rdd_cl_tests_Point__y__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
    this_ptr->y=x_1;
    ;
 }
-static float org_apache_spark_rdd_cl_tests_Point__y(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_Point__y(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->y;
 }
-static void org_apache_spark_rdd_cl_tests_Point__x__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
+static void  org_apache_spark_rdd_cl_tests_Point__x__eq(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, float x_1){
 
    this_ptr->x=x_1;
    ;
 }
-static float org_apache_spark_rdd_cl_tests_Point__x(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
+static float  org_apache_spark_rdd_cl_tests_Point__x(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr){
    return this_ptr->x;
 }
-static void org_apache_spark_rdd_cl_tests_Point__update_values(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, int inc){
+static void  org_apache_spark_rdd_cl_tests_Point__update_values(void * __swat_heap, unsigned * __swat_free_index, int * __swat_alloc_failed, const int __swat_heap_size,  org_apache_spark_rdd_cl_tests_Point *this_ptr, int inc){
 
    org_apache_spark_rdd_cl_tests_Point__x__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, (this_ptr->x + (float)inc));
    org_apache_spark_rdd_cl_tests_Point__y__eq(__swat_heap, __swat_free_index, __swat_alloc_failed, __swat_heap_size, this_ptr, (this_ptr->y + (float)inc));
