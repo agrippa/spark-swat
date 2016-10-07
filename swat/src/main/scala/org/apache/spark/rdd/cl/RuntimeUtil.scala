@@ -113,6 +113,8 @@ object RuntimeUtil {
 
         val kernelFilename = kernelDir + "/" + lambda.getClass.getName + ".kernel"
         val handCodedKernel = try {
+            System.out.println("Loading kernel for " + lambda.getClass.getName +
+                    " from " + kernelFilename)
             Source.fromFile(kernelFilename).getLines.mkString
         } catch {
             case fnf: java.io.FileNotFoundException => null
@@ -123,6 +125,7 @@ object RuntimeUtil {
         }
 
         if (printKernel) {
+          System.err.println("Kernel name = " + lambda.getClass.getName)
           System.err.println(openCL)
         }
         EntrypointCache.kernelCache.put(entrypointKey, openCL)

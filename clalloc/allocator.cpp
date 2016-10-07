@@ -489,8 +489,9 @@ bool free_cl_region(cl_region *to_free, bool try_to_keep) {
         cl_region *next = to_free->next;
         cl_region *prev = to_free->prev;
 #ifdef VERBOSE
-        fprintf(stderr, "Before freeing (%p offset=%lu size=%lu)\n", to_free,
-                to_free->offset, to_free->size);
+        fprintf(stderr, "Before freeing (%p mem=%p offset=%lu size=%lu) on "
+                "device %d\n", to_free, to_free->sub_mem, to_free->offset,
+                to_free->size, to_free->grandparent->allocator->device_index);
         fprintf(stderr, "  try_to_keep=%d next=%p prev=%p\n", try_to_keep, next,
                 prev);
         if (prev) {
@@ -641,8 +642,9 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
             (size % allocator->address_align));
 
 #ifdef VERBOSE
-    fprintf(stderr, "Allocating %lu (actual=%lu) bytes, allocator state "
-            "beforehand:\n", rounded_size, size);
+    fprintf(stderr, "Allocating %lu (actual=%lu) bytes from device %d, "
+            "allocator state beforehand:\n", rounded_size, size,
+            allocator->device_index);
     print_allocator(allocator, -1);
 #endif
 
@@ -933,10 +935,10 @@ cl_region *allocate_cl_region(size_t size, cl_allocator *allocator,
     }
     copy->birth = copy->grandparent->curr_time;
 #ifdef VERBOSE
-    fprintf(stderr, "Allocating region=%p size=%lu parent free "
-            "bytes=%lu->%lu\n", copy, copy->size,
-            copy->grandparent->free_bytes,
-            copy->grandparent->free_bytes - copy->size);
+    fprintf(stderr, "Allocating region=%p mem=%p offset=%lu size=%lu parent "
+            "free bytes=%lu->%lu on device %d\n", copy, copy->sub_mem, copy->offset,
+            copy->size, copy->grandparent->free_bytes,
+            copy->grandparent->free_bytes - copy->size, allocator->device_index);
 #endif
     copy->grandparent->free_bytes -= copy->size;
 
@@ -1072,8 +1074,10 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
 
     unsigned int address_align;
 #ifdef USE_CUDA
+    assert(sizeof(cl_mem) == 8);
+
     const int max_n_allocs = 1;
-    address_align = 8;
+    address_align = 256;
     size_t max_alloc_size, global_mem_size;
 
     CHECK_DRIVER(cuCtxPushCurrent(ctx));

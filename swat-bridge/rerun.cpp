@@ -235,7 +235,7 @@ bool want_to_clear(int index, int *clears, int nclears) {
     return false;
 }
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && defined(BRIDGE_DEBUG)
 static void addArg(void ***kernel_buffers_ref,
         unsigned *kernel_buffers_capacity_ref, int index, size_t size,
         void *arg) {
@@ -268,6 +268,10 @@ int main(int argc, char **argv) {
     return (1);
 
 #else
+
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuInit(0));
+#endif
 
     char *input_file = NULL;
     char *kernel_file = NULL;
@@ -409,10 +413,20 @@ int main(int argc, char **argv) {
 
     map<int, kernel_arg *> debug_arguments;
     map<int, cl_mem> arguments;
+    cl_mem minimum, maximum;
+    minimum = maximum = 0;
     for (i = 0; i < num_args; i++) {
         int arg_index;
         safe_read(fd, &arg_index, sizeof(arg_index));
         kernel_arg *arg = new kernel_arg(fd);
+        if (arg->get_is_ref()) {
+            if (minimum == 0 || arg->get_mem() < minimum) {
+                minimum = arg->get_mem();
+            }
+            if (maximum == 0 || arg->get_mem() + arg->get_size() > maximum) {
+                maximum = arg->get_mem() + arg->get_size();
+            }
+        }
 
         fprintf(stderr, "Read arg %d of size %lu, val=%p, is_ref? %s, zero? "
                 "%s\n", arg_index, arg->get_size(), arg->get_val(),
@@ -422,8 +436,11 @@ int main(int argc, char **argv) {
         debug_arguments[arg_index] = arg;
     }
 
-
     close(fd);
+
+    const size_t total_mem_size = maximum - minimum;
+    fprintf(stderr, "minimum addr = %p, maximum addr = %p, total size = %llu\n",
+            minimum, maximum, total_mem_size);
 
     // Set up OpenCL environment
     cl_platform_id cl_platform;
@@ -434,7 +451,6 @@ int main(int argc, char **argv) {
 
 #ifdef USE_CUDA
     CUcontext ctx;
-    CHECK_DRIVER(cuInit(0));
     CHECK_DRIVER(cuCtxCreate(&ctx, CU_CTX_SCHED_AUTO, cl_device));
 #else
     cl_int err;
@@ -504,6 +520,15 @@ int main(int argc, char **argv) {
     CHECK(err);
 #endif
 
+    cl_mem all_mem;
+#ifdef USE_CUDA
+    CHECK_DRIVER(cuMemAlloc(&all_mem, total_mem_size));
+#else
+    cl_int err;
+    all_mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, total_mem_size, NULL, &err);
+    CHECK(err);
+#endif
+
     for (map<int, kernel_arg *>::iterator i = debug_arguments.begin(),
             e = debug_arguments.end(); i != e; i++) {
         int arg_index = i->first;
@@ -514,17 +539,10 @@ int main(int argc, char **argv) {
                     size_changes, n_size_changes);
             size_t size = (new_size == 0 ? arg->get_size() : new_size);
 
-            cl_mem mem;
-#ifdef USE_CUDA
-            CHECK_DRIVER(cuMemAlloc(&mem, size));
-#else
-            cl_int err;
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE,
-                    size, NULL, &err);
-            CHECK(err);
-#endif
-            fprintf(stderr, "Allocating argument %d of size %lu\n", arg_index,
-                    size);
+            cl_mem mem = all_mem + (arg->get_mem() - minimum);
+            fprintf(stderr, "Allocating argument %d of size %lu, originally at "
+                    "address %p, now at %p\n", arg_index, size, arg->get_mem(),
+                    mem);
 
             assert(arguments.find(arg_index) == arguments.end());
             arguments[arg_index] = mem;
