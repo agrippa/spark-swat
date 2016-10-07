@@ -1106,7 +1106,6 @@ JNI_JAVA(jlong, OpenCLBridge, createSwatContext)
 #endif
 
 #ifdef USE_CUDA
-        fprintf(stderr, "=====\n%s\n=====\n", raw_source);
         CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
         nvrtcProgram prog;
         CHECK_NVRTC(nvrtcCreateProgram(&prog, raw_source, "foo", 0, NULL, NULL));
@@ -2185,7 +2184,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
 
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg(&none,
-                        sizeof(none), false, false);
+                        sizeof(none));
 #endif
             }
             break;
@@ -2199,7 +2198,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             clSetKernelArgWrapper(context, index, sizeof(i), &i);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&i,
-                        sizeof(i), false, false);
+                        sizeof(i));
 #endif
             break;
         }
@@ -2212,7 +2211,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             clSetKernelArgWrapper(context, index, sizeof(f), &f);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&f,
-                        sizeof(f), false, false);
+                        sizeof(f));
 #endif
             break;
         }
@@ -2225,7 +2224,7 @@ static void setKernelArgument(arg_value *val, swat_context *context,
             clSetKernelArgWrapper(context, index, sizeof(d), &d);
 #ifdef BRIDGE_DEBUG
                 (*context->debug_arguments)[index] = new kernel_arg((void *)&d,
-                        sizeof(d), false, false);
+                        sizeof(d));
 #endif
             break;
         }
@@ -2347,8 +2346,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
             new kernel_arg(heap_ctx->free_index->sub_mem, sizeof(zero),
                     kernel_ctx->dev_ctx);
         (*ctx->debug_arguments)[kernel_ctx->heapStartArgnum + 2] =
-            new kernel_arg(&heap_ctx->heap_size, sizeof(heap_ctx->heap_size),
-                    false, false);
+            new kernel_arg(&heap_ctx->heap_size, sizeof(heap_ctx->heap_size));
 #endif
 
         // Clear the free index of the acquired heap asynchronously
@@ -2382,7 +2380,7 @@ static void runImpl(kernel_context *kernel_ctx, cl_event prev_event) {
 
 #ifdef BRIDGE_DEBUG
     (*ctx->debug_arguments)[kernel_ctx->iterArgNum] = new kernel_arg(
-            &kernel_ctx->iter, sizeof(kernel_ctx->iter), false, false);
+            &kernel_ctx->iter, sizeof(kernel_ctx->iter));
     save_to_dump_file(ctx, kernel_ctx->global_size, kernel_ctx->local_size);
 #endif
 
@@ -2627,7 +2625,7 @@ static void mark_kernel_complete_wrapper(cl_event event,
 #endif
 {
 #ifdef USE_CUDA
-    ASSERT(status == CUDA_SUCCESS);
+    CHECK_DRIVER(status);
 #else
     ASSERT(event_command_exec_status == CL_COMPLETE);
 #endif
@@ -2674,6 +2672,8 @@ static void heap_copy_callback(cl_event event, cl_int event_command_exec_status,
     fprintf(stderr, "heap_copy_callback: thread=%d ctx=%p seq=%d free_index=%d heap_size=%u\n",
             ctx->host_thread_index, ctx, kernel_ctx->seq_no, free_index, heap_ctx->heap_size);
 #endif
+
+    assert(kernel_complete);
 
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].heap_ctx = heap_ctx;
     (kernel_ctx->heaps)[kernel_ctx->n_heap_ctxs].size = available_bytes;
@@ -2757,7 +2757,6 @@ JNI_JAVA(void, OpenCLBridge, cleanupKernelContext)(JNIEnv *jenv, jclass clazz,
     err = pthread_mutex_unlock(&dev_ctx->heap_cache_lock);
     ASSERT(err == 0);
 
-    fprintf(stderr, "freeing %p %p %p\n", kernel_ctx->heaps, kernel_ctx->heap_copy_back_events, kernel_ctx);
     free(kernel_ctx->heaps);
     free(kernel_ctx->heap_copy_back_events);
     free(kernel_ctx);
@@ -3330,8 +3329,6 @@ static void add_freed_native_buffer(swat_context *ctx, int buffer_id,
                 sizeof(native_input_buffer_list_node));
     CHECK_ALLOC(freed);
 
-    fprintf(stderr, "Thread %d putting %p\n", ctx->host_thread_index, freed);
-
     freed->id = buffer_id;
     freed->event = event;
     freed->next = NULL;
@@ -3391,25 +3388,17 @@ JNI_JAVA(jint, OpenCLBridge, waitForFreedNativeBuffer)(JNIEnv *jenv,
     force_pthread_mutex_unlock(&ctx->freed_native_input_buffers_lock);
 
     int buffer_id = released->id;
-    fprintf(stderr, "released = %p\n", released);
-    fprintf(stderr, "released->event = %p\n", released->event);
 
     if (released->event) {
 #ifdef USE_CUDA
-        fprintf(stderr, "pushing current %p\n", dev_ctx->ctx);
         CHECK_DRIVER(cuCtxPushCurrent(dev_ctx->ctx));
-        fprintf(stderr, "synchronizing\n");
         CHECK_DRIVER(cuEventSynchronize(released->event));
-        fprintf(stderr, "popping current\n");
         pop_cu_ctx(dev_ctx);
-        fprintf(stderr, "done\n");
 #else
         CHECK(clWaitForEvents(1, &released->event));
 #endif
     }
-    fprintf(stderr, "%d: freeing... %p\n", ctx->host_thread_index, released);
     free(released);
-    fprintf(stderr, "%d: done freeing %p\n", ctx->host_thread_index, released);
 
     EXIT_TRACE("waitForFreedNativeBuffer");
     return buffer_id;

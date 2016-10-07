@@ -35,7 +35,8 @@ SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
               -Dswat.input_chunking=10000 -Dswat.heap_size=41943040 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
-              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true"
+# -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true -Dswat.kernels_dir=/home/jmg3/spark-swat/functional-tests/nn/kernels"
 
 # NUM_EXECUTORS=$(scontrol show hostname | wc -l)
 NUM_EXECUTORS=3

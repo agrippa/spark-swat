@@ -97,6 +97,8 @@ object SparkSimple {
         val outputs : RDD[Double] = inputs.map(v => v._1 + v._2(0) + v._2(1) + v._2(2))
         val outputs2 : Array[Double] = outputs.collect
         sc.stop
+
+        System.err.println("VALUE = " + outputs2(0))
         outputs2
     }
 

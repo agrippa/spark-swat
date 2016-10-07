@@ -46,12 +46,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef BRIDGE_DEBUG
 class kernel_arg {
     public:
+        // Constructor for loading an argument from a stored checkpoint.
         kernel_arg(int fd) {
             safe_read(fd, &size, sizeof(size));
             safe_read(fd, &has_val, sizeof(has_val));
             if (has_val) {
                 val = malloc(size);
                 assert(val);
+                safe_read(fd, &mem, sizeof(mem));
                 safe_read(fd, val, size);
             } else {
                 val = NULL;
@@ -60,28 +62,23 @@ class kernel_arg {
             safe_read(fd, &clear_to_zero, sizeof(clear_to_zero));
         }
 
-        kernel_arg(void *set_val, size_t set_size, bool set_is_ref,
-                bool set_clear_to_zero) {
-            if (set_val == NULL) {
-                has_val = false;
-                val = NULL;
-            } else {
-                has_val = true;
-                val = malloc(set_size);
-                memcpy(val, set_val, set_size);
-            }
+        // Constructor for scalar parameters
+        kernel_arg(void *set_val, size_t set_size) {
+            assert(set_val);
+
+            has_val = true;
+            val = malloc(set_size);
+            memcpy(val, set_val, set_size);
 
             size = set_size;
-            is_ref = set_is_ref;
-            clear_to_zero = set_clear_to_zero;
+            is_ref = false;
+            clear_to_zero = false;
         }
 
-#ifdef USE_CUDA
-        kernel_arg(CUdeviceptr mem, size_t set_size, device_context *ctx) {
-#else
-        kernel_arg(cl_mem mem, size_t set_size, device_context *ctx) {
-#endif
+        // Constructor for reference/array parameters
+        kernel_arg(cl_mem set_mem, size_t set_size, device_context *ctx) {
             has_val = true;
+            mem = set_mem;
             val = malloc(set_size);
             ASSERT(val);
 #ifdef VERBOSE
@@ -89,9 +86,13 @@ class kernel_arg {
 #endif
 
 #ifdef USE_CUDA
-            CHECK_DRIVER(cuMemcpyDtoH(val, mem, set_size))
+            CHECK_DRIVER(cuCtxPushCurrent(ctx->ctx));
+            CHECK_DRIVER(cuMemcpyDtoH(val, set_mem, set_size));
+            CUcontext old;
+            CHECK_DRIVER(cuCtxPopCurrent(&old));
+            assert(ctx->ctx == old);
 #else
-            CHECK(clEnqueueReadBuffer(ctx->cmd, mem, CL_TRUE, 0, set_size, val,
+            CHECK(clEnqueueReadBuffer(ctx->cmd, set_mem, CL_TRUE, 0, set_size, val,
                         0, NULL, NULL));
 #endif
 
@@ -104,11 +105,13 @@ class kernel_arg {
         size_t get_size() { return size; }
         bool get_is_ref() { return is_ref; }
         bool get_clear_to_zero() { return clear_to_zero; }
+        cl_mem get_mem() { return mem; }
 
         void dump(int fd) {
             safe_write(fd, &size, sizeof(size));
             safe_write(fd, &has_val, sizeof(has_val));
             if (has_val) {
+                safe_write(fd, &mem, sizeof(mem));
                 safe_write(fd, val, size);
             }
             safe_write(fd, &is_ref, sizeof(is_ref));
@@ -116,6 +119,7 @@ class kernel_arg {
         }
 
     private:
+        cl_mem mem;
         void *val;
         bool has_val;
         size_t size;

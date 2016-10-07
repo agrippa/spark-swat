@@ -169,6 +169,7 @@ object SparkFuzzyCMeans {
                     val u_m : Double = scala.math.pow(u, m)
                     output_arr(point_len) = u_m
                   }
+
                   (center_id, Vectors.dense(output_arr).asInstanceOf[DenseVector])
                 })
 

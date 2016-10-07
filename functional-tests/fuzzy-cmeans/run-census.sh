@@ -25,11 +25,12 @@ if [[ $INPUT_EXISTS != 1 ]]; then
 fi
 # --conf "spark.executor.extraJavaOptions=-XX:GCTimeRatio=19 -Xloggc:/tmp/SWAT.log -verbose:gc" \
 
+# -Dswat.input_chunking=1000 -Dswat.heap_size=2097152 \
 SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
-              -Dswat.input_chunking=100000 -Dswat.heap_size=67108864 \
+              -Dswat.input_chunking=50000 -Dswat.heap_size=67108864 \
               -Dswat.n_native_input_buffers=$NINPUTS \
               -Dswat.n_native_output_buffers=$NOUTPUTS \
-              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=false"
+              -Dswat.heaps_per_device=$HEAPS_PER_DEVICE -Dswat.print_kernel=true"
 # SWAT_OPTIONS="spark.executor.extraJavaOptions=-Dswat.cl_local_size=256 \
 #               -Dswat.input_chunking=50000 -Dswat.heap_size=33554432 \
 #               -Dswat.n_native_input_buffers=$NINPUTS \
