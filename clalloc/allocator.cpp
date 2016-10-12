@@ -1088,7 +1088,16 @@ cl_allocator *init_allocator(cl_device_id dev, int device_index,
 
     size_t mem_free, mem_total;
     CHECK_DRIVER(cuMemGetInfo(&mem_free, &mem_total));
-    max_alloc_size = global_mem_size = mem_free;
+    /*
+     * There appear to be some hidden limits to page-locked host allocation on
+     * some systems which mean we want to split into multiple allocations if we
+     * have a lot of CUDA device memory. This limit ensures that.
+     */
+    const size_t limit_to = 11LU * 1024LU * 1024LU * 1024LU;
+    max_alloc_size = mem_free;
+    if (max_alloc_size > limit_to) max_alloc_size = limit_to;
+
+    global_mem_size = mem_free;
 #else
     cl_ulong global_mem_size, max_alloc_size;
     CHECK(clGetDeviceInfo(dev, CL_DEVICE_GLOBAL_MEM_SIZE,

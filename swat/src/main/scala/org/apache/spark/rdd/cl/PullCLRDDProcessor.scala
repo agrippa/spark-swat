@@ -46,6 +46,7 @@ class PullCLRDDProcessor[T: ClassTag, U: ClassTag](val myNested : Iterator[T],
   val readerRunner = new Runnable() {
     override def run() {
       assert(pullModel)
+
       var done : Boolean = false
       inputBuffer.setCurrentNativeBuffers(
               initiallyEmptyNativeInputBuffers.remove)
